@@ -4,9 +4,8 @@
 # Environment variables
 .env
 .env.local
-.env.production
 .env.development
-*.env
+# Note: .env.production is committed (contains public Supabase anon key)
 
 # Dependencies
 node_modules/
