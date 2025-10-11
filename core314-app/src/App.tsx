@@ -14,6 +14,12 @@ import { SystemHealth } from './pages/admin/SystemHealth';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { Integrations } from './pages/Integrations';
+import DashboardBuilder from './pages/DashboardBuilder';
+import DashboardView from './pages/DashboardView';
+import Goals from './pages/Goals';
+import GoalCreate from './pages/GoalCreate';
+import Notifications from './pages/Notifications';
+import IntegrationHub from './pages/IntegrationHub';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -48,6 +54,60 @@ function App() {
           element={
             <ProtectedRoute>
               <Integrations />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/dashboard-builder"
+          element={
+            <ProtectedRoute>
+              <DashboardBuilder />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/dashboards/:id"
+          element={
+            <ProtectedRoute>
+              <DashboardView />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/goals"
+          element={
+            <ProtectedRoute>
+              <Goals />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/goals/create"
+          element={
+            <ProtectedRoute>
+              <GoalCreate />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/integration-hub"
+          element={
+            <ProtectedRoute>
+              <IntegrationHub />
             </ProtectedRoute>
           }
         />
