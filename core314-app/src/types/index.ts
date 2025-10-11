@@ -260,7 +260,6 @@ export interface IntegrationToken {
   integration_id: string;
   token_type: 'access' | 'refresh';
   expires_at?: string;
-  is_expired: boolean;
   last_refreshed?: string;
 }
 

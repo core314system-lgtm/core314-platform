@@ -149,7 +149,6 @@ CREATE TABLE integration_tokens (
   integration_id UUID REFERENCES integration_configs(id) ON DELETE CASCADE,
   token_type TEXT CHECK (token_type IN ('access', 'refresh')),
   expires_at TIMESTAMP WITH TIME ZONE,
-  is_expired BOOLEAN GENERATED ALWAYS AS (expires_at < NOW()) STORED,
   last_refreshed TIMESTAMP WITH TIME ZONE
 );
 
