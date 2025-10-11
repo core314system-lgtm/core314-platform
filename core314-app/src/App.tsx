@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Pricing } from './pages/Pricing';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminLayout } from './pages/admin/Layout';
+import { MainLayout } from './components/MainLayout';
 import { UserManagement } from './pages/admin/UserManagement';
 import { IntegrationTracking } from './pages/admin/IntegrationTracking';
 import { MetricsDashboard } from './pages/admin/MetricsDashboard';
@@ -41,76 +42,23 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         
         <Route
-          path="/dashboard"
+          path="/"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <MainLayout />
             </ProtectedRoute>
           }
-        />
-        
-        <Route
-          path="/integrations"
-          element={
-            <ProtectedRoute>
-              <Integrations />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/dashboard-builder"
-          element={
-            <ProtectedRoute>
-              <DashboardBuilder />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/dashboards/:id"
-          element={
-            <ProtectedRoute>
-              <DashboardView />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/goals"
-          element={
-            <ProtectedRoute>
-              <Goals />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/goals/create"
-          element={
-            <ProtectedRoute>
-              <GoalCreate />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute>
-              <Notifications />
-            </ProtectedRoute>
-          }
-        />
-        
-        <Route
-          path="/integration-hub"
-          element={
-            <ProtectedRoute>
-              <IntegrationHub />
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="integrations" element={<Integrations />} />
+          <Route path="dashboard-builder" element={<DashboardBuilder />} />
+          <Route path="dashboards/:id" element={<DashboardView />} />
+          <Route path="goals" element={<Goals />} />
+          <Route path="goals/create" element={<GoalCreate />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="integration-hub" element={<IntegrationHub />} />
+        </Route>
         
         <Route
           path="/admin"
@@ -130,8 +78,6 @@ function App() {
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
-        
-        <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
       </Routes>
     </Router>
   );
