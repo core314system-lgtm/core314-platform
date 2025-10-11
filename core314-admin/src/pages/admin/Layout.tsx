@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { Button } from '../../components/ui/button';
 import { 
   Users, 
@@ -10,24 +10,23 @@ import {
   Activity, 
   Bell, 
   FileText,
-  LogOut,
-  Home
+  LogOut
 } from 'lucide-react';
 
 const navItems = [
-  { path: '/admin/users', label: 'User Management', icon: Users },
-  { path: '/admin/integrations', label: 'Integration Tracking', icon: Layers },
-  { path: '/admin/metrics', label: 'Metrics Dashboard', icon: BarChart3 },
-  { path: '/admin/billing', label: 'Billing Overview', icon: DollarSign },
-  { path: '/admin/ai-logs', label: 'AI Logs', icon: Bot },
-  { path: '/admin/system-health', label: 'System Health', icon: Activity },
-  { path: '/admin/notifications', label: 'Notification Center', icon: Bell },
-  { path: '/admin/audit-trail', label: 'Audit Trail', icon: FileText },
+  { path: '/users', label: 'User Management', icon: Users },
+  { path: '/integrations', label: 'Integration Tracking', icon: Layers },
+  { path: '/metrics', label: 'Metrics Dashboard', icon: BarChart3 },
+  { path: '/billing', label: 'Billing Overview', icon: DollarSign },
+  { path: '/ai-logs', label: 'AI Logs', icon: Bot },
+  { path: '/system-health', label: 'System Health', icon: Activity },
+  { path: '/notifications', label: 'Notification Center', icon: Bell },
+  { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
 
 export function AdminLayout() {
   const location = useLocation();
-  const { signOut, profile } = useAuth();
+  const { signOut, adminUser } = useAdminAuth();
 
   const handleSignOut = async () => {
     await signOut();
@@ -43,20 +42,6 @@ export function AdminLayout() {
           </div>
           
           <nav className="px-3 space-y-1">
-            <Link
-              to="/dashboard"
-              className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <Home className="mr-3 h-5 w-5" />
-              Back to Dashboard
-            </Link>
-            
-            <div className="pt-4 pb-2">
-              <p className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Admin Modules
-              </p>
-            </div>
-            
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -82,10 +67,10 @@ export function AdminLayout() {
             <div className="flex items-center mb-3">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {profile?.full_name}
+                  {adminUser?.full_name || 'Admin User'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {profile?.email}
+                  {adminUser?.email}
                 </p>
               </div>
             </div>
