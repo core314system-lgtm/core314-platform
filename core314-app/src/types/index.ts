@@ -103,3 +103,173 @@ export interface Lead {
   is_beta_tester: boolean;
   created_at: string;
 }
+export interface IntegrationConfig {
+  id: string;
+  user_id: string;
+  integration_type: string;
+  config_data: {
+    base_url?: string;
+    api_key?: string;
+    oauth_token?: string;
+    [key: string]: unknown;
+  };
+  credentials_encrypted?: string;
+  is_active: boolean;
+  last_sync?: string;
+  sync_frequency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface APISchema {
+  id: string;
+  integration_id: string;
+  schema_data: object;
+  schema_version?: string;
+  embedding?: number[];
+  discovered_at: string;
+  last_analyzed?: string;
+}
+
+export interface AutoMetric {
+  id: string;
+  integration_id: string;
+  metric_name: string;
+  metric_type: 'count' | 'sum' | 'average' | 'percentage' | 'trend';
+  data_path: { path: string[] };
+  unit?: string;
+  chart_type: 'line' | 'bar' | 'donut' | 'gauge' | 'table';
+  ai_confidence?: number;
+  is_enabled: boolean;
+  created_at: string;
+}
+
+export interface DashboardLayout {
+  id: string;
+  user_id: string;
+  dashboard_name: string;
+  integration_id: string;
+  layout_config: {
+    dashboard_name: string;
+    widgets: DashboardWidget[];
+    refresh_interval: number;
+  };
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardWidget {
+  id: string;
+  metric_id: string;
+  metric_name: string;
+  chart_type: 'line' | 'bar' | 'donut' | 'gauge' | 'table';
+  data_config: {
+    metric_type: string;
+    data_path: string[];
+    unit?: string;
+  };
+  layout: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+}
+
+export interface UserGoal {
+  id: string;
+  user_id: string;
+  goal_name: string;
+  goal_type: 'okr' | 'kpi' | 'milestone' | 'target';
+  target_metric: string;
+  target_value: number;
+  target_date?: string;
+  current_value: number;
+  progress_percentage: number;
+  status: 'on_track' | 'at_risk' | 'off_track' | 'completed';
+  linked_integration_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KPISnapshot {
+  id: string;
+  goal_id: string;
+  snapshot_value: number;
+  snapshot_time: string;
+}
+
+export interface GoalRecommendation {
+  id: string;
+  goal_id: string;
+  recommendation_text: string;
+  reasoning?: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'pending' | 'accepted' | 'dismissed' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertRule {
+  id: string;
+  user_id: string;
+  rule_name: string;
+  rule_type: 'threshold' | 'anomaly' | 'forecast' | 'schedule';
+  trigger_condition: object;
+  linked_metric_id?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationChannel {
+  id: string;
+  user_id: string;
+  channel_type: 'email' | 'sms' | 'slack' | 'teams';
+  channel_config: {
+    address?: string;
+    webhook_url?: string;
+    [key: string]: unknown;
+  };
+  is_default: boolean;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface AlertHistory {
+  id: string;
+  alert_rule_id: string;
+  triggered_at: string;
+  channels_sent: object;
+  delivery_status: object;
+  alert_payload: object;
+}
+
+export interface IntegrationHealthLog {
+  id: string;
+  integration_id: string;
+  check_time: string;
+  status: 'healthy' | 'degraded' | 'down';
+  response_time_ms?: number;
+  error_message?: string;
+}
+
+export interface IntegrationToken {
+  id: string;
+  integration_id: string;
+  token_type: 'access' | 'refresh';
+  expires_at?: string;
+  is_expired: boolean;
+  last_refreshed?: string;
+}
+
+export interface AIReasoningTrace {
+  id: string;
+  recommendation_id: string;
+  reasoning_steps: object;
+  data_sources: object;
+  confidence_score?: number;
+  model_version?: string;
+  created_at: string;
+}
