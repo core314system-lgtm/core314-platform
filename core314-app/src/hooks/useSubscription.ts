@@ -14,7 +14,7 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
     tier: 'starter',
     status: 'active',
     maxUsers: 5,
-    maxIntegrations: 1,
+    maxIntegrations: 3,
     features: ['core_dashboard', 'basic_metrics'],
   },
   professional: {
