@@ -92,6 +92,8 @@ export interface SubscriptionFeatures {
   maxUsers: number;
   maxIntegrations: number;
   features: string[];
+  maxMetricsPerIntegration?: number;
+  hasAIInsights?: boolean;
 }
 
 export interface Lead {
@@ -298,4 +300,39 @@ export interface IntegrationWithStatus extends IntegrationMaster {
   user_integration_id?: string;
   is_enabled: boolean;
   date_added?: string;
+}
+
+export interface FusionMetric {
+  id: string;
+  user_id: string;
+  integration_id: string;
+  metric_name: string;
+  metric_type: 'count' | 'sum' | 'average' | 'percentage' | 'trend';
+  raw_value: number;
+  normalized_value: number;
+  weight: number;
+  data_source?: Record<string, unknown>;
+  synced_at: string;
+  created_at: string;
+}
+
+export interface FusionScore {
+  id: string;
+  user_id: string;
+  integration_id: string;
+  fusion_score: number;
+  score_breakdown?: Record<string, unknown>;
+  trend_direction: 'up' | 'down' | 'stable';
+  ai_summary?: string;
+  ai_cached_at?: string;
+  calculated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationWithScore extends IntegrationMaster {
+  fusion_score?: number;
+  trend_direction?: 'up' | 'down' | 'stable';
+  ai_summary?: string;
+  metrics_count: number;
 }
