@@ -4,16 +4,7 @@ import { Signup } from './pages/auth/Signup';
 import { Dashboard } from './pages/Dashboard';
 import { Pricing } from './pages/Pricing';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminLayout } from './pages/admin/Layout';
 import { MainLayout } from './components/MainLayout';
-import { UserManagement } from './pages/admin/UserManagement';
-import { IntegrationTracking } from './pages/admin/IntegrationTracking';
-import { MetricsDashboard } from './pages/admin/MetricsDashboard';
-import { BillingOverview } from './pages/admin/BillingOverview';
-import { AILogs } from './pages/admin/AILogs';
-import { SystemHealth } from './pages/admin/SystemHealth';
-import { NotificationCenter } from './pages/admin/NotificationCenter';
-import { AuditTrail } from './pages/admin/AuditTrail';
 import { Integrations } from './pages/Integrations';
 import DashboardBuilder from './pages/DashboardBuilder';
 import DashboardView from './pages/DashboardView';
@@ -58,25 +49,6 @@ function App() {
           <Route path="goals/create" element={<GoalCreate />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="integration-hub" element={<IntegrationHub />} />
-        </Route>
-        
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requireAdmin>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/admin/users" replace />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="integrations" element={<IntegrationTracking />} />
-          <Route path="metrics" element={<MetricsDashboard />} />
-          <Route path="billing" element={<BillingOverview />} />
-          <Route path="ai-logs" element={<AILogs />} />
-          <Route path="system-health" element={<SystemHealth />} />
-          <Route path="notifications" element={<NotificationCenter />} />
-          <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
       </Routes>
     </Router>
