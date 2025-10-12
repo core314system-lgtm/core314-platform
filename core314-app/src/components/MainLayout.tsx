@@ -1,6 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { supabase } from '../lib/supabase';
 import { 
   Home,
   Layers, 
@@ -11,9 +14,16 @@ import {
   LogOut
 } from 'lucide-react';
 
-const navItems = [
+interface NavItem {
+  path: string;
+  label: string;
+  icon: typeof Home;
+  badge?: string;
+}
+
+const getNavItems = (integrationBadge?: string): NavItem[] => [
   { path: '/dashboard', label: 'Dashboard', icon: Home },
-  { path: '/integrations', label: 'Integrations', icon: Layers },
+  { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
   { path: '/dashboard-builder', label: 'Dashboard Builder', icon: LayoutDashboard },
   { path: '/goals', label: 'Goals & KPIs', icon: Target },
   { path: '/notifications', label: 'Notifications', icon: Bell },
@@ -23,10 +33,49 @@ const navItems = [
 export function MainLayout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
+  const [integrationCount, setIntegrationCount] = useState<{ current: number; max: number }>({ current: 0, max: 0 });
+
+  useEffect(() => {
+    const fetchIntegrationCount = async () => {
+      if (!profile?.id) return;
+      
+      const { data, error } = await supabase
+        .from('user_integrations')
+        .select('id')
+        .eq('user_id', profile.id)
+        .eq('status', 'active');
+
+      if (!error && data) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('subscription_tier')
+          .eq('id', profile.id)
+          .single();
+        
+        const tierLimits: Record<string, number> = {
+          none: 0,
+          starter: 3,
+          professional: 5,
+          enterprise: -1,
+        };
+        
+        const maxIntegrations = tierLimits[profileData?.subscription_tier || 'none'];
+        setIntegrationCount({ current: data.length, max: maxIntegrations });
+      }
+    };
+
+    fetchIntegrationCount();
+  }, [profile?.id]);
 
   const handleSignOut = async () => {
     await signOut();
   };
+
+  const navItems = getNavItems(
+    integrationCount.max === -1 
+      ? `${integrationCount.current}` 
+      : `${integrationCount.current}/${integrationCount.max}`
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -46,14 +95,28 @@ export function MainLayout() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                  className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
                     isActive
                       ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.label}
+                  <div className="flex items-center">
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.label}
+                  </div>
+                  {item.badge && (
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs ${
+                        integrationCount.current >= integrationCount.max && integrationCount.max !== -1
+                          ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                          : ''
+                      }`}
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
                 </Link>
               );
             })}

@@ -1,0 +1,48 @@
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { createCheckoutSession } from '../services/stripe';
+import { useAuth } from '../hooks/useAuth';
+
+
+interface UpgradeModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentTier: string;
+  currentCount: number;
+  maxCount: number;
+}
+
+export function UpgradeModal({ open, onOpenChange, currentTier, currentCount, maxCount }: UpgradeModalProps) {
+  const { user } = useAuth();
+
+  const handleUpgrade = async () => {
+    try {
+      await createCheckoutSession({
+        priceId: import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_ADDON,
+        email: user?.email,
+        metadata: { type: 'integration_addon' },
+      });
+    } catch (error) {
+      console.error('Upgrade error:', error);
+    }
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Integration Limit Reached</AlertDialogTitle>
+          <AlertDialogDescription>
+            You've reached your integration limit ({currentCount}/{maxCount}) for the {currentTier} plan.
+            Upgrade your plan or add an integration add-on to connect more services.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleUpgrade}>
+            Upgrade Plan
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

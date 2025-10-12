@@ -12,7 +12,7 @@ const tiers = [
     priceId: import.meta.env.VITE_STRIPE_PRICE_STARTER,
     description: 'Entry-level for small teams',
     features: [
-      '1 integration',
+      '3 integrations',
       'Up to 5 users',
       'Core dashboard',
       'Basic metrics',

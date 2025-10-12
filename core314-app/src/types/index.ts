@@ -272,3 +272,30 @@ export interface AIReasoningTrace {
   model_version?: string;
   created_at: string;
 }
+
+export interface IntegrationMaster {
+  id: string;
+  integration_name: string;
+  integration_type: string;
+  logo_url?: string;
+  is_core_integration: boolean;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserIntegration {
+  id: string;
+  user_id: string;
+  integration_id: string;
+  added_by_user: boolean;
+  date_added: string;
+  status: 'active' | 'inactive' | 'error';
+  config?: Record<string, unknown>;
+}
+
+export interface IntegrationWithStatus extends IntegrationMaster {
+  user_integration_id?: string;
+  is_enabled: boolean;
+  date_added?: string;
+}
