@@ -145,6 +145,107 @@ const PLATFORM_TEMPLATES: Record<string, SchemaTemplate> = {
       },
     ],
   },
+  slack: {
+    platform: 'slack',
+    endpoints: ['/api/conversations.list', '/api/users.list'],
+    metrics: [
+      {
+        name: 'Messages Sent',
+        type: 'count',
+        path: ['messages'],
+        chartType: 'line',
+      },
+      {
+        name: 'Active Users',
+        type: 'count',
+        path: ['members'],
+        chartType: 'gauge',
+      },
+      {
+        name: 'Response Time',
+        type: 'average',
+        path: ['response_time'],
+        unit: 'minutes',
+        chartType: 'bar',
+      },
+    ],
+  },
+  'microsoft teams': {
+    platform: 'microsoft teams',
+    endpoints: ['/v1.0/teams', '/v1.0/users'],
+    metrics: [
+      {
+        name: 'Team Meetings',
+        type: 'count',
+        path: ['value'],
+        chartType: 'bar',
+      },
+      {
+        name: 'Meeting Duration',
+        type: 'average',
+        path: ['duration'],
+        unit: 'minutes',
+        chartType: 'line',
+      },
+      {
+        name: 'Collaboration Score',
+        type: 'percentage',
+        path: ['score'],
+        unit: '%',
+        chartType: 'gauge',
+      },
+    ],
+  },
+  'microsoft 365': {
+    platform: 'microsoft 365',
+    endpoints: ['/v1.0/me/calendar/events', '/v1.0/me/drive/root/children'],
+    metrics: [
+      {
+        name: 'Calendar Events',
+        type: 'count',
+        path: ['value'],
+        chartType: 'bar',
+      },
+      {
+        name: 'Files Stored',
+        type: 'count',
+        path: ['value'],
+        chartType: 'gauge',
+      },
+      {
+        name: 'Storage Used',
+        type: 'sum',
+        path: ['size'],
+        unit: 'GB',
+        chartType: 'line',
+      },
+    ],
+  },
+  gmail: {
+    platform: 'gmail',
+    endpoints: ['/gmail/v1/users/me/messages', '/gmail/v1/users/me/labels'],
+    metrics: [
+      {
+        name: 'Emails Sent',
+        type: 'count',
+        path: ['messages'],
+        chartType: 'line',
+      },
+      {
+        name: 'Response Rate',
+        type: 'percentage',
+        path: ['responseRate'],
+        unit: '%',
+        chartType: 'gauge',
+      },
+      {
+        name: 'Inbox Zero Days',
+        type: 'count',
+        path: ['inboxZeroDays'],
+        chartType: 'bar',
+      },
+    ],
+  },
 };
 
 export async function discoverSchema(
