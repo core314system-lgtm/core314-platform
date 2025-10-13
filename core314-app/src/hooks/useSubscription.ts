@@ -16,6 +16,8 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
     maxUsers: 5,
     maxIntegrations: 3,
     features: ['core_dashboard', 'basic_metrics'],
+    maxMetricsPerIntegration: 3,
+    hasAIInsights: false,
   },
   professional: {
     tier: 'professional',
@@ -23,6 +25,8 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
     maxUsers: 25,
     maxIntegrations: 5,
     features: ['core_dashboard', 'ai_insights', 'alerts', 'custom_branding', 'basic_metrics'],
+    maxMetricsPerIntegration: 5,
+    hasAIInsights: true,
   },
   enterprise: {
     tier: 'enterprise',
@@ -30,6 +34,8 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
     maxUsers: -1,
     maxIntegrations: -1,
     features: ['full_access', 'ai_orchestration', 'audit_trails', 'api_access', 'account_manager', 'core_dashboard', 'ai_insights', 'alerts', 'custom_branding', 'basic_metrics'],
+    maxMetricsPerIntegration: -1,
+    hasAIInsights: true,
   },
 };
 
