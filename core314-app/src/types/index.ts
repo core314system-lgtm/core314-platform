@@ -328,6 +328,23 @@ export interface FusionScore {
   calculated_at: string;
   created_at: string;
   updated_at: string;
+  weight_factor: number;
+  baseline_score: number;
+  learning_rate: number;
+  last_adjusted: string;
+  adaptive_notes?: string;
+}
+
+export interface FusionScoreHistory {
+  id: string;
+  user_id: string;
+  integration_id: string;
+  fusion_score: number;
+  weight_factor: number;
+  baseline_score: number;
+  learning_rate: number;
+  recorded_at: string;
+  change_reason: string;
 }
 
 export interface IntegrationWithScore extends IntegrationMaster {

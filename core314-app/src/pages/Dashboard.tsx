@@ -4,6 +4,8 @@ import { useSubscription } from '../hooks/useSubscription';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { Switch } from '../components/ui/switch';
+import { Label } from '../components/ui/label';
 import { Users, Layers, Bot, TrendingUp, RefreshCw } from 'lucide-react';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -13,7 +15,7 @@ import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
 
 export function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const { subscription } = useSubscription(profile?.id);
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
   const [globalScore, setGlobalScore] = useState<number>(0);
@@ -21,6 +23,7 @@ export function Dashboard() {
   const [aiInsights, setAiInsights] = useState<Array<{ integrationName: string; summary: string; cachedAt?: string }>>([]);
   const [syncing, setSyncing] = useState(false);
   const [activeIntegrationCount, setActiveIntegrationCount] = useState(0);
+  const [autoOptimize, setAutoOptimize] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -64,16 +67,17 @@ export function Dashboard() {
     });
 
     const integrationsWithScores: IntegrationWithScore[] = userInts.map(ui => {
-      const master = ui.integrations_master as any;
+      const master = ui.integrations_master;
       const score = scoreMap.get(ui.integration_id);
+      if (!master || typeof master !== 'object') return null;
       return {
-        ...master,
+        ...(master as unknown as Record<string, unknown>),
         fusion_score: score?.fusion_score,
         trend_direction: score?.trend_direction,
         ai_summary: score?.ai_summary,
         metrics_count: metricCountMap.get(ui.integration_id) || 0,
-      };
-    });
+      } as IntegrationWithScore;
+    }).filter((i): i is IntegrationWithScore => i !== null);
 
     setIntegrations(integrationsWithScores);
 
@@ -130,10 +134,25 @@ export function Dashboard() {
             Current Plan: <span className="font-semibold capitalize">{subscription.tier}</span>
           </p>
         </div>
-        <Button onClick={handleSync} disabled={syncing} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          Sync Data
-        </Button>
+        <div className="flex items-center gap-4">
+          {isAdmin() && (
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="auto-optimize"
+                checked={autoOptimize}
+                onCheckedChange={setAutoOptimize}
+                disabled
+              />
+              <Label htmlFor="auto-optimize" className="text-sm font-medium cursor-pointer">
+                Auto-Optimize Weights
+              </Label>
+            </div>
+          )}
+          <Button onClick={handleSync} disabled={syncing} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            Sync Data
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

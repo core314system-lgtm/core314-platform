@@ -118,6 +118,11 @@ export async function updateFusionScore(
       ai_summary: aiSummary,
       ai_cached_at: aiSummary ? new Date().toISOString() : null,
       calculated_at: new Date().toISOString(),
+      weight_factor: 1.0,
+      baseline_score: 50,
+      learning_rate: 0.05,
+      last_adjusted: new Date().toISOString(),
+      adaptive_notes: 'Auto-calculated',
     }, {
       onConflict: 'user_id,integration_id'
     });
