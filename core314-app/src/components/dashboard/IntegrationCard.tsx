@@ -1,13 +1,47 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { IntegrationWithScore } from '../../types';
+import { IntegrationWithScore, FusionScoreHistory } from '../../types';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card';
+import { ScoreSparkline } from './ScoreSparkline';
+import { supabase } from '../../lib/supabase';
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 
 interface IntegrationCardProps {
   integration: IntegrationWithScore;
 }
 
 export function IntegrationCard({ integration }: IntegrationCardProps) {
+  const [history, setHistory] = useState<FusionScoreHistory[]>([]);
+  const [lastAdjusted, setLastAdjusted] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [integration.id]);
+
+  const fetchHistory = async () => {
+    const { data } = await supabase
+      .from('fusion_score_history')
+      .select('*')
+      .eq('integration_id', integration.id)
+      .order('recorded_at', { ascending: false })
+      .limit(10);
+
+    if (data) {
+      setHistory(data);
+    }
+
+    const { data: scoreData } = await supabase
+      .from('fusion_scores')
+      .select('last_adjusted')
+      .eq('integration_id', integration.id)
+      .single();
+
+    if (scoreData?.last_adjusted) {
+      setLastAdjusted(scoreData.last_adjusted);
+    }
+  };
   const getTrendIcon = () => {
     switch (integration.trend_direction) {
       case 'up':
@@ -48,15 +82,30 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-gray-600">Fusion Score</div>
-            <div className={`text-3xl font-bold ${getScoreColor(integration.fusion_score)}`}>
-              {integration.fusion_score ? integration.fusion_score.toFixed(0) : '--'}
+      <CardContent className="space-y-3">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-gray-600">Fusion Score</div>
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <div className={`text-3xl font-bold cursor-pointer ${getScoreColor(integration.fusion_score)}`}>
+                    {integration.fusion_score ? integration.fusion_score.toFixed(0) : '--'}
+                  </div>
+                </HoverCardTrigger>
+                {lastAdjusted && (
+                  <HoverCardContent className="w-auto">
+                    <p className="text-sm">
+                      Last adjusted: {format(new Date(lastAdjusted), 'MMM dd, yyyy h:mm a')}
+                    </p>
+                  </HoverCardContent>
+                )}
+              </HoverCard>
             </div>
+            {getTrendIcon()}
           </div>
-          {getTrendIcon()}
+          
+          <ScoreSparkline history={history} />
         </div>
       </CardContent>
     </Card>
