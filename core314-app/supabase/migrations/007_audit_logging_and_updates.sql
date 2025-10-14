@@ -31,6 +31,7 @@ BEGIN
 END $$;
 
 DROP TRIGGER IF EXISTS trg_update_last_adjusted ON fusion_weightings;
+DROP TRIGGER IF EXISTS trg_update_last_updated ON fusion_weightings;
 DROP FUNCTION IF EXISTS update_last_adjusted();
 
 CREATE OR REPLACE FUNCTION update_last_updated()
