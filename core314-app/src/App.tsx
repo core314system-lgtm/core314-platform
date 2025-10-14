@@ -13,6 +13,7 @@ import GoalCreate from './pages/GoalCreate';
 import Notifications from './pages/Notifications';
 import IntegrationHub from './pages/IntegrationHub';
 import { FusionWeights } from './pages/admin/FusionWeights';
+import { FusionIntelligence } from './pages/admin/FusionIntelligence';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 
@@ -52,6 +53,7 @@ function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="integration-hub" element={<IntegrationHub />} />
           <Route path="admin/fusion-weights" element={<FusionWeights />} />
+          <Route path="admin/fusion-intelligence" element={<FusionIntelligence />} />
         </Route>
       </Routes>
       <Toaster />

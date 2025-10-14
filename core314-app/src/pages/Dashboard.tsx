@@ -20,7 +20,6 @@ export function Dashboard() {
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
   const [globalScore, setGlobalScore] = useState<number>(0);
   const [globalTrend, setGlobalTrend] = useState<'up' | 'down' | 'stable'>('stable');
-  const [aiInsights, setAiInsights] = useState<Array<{ integrationName: string; summary: string; cachedAt?: string }>>([]);
   const [syncing, setSyncing] = useState(false);
   const [activeIntegrationCount, setActiveIntegrationCount] = useState(0);
   const [autoOptimize, setAutoOptimize] = useState(false);
@@ -91,17 +90,6 @@ export function Dashboard() {
       if (upCount > downCount) setGlobalTrend('up');
       else if (downCount > upCount) setGlobalTrend('down');
       else setGlobalTrend('stable');
-    }
-
-    if (subscription.hasAIInsights) {
-      const insights = validScores
-        .filter(i => i.ai_summary)
-        .map(i => ({
-          integrationName: i.integration_name,
-          summary: i.ai_summary!,
-          cachedAt: scoreMap.get(i.id)?.ai_cached_at,
-        }));
-      setAiInsights(insights);
     }
   };
 
@@ -214,7 +202,7 @@ export function Dashboard() {
           <FusionGauge score={globalScore} trend={globalTrend} />
         </div>
         <div className="lg:col-span-2">
-          <AIInsightsPanel insights={aiInsights} hasAccess={subscription.hasAIInsights || false} />
+          <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
         </div>
       </div>
 
