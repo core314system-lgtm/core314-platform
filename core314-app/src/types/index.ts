@@ -366,3 +366,15 @@ export interface IntegrationWithScore extends IntegrationMaster {
   ai_summary?: string;
   metrics_count: number;
 }
+
+export interface FusionInsight {
+  id: string;
+  user_id: string;
+  integration_id: string;
+  integration_name: string;
+  insight_type: 'trend' | 'prediction' | 'anomaly' | 'summary';
+  message: string;
+  confidence: number;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
