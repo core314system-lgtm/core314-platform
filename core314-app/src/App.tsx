@@ -14,6 +14,7 @@ import Notifications from './pages/Notifications';
 import IntegrationHub from './pages/IntegrationHub';
 import { FusionWeights } from './pages/admin/FusionWeights';
 import { useAuth } from './hooks/useAuth';
+import { Toaster } from './components/ui/toaster';
 
 function App() {
   const { user, loading } = useAuth();
@@ -53,6 +54,7 @@ function App() {
           <Route path="admin/fusion-weights" element={<FusionWeights />} />
         </Route>
       </Routes>
+      <Toaster />
     </Router>
   );
 }
