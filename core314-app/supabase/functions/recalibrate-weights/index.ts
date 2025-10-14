@@ -24,6 +24,7 @@ serve(async (req) => {
 
     const uniqueUsers = new Set(users.map(u => u.user_id));
     let recalibrated = 0;
+    let totalMetrics = 0;
 
     for (const userId of uniqueUsers) {
       const userIntegrations = users.filter(u => u.user_id === userId);
@@ -35,17 +36,26 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'Authorization': authHeader,
           },
-          body: JSON.stringify({ userId, integrationId: integration_id }),
+          body: JSON.stringify({ 
+            userId, 
+            integrationId: integration_id,
+            eventType: 'scheduled_recalibration'
+          }),
         });
 
-        if (response.ok) recalibrated++;
+        if (response.ok) {
+          const data = await response.json();
+          recalibrated++;
+          totalMetrics += data.metricsCount || 0;
+        }
       }
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       recalibrated,
-      message: `Recalibrated weights for ${recalibrated} integrations` 
+      totalMetrics,
+      message: `Scheduled recalibration completed for ${recalibrated} integrations (${totalMetrics} metrics)` 
     }), {
       headers: { 'Content-Type': 'application/json' },
     });

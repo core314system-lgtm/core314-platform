@@ -49,12 +49,12 @@ export async function calculateFusionScore(
 
   const { data: weightings } = await supabase
     .from('fusion_weightings')
-    .select('metric_id, weight')
+    .select('metric_id, final_weight')
     .eq('user_id', userId)
     .eq('integration_id', integrationId);
 
   const weightMap = new Map<string, number>();
-  weightings?.forEach(w => weightMap.set(w.metric_id, w.weight));
+  weightings?.forEach(w => weightMap.set(w.metric_id, w.final_weight));
 
   let weightedSum = 0;
   let totalWeight = 0;

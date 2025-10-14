@@ -43,32 +43,30 @@ export function FusionWeights() {
       const { data: weightings } = await supabase
         .from('fusion_weightings')
         .select(`
-          weight,
+          metric_name,
+          final_weight,
+          variance,
           ai_confidence,
-          last_adjusted,
-          fusion_metrics (
-            metric_name,
-            integration_id,
-            integrations_master (
-              integration_name
-            )
+          last_updated,
+          integration_id,
+          integrations_master!fusion_weightings_integration_id_fkey (
+            integration_name
           )
         `)
         .eq('user_id', profile.id)
-        .order('last_adjusted', { ascending: false });
+        .order('last_updated', { ascending: false });
 
       if (!weightings) return;
 
       const formattedWeights: WeightData[] = weightings.map(w => {
-        const metric = w.fusion_metrics as unknown as { metric_name: string; integration_id: string; integrations_master: { integration_name: string } };
-        const integration = metric?.integrations_master;
+        const integration = w.integrations_master as unknown as { integration_name: string } | null;
         
         return {
-          metric_name: metric?.metric_name || 'Unknown',
-          weight: w.weight,
+          metric_name: w.metric_name || 'Unknown',
+          weight: w.final_weight,
           ai_confidence: w.ai_confidence,
-          variance: 1 - w.ai_confidence,
-          last_adjusted: w.last_adjusted,
+          variance: w.variance || (1 - w.ai_confidence),
+          last_adjusted: w.last_updated,
           integration_name: integration?.integration_name || 'Unknown'
         };
       });

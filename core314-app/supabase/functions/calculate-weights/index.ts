@@ -6,8 +6,10 @@ const BETA = 0.5;
 const GAMMA = 0.2;
 
 serve(async (req) => {
+  const startTime = Date.now();
+  
   try {
-    const { userId, integrationId } = await req.json();
+    const { userId, integrationId, eventType = 'scheduled_recalibration' } = await req.json();
 
     const authHeader = req.headers.get('Authorization')!;
     const supabase = createClient(
@@ -67,8 +69,28 @@ serve(async (req) => {
 
     const totalWeight = calculations.reduce((sum, c) => sum + c.raw_weight, 0);
     
+    const weightChanges: Record<string, { old: number; new: number }> = {};
+    
     for (const calc of calculations) {
       const final_weight = totalWeight > 0 ? calc.raw_weight / totalWeight : 1.0 / metrics.length;
+      
+      const metric = metrics.find(m => m.id === calc.metric_id);
+      const metricName = metric?.metric_name || 'unknown';
+      
+      const { data: existing } = await supabase
+        .from('fusion_weightings')
+        .select('final_weight')
+        .eq('user_id', userId)
+        .eq('integration_id', integrationId)
+        .eq('metric_id', calc.metric_id)
+        .single();
+
+      if (existing) {
+        weightChanges[metricName] = {
+          old: existing.final_weight,
+          new: final_weight
+        };
+      }
       
       await supabase
         .from('fusion_weightings')
@@ -76,21 +98,63 @@ serve(async (req) => {
           user_id: userId,
           integration_id: integrationId,
           metric_id: calc.metric_id,
-          weight: final_weight,
+          metric_name: metricName,
+          final_weight,
+          variance: calc.variance,
           ai_confidence: calc.ai_confidence,
-          adjustment_reason: 'Automated recalibration',
+          correlation_penalty: 0,
+          adjustment_reason: eventType === 'manual_recalibration' ? 'Manual recalibration' : 'Automated recalibration',
           adaptive: true
         });
     }
 
+    await supabase
+      .from('fusion_audit_log')
+      .insert({
+        user_id: userId,
+        integration_id: integrationId,
+        event_type: eventType,
+        metrics_count: metrics.length,
+        total_variance: variance,
+        avg_ai_confidence: ai_confidence,
+        weight_changes: weightChanges,
+        triggered_by: eventType === 'manual_recalibration' ? 'user' : 'system',
+        execution_time_ms: Date.now() - startTime,
+        status: 'success'
+      });
+
     return new Response(JSON.stringify({ 
       success: true,
       variance,
-      ai_confidence 
+      ai_confidence,
+      metricsCount: metrics.length
     }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    const authHeader = req.headers.get('Authorization')!;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    
+    const body = await req.json().catch(() => ({}));
+    if (body.userId && body.integrationId) {
+      await supabase
+        .from('fusion_audit_log')
+        .insert({
+          user_id: body.userId,
+          integration_id: body.integrationId,
+          event_type: body.eventType || 'scheduled_recalibration',
+          metrics_count: 0,
+          triggered_by: 'system',
+          execution_time_ms: Date.now() - startTime,
+          status: 'failed',
+          error_message: error.message
+        });
+    }
+    
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
