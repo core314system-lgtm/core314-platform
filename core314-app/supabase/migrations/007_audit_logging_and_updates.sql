@@ -6,11 +6,29 @@ ADD COLUMN IF NOT EXISTS metric_name TEXT,
 ADD COLUMN IF NOT EXISTS variance NUMERIC DEFAULT 0.0 CHECK (variance >= 0 AND variance <= 1),
 ADD COLUMN IF NOT EXISTS correlation_penalty NUMERIC DEFAULT 0.0 CHECK (correlation_penalty >= 0 AND correlation_penalty <= 1);
 
-ALTER TABLE fusion_weightings 
-RENAME COLUMN weight TO final_weight;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public'
+        AND table_name = 'fusion_weightings' 
+        AND column_name = 'weight'
+    ) THEN
+        ALTER TABLE fusion_weightings RENAME COLUMN weight TO final_weight;
+    END IF;
+END $$;
 
-ALTER TABLE fusion_weightings 
-RENAME COLUMN last_adjusted TO last_updated;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public'
+        AND table_name = 'fusion_weightings' 
+        AND column_name = 'last_adjusted'
+    ) THEN
+        ALTER TABLE fusion_weightings RENAME COLUMN last_adjusted TO last_updated;
+    END IF;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_update_last_adjusted ON fusion_weightings;
 DROP FUNCTION IF EXISTS update_last_adjusted();
