@@ -6,13 +6,32 @@ ADD COLUMN IF NOT EXISTS metric_name TEXT,
 ADD COLUMN IF NOT EXISTS variance NUMERIC DEFAULT 0.0 CHECK (variance >= 0 AND variance <= 1),
 ADD COLUMN IF NOT EXISTS correlation_penalty NUMERIC DEFAULT 0.0 CHECK (correlation_penalty >= 0 AND correlation_penalty <= 1);
 
-ALTER TABLE fusion_weightings 
-RENAME COLUMN weight TO final_weight;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public'
+        AND table_name = 'fusion_weightings' 
+        AND column_name = 'weight'
+    ) THEN
+        ALTER TABLE fusion_weightings RENAME COLUMN weight TO final_weight;
+    END IF;
+END $$;
 
-ALTER TABLE fusion_weightings 
-RENAME COLUMN last_adjusted TO last_updated;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public'
+        AND table_name = 'fusion_weightings' 
+        AND column_name = 'last_adjusted'
+    ) THEN
+        ALTER TABLE fusion_weightings RENAME COLUMN last_adjusted TO last_updated;
+    END IF;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_update_last_adjusted ON fusion_weightings;
+DROP TRIGGER IF EXISTS trg_update_last_updated ON fusion_weightings;
 DROP FUNCTION IF EXISTS update_last_adjusted();
 
 CREATE OR REPLACE FUNCTION update_last_updated()
@@ -51,10 +70,12 @@ CREATE INDEX IF NOT EXISTS idx_fusion_audit_log_event_type ON fusion_audit_log(e
 
 ALTER TABLE fusion_audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own audit logs" ON fusion_audit_log;
 CREATE POLICY "Users can view own audit logs"
 ON fusion_audit_log FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Service role can insert audit logs" ON fusion_audit_log;
 CREATE POLICY "Service role can insert audit logs"
 ON fusion_audit_log FOR INSERT
 WITH CHECK (true);
