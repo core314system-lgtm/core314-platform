@@ -47,12 +47,24 @@ export async function calculateFusionScore(
     return { score: 0, breakdown: {}, trend: 'stable' };
   }
 
+  const { data: weightings } = await supabase
+    .from('fusion_weightings')
+    .select('metric_id, weight')
+    .eq('user_id', userId)
+    .eq('integration_id', integrationId);
+
+  const weightMap = new Map<string, number>();
+  weightings?.forEach(w => weightMap.set(w.metric_id, w.weight));
+
   let weightedSum = 0;
   let totalWeight = 0;
   const breakdown: Record<string, number> = {};
 
   metrics.forEach((metric) => {
-    const weight = metric.weight || DEFAULT_WEIGHTS[metric.metric_type as keyof MetricWeights] || 0.2;
+    const weight = weightMap.get(metric.id) || 
+                   metric.weight || 
+                   DEFAULT_WEIGHTS[metric.metric_type as keyof MetricWeights] || 
+                   0.2;
     const contribution = metric.normalized_value * weight;
     weightedSum += contribution;
     totalWeight += weight;

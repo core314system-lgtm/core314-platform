@@ -1,0 +1,58 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+serve(async (req) => {
+  try {
+    const authHeader = req.headers.get('Authorization')!;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: users } = await supabase
+      .from('user_integrations')
+      .select('user_id, integration_id')
+      .eq('status', 'active');
+
+    if (!users) {
+      return new Response(JSON.stringify({ error: 'No users found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const uniqueUsers = new Set(users.map(u => u.user_id));
+    let recalibrated = 0;
+
+    for (const userId of uniqueUsers) {
+      const userIntegrations = users.filter(u => u.user_id === userId);
+      
+      for (const { integration_id } of userIntegrations) {
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/calculate-weights`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
+          },
+          body: JSON.stringify({ userId, integrationId: integration_id }),
+        });
+
+        if (response.ok) recalibrated++;
+      }
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      recalibrated,
+      message: `Recalibrated weights for ${recalibrated} integrations` 
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+});
