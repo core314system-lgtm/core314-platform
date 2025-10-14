@@ -70,10 +70,12 @@ CREATE INDEX IF NOT EXISTS idx_fusion_audit_log_event_type ON fusion_audit_log(e
 
 ALTER TABLE fusion_audit_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own audit logs" ON fusion_audit_log;
 CREATE POLICY "Users can view own audit logs"
 ON fusion_audit_log FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Service role can insert audit logs" ON fusion_audit_log;
 CREATE POLICY "Service role can insert audit logs"
 ON fusion_audit_log FOR INSERT
 WITH CHECK (true);
