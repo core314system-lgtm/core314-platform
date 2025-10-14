@@ -347,6 +347,19 @@ export interface FusionScoreHistory {
   change_reason: string;
 }
 
+export interface FusionWeighting {
+  id: string;
+  integration_id: string;
+  user_id: string;
+  metric_id: string;
+  weight: number;
+  ai_confidence: number;
+  last_adjusted: string;
+  adjustment_reason: string;
+  adaptive: boolean;
+  created_at: string;
+}
+
 export interface IntegrationWithScore extends IntegrationMaster {
   fusion_score?: number;
   trend_direction?: 'up' | 'down' | 'stable';

@@ -12,6 +12,7 @@ import Goals from './pages/Goals';
 import GoalCreate from './pages/GoalCreate';
 import Notifications from './pages/Notifications';
 import IntegrationHub from './pages/IntegrationHub';
+import { FusionWeights } from './pages/admin/FusionWeights';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -49,6 +50,7 @@ function App() {
           <Route path="goals/create" element={<GoalCreate />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="integration-hub" element={<IntegrationHub />} />
+          <Route path="admin/fusion-weights" element={<FusionWeights />} />
         </Route>
       </Routes>
     </Router>
