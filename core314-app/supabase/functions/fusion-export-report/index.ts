@@ -1,20 +1,27 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization')!;
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { format = 'csv', integration } = await req.json();
@@ -53,6 +60,7 @@ serve(async (req) => {
 
       return new Response(csvLines.join('\n'), {
         headers: {
+          ...corsHeaders,
           'Content-Type': 'text/csv',
           'Content-Disposition': `attachment; filename="core314_intelligence_report_${new Date().toISOString().split('T')[0]}.csv"`
         },
@@ -64,7 +72,7 @@ serve(async (req) => {
       error: 'PDF export not yet implemented'
     }), {
       status: 501,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
@@ -73,7 +81,7 @@ serve(async (req) => {
       success: false
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
