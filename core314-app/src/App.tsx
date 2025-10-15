@@ -15,6 +15,7 @@ import IntegrationHub from './pages/IntegrationHub';
 import { FusionWeights } from './pages/admin/FusionWeights';
 import { FusionIntelligence } from './pages/admin/FusionIntelligence';
 import { AutomationRules } from './pages/admin/AutomationRules';
+import { Visualizations } from './pages/Visualizations';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 
@@ -47,6 +48,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="integrations" element={<Integrations />} />
+          <Route path="visualizations" element={<Visualizations />} />
           <Route path="dashboard-builder" element={<DashboardBuilder />} />
           <Route path="dashboards/:id" element={<DashboardView />} />
           <Route path="goals" element={<Goals />} />
