@@ -10,9 +10,10 @@ import { Users, Layers, Bot, TrendingUp, RefreshCw } from 'lucide-react';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
 import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
-import { IntegrationWithScore, FusionScore } from '../types';
+import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
+import { format } from 'date-fns';
 
 export function Dashboard() {
   const { profile, isAdmin } = useAuth();
@@ -23,6 +24,15 @@ export function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [activeIntegrationCount, setActiveIntegrationCount] = useState(0);
   const [autoOptimize, setAutoOptimize] = useState(false);
+  const [automationActivity, setAutomationActivity] = useState<{
+    total_actions_24h: number;
+    success_rate: number;
+    recent_actions: ActionLog[];
+  }>({
+    total_actions_24h: 0,
+    success_rate: 0,
+    recent_actions: []
+  });
 
   useEffect(() => {
     if (profile?.id) {
@@ -90,6 +100,32 @@ export function Dashboard() {
       if (upCount > downCount) setGlobalTrend('up');
       else if (downCount > upCount) setGlobalTrend('down');
       else setGlobalTrend('stable');
+    }
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: actionLogs } = await supabase
+      .from('fusion_action_log')
+      .select('*')
+      .gte('created_at', twentyFourHoursAgo)
+      .order('created_at', { ascending: false })
+      .limit(3);
+
+    if (actionLogs && actionLogs.length > 0) {
+      const totalActions = actionLogs.length;
+      const successfulActions = actionLogs.filter(a => a.status === 'success').length;
+      const successRate = (successfulActions / totalActions) * 100;
+
+      setAutomationActivity({
+        total_actions_24h: totalActions,
+        success_rate: successRate,
+        recent_actions: actionLogs
+      });
+    } else {
+      setAutomationActivity({
+        total_actions_24h: 0,
+        success_rate: 0,
+        recent_actions: []
+      });
     }
   };
 
@@ -205,6 +241,56 @@ export function Dashboard() {
           <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
         </div>
       </div>
+
+      {isAdmin() && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Automation Activity (24h)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Actions</p>
+                  <p className="text-2xl font-bold">{automationActivity.total_actions_24h}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Success Rate</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {automationActivity.success_rate.toFixed(0)}%
+                  </p>
+                </div>
+              </div>
+
+              {automationActivity.recent_actions.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Recent Actions</p>
+                  <div className="space-y-2">
+                    {automationActivity.recent_actions.map((action) => (
+                      <div key={action.id} className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-2">
+                          {action.status === 'success' ? '✅' : '❌'}
+                          <span className="font-medium">{action.integration_name}</span>
+                          <span className="text-gray-500">{action.action_type}</span>
+                        </span>
+                        <span className="text-gray-500">
+                          {format(new Date(action.created_at), 'h:mm a')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {automationActivity.total_actions_24h === 0 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  No automated actions in the last 24 hours
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div>
         <h2 className="text-2xl font-bold mb-4">Integration Performance</h2>
