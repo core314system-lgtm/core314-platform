@@ -378,3 +378,33 @@ export interface FusionInsight {
   metadata?: Record<string, unknown>;
   created_at: string;
 }
+
+export interface AutomationRule {
+  id: string;
+  rule_name: string;
+  integration_name: string;
+  condition_type: 'anomaly' | 'trend' | 'prediction' | 'summary';
+  condition_operator: '>' | '<' | '=' | 'contains';
+  condition_value: string;
+  action_type: 'notify_slack' | 'notify_email' | 'adjust_weight' | 'trigger_function';
+  action_target: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface ActionLog {
+  id: string;
+  rule_id: string;
+  integration_name: string;
+  insight_id: string;
+  action_type: string;
+  action_result: string;
+  status: 'success' | 'failed';
+  created_at: string;
+}
+
+export interface AutomationActivity {
+  total_actions_24h: number;
+  success_rate: number;
+  recent_actions: ActionLog[];
+}
