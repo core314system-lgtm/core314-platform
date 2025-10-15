@@ -31,9 +31,21 @@ serve(async (req) => {
       .select('*')
       .eq('integration_name', integration || 'all')
       .eq('data_type', 'complete_visualization')
-      .single();
+      .order('last_updated', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (visualError) throw visualError;
+    
+    if (!visualData) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No visualization data available. Please refresh the data first.'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (format === 'csv') {
       const csvLines = [
