@@ -408,3 +408,37 @@ export interface AutomationActivity {
   success_rate: number;
   recent_actions: ActionLog[];
 }
+
+export interface TimelineDataPoint {
+  date: string;
+  fusion_score: number;
+  variance: number;
+}
+
+export interface ForecastDataPoint {
+  date: string;
+  predicted_score: number;
+  confidence_low: number;
+  confidence_high: number;
+}
+
+export interface AnomalyDataPoint {
+  date: string;
+  severity: 'low' | 'medium' | 'high';
+  type: string;
+  message?: string;
+}
+
+export interface ActionDataPoint {
+  timestamp: string;
+  rule: string;
+  result: string;
+  integration: string;
+}
+
+export interface VisualizationData {
+  timeline: TimelineDataPoint[];
+  forecasts: ForecastDataPoint[];
+  anomalies: AnomalyDataPoint[];
+  actions: ActionDataPoint[];
+}

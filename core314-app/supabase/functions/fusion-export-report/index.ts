@@ -1,0 +1,79 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+serve(async (req) => {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const authHeader = req.headers.get('Authorization')!;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { format = 'csv', integration } = await req.json();
+
+    const { data: visualData, error: visualError } = await supabase
+      .from('fusion_visual_cache')
+      .select('*')
+      .eq('integration_name', integration || 'all')
+      .eq('data_type', 'complete_visualization')
+      .single();
+
+    if (visualError) throw visualError;
+
+    if (format === 'csv') {
+      const csvLines = [
+        'Date,Fusion Score,Variance,Type',
+        ...(visualData.data.timeline || []).map((item: { date: string; fusion_score: number; variance: number }) => 
+          `${item.date},${item.fusion_score},${item.variance},timeline`
+        ),
+        '',
+        'Date,Predicted Score,Confidence Low,Confidence High',
+        ...(visualData.data.forecasts || []).map((item: { date: string; predicted_score: number; confidence_low: number; confidence_high: number }) => 
+          `${item.date},${item.predicted_score},${item.confidence_low},${item.confidence_high}`
+        ),
+        '',
+        'Date,Severity,Type,Message',
+        ...(visualData.data.anomalies || []).map((item: { date: string; severity: string; type: string; message?: string }) => 
+          `${item.date},${item.severity},${item.type},"${item.message || ''}"`
+        ),
+        '',
+        'Timestamp,Rule,Result,Integration',
+        ...(visualData.data.actions || []).map((item: { timestamp: string; rule: string; result: string; integration: string }) => 
+          `${item.timestamp},${item.rule},${item.result},${item.integration}`
+        )
+      ];
+
+      return new Response(csvLines.join('\n'), {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="core314_intelligence_report_${new Date().toISOString().split('T')[0]}.csv"`
+        },
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'PDF export not yet implemented'
+    }), {
+      status: 501,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({
+      error: error.message,
+      success: false
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+});

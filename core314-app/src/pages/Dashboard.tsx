@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
 import { Users, Layers, Bot, TrendingUp, RefreshCw } from 'lucide-react';
+import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
 import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
@@ -33,6 +34,10 @@ export function Dashboard() {
     success_rate: 0,
     recent_actions: []
   });
+  const [trendSnapshot, setTrendSnapshot] = useState<{
+    date: string;
+    score: number;
+  }[]>([]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -126,6 +131,21 @@ export function Dashboard() {
         success_rate: 0,
         recent_actions: []
       });
+    }
+
+    const { data: visualCache } = await supabase
+      .from('fusion_visual_cache')
+      .select('data')
+      .eq('integration_name', 'all')
+      .eq('data_type', 'complete_visualization')
+      .single();
+
+    if (visualCache?.data?.timeline) {
+      const recentTimeline = visualCache.data.timeline.slice(-7);
+      setTrendSnapshot(recentTimeline.map((t: { date: string; fusion_score: number }) => ({
+        date: t.date,
+        score: t.fusion_score
+      })));
     }
   };
 
@@ -291,6 +311,41 @@ export function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Fusion Trend Snapshot (7 Days)</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = '/visualizations'}
+            >
+              View Full Visualization
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {trendSnapshot.length > 0 ? (
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={trendSnapshot}>
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Tooltip />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-center text-gray-600 py-4 text-sm">
+              No trend data available. Visit Visualizations to generate analytics.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div>
         <h2 className="text-2xl font-bold mb-4">Integration Performance</h2>
