@@ -6,12 +6,12 @@ import { useAuth } from '../hooks/useAuth';
 interface UpgradeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentTier: string;
-  currentCount: number;
-  maxCount: number;
+  currentTier?: string;
+  currentCount?: number;
+  maxCount?: number;
 }
 
-export function UpgradeModal({ open, onOpenChange, currentTier, currentCount, maxCount }: UpgradeModalProps) {
+export function UpgradeModal({ open, onOpenChange, currentTier = 'current', currentCount = 0, maxCount = 0 }: UpgradeModalProps) {
   const { user } = useAuth();
 
   const handleUpgrade = async () => {
@@ -30,10 +30,21 @@ export function UpgradeModal({ open, onOpenChange, currentTier, currentCount, ma
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Integration Limit Reached</AlertDialogTitle>
+          <AlertDialogTitle>
+            {maxCount > 0 ? 'Integration Limit Reached' : 'Upgrade Required'}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            You've reached your integration limit ({currentCount}/{maxCount}) for the {currentTier} plan.
-            Upgrade your plan or add an integration add-on to connect more services.
+            {maxCount > 0 ? (
+              <>
+                You've reached your integration limit ({currentCount}/{maxCount}) for the {currentTier} plan.
+                Upgrade your plan or add an integration add-on to connect more services.
+              </>
+            ) : (
+              <>
+                This feature is not available in your {currentTier} plan.
+                Upgrade your plan to unlock this feature.
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -12,7 +12,8 @@ import {
   Bell,
   Settings,
   LogOut,
-  BarChart3
+  BarChart3,
+  Shield
 } from 'lucide-react';
 
 interface NavItem {
@@ -30,6 +31,7 @@ const getNavItems = (integrationBadge?: string): NavItem[] => [
   { path: '/goals', label: 'Goals & KPIs', icon: Target },
   { path: '/notifications', label: 'Notifications', icon: Bell },
   { path: '/integration-hub', label: 'Integration Hub', icon: Settings },
+  { path: '/settings/security', label: 'Security', icon: Shield },
 ];
 
 export function MainLayout() {

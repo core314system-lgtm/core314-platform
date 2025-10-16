@@ -34,6 +34,7 @@ import { useToast } from '../../hooks/use-toast';
 import { Plus, Edit, Trash2, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { AutomationRule } from '../../types';
+import { FeatureGuard } from '../../components/FeatureGuard';
 
 export function AutomationRules() {
   const { profile, isAdmin } = useAuth();
@@ -271,7 +272,8 @@ export function AutomationRules() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <FeatureGuard feature="automation">
+      <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -506,6 +508,7 @@ export function AutomationRules() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </FeatureGuard>
   );
 }

@@ -17,6 +17,7 @@ import { FusionIntelligence } from './pages/admin/FusionIntelligence';
 import { AutomationRules } from './pages/admin/AutomationRules';
 import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
+import { Security } from './pages/settings/Security';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 
@@ -56,10 +57,11 @@ function App() {
           <Route path="goals/create" element={<GoalCreate />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="integration-hub" element={<IntegrationHub />} />
-          <Route path="admin/fusion-weights" element={<FusionWeights />} />
-          <Route path="admin/fusion-intelligence" element={<FusionIntelligence />} />
-          <Route path="admin/automation-rules" element={<AutomationRules />} />
-          <Route path="admin/users" element={<Users />} />
+          <Route path="settings/security" element={<Security />} />
+          <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
+          <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
+          <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
+          <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
         </Route>
       </Routes>
       <Toaster />

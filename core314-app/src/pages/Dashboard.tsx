@@ -38,10 +38,12 @@ export function Dashboard() {
     date: string;
     score: number;
   }[]>([]);
+  const [sessionData, setSessionData] = useState<{ last_login: string; active_sessions: number } | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
       fetchDashboardData();
+      fetchSessionData();
     }
   }, [profile?.id]);
 
@@ -147,6 +149,27 @@ export function Dashboard() {
         score: t.fusion_score
       })));
     }
+  };
+
+  const fetchSessionData = async () => {
+    if (!profile?.id) return;
+    
+    const { data: sessions } = await supabase
+      .from('user_sessions')
+      .select('*')
+      .eq('user_id', profile.id)
+      .eq('status', 'active');
+    
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('last_login')
+      .eq('id', profile.id)
+      .single();
+    
+    setSessionData({
+      last_login: profileData?.last_login || 'Never',
+      active_sessions: sessions?.length || 0,
+    });
   };
 
   const handleSync = async () => {
@@ -363,6 +386,30 @@ export function Dashboard() {
             </CardContent>
           </Card>
         )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Session Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Last Login</p>
+                <p className="font-medium">
+                  {sessionData?.last_login && sessionData.last_login !== 'Never' 
+                    ? new Date(sessionData.last_login).toLocaleString() 
+                    : 'Never'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Active Sessions</p>
+                <p className="font-medium">{sessionData?.active_sessions || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
