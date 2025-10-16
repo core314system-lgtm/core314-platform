@@ -15,6 +15,7 @@ import IntegrationHub from './pages/IntegrationHub';
 import { FusionWeights } from './pages/admin/FusionWeights';
 import { FusionIntelligence } from './pages/admin/FusionIntelligence';
 import { AutomationRules } from './pages/admin/AutomationRules';
+import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
@@ -58,6 +59,7 @@ function App() {
           <Route path="admin/fusion-weights" element={<FusionWeights />} />
           <Route path="admin/fusion-intelligence" element={<FusionIntelligence />} />
           <Route path="admin/automation-rules" element={<AutomationRules />} />
+          <Route path="admin/users" element={<Users />} />
         </Route>
       </Routes>
       <Toaster />
