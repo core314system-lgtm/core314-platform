@@ -45,7 +45,10 @@ export function Security() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      setQrCode(data.qrCode);
+      const QRCode = (await import('qrcode')).default;
+      const qrCodeDataURL = await QRCode.toDataURL(data.otpauth_url);
+
+      setQrCode(qrCodeDataURL);
       setShowSetup(true);
       setSuccess('Scan the QR code with your authenticator app');
     } catch (err) {
