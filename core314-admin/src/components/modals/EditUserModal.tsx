@@ -43,16 +43,6 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
 
       if (updateError) throw updateError;
 
-      await supabase.from('fusion_audit_log').insert({
-        user_id: user.id,
-        integration_id: null,
-        event_type: 'user_edit',
-        metrics_count: 1,
-        triggered_by: 'admin_panel',
-        execution_time_ms: 0,
-        status: 'success',
-      });
-
       onUserUpdated(updatedUser);
       onOpenChange(false);
     } catch (err) {
