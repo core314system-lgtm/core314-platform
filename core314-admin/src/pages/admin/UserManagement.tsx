@@ -12,10 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+import { EditUserModal } from '../../components/modals/EditUserModal';
+import { RefreshCw, Pencil } from 'lucide-react';
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -35,6 +39,16 @@ export function UserManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (user: User) => {
+    setSelectedUser(user);
+    setEditModalOpen(true);
+  };
+
+  const handleUserUpdated = (updatedUser: User) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setEditModalOpen(false);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -76,9 +90,15 @@ export function UserManagement() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
-        <p className="text-gray-600 dark:text-gray-400">Manage all users and their permissions</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage all users and their permissions</p>
+        </div>
+        <Button onClick={fetchUsers} disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       <Card>
@@ -126,7 +146,12 @@ export function UserManagement() {
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEdit(user)}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
                       Edit
                     </Button>
                   </TableCell>
@@ -136,6 +161,15 @@ export function UserManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedUser && (
+        <EditUserModal
+          user={selectedUser}
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          onUserUpdated={handleUserUpdated}
+        />
+      )}
     </div>
   );
 }
