@@ -23,6 +23,7 @@ import { RefreshCw, Download, TrendingUp, AlertTriangle, Activity, BarChart3 } f
 import { useToast } from '../hooks/use-toast';
 import { VisualizationData } from '../types';
 import { format } from 'date-fns';
+import { FeatureGuard } from '../components/FeatureGuard';
 
 export function Visualizations() {
   const { profile } = useAuth();
@@ -194,18 +195,19 @@ export function Visualizations() {
   ].filter(item => item.value > 0);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="h-8 w-8" />
-            Predictive Visualization Suite
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Real-time visual analytics and predictive intelligence
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+    <FeatureGuard feature="ai_insights">
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="h-8 w-8" />
+              Predictive Visualization Suite
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Real-time visual analytics and predictive intelligence
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
           <Select value={selectedIntegration} onValueChange={setSelectedIntegration}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All Integrations" />
@@ -227,8 +229,8 @@ export function Visualizations() {
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
+          </div>
         </div>
-      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -423,6 +425,7 @@ export function Visualizations() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </FeatureGuard>
   );
 }

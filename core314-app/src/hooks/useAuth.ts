@@ -55,6 +55,22 @@ export function useAuth() {
       email,
       password,
     });
+    
+    if (!error && data.session) {
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-log-session`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${data.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ action: 'login' }),
+        });
+      } catch (e) {
+        console.error('Failed to log session:', e);
+      }
+    }
+    
     return { data, error };
   };
 
