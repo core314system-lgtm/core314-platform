@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { supabase } from '../lib/supabase';
-import { 
+import {
   Home,
   Layers, 
   LayoutDashboard,
@@ -14,7 +14,9 @@ import {
   LogOut,
   BarChart3,
   Shield,
-  Building2
+  Building2,
+  Zap,
+  FileText
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -38,7 +40,11 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] =>
   ];
   
   if (isAdmin) {
-    baseItems.push({ path: '/admin/organizations', label: 'Organizations', icon: Building2 });
+    baseItems.push(
+      { path: '/admin/automation-rules-manager', label: 'Automation Rules', icon: Zap },
+      { path: '/admin/automation-logs', label: 'Automation Logs', icon: FileText },
+      { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
+    );
   }
   
   return baseItems;

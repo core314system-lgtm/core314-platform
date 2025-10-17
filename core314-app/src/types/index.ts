@@ -477,3 +477,37 @@ export interface OrganizationWithMembers extends Organization {
   member_count: number;
   user_role: 'owner' | 'admin' | 'analyst' | 'member';
 }
+
+export interface EventAutomationRule {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  trigger_type: string;
+  condition: {
+    metric: string;
+    operator: '<' | '>' | '<=' | '>=' | '==' | '!=';
+    value: number;
+  };
+  action: {
+    type: 'notify_slack' | 'notify_teams' | 'notify_email' | 'log_event' | 'trigger_recalibration';
+    message?: string;
+    [key: string]: string | number | boolean | undefined;
+  };
+  status: 'active' | 'paused' | 'archived';
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  last_triggered_at?: string;
+}
+
+export interface EventAutomationLog {
+  id: string;
+  organization_id: string;
+  rule_id: string;
+  event_type: string;
+  details: Record<string, unknown>;
+  status: 'success' | 'failed' | 'pending';
+  error_message?: string;
+  created_at: string;
+}
