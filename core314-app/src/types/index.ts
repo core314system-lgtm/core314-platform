@@ -511,3 +511,19 @@ export interface EventAutomationLog {
   error_message?: string;
   created_at: string;
 }
+
+export interface EventNarrative {
+  id: string;
+  organization_id: string;
+  title: string;
+  summary: string;
+  recommendations: string;
+  data_context: {
+    fusion_score?: number;
+    top_integrations?: Array<{ name: string; score: number }>;
+    automation_activity?: { total_rules: number; total_executions: number };
+    key_insights?: string[];
+  };
+  ai_confidence: number;
+  created_at: string;
+}
