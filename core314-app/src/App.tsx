@@ -17,6 +17,7 @@ import { FusionIntelligence } from './pages/admin/FusionIntelligence';
 import { AutomationRules } from './pages/admin/AutomationRules';
 import { AutomationRulesManager } from './pages/admin/AutomationRulesManager';
 import { AutomationLogsViewer } from './pages/admin/AutomationLogsViewer';
+import { AINarrativesManager } from './pages/admin/AINarrativesManager';
 import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { Security } from './pages/settings/Security';
@@ -68,6 +69,7 @@ function App() {
           <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
           <Route path="admin/automation-rules-manager" element={<ProtectedRoute requireAdmin><AutomationRulesManager /></ProtectedRoute>} />
           <Route path="admin/automation-logs" element={<ProtectedRoute requireAdmin><AutomationLogsViewer /></ProtectedRoute>} />
+          <Route path="admin/ai-narratives" element={<ProtectedRoute requireAdmin><AINarrativesManager /></ProtectedRoute>} />
           <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
           <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
         </Route>

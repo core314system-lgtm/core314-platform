@@ -189,3 +189,63 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     return [];
   }
 }
+
+export async function generateFusionNarrative(data: {
+  organization_name: string;
+  fusion_score?: number;
+  top_integrations?: Array<{ name: string; score: number }>;
+  automation_activity?: { total_rules: number; total_executions: number };
+  recent_insights?: Array<{ message: string; confidence: number }>;
+  time_period: string;
+}): Promise<{ title: string; summary: string; recommendations: string; confidence: number }> {
+  try {
+    const prompt = `You are an AI operations analyst. Analyze the following data for ${data.organization_name} and generate a comprehensive executive brief.
+
+Time Period: ${data.time_period}
+Fusion Confidence Score: ${data.fusion_score !== undefined ? data.fusion_score.toFixed(1) : 'N/A'}
+Top Integrations: ${data.top_integrations?.map(i => `${i.name} (${i.score.toFixed(1)})`).join(', ') || 'None'}
+Automation Activity: ${data.automation_activity ? `${data.automation_activity.total_rules} rules, ${data.automation_activity.total_executions} executions` : 'No automation configured'}
+Recent Insights: ${data.recent_insights?.map(i => i.message).join('; ') || 'No recent insights'}
+
+Generate a comprehensive narrative with:
+1. "title": A concise, executive-friendly title (5-10 words)
+2. "summary": A 2-3 paragraph summary of the current state, trends, and key findings
+3. "recommendations": 3-5 specific, actionable recommendations with bullet points
+4. "confidence": A confidence score (0-100) based on data availability and quality
+
+Return as JSON with these exact fields.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert AI operations analyst specializing in business intelligence and executive reporting. Always return valid JSON.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 1500,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    return {
+      title: result.title || 'Operations Summary',
+      summary: result.summary || 'No summary available.',
+      recommendations: result.recommendations || 'No recommendations at this time.',
+      confidence: result.confidence || 50,
+    };
+  } catch (error) {
+    console.error('OpenAI narrative generation error:', error);
+    return {
+      title: 'Operations Summary',
+      summary: 'Unable to generate comprehensive narrative due to an error. Please try again later.',
+      recommendations: 'Review system metrics manually and ensure data is being collected properly.',
+      confidence: 0,
+    };
+  }
+}
