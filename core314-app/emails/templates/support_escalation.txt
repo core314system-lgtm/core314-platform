@@ -1,0 +1,20 @@
+🚨 SUPPORT ESCALATION - CORE314
+
+Support Request from {{user_name}}
+
+User: {{user_name}} ({{user_email}})
+Ticket ID: {{ticket_id}}
+
+User Query:
+{{query}}
+
+AI Response:
+{{ai_response}}
+
+Recent Conversation:
+{{conversation_history}}
+
+View Ticket: https://app.core314.com/admin/support-tickets?ticket={{ticket_id}}
+
+---
+© 2025 Core314 Intelligence System. All rights reserved.
