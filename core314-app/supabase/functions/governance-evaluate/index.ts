@@ -148,6 +148,48 @@ Return only the explanation text, no JSON.`;
       .select()
       .single();
 
+    if (governanceAction === 'halted') {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', user.id)
+        .single();
+
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', organization_id)
+        .single();
+
+      if (profile && org) {
+        try {
+          await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              type: 'governance_alert',
+              to: profile.email,
+              name: profile.full_name,
+              data: {
+                organization: org.name,
+                organization_id,
+                user_id: user.id,
+                policy_name: triggeredPolicies.join(', '),
+                reason: actionMessage,
+                ethical_risk_score: ethicalRiskScore.toFixed(3),
+                explanation,
+              },
+            }),
+          });
+        } catch (emailError) {
+          console.error('Failed to send governance alert email:', emailError);
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       governance_action: governanceAction,

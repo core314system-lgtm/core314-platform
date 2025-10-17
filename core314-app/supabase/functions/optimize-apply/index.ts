@@ -192,6 +192,45 @@ Return JSON with:
       },
     });
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', user.id)
+      .single();
+
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', optimization.organization_id)
+      .single();
+
+    if (profile && org) {
+      try {
+        await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({
+            type: 'optimization_success',
+            to: profile.email,
+            name: profile.full_name,
+            data: {
+              organization: org.name,
+              organization_id: optimization.organization_id,
+              user_id: user.id,
+              new_fusion_score: optimization.optimized_data.fusion_score.toFixed(1),
+              confidence_improvement: ((optimization.optimized_data.confidence - optimization.baseline_data.confidence) * 100).toFixed(1),
+              optimization_type: 'AI-Driven Weight Optimization',
+            },
+          }),
+        });
+      } catch (emailError) {
+        console.error('Failed to send optimization success email:', emailError);
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       mode: 'apply',
