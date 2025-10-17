@@ -13,8 +13,10 @@ import {
   Settings,
   LogOut,
   BarChart3,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react';
+import { OrganizationSwitcher } from './OrganizationSwitcher';
 
 interface NavItem {
   path: string;
@@ -23,16 +25,24 @@ interface NavItem {
   badge?: string;
 }
 
-const getNavItems = (integrationBadge?: string): NavItem[] => [
-  { path: '/dashboard', label: 'Dashboard', icon: Home },
-  { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
-  { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
-  { path: '/dashboard-builder', label: 'Dashboard Builder', icon: LayoutDashboard },
-  { path: '/goals', label: 'Goals & KPIs', icon: Target },
-  { path: '/notifications', label: 'Notifications', icon: Bell },
-  { path: '/integration-hub', label: 'Integration Hub', icon: Settings },
-  { path: '/settings/security', label: 'Security', icon: Shield },
-];
+const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] => {
+  const baseItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: Home },
+    { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
+    { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
+    { path: '/dashboard-builder', label: 'Dashboard Builder', icon: LayoutDashboard },
+    { path: '/goals', label: 'Goals & KPIs', icon: Target },
+    { path: '/notifications', label: 'Notifications', icon: Bell },
+    { path: '/integration-hub', label: 'Integration Hub', icon: Settings },
+    { path: '/settings/security', label: 'Security', icon: Shield },
+  ];
+  
+  if (isAdmin) {
+    baseItems.push({ path: '/admin/organizations', label: 'Organizations', icon: Building2 });
+  }
+  
+  return baseItems;
+};
 
 export function MainLayout() {
   const location = useLocation();
@@ -78,7 +88,8 @@ export function MainLayout() {
   const navItems = getNavItems(
     integrationCount.max === -1 
       ? `${integrationCount.current}` 
-      : `${integrationCount.current}/${integrationCount.max}`
+      : `${integrationCount.current}/${integrationCount.max}`,
+    profile?.role === 'admin'
   );
 
   return (
@@ -125,6 +136,10 @@ export function MainLayout() {
               );
             })}
           </nav>
+          
+          <div className="px-3 mb-4">
+            <OrganizationSwitcher />
+          </div>
           
           <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center mb-3">

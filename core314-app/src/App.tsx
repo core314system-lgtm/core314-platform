@@ -18,8 +18,10 @@ import { AutomationRules } from './pages/admin/AutomationRules';
 import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { Security } from './pages/settings/Security';
+import { Organizations } from './pages/admin/Organizations';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
+import { OrganizationProvider } from './contexts/OrganizationContext';
 
 function App() {
   const { user, loading } = useAuth();
@@ -34,10 +36,11 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
-        <Route path="/pricing" element={<Pricing />} />
+      <OrganizationProvider>
+        <Routes>
+          <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+          <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
+          <Route path="/pricing" element={<Pricing />} />
         
         <Route
           path="/"
@@ -62,9 +65,11 @@ function App() {
           <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
           <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
           <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
+          <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
         </Route>
       </Routes>
       <Toaster />
+      </OrganizationProvider>
     </Router>
   );
 }

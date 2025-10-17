@@ -442,3 +442,38 @@ export interface VisualizationData {
   anomalies: AnomalyDataPoint[];
   actions: ActionDataPoint[];
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  owner_id: string;
+  plan: 'starter' | 'professional' | 'enterprise';
+  status: 'active' | 'inactive' | 'suspended';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'analyst' | 'member';
+  joined_at: string;
+}
+
+export interface OrganizationInvitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: 'admin' | 'analyst' | 'member';
+  token: string;
+  status: 'pending' | 'accepted' | 'expired';
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface OrganizationWithMembers extends Organization {
+  member_count: number;
+  user_role: 'owner' | 'admin' | 'analyst' | 'member';
+}
