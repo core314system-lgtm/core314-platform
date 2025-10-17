@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -21,8 +22,34 @@ export function Signup() {
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password, fullName);
+      const { data, error } = await signUp(email, password, fullName);
       if (error) throw error;
+
+      if (data.user) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-transactional-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                type: 'welcome',
+                to: email,
+                name: fullName,
+                data: {
+                  organization: 'Core314',
+                },
+              }),
+            });
+          }
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+        }
+      }
+
       navigate('/pricing');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign up');

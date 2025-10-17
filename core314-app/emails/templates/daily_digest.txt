@@ -1,0 +1,20 @@
+Core314 Daily Summary Report
+
+Hi {{name}},
+
+Here's your daily summary for {{organization}} from the last 24 hours.
+
+Activity Summary:
+- Simulations Run: {{simulations_count}}
+- Optimizations Applied: {{optimizations_count}}
+- Governance Actions: {{governance_actions}}
+- Current Fusion Score: {{fusion_score}}
+
+Performance Trends (Last 24h):
+{{performance_summary}}
+
+View the full dashboard: https://polite-mochi-fc5be5.netlify.app/dashboard
+
+---
+Core314 Intelligence System
+© 2025 Core314. All rights reserved.

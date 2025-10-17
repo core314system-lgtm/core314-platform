@@ -1,0 +1,19 @@
+Action Halted by AI Governance
+
+Hi {{name}},
+
+An AI optimization for {{organization}} has been automatically halted by Core314's governance system to ensure safety and compliance.
+
+Governance Details:
+- Triggered Policy: {{policy_name}}
+- Reason: {{reason}}
+- Ethical Risk Score: {{ethical_risk_score}}
+
+AI Explanation:
+{{explanation}}
+
+View the full governance log: https://polite-mochi-fc5be5.netlify.app/admin/governance
+
+---
+Core314 Intelligence System
+© 2025 Core314. All rights reserved.
