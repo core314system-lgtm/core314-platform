@@ -18,7 +18,8 @@ import {
   Zap,
   FileText,
   Sparkles,
-  Activity
+  Activity,
+  Globe
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -48,6 +49,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] =>
       { path: '/admin/ai-narratives', label: 'AI Narratives', icon: Sparkles },
       { path: '/admin/simulations', label: 'Simulations', icon: Zap },
       { path: '/admin/optimizations', label: 'Optimizations', icon: Activity },
+      { path: '/admin/insight-hub', label: 'Global Insights', icon: Globe },
       { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
     );
   }

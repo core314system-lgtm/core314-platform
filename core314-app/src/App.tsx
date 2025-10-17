@@ -20,6 +20,7 @@ import { AutomationLogsViewer } from './pages/admin/AutomationLogsViewer';
 import { AINarrativesManager } from './pages/admin/AINarrativesManager';
 import { SimulationsManager } from './pages/admin/SimulationsManager';
 import { OptimizationsManager } from './pages/admin/OptimizationsManager';
+import { InsightHub } from './pages/admin/InsightHub';
 import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { Security } from './pages/settings/Security';
@@ -74,6 +75,7 @@ function App() {
           <Route path="admin/ai-narratives" element={<ProtectedRoute requireAdmin><AINarrativesManager /></ProtectedRoute>} />
           <Route path="admin/simulations" element={<ProtectedRoute requireAdmin><SimulationsManager /></ProtectedRoute>} />
           <Route path="admin/optimizations" element={<ProtectedRoute requireAdmin><OptimizationsManager /></ProtectedRoute>} />
+          <Route path="admin/insight-hub" element={<ProtectedRoute requireAdmin><InsightHub /></ProtectedRoute>} />
           <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
           <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
         </Route>

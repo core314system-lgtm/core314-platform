@@ -570,3 +570,25 @@ export interface EventOptimization {
   summary: string;
   created_at: string;
 }
+
+export interface GlobalInsight {
+  id: string;
+  aggregation_date: string;
+  aggregated_metrics: {
+    avg_fusion_score: number;
+    avg_confidence: number;
+    avg_variance: number;
+  };
+  top_performing_integrations: Record<string, number>;
+  avg_optimization_improvement: number;
+  sample_size: number;
+  ai_summary: string;
+  created_at: string;
+}
+
+export interface GlobalRecommendation {
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  rationale: string;
+}
