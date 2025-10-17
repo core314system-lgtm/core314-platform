@@ -17,7 +17,8 @@ import {
   Building2,
   Zap,
   FileText,
-  Sparkles
+  Sparkles,
+  Activity
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -46,6 +47,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] =>
       { path: '/admin/automation-logs', label: 'Automation Logs', icon: FileText },
       { path: '/admin/ai-narratives', label: 'AI Narratives', icon: Sparkles },
       { path: '/admin/simulations', label: 'Simulations', icon: Zap },
+      { path: '/admin/optimizations', label: 'Optimizations', icon: Activity },
       { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
     );
   }

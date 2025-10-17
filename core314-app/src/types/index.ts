@@ -546,3 +546,27 @@ export interface EventSimulation {
   summary: string;
   created_at: string;
 }
+
+export interface EventOptimization {
+  id: string;
+  organization_id: string;
+  user_id: string | null;
+  optimization_type: 'auto_adjustment' | 'recommendation' | 'simulation_based';
+  baseline_data: {
+    weights: Record<string, number>;
+    confidence: number;
+    fusion_score: number;
+    variance: number;
+  };
+  optimized_data: {
+    weights: Record<string, number>;
+    confidence: number;
+    fusion_score: number;
+    variance: number;
+  };
+  improvement_score: number;
+  applied: boolean;
+  applied_at: string | null;
+  summary: string;
+  created_at: string;
+}
