@@ -15,7 +15,6 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get('limit') || '30');
-    const metric = url.searchParams.get('metric'); // optional filter
     
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {

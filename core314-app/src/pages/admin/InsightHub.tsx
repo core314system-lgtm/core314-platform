@@ -4,20 +4,32 @@ import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Globe, RefreshCw, TrendingUp, TrendingDown, Users, Target, AlertTriangle, Sparkles } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Globe, RefreshCw, TrendingUp, TrendingDown, Target, AlertTriangle, Sparkles } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { GlobalInsight, GlobalRecommendation } from '../../types';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+interface TrendDataPoint {
+  date: string;
+  avg_fusion_score: number;
+  avg_confidence: number;
+  avg_variance: number;
+  sample_size: number;
+}
+
+interface OrgComparisonMetrics {
+  avg_fusion_score: number;
+  avg_confidence: number;
+  avg_variance: number;
+}
 
 export function InsightHub() {
   const { currentOrganization } = useOrganization();
   const [latestInsight, setLatestInsight] = useState<GlobalInsight | null>(null);
-  const [trends, setTrends] = useState<any[]>([]);
+  const [trends, setTrends] = useState<TrendDataPoint[]>([]);
   const [recommendations, setRecommendations] = useState<GlobalRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [aggregating, setAggregating] = useState(false);
-  const [orgComparison, setOrgComparison] = useState<any>(null);
+  const [orgComparison, setOrgComparison] = useState<OrgComparisonMetrics | null>(null);
 
   useEffect(() => {
     fetchInsights();
@@ -135,15 +147,6 @@ export function InsightHub() {
       alert('Failed to aggregate. Please try again.');
     } finally {
       setAggregating(false);
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'text-red-600 dark:text-red-400';
-      case 'medium': return 'text-yellow-600 dark:text-yellow-400';
-      case 'low': return 'text-blue-600 dark:text-blue-400';
-      default: return 'text-gray-600 dark:text-gray-400';
     }
   };
 
