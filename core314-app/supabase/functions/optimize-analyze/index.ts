@@ -62,22 +62,39 @@ serve(async (req) => {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+    const { data: orgMembers } = await supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('organization_id', organization_id);
+
+    if (!orgMembers || orgMembers.length === 0) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        optimization_needed: false,
+        message: 'No users found in organization'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userIds = orgMembers.map(m => m.user_id);
+
     const { data: fusionScores } = await supabase
       .from('fusion_scores')
       .select('fusion_score, calculated_at')
-      .eq('organization_id', organization_id)
+      .in('user_id', userIds)
       .gte('calculated_at', thirtyDaysAgo)
       .order('calculated_at', { ascending: false });
 
     const { data: weightings } = await supabase
       .from('fusion_weightings')
-      .select('integration_id, final_weight, variance, ai_confidence')
-      .eq('organization_id', organization_id);
+      .select('integration_id, weight, variance, ai_confidence')
+      .in('user_id', userIds);
 
     const { data: insights } = await supabase
       .from('fusion_insights')
       .select('confidence, created_at')
-      .eq('organization_id', organization_id)
+      .in('user_id', userIds)
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false });
 
@@ -146,7 +163,7 @@ serve(async (req) => {
       const idToName = new Map(integrations?.map(i => [i.id, i.integration_name]) || []);
       weightings.forEach(w => {
         const name = idToName.get(w.integration_id);
-        if (name) baselineWeights[name] = w.final_weight;
+        if (name) baselineWeights[name] = w.weight || 0;
       });
     }
 
