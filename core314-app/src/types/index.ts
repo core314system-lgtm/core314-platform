@@ -527,3 +527,22 @@ export interface EventNarrative {
   ai_confidence: number;
   created_at: string;
 }
+
+export interface EventSimulation {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  name: string;
+  input_parameters: {
+    weights?: Record<string, number>;
+    confidence?: number;
+    baseline_score?: number;
+  };
+  predicted_output: {
+    FusionScore: number;
+    Confidence: number;
+    Variance: number;
+  };
+  summary: string;
+  created_at: string;
+}
