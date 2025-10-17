@@ -617,11 +617,72 @@ export interface GovernanceAudit {
   id: string;
   organization_id: string;
   event_type: 'optimization' | 'simulation' | 'recommendation' | 'automation' | 'recalibration';
-  decision_context: Record<string, any>;
+  decision_context: Record<string, unknown>;
   policy_triggered: string[];
   governance_action: 'approved' | 'flagged' | 'halted' | 'auto_adjusted';
   explanation: string | null;
   confidence_score: number | null;
   ethical_risk_score: number | null;
   created_at: string;
+}
+
+export interface AISupportLog {
+  id: string;
+  user_id: string | null;
+  organization_id: string | null;
+  query: string;
+  response: string;
+  mode: 'support' | 'onboarding';
+  metadata: {
+    confidence?: number;
+    escalation_triggered?: boolean;
+    [key: string]: unknown;
+  };
+  created_at: string;
+}
+
+export interface AIFeedback {
+  id: string;
+  user_id: string;
+  organization_id: string | null;
+  log_id: string;
+  feedback: 'up' | 'down';
+  comment: string | null;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  user_id: string;
+  organization_id: string | null;
+  subject: string;
+  description: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  assigned_to: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserOnboardingProgress {
+  user_id: string;
+  organization_id: string | null;
+  current_step: number;
+  total_steps: number;
+  step_1_completed: boolean;
+  step_2_completed: boolean;
+  step_3_completed: boolean;
+  step_4_completed: boolean;
+  completed_at: string | null;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  query: string;
+  response: string;
+  mode: 'support' | 'onboarding';
+  timestamp: string;
+  feedbackGiven?: 'up' | 'down';
 }

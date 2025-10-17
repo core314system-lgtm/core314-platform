@@ -321,6 +321,75 @@ View the full dashboard: https://polite-mochi-fc5be5.netlify.app/dashboard
 Core314 Intelligence System
 © 2025 Core314. All rights reserved.`;
 
+const SUPPORT_ESCALATION_HTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Escalation - Core314</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+          <tr>
+            <td style="background-color: #ff6b00; padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🚨 Support Escalation</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px;">
+              <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 20px;">Support Request from {{user_name}}</h2>
+              <p style="color: #666666; line-height: 1.6; margin: 0 0 20px 0;">
+                <strong>User:</strong> {{user_name}} ({{user_email}})<br>
+                <strong>Ticket ID:</strong> {{ticket_id}}
+              </p>
+              <div style="background-color: #f9f9f9; border-left: 4px solid #ff6b00; padding: 15px; margin: 20px 0;">
+                <p style="color: #333333; margin: 0 0 10px 0;"><strong>User Query:</strong></p>
+                <p style="color: #666666; margin: 0;">{{query}}</p>
+              </div>
+              <div style="background-color: #f0f7ff; border-left: 4px solid #0066cc; padding: 15px; margin: 20px 0;">
+                <p style="color: #333333; margin: 0 0 10px 0;"><strong>AI Response:</strong></p>
+                <p style="color: #666666; margin: 0;">{{ai_response}}</p>
+              </div>
+              <div style="background-color: #fafafa; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="color: #333333; margin: 0 0 10px 0;"><strong>Recent Conversation:</strong></p>
+                <pre style="color: #666666; margin: 0; white-space: pre-wrap; font-family: monospace; font-size: 12px;">{{conversation_history}}</pre>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f9f9f9; padding: 20px; text-align: center; font-size: 12px; color: #999999;">
+              <p style="margin: 0;">© 2025 Core314 Intelligence System. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+const SUPPORT_ESCALATION_TEXT = `🚨 SUPPORT ESCALATION - CORE314
+
+Support Request from {{user_name}}
+
+User: {{user_name}} ({{user_email}})
+Ticket ID: {{ticket_id}}
+
+User Query:
+{{query}}
+
+AI Response:
+{{ai_response}}
+
+Recent Conversation:
+{{conversation_history}}
+
+---
+© 2025 Core314 Intelligence System. All rights reserved.`;
+
 const EMAIL_TEMPLATES: Record<string, { subject: string; html: string; text: string }> = {
   welcome: {
     subject: 'Welcome to Core314',
@@ -341,6 +410,11 @@ const EMAIL_TEMPLATES: Record<string, { subject: string; html: string; text: str
     subject: 'Core314 Daily Summary',
     html: DAILY_DIGEST_HTML,
     text: DAILY_DIGEST_TEXT,
+  },
+  support_escalation: {
+    subject: '🚨 Support Escalation - User Needs Help',
+    html: SUPPORT_ESCALATION_HTML,
+    text: SUPPORT_ESCALATION_TEXT,
   },
 };
 
