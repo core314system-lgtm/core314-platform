@@ -13,13 +13,13 @@ import {
   Settings,
   LogOut,
   BarChart3,
-  Shield,
   Building2,
   Zap,
   FileText,
   Sparkles,
   Activity,
-  Globe
+  Globe,
+  Shield
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -50,6 +50,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] =>
       { path: '/admin/simulations', label: 'Simulations', icon: Zap },
       { path: '/admin/optimizations', label: 'Optimizations', icon: Activity },
       { path: '/admin/insight-hub', label: 'Global Insights', icon: Globe },
+      { path: '/admin/governance', label: 'AI Governance & Ethics', icon: Shield },
       { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
     );
   }

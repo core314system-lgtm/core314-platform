@@ -592,3 +592,36 @@ export interface GlobalRecommendation {
   priority: 'high' | 'medium' | 'low';
   rationale: string;
 }
+
+export interface GovernancePolicy {
+  id: string;
+  policy_name: string;
+  description: string | null;
+  policy_type: 'confidence' | 'fairness' | 'audit' | 'risk' | 'ethics';
+  condition: {
+    metric: string;
+    operator: string;
+    value: number;
+    timeframe?: string;
+  };
+  action: {
+    type: string;
+    message: string;
+  };
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernanceAudit {
+  id: string;
+  organization_id: string;
+  event_type: 'optimization' | 'simulation' | 'recommendation' | 'automation' | 'recalibration';
+  decision_context: Record<string, any>;
+  policy_triggered: string[];
+  governance_action: 'approved' | 'flagged' | 'halted' | 'auto_adjusted';
+  explanation: string | null;
+  confidence_score: number | null;
+  ethical_risk_score: number | null;
+  created_at: string;
+}
