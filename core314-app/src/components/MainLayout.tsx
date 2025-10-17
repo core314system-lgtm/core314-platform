@@ -45,6 +45,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] =>
       { path: '/admin/automation-rules-manager', label: 'Automation Rules', icon: Zap },
       { path: '/admin/automation-logs', label: 'Automation Logs', icon: FileText },
       { path: '/admin/ai-narratives', label: 'AI Narratives', icon: Sparkles },
+      { path: '/admin/simulations', label: 'Simulations', icon: Zap },
       { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
     );
   }
