@@ -115,7 +115,7 @@ export function MainLayout() {
             <p className="text-sm text-gray-600 dark:text-gray-400">Operations Control</p>
           </div>
           
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <nav className="px-3 py-4 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
