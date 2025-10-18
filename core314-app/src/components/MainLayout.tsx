@@ -151,11 +151,10 @@ export function MainLayout() {
             })}
           </nav>
           
-          <div className="px-3 mb-4">
-            <OrganizationSwitcher />
-          </div>
-          
-          <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div className="mb-3">
+              <OrganizationSwitcher />
+            </div>
             <div className="flex items-center mb-3">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
