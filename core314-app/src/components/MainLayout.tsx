@@ -109,49 +109,47 @@ export function MainLayout() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="flex">
-        <aside className="w-64 h-screen flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6">
+        <aside className="w-64 h-screen flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+          <div className="p-6 flex-shrink-0">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Core314</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">Operations Control</p>
           </div>
           
-          <div className="flex-1 overflow-y-auto pb-4">
-            <nav className="px-3 py-4 space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-                
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
-                      isActive
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Icon className="mr-3 h-5 w-5" />
-                      {item.label}
-                    </div>
-                    {item.badge && (
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs ${
-                          integrationCount.current >= integrationCount.max && integrationCount.max !== -1
-                            ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                            : ''
-                        }`}
-                      >
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
+          <nav className="flex-1 overflow-y-auto pb-4 px-3 py-4 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
+                    isActive
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Icon className="mr-3 h-5 w-5" />
+                    {item.label}
+                  </div>
+                  {item.badge && (
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs ${
+                        integrationCount.current >= integrationCount.max && integrationCount.max !== -1
+                          ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                          : ''
+                      }`}
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
           
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
             <div className="mb-3">
