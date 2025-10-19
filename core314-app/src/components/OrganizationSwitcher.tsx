@@ -18,8 +18,8 @@ export function OrganizationSwitcher() {
         className="w-full justify-between"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center">
-          <Building2 className="mr-2 h-4 w-4" />
+        <div className="flex items-center min-w-0 flex-1">
+          <Building2 className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">{currentOrganization?.name || 'Select Organization'}</span>
         </div>
         <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
