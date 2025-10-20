@@ -29,8 +29,10 @@ import { Organizations } from './pages/admin/Organizations';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 import { OrganizationProvider } from './contexts/OrganizationContext';
-import { AISupportProvider } from './contexts/AISupportContext';
-import { ChatWidget } from './components/chat/ChatWidget';
+import { OnboardingProvider } from './contexts/OnboardingContext';
+import { SupportChatProvider } from './contexts/SupportChatContext';
+import { OnboardingAssistant } from './components/assistants/OnboardingAssistant';
+import { SupportAssistant } from './components/assistants/SupportAssistant';
 
 function App() {
   const { user, loading } = useAuth();
@@ -46,11 +48,12 @@ function App() {
   return (
     <Router>
       <OrganizationProvider>
-        <AISupportProvider>
-          <Routes>
-            <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-            <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
-            <Route path="/pricing" element={<Pricing />} />
+        <OnboardingProvider>
+          <SupportChatProvider>
+            <Routes>
+              <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+              <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
+              <Route path="/pricing" element={<Pricing />} />
           
           <Route
             path="/"
@@ -84,10 +87,12 @@ function App() {
             <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
             <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
           </Route>
-        </Routes>
-        <Toaster />
-        <ChatWidget />
-        </AISupportProvider>
+          </Routes>
+          <Toaster />
+          <OnboardingAssistant />
+          <SupportAssistant />
+          </SupportChatProvider>
+        </OnboardingProvider>
       </OrganizationProvider>
     </Router>
   );
