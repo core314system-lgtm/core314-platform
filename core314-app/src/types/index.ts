@@ -9,6 +9,7 @@ export interface User {
   subscription_status: 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
+  onboarding_status: 'not_started' | 'in_progress' | 'completed';
   created_at: string;
   updated_at: string;
 }
@@ -674,6 +675,7 @@ export interface UserOnboardingProgress {
   step_2_completed: boolean;
   step_3_completed: boolean;
   step_4_completed: boolean;
+  step_5_completed: boolean;
   completed_at: string | null;
   updated_at: string;
 }
