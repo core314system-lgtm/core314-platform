@@ -36,14 +36,31 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      if (profile?.onboarding_status === 'not_started') {
+      console.log('[OnboardingContext] checkOnboardingStatus started', { userId: user.id });
+      
+      const { data: freshProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('onboarding_status')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('[OnboardingContext] Failed to fetch profile:', profileError);
+        throw profileError;
+      }
+
+      console.log('[OnboardingContext] Fresh profile fetched', { 
+        onboarding_status: freshProfile?.onboarding_status 
+      });
+
+      if (freshProfile?.onboarding_status === 'not_started') {
         setIsOpen(true);
         setCurrentStep(1);
         setLoading(false);
         return;
       }
 
-      if (profile?.onboarding_status === 'completed') {
+      if (freshProfile?.onboarding_status === 'completed') {
         setIsOpen(false);
         setLoading(false);
         return;
@@ -55,54 +72,76 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         .eq('user_id', user.id)
         .single();
 
+      console.log('[OnboardingContext] Progress data fetched', progressData);
+
       if (progressData) {
         setProgress(progressData);
         setCurrentStep(progressData.current_step);
-        setIsOpen(profile?.onboarding_status === 'in_progress');
+        setIsOpen(freshProfile?.onboarding_status === 'in_progress');
       } else {
         setCurrentStep(1);
         setIsOpen(true);
       }
     } catch (error) {
-      console.error('Failed to check onboarding status:', error);
+      console.error('[OnboardingContext] Failed to check onboarding status:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const completeStep = async (stepNumber: number) => {
-    if (!user) return;
+    if (!user) {
+      console.error('[OnboardingContext] completeStep called without user');
+      return;
+    }
+
+    console.log('[OnboardingContext] completeStep started', { 
+      stepNumber, 
+      userId: user.id 
+    });
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const requestPayload = { step_number: stepNumber };
+      console.log('[OnboardingContext] Sending API request via Supabase client', {
+        functionName: 'onboarding-complete-step',
+        payload: requestPayload,
+        userId: user.id,
+      });
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/onboarding-complete-step`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ step_number: stepNumber }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('onboarding-complete-step', {
+        body: requestPayload,
+      });
 
-      const data = await response.json();
+      console.log('[OnboardingContext] API response received', { 
+        data,
+        error,
+      });
 
-      if (data.success) {
+      if (error) {
+        console.error('[OnboardingContext] API returned error', error);
+        toast.error(error.message || 'Failed to save progress. Please try again.');
+        return;
+      }
+
+      if (data?.success) {
+        console.log('[OnboardingContext] Step completed successfully, updating state');
         if (stepNumber === 5) {
           setIsOpen(false);
           toast.success('Welcome to Core314! Your setup is complete.');
         } else {
-          setCurrentStep(stepNumber + 1);
+          const nextStep = stepNumber + 1;
+          console.log('[OnboardingContext] Moving to next step', { nextStep });
+          setCurrentStep(nextStep);
           toast.success(`Step ${stepNumber} complete!`);
         }
+        console.log('[OnboardingContext] Refreshing onboarding status');
         await checkOnboardingStatus();
+      } else {
+        console.error('[OnboardingContext] API returned failure', data);
+        toast.error(data?.error || 'Failed to save progress. Please try again.');
       }
     } catch (error) {
-      console.error('Failed to complete step:', error);
+      console.error('[OnboardingContext] Exception in completeStep:', error);
       toast.error('Failed to save progress. Please try again.');
     }
   };
