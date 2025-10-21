@@ -101,43 +101,29 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.error('[OnboardingContext] No session found');
-        toast.error('Please log in again to continue.');
-        return;
-      }
-
       const requestPayload = { step_number: stepNumber };
-      console.log('[OnboardingContext] Sending API request', {
-        url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/onboarding-complete-step`,
+      console.log('[OnboardingContext] Sending API request via Supabase client', {
+        functionName: 'onboarding-complete-step',
         payload: requestPayload,
         userId: user.id,
       });
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/onboarding-complete-step`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify(requestPayload),
-        }
-      );
-
-      console.log('[OnboardingContext] API response received', { 
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
+      const { data, error } = await supabase.functions.invoke('onboarding-complete-step', {
+        body: requestPayload,
       });
 
-      const data = await response.json();
-      console.log('[OnboardingContext] API response data', data);
+      console.log('[OnboardingContext] API response received', { 
+        data,
+        error,
+      });
 
-      if (data.success) {
+      if (error) {
+        console.error('[OnboardingContext] API returned error', error);
+        toast.error(error.message || 'Failed to save progress. Please try again.');
+        return;
+      }
+
+      if (data?.success) {
         console.log('[OnboardingContext] Step completed successfully, updating state');
         if (stepNumber === 5) {
           setIsOpen(false);
@@ -152,7 +138,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         await checkOnboardingStatus();
       } else {
         console.error('[OnboardingContext] API returned failure', data);
-        toast.error(data.error || 'Failed to save progress. Please try again.');
+        toast.error(data?.error || 'Failed to save progress. Please try again.');
       }
     } catch (error) {
       console.error('[OnboardingContext] Exception in completeStep:', error);
