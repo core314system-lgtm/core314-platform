@@ -11,6 +11,7 @@ import { IntegrationWithStatus } from '../types';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { addCustomIntegration } from '../services/addCustomIntegration';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { OAuthConnect } from '../components/integrations/OAuthConnect';
 
 export default function IntegrationHub() {
   const { user } = useAuth();
@@ -25,10 +26,12 @@ export default function IntegrationHub() {
   const [customType, setCustomType] = useState('');
   const [customLogo, setCustomLogo] = useState('');
   const [customDescription, setCustomDescription] = useState('');
+  const [integrationRegistry, setIntegrationRegistry] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchIntegrations();
+      fetchIntegrationRegistry();
     }
   }, [user]);
 
@@ -65,6 +68,20 @@ export default function IntegrationHub() {
       console.error('Error fetching integrations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchIntegrationRegistry = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('integration_registry')
+        .select('*')
+        .eq('is_enabled', true);
+
+      if (error) throw error;
+      setIntegrationRegistry(data || []);
+    } catch (error) {
+      console.error('Error fetching integration registry:', error);
     }
   };
 
@@ -148,48 +165,63 @@ export default function IntegrationHub() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredIntegrations.map((integration) => (
-          <Card key={integration.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  {integration.logo_url && (
-                    <img
-                      src={integration.logo_url}
-                      alt={integration.integration_name}
-                      className="w-10 h-10 object-contain"
-                    />
-                  )}
-                  <div>
-                    <CardTitle className="text-lg">{integration.integration_name}</CardTitle>
-                    <div className="flex gap-2 mt-1">
-                      <Badge variant={integration.is_core_integration ? 'default' : 'secondary'} className="text-xs">
-                        {integration.is_core_integration ? 'Core' : 'Custom'}
-                      </Badge>
-                      {integration.is_enabled && (
-                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                          Active
+        {filteredIntegrations.map((integration) => {
+          const registryEntry = integrationRegistry.find(
+            r => r.service_name === integration.integration_type
+          );
+          
+          return (
+            <Card key={integration.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    {integration.logo_url && (
+                      <img
+                        src={integration.logo_url}
+                        alt={integration.integration_name}
+                        className="w-10 h-10 object-contain"
+                      />
+                    )}
+                    <div>
+                      <CardTitle className="text-lg">{integration.integration_name}</CardTitle>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant={integration.is_core_integration ? 'default' : 'secondary'} className="text-xs">
+                          {integration.is_core_integration ? 'Core' : 'Custom'}
                         </Badge>
-                      )}
+                        {integration.is_enabled && (
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <CardDescription className="mt-2">
-                {integration.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={() => handleToggleIntegration(integration)}
-                variant={integration.is_enabled ? 'outline' : 'default'}
-                className="w-full"
-              >
-                {integration.is_enabled ? 'Disconnect' : 'Connect'}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+                <CardDescription className="mt-2">
+                  {integration.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {registryEntry && registryEntry.auth_type === 'oauth2' ? (
+                  <OAuthConnect
+                    serviceName={registryEntry.service_name}
+                    displayName={registryEntry.display_name}
+                    logoUrl={registryEntry.logo_url}
+                    onSuccess={fetchIntegrations}
+                  />
+                ) : (
+                  <Button
+                    onClick={() => handleToggleIntegration(integration)}
+                    variant={integration.is_enabled ? 'outline' : 'default'}
+                    className="w-full"
+                  >
+                    {integration.is_enabled ? 'Disconnect' : 'Connect'}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredIntegrations.length === 0 && (
