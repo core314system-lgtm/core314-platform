@@ -86,18 +86,5 @@ USING (auth.uid() = user_id);
 GRANT ALL ON public.oauth_states TO service_role;
 GRANT ALL ON public.oauth_states TO authenticated;
 
-CREATE OR REPLACE FUNCTION vault_create_secret(secret TEXT)
-RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  secret_id UUID;
-BEGIN
-  SELECT vault.create_secret(secret) INTO secret_id;
-  RETURN secret_id;
-END;
-$$;
-
 COMMENT ON TABLE public.integration_registry IS 'Dynamic registry of available integrations with auth configuration';
 COMMENT ON TABLE public.oauth_states IS 'Temporary storage for OAuth state parameters during authorization flow';

@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS public.oauth_tokens (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   integration_registry_id UUID NOT NULL REFERENCES public.integration_registry(id) ON DELETE CASCADE,
   user_integration_id UUID REFERENCES public.user_integrations(id) ON DELETE CASCADE,
-  access_token_secret_id UUID,
-  refresh_token_secret_id UUID,
+  access_token_encrypted BYTEA NOT NULL,
+  refresh_token_encrypted BYTEA,
   token_type TEXT DEFAULT 'bearer',
   scope TEXT,
   expires_at TIMESTAMPTZ,
@@ -53,6 +53,6 @@ WITH CHECK (true);
 GRANT ALL ON public.oauth_tokens TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.oauth_tokens TO authenticated;
 
-COMMENT ON TABLE public.oauth_tokens IS 'OAuth token storage with vault-encrypted secrets';
-COMMENT ON COLUMN public.oauth_tokens.access_token_secret_id IS 'Reference to vault.secrets for encrypted access token';
-COMMENT ON COLUMN public.oauth_tokens.refresh_token_secret_id IS 'Reference to vault.secrets for encrypted refresh token';
+COMMENT ON TABLE public.oauth_tokens IS 'OAuth token storage with pgsodium-encrypted secrets';
+COMMENT ON COLUMN public.oauth_tokens.access_token_encrypted IS 'Encrypted access token using pgsodium AEAD';
+COMMENT ON COLUMN public.oauth_tokens.refresh_token_encrypted IS 'Encrypted refresh token using pgsodium AEAD';

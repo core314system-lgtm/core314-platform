@@ -94,16 +94,16 @@ serve(async (req) => {
       });
     }
 
-    const { data: accessTokenSecretId } = await supabase.rpc('vault_create_secret', {
+    const { data: encryptedAccessToken } = await supabase.rpc('encrypt_secret', {
       secret: tokenData.access_token
     });
 
-    let refreshTokenSecretId = null;
+    let encryptedRefreshToken = null;
     if (tokenData.refresh_token) {
-      const { data: refreshSecretId } = await supabase.rpc('vault_create_secret', {
+      const { data: encryptedRefresh } = await supabase.rpc('encrypt_secret', {
         secret: tokenData.refresh_token
       });
-      refreshTokenSecretId = refreshSecretId;
+      encryptedRefreshToken = encryptedRefresh;
     }
 
     const expiresAt = tokenData.expires_in 
@@ -137,8 +137,8 @@ serve(async (req) => {
       user_id: stateData.user_id,
       integration_registry_id: integration.id,
       user_integration_id: userIntegration?.id,
-      access_token_secret_id: accessTokenSecretId,
-      refresh_token_secret_id: refreshTokenSecretId,
+      access_token_encrypted: encryptedAccessToken,
+      refresh_token_encrypted: encryptedRefreshToken,
       token_type: tokenData.token_type || 'bearer',
       scope: tokenData.scope,
       expires_at: expiresAt,

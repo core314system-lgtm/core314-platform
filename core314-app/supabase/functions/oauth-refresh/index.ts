@@ -55,20 +55,16 @@ serve(async (req) => {
       .eq('integration_registry_id', integration.id)
       .single();
 
-    if (!tokenRecord || !tokenRecord.refresh_token_secret_id) {
+    if (!tokenRecord || !tokenRecord.refresh_token_encrypted) {
       return new Response(JSON.stringify({ error: 'No refresh token available' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: refreshTokenData } = await supabase
-      .from('vault.decrypted_secrets')
-      .select('decrypted_secret')
-      .eq('id', tokenRecord.refresh_token_secret_id)
-      .single();
-
-    const refreshToken = refreshTokenData?.decrypted_secret;
+    const { data: refreshToken } = await supabase.rpc('decrypt_secret', {
+      encrypted_secret: tokenRecord.refresh_token_encrypted
+    });
 
     const clientId = Deno.env.get(`${service_name.toUpperCase()}_CLIENT_ID`);
     const clientSecret = Deno.env.get(`${service_name.toUpperCase()}_CLIENT_SECRET`);
@@ -93,13 +89,13 @@ serve(async (req) => {
       });
     }
 
-    const { data: newAccessTokenSecretId } = await supabase.rpc('vault_create_secret', {
+    const { data: encryptedAccessToken } = await supabase.rpc('encrypt_secret', {
       secret: tokenData.access_token
     });
 
     await supabase.from('oauth_tokens')
       .update({
-        access_token_secret_id: newAccessTokenSecretId,
+        access_token_encrypted: encryptedAccessToken,
         expires_at: tokenData.expires_in 
           ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
           : null,
