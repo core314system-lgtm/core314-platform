@@ -26,7 +26,13 @@ export default function IntegrationHub() {
   const [customType, setCustomType] = useState('');
   const [customLogo, setCustomLogo] = useState('');
   const [customDescription, setCustomDescription] = useState('');
-  const [integrationRegistry, setIntegrationRegistry] = useState<any[]>([]);
+  const [integrationRegistry, setIntegrationRegistry] = useState<Array<{
+    id: string;
+    service_name: string;
+    display_name: string;
+    auth_type: string;
+    logo_url?: string;
+  }>>([]);
 
   useEffect(() => {
     if (user) {
@@ -207,7 +213,6 @@ export default function IntegrationHub() {
                     serviceName={registryEntry.service_name}
                     displayName={registryEntry.display_name}
                     logoUrl={registryEntry.logo_url}
-                    onSuccess={fetchIntegrations}
                   />
                 ) : (
                   <Button

@@ -116,7 +116,7 @@ serve(async (req) => {
       .eq('integration_type', integration.service_name)
       .single();
 
-    const { data: userIntegration, error: userIntegrationError } = await supabase
+    const { data: userIntegration } = await supabase
       .from('user_integrations')
       .upsert({
         user_id: stateData.user_id,

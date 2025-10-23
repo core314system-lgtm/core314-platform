@@ -8,10 +8,9 @@ interface OAuthConnectProps {
   serviceName: string;
   displayName: string;
   logoUrl?: string;
-  onSuccess?: () => void;
 }
 
-export function OAuthConnect({ serviceName, displayName, logoUrl, onSuccess }: OAuthConnectProps) {
+export function OAuthConnect({ serviceName, displayName, logoUrl }: OAuthConnectProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
 
