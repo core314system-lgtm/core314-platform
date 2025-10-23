@@ -26,6 +26,7 @@ import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { Security } from './pages/settings/Security';
 import { Organizations } from './pages/admin/Organizations';
+import OAuthCallback from './pages/OAuthCallback';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 import { OrganizationProvider } from './contexts/OrganizationContext';
@@ -87,6 +88,7 @@ function App() {
             <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
             <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
           </Route>
+          <Route path="/oauth-callback" element={<OAuthCallback />} />
           </Routes>
           <Toaster />
           <OnboardingAssistant />
