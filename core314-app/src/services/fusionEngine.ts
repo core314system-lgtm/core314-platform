@@ -16,6 +16,17 @@ const DEFAULT_WEIGHTS: MetricWeights = {
   trend: 0.1,
 };
 
+const INTEGRATION_CATEGORIES: Record<string, string> = {
+  'quickbooks': 'Finance',
+  'slack': 'Communications',
+  'microsoft_teams': 'Communications',
+  'microsoft_365': 'Productivity',
+  'outlook': 'Communications',
+  'gmail': 'Communications',
+  'trello': 'Productivity',
+  'sendgrid': 'Communications'
+};
+
 export async function normalizeMetric(
   _metricType: string,
   rawValue: number,
@@ -47,6 +58,15 @@ export async function calculateFusionScore(
     return { score: 0, breakdown: {}, trend: 'stable' };
   }
 
+  const { data: integration } = await supabase
+    .from('integrations_master')
+    .select('integration_type')
+    .eq('id', integrationId)
+    .single();
+
+  const category = integration ? INTEGRATION_CATEGORIES[integration.integration_type] : 'General';
+  const categoryMultiplier = category === 'Finance' ? 1.2 : category === 'Communications' ? 1.0 : 1.1;
+
   const { data: weightings } = await supabase
     .from('fusion_weightings')
     .select('metric_id, final_weight')
@@ -61,10 +81,13 @@ export async function calculateFusionScore(
   const breakdown: Record<string, number> = {};
 
   metrics.forEach((metric) => {
-    const weight = weightMap.get(metric.id) || 
+    const baseWeight = weightMap.get(metric.id) || 
                    metric.weight || 
                    DEFAULT_WEIGHTS[metric.metric_type as keyof MetricWeights] || 
                    0.2;
+    
+    const weight = baseWeight * categoryMultiplier;
+    
     const contribution = metric.normalized_value * weight;
     weightedSum += contribution;
     totalWeight += weight;
