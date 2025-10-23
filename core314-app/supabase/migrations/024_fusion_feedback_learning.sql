@@ -20,25 +20,6 @@ CREATE INDEX IF NOT EXISTS idx_fusion_feedback_integration ON public.fusion_feed
 CREATE INDEX IF NOT EXISTS idx_fusion_feedback_created_at ON public.fusion_feedback(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fusion_feedback_type ON public.fusion_feedback(feedback_type);
 
-DO $$
-BEGIN
-    ALTER TABLE public.fusion_feedback ENABLE ROW LEVEL SECURITY;
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE NOTICE 'RLS already enabled or auto_apply issue bypassed: %', SQLERRM;
-END $$;
-
-DROP POLICY IF EXISTS "Users can view own fusion feedback" ON public.fusion_feedback;
-CREATE POLICY "Users can view own fusion feedback"
-ON public.fusion_feedback FOR SELECT
-USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Service role can manage fusion feedback" ON public.fusion_feedback;
-CREATE POLICY "Service role can manage fusion feedback"
-ON public.fusion_feedback FOR ALL
-TO service_role
-WITH CHECK (true);
-
 GRANT ALL ON public.fusion_feedback TO service_role;
 GRANT SELECT ON public.fusion_feedback TO authenticated;
 
