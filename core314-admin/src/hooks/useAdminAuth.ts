@@ -42,13 +42,18 @@ export function useAdminAuth() {
         .from('profiles')
         .select('*')
         .eq('id', authData.user.id)
-        .eq('role', 'admin')
         .single();
 
       if (profileError || !profile) {
         await supabase.auth.signOut();
         window.location.href = 'https://core314-app.netlify.app';
         return { error: { message: 'Access denied. Redirecting to main application...' } };
+      }
+
+      if (!profile.is_platform_admin) {
+        await supabase.auth.signOut();
+        window.location.href = 'https://core314-app.netlify.app';
+        return { error: { message: 'Access denied. Platform administrator access required.' } };
       }
 
       localStorage.setItem('admin_session', JSON.stringify(profile));

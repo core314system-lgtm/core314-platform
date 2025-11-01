@@ -31,9 +31,9 @@ export function BillingOverview() {
     try {
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('subscription_tier, subscription_status')
-        .neq('role', 'admin')
-        .eq('subscription_status', 'active');
+        .select('subscription_tier, subscription_status, is_platform_admin')
+        .eq('subscription_status', 'active')
+        .or('is_platform_admin.is.null,is_platform_admin.eq.false');
 
       if (profilesError) throw profilesError;
 

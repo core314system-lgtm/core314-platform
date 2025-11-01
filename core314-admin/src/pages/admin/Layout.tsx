@@ -39,6 +39,11 @@ export function AdminLayout() {
           <div className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Core314</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">Admin Dashboard</p>
+            <div className="mt-3 px-3 py-2 bg-purple-100 dark:bg-purple-900 rounded-md">
+              <p className="text-xs font-semibold text-purple-800 dark:text-purple-200">
+                🛡 Platform Administrator
+              </p>
+            </div>
           </div>
           
           <nav className="px-3 space-y-1">
