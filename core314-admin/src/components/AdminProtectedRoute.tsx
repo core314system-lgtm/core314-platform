@@ -15,7 +15,7 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
     );
   }
 
-  if (!isAuthenticated || !adminUser || adminUser.role !== 'admin') {
+  if (!isAuthenticated || !adminUser || !adminUser.is_platform_admin) {
     window.location.href = 'https://core314-app.netlify.app';
     return null;
   }
