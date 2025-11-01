@@ -112,9 +112,7 @@ export function UserManagement() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Subscription</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>2FA</TableHead>
+                <TableHead>Access Level</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -129,17 +127,18 @@ export function UserManagement() {
                       {user.role}
                     </Badge>
                   </TableCell>
-                  <TableCell className="capitalize">{user.subscription_tier}</TableCell>
                   <TableCell>
-                    <Badge className={getStatusBadgeColor(user.subscription_status)}>
-                      {user.subscription_status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.two_factor_enabled ? (
-                      <span className="text-green-600 dark:text-green-400">✓ Enabled</span>
+                    {user.role === 'admin' ? (
+                      <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                        Global Access: Enabled
+                      </Badge>
                     ) : (
-                      <span className="text-gray-400">Disabled</span>
+                      <div className="space-y-1">
+                        <div className="text-sm capitalize">{user.subscription_tier}</div>
+                        <Badge className={getStatusBadgeColor(user.subscription_status)}>
+                          {user.subscription_status}
+                        </Badge>
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>

@@ -27,25 +27,35 @@ export function useAdminAuth() {
     setLoading(false);
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const signIn = async (email: string, _password: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      const { data: user, error } = await supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError || !authData.user) {
+        return { error: { message: 'Invalid credentials' } };
+      }
+
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', email)
+        .eq('id', authData.user.id)
         .eq('role', 'admin')
         .single();
 
-      if (error || !user) {
-        return { error: { message: 'Invalid admin credentials' } };
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        window.location.href = 'https://core314-app.netlify.app';
+        return { error: { message: 'Access denied. Redirecting to main application...' } };
       }
 
-      localStorage.setItem('admin_session', JSON.stringify(user));
-      setSession({ adminUser: user, isAuthenticated: true });
+      localStorage.setItem('admin_session', JSON.stringify(profile));
+      setSession({ adminUser: profile, isAuthenticated: true });
       
-      return { data: user, error: null };
-    } catch {
+      return { data: profile, error: null };
+    } catch (err) {
       return { error: { message: 'Authentication failed' } };
     }
   };

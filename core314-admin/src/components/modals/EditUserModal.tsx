@@ -28,15 +28,24 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
     setError(null);
     
     try {
+      const updateData: any = {
+        role,
+        two_factor_enabled: twoFactorEnabled,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (role !== 'admin') {
+        updateData.subscription_tier = subscriptionTier;
+        updateData.subscription_status = status ? 'active' : 'inactive';
+      } else {
+        updateData.subscription_tier = 'none';
+        updateData.subscription_status = 'inactive';
+        updateData.is_platform_admin = true;
+      }
+
       const { data: updatedUser, error: updateError } = await supabase
         .from('profiles')
-        .update({
-          role,
-          subscription_tier: subscriptionTier,
-          subscription_status: status ? 'active' : 'inactive',
-          two_factor_enabled: twoFactorEnabled,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', user.id)
         .select()
         .single();
@@ -97,6 +106,7 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
             <Select 
               value={subscriptionTier} 
               onValueChange={(value) => setSubscriptionTier(value as typeof subscriptionTier)}
+              disabled={role === 'admin'}
             >
               <SelectTrigger id="subscription">
                 <SelectValue />
@@ -108,6 +118,11 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
                 <SelectItem value="enterprise">Enterprise</SelectItem>
               </SelectContent>
             </Select>
+            {role === 'admin' && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Admin accounts have global access and don't require subscriptions
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
@@ -121,8 +136,14 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
               id="status"
               checked={status}
               onCheckedChange={setStatus}
+              disabled={role === 'admin'}
             />
           </div>
+          {role === 'admin' && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Admin accounts are always active
+            </p>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
