@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { DollarSign, Users, TrendingUp, AlertCircle } from 'lucide-react';
 
@@ -28,9 +29,62 @@ export function BillingOverview() {
 
   const fetchBillingMetrics = async () => {
     try {
-      const response = await fetch('/.netlify/functions/billing-metrics');
-      const data = await response.json();
-      setMetrics(data);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('subscription_tier, subscription_status')
+        .neq('role', 'admin')
+        .eq('subscription_status', 'active');
+
+      if (profilesError) throw profilesError;
+
+      const activeSubscriptions = {
+        starter: profiles?.filter(p => p.subscription_tier === 'starter').length || 0,
+        professional: profiles?.filter(p => p.subscription_tier === 'professional').length || 0,
+        enterprise: profiles?.filter(p => p.subscription_tier === 'enterprise').length || 0,
+      };
+
+      const mrr = (
+        (activeSubscriptions.starter * 99) +
+        (activeSubscriptions.professional * 299) +
+        (activeSubscriptions.enterprise * 999)
+      );
+
+      const { data: trialHistory, error: trialError } = await supabase
+        .from('subscription_history')
+        .select('*')
+        .eq('event_type', 'subscription_created')
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (trialError) throw trialError;
+
+      const trialToActiveCount = trialHistory?.filter(
+        h => h.previous_status === 'trialing' && h.new_status === 'active'
+      ).length || 0;
+      
+      const totalTrials = trialHistory?.filter(
+        h => h.previous_status === 'inactive' && h.new_status === 'trialing'
+      ).length || 0;
+
+      const trialConversions = totalTrials > 0 
+        ? Math.round((trialToActiveCount / totalTrials) * 100) 
+        : 0;
+
+      const { data: failedPaymentHistory, error: failedError } = await supabase
+        .from('subscription_history')
+        .select('*')
+        .in('new_status', ['past_due', 'unpaid'])
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (failedError) throw failedError;
+
+      const failedPayments = failedPaymentHistory?.length || 0;
+
+      setMetrics({
+        mrr,
+        activeSubscriptions,
+        failedPayments,
+        trialConversions,
+      });
     } catch (error) {
       console.error('Error fetching billing metrics:', error);
     } finally {

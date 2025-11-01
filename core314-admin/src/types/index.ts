@@ -9,6 +9,7 @@ export interface User {
   subscription_status: 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
+  is_platform_admin?: boolean;
   created_at: string;
   updated_at: string;
 }
