@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 
 interface AdminProtectedRouteProps {
@@ -16,8 +17,7 @@ export function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
   }
 
   if (!isAuthenticated || !adminUser || !adminUser.is_platform_admin) {
-    window.location.href = 'https://core314-app.netlify.app';
-    return null;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
