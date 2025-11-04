@@ -273,3 +273,13 @@ export interface AIReasoningTrace {
   model_version?: string;
   created_at: string;
 }
+
+export interface ReplyToAddress {
+  id: string;
+  department_name: string;
+  email_address: string;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

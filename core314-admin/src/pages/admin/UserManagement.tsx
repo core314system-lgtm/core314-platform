@@ -13,13 +13,17 @@ import {
   TableRow,
 } from '../../components/ui/table';
 import { EditUserModal } from '../../components/modals/EditUserModal';
-import { RefreshCw, Pencil } from 'lucide-react';
+import { EmailUsersModal } from '../../components/modals/EmailUsersModal';
+import { ReplyToSettingsModal } from '../../components/modals/ReplyToSettingsModal';
+import { RefreshCw, Pencil, Mail, Settings } from 'lucide-react';
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [replyToSettingsOpen, setReplyToSettingsOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -95,10 +99,27 @@ export function UserManagement() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage all users and their permissions</p>
         </div>
-        <Button onClick={fetchUsers} disabled={loading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setReplyToSettingsOpen(true)}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Reply-To Settings
+          </Button>
+          <Button 
+            variant="default" 
+            onClick={() => setEmailModalOpen(true)}
+            disabled={users.length === 0}
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Send Email
+          </Button>
+          <Button onClick={fetchUsers} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -169,6 +190,17 @@ export function UserManagement() {
           onUserUpdated={handleUserUpdated}
         />
       )}
+
+      <EmailUsersModal
+        users={users}
+        open={emailModalOpen}
+        onOpenChange={setEmailModalOpen}
+      />
+
+      <ReplyToSettingsModal
+        open={replyToSettingsOpen}
+        onOpenChange={setReplyToSettingsOpen}
+      />
     </div>
   );
 }
