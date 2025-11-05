@@ -40,11 +40,15 @@ async function verifyServiceRoleToken(authHeader: string): Promise<boolean> {
     const token = authHeader.replace('Bearer ', '').trim();
     console.log('Attempting to verify service role token...');
     
-    const payload = await verify(
-      token,
+    const key = await crypto.subtle.importKey(
+      'raw',
       new TextEncoder().encode(jwtSecret),
-      'HS256'
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
     );
+
+    const payload = await verify(token, key);
 
     console.log('JWT verified successfully, payload:', JSON.stringify(payload));
     
