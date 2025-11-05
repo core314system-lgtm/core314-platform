@@ -11,6 +11,7 @@ import {
   Bell, 
   FileText,
   Wrench,
+  Zap,
   LogOut
 } from 'lucide-react';
 
@@ -22,6 +23,7 @@ const navItems = [
   { path: '/ai-logs', label: 'AI Logs', icon: Bot },
   { path: '/system-health', label: 'System Health', icon: Activity },
   { path: '/self-healing', label: 'Self-Healing Activity', icon: Wrench },
+  { path: '/adaptive-workflows', label: 'Adaptive Workflows', icon: Zap },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
