@@ -38,6 +38,7 @@ async function verifyServiceRoleToken(authHeader: string): Promise<boolean> {
     }
 
     const token = authHeader.replace('Bearer ', '').trim();
+    console.log('Attempting to verify service role token...');
     
     const payload = await verify(
       token,
@@ -45,13 +46,17 @@ async function verifyServiceRoleToken(authHeader: string): Promise<boolean> {
       'HS256'
     );
 
+    console.log('JWT verified successfully, payload:', JSON.stringify(payload));
+    
     if (
       payload.role === 'service_role' &&
       payload.iss === 'supabase'
     ) {
+      console.log('Service role token validated successfully');
       return true;
     }
 
+    console.warn('JWT payload missing required fields:', { role: payload.role, iss: payload.iss });
     return false;
   } catch (error) {
     console.error('Error verifying service role token:', error);
