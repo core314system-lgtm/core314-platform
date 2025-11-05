@@ -1,82 +1,65 @@
+-- ============================================================================
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS public.system_integrity_events (
+CREATE TABLE IF NOT EXISTS public.integration_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id UUID,  -- Reference to integration_events.id (nullable for non-integration events)
   service_name TEXT NOT NULL,
-  failure_reason TEXT,
-  failure_category TEXT CHECK (failure_category IN ('auth', 'rate_limit', 'network', 'data', 'unknown')),
-  action_taken TEXT,
-  analyzer_signals JSONB,  -- Diagnostic details from analyzer
-  llm_reasoning TEXT,  -- Optional AI reasoning if useLLM=true
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'disabled')),
-  resolved_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  event_type TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_system_integrity_events_service_status 
-  ON public.system_integrity_events(service_name, status, created_at DESC);
-CREATE INDEX idx_system_integrity_events_event_id 
-  ON public.system_integrity_events(event_id);
-CREATE INDEX idx_system_integrity_events_category 
-  ON public.system_integrity_events(failure_category, created_at DESC);
-CREATE INDEX idx_system_integrity_events_status_created
-  ON public.system_integrity_events(status, created_at DESC);
+-- Base indexes for integration_events
+CREATE INDEX IF NOT EXISTS idx_integration_events_service_name ON public.integration_events(service_name);
+CREATE INDEX IF NOT EXISTS idx_integration_events_event_type ON public.integration_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_integration_events_service_event ON public.integration_events(service_name, event_type);
+CREATE INDEX IF NOT EXISTS idx_integration_events_user_id ON public.integration_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_integration_events_created_at ON public.integration_events(created_at DESC);
 
-ALTER TABLE public.system_integrity_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integration_events ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can view system integrity events"
-  ON public.system_integrity_events FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.is_platform_admin = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'integration_events'
+      AND policyname = 'Platform admins can view integration events'
+  ) THEN
+    CREATE POLICY "Platform admins can view integration events"
+      ON public.integration_events FOR SELECT
+      TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid()
+          AND profiles.is_platform_admin = true
+        )
+      );
+  END IF;
+END
+$$;
 
-CREATE POLICY "Service role can insert system integrity events"
-  ON public.system_integrity_events FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    (auth.jwt() ->> 'role') = 'service_role'
-  );
-
-CREATE POLICY "Service role can update system integrity events"
-  ON public.system_integrity_events FOR UPDATE
-  TO authenticated
-  USING (
-    (auth.jwt() ->> 'role') = 'service_role'
-  );
-
-CREATE POLICY "Service role can delete system integrity events"
-  ON public.system_integrity_events FOR DELETE
-  TO authenticated
-  USING (
-    (auth.jwt() ->> 'role') = 'service_role'
-  );
-
-CREATE TRIGGER update_system_integrity_events_updated_at
-  BEFORE UPDATE ON public.system_integrity_events
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
-COMMENT ON TABLE public.system_integrity_events IS 'Logs self-healing actions for integration failures and system integrity issues';
-COMMENT ON COLUMN public.system_integrity_events.event_id IS 'Reference to integration_events.id if this is an integration failure';
-COMMENT ON COLUMN public.system_integrity_events.service_name IS 'Name of the service (slack, teams, stripe, etc.)';
-COMMENT ON COLUMN public.system_integrity_events.failure_reason IS 'Human-readable description of the failure';
-COMMENT ON COLUMN public.system_integrity_events.failure_category IS 'Categorized failure type: auth, rate_limit, network, data, unknown';
-COMMENT ON COLUMN public.system_integrity_events.action_taken IS 'Description of the recovery action performed';
-COMMENT ON COLUMN public.system_integrity_events.analyzer_signals IS 'Diagnostic signals from the analyzer (JSON)';
-COMMENT ON COLUMN public.system_integrity_events.llm_reasoning IS 'Optional AI-generated reasoning if LLM analysis was used';
-COMMENT ON COLUMN public.system_integrity_events.status IS 'Current status: pending (awaiting resolution), resolved (fixed), disabled (integration disabled)';
-COMMENT ON COLUMN public.system_integrity_events.resolved_at IS 'Timestamp when the issue was resolved';
+COMMENT ON TABLE public.integration_events IS 'Logs all integration events from external systems for audit and debugging';
+COMMENT ON COLUMN public.integration_events.service_name IS 'Name of the external service (e.g., stripe, teams, slack)';
+COMMENT ON COLUMN public.integration_events.event_type IS 'Type of event (e.g., invoice.paid, subscription.created, alert.sent)';
+COMMENT ON COLUMN public.integration_events.payload IS 'Full event payload as JSON for debugging and audit';
+COMMENT ON COLUMN public.integration_events.user_id IS 'Associated user ID if applicable (nullable for system events)';
 
 -- ============================================================================
+-- 2. Add Phase 19 columns to integration_events
 -- ============================================================================
 
 DO $$
