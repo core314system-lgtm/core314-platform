@@ -1,5 +1,6 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { verify } from 'https://deno.land/x/djwt@v3.0.1/mod.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import {
   createAdminClient,
@@ -24,6 +25,40 @@ interface AuditResult {
   timestamp: string;
 }
 
+/**
+ * Verify a service role JWT token
+ * Returns true if the token is valid and has service_role
+ */
+async function verifyServiceRoleToken(authHeader: string): Promise<boolean> {
+  try {
+    const jwtSecret = Deno.env.get('JWT_SECRET');
+    if (!jwtSecret) {
+      console.warn('JWT_SECRET not set - cannot verify service role tokens');
+      return false;
+    }
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    
+    const payload = await verify(
+      token,
+      new TextEncoder().encode(jwtSecret),
+      'HS256'
+    );
+
+    if (
+      payload.role === 'service_role' &&
+      payload.iss === 'supabase'
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error verifying service role token:', error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -36,24 +71,13 @@ serve(async (req) => {
     let isSchedulerCall = false;
     let triggeredBy = 'unknown';
 
-    if (authHeader) {
-      const supabaseClient = createUserClient(authHeader);
-      try {
-        const adminUserId = await requireAdmin(supabaseClient);
-        triggeredBy = adminUserId;
-      } catch (err) {
-        return new Response(
-          JSON.stringify({ error: String(err) }),
-          {
-            status: 403,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-    } else if (internalTokenHeader) {
+    if (internalTokenHeader) {
       if (!verifyInternalToken(`Bearer ${internalTokenHeader}`)) {
         return new Response(
-          JSON.stringify({ error: 'Unauthorized: Invalid internal token' }),
+          JSON.stringify({ 
+            error: 'Unauthorized: Invalid internal token',
+            reason: 'X-Internal-Token header present but token is invalid'
+          }),
           {
             status: 401,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -62,9 +86,34 @@ serve(async (req) => {
       }
       isSchedulerCall = true;
       triggeredBy = 'scheduler';
-    } else {
+    }
+    else if (authHeader && await verifyServiceRoleToken(authHeader)) {
+      triggeredBy = 'service_role';
+    }
+    else if (authHeader) {
+      const supabaseClient = createUserClient(authHeader);
+      try {
+        const adminUserId = await requireAdmin(supabaseClient);
+        triggeredBy = adminUserId;
+      } catch (err) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Forbidden: Platform administrator access required',
+            reason: String(err)
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+    else {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: No authentication provided' }),
+        JSON.stringify({ 
+          error: 'Unauthorized: No valid authentication provided',
+          reason: 'Must provide either X-Internal-Token, service_role JWT, or admin user JWT'
+        }),
         {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
