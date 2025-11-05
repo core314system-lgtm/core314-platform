@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
-import { runAdaptiveLearning } from '../../utils/adaptive-learning.ts';
+import { runAdaptiveLearning } from '../_shared/adaptive-learning.ts';
 
 
 interface AdaptiveEventRequest {
