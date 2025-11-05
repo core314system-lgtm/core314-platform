@@ -1,0 +1,54 @@
+name: Integration Self-Healing Scan
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allow manual triggering for testing
+
+jobs:
+  self-heal-scan:
+    runs-on: ubuntu-latest
+    name: Run Self-Healing Scan
+    
+    steps:
+      - name: Run integration-self-heal scan mode
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://ygvkegcstaowikessigx.supabase.co/functions/v1/integration-self-heal" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "X-Internal-Token: ${{ secrets.INTERNAL_WEBHOOK_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"mode":"scan","window_minutes":15,"limit":50}')
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Self-healing scan failed with HTTP $http_code"
+            exit 1
+          fi
+          
+          # Parse results
+          processed=$(echo "$body" | jq -r '.processed_count')
+          resolved=$(echo "$body" | jq -r '.resolved_count')
+          pending=$(echo "$body" | jq -r '.pending_count')
+          disabled=$(echo "$body" | jq -r '.disabled_count')
+          
+          echo "✅ Self-healing scan completed successfully"
+          echo "Processed: $processed events"
+          echo "Resolved: $resolved"
+          echo "Pending: $pending"
+          echo "Disabled: $disabled"
+          
+          if [ "$disabled" -gt "0" ]; then
+            echo "⚠️ Warning: $disabled integration(s) disabled"
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Self-healing scan failed. Please check the logs above for details."

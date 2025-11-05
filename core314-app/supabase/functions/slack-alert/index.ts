@@ -49,6 +49,72 @@ serve(async (req) => {
       );
     }
 
+    const forceFailure = req.headers.get('X-Force-Failure');
+    if (forceFailure && Deno.env.get('ENVIRONMENT') === 'development') {
+      const mockErrors: Record<string, { status: number; code: string; message: string }> = {
+        auth: { status: 401, code: 'invalid_token', message: 'Token expired' },
+        rate_limit: { status: 429, code: 'rate_limit_exceeded', message: 'Too many requests' },
+        network: { status: 503, code: 'service_unavailable', message: 'Service temporarily unavailable' },
+        data: { status: 400, code: 'validation_error', message: 'Invalid payload structure' }
+      };
+      
+      const mockError = mockErrors[forceFailure];
+      if (mockError) {
+        const supabaseAdmin = createAdminClient();
+        const { data: eventData } = await supabaseAdmin
+          .from('integration_events')
+          .insert({
+            service_name: 'slack',
+            event_type: 'alert.failed',
+            status: 'error',
+            error_code: mockError.code,
+            error_message: mockError.message,
+            http_status: mockError.status,
+            payload: { message, title, forced: true },
+            user_id: adminUserId,
+          })
+          .select()
+          .single();
+        
+        if (eventData) {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL');
+          const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+          const internalToken = Deno.env.get('INTERNAL_WEBHOOK_TOKEN');
+          
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/integration-self-heal`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+                'X-Internal-Token': internalToken || '',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                mode: 'webhook',
+                event_id: eventData.id,
+                service_name: 'slack',
+                http_status: mockError.status,
+                error_code: mockError.code,
+                error_message: mockError.message,
+                retry_count: 0,
+                user_id: adminUserId
+              })
+            });
+          } catch (err) {
+            console.error('Failed to call self-heal:', err);
+          }
+        }
+        
+        return new Response(
+          JSON.stringify({ error: mockError.message, forced: true }),
+          {
+            status: mockError.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+
     const slackWebhookUrl = Deno.env.get('SLACK_WEBHOOK_URL');
     if (!slackWebhookUrl) {
       return new Response(
