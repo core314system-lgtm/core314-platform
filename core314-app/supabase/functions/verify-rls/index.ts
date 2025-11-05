@@ -73,6 +73,11 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     const internalTokenHeader = req.headers.get('X-Internal-Token');
     
+    const jwtSecretAvailable = !!Deno.env.get('JWT_SECRET');
+    console.log('JWT_SECRET available:', jwtSecretAvailable);
+    console.log('Auth header present:', !!authHeader);
+    console.log('Internal token header present:', !!internalTokenHeader);
+    
     let isSchedulerCall = false;
     let triggeredBy = 'unknown';
 
