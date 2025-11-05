@@ -46,13 +46,11 @@ export function useAdminAuth() {
 
       if (profileError || !profile) {
         await supabase.auth.signOut();
-        window.location.href = 'https://core314-app.netlify.app';
-        return { error: { message: 'Access denied. Redirecting to main application...' } };
+        return { error: { message: 'Access denied. Profile not found.' } };
       }
 
       if (!profile.is_platform_admin) {
         await supabase.auth.signOut();
-        window.location.href = 'https://core314-app.netlify.app';
         return { error: { message: 'Access denied. Platform administrator access required.' } };
       }
 
@@ -60,7 +58,7 @@ export function useAdminAuth() {
       setSession({ adminUser: profile, isAuthenticated: true });
       
       return { data: profile, error: null };
-    } catch (err) {
+    } catch {
       return { error: { message: 'Authentication failed' } };
     }
   };
