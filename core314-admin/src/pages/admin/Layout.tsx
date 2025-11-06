@@ -15,6 +15,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Shield,
+  Gauge,
   LogOut
 } from 'lucide-react';
 
@@ -30,6 +31,7 @@ const navItems = [
   { path: '/fusion-risk-dashboard', label: 'Fusion Risk Dashboard', icon: TrendingUp },
   { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
   { path: '/alerts', label: 'Alert Center', icon: Shield },
+  { path: '/efficiency', label: 'Efficiency Index', icon: Gauge },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
