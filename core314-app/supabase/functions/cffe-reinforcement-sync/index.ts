@@ -16,6 +16,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { applyReinforcement } from '../_private/core-fusion-feedback-engine.ts';
+import { logAuditEvent } from '../_shared/audit-logger.ts';
 
 interface CalibrationResult {
   event_type: string;
@@ -146,6 +147,24 @@ serve(async (req) => {
       actions_applied: actionsApplied,
       timestamp: new Date().toISOString()
     };
+
+    const avgVariance = actionsApplied.length > 0
+      ? actionsApplied.reduce((sum, a) => sum + Math.abs(a.variance), 0) / actionsApplied.length
+      : 0;
+
+    await logAuditEvent({
+      event_type: 'cffe_sync',
+      event_source: 'cffe-reinforcement-sync',
+      event_payload: {
+        actions_count: actionsApplied.length,
+        actions: actionsApplied.map(a => ({
+          event_type: a.event_type,
+          recommendation: a.recommendation,
+          variance: a.variance
+        }))
+      },
+      reinforcement_delta: avgVariance,
+    });
 
     return new Response(
       JSON.stringify(response, null, 2),

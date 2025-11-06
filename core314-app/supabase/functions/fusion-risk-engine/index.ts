@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
+import { logAuditEvent } from '../_shared/audit-logger.ts';
 
 interface ForecastResult {
   event_type: string;
@@ -214,6 +215,32 @@ serve(async (req) => {
       events_processed: eventsProcessed,
       timestamp: new Date().toISOString()
     };
+
+    const avgInstability = riskEvents.length > 0
+      ? riskEvents.reduce((sum, e) => sum + (1 - e.predicted_stability), 0) / riskEvents.length
+      : 0;
+    const avgStability = riskEvents.length > 0
+      ? riskEvents.reduce((sum, e) => sum + e.predicted_stability, 0) / riskEvents.length
+      : 0;
+
+    await logAuditEvent({
+      event_type: 'risk_response',
+      event_source: 'fusion-risk-engine',
+      event_payload: {
+        events_processed: eventsProcessed,
+        actions_distribution: {
+          maintain: riskEvents.filter(e => e.action_taken === 'maintain').length,
+          reinforce: riskEvents.filter(e => e.action_taken === 'reinforce').length,
+          reset: riskEvents.filter(e => e.action_taken === 'reset').length,
+        },
+        risk_distribution: {
+          stable: riskEvents.filter(e => e.risk_category === 'Stable').length,
+          moderate: riskEvents.filter(e => e.risk_category === 'Moderate Risk').length,
+          high: riskEvents.filter(e => e.risk_category === 'High Risk').length,
+        }
+      },
+      stability_score: avgStability * 100,
+    });
 
     return new Response(
       JSON.stringify(response, null, 2),

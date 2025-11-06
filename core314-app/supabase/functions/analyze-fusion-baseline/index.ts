@@ -16,6 +16,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
+import { logAuditEvent } from '../_shared/audit-logger.ts';
 
 interface BaselineMetrics {
   event_type: string;
@@ -157,6 +158,21 @@ serve(async (req) => {
     };
 
     console.log(`[Fusion Baseline Analyzer] Analysis complete. Event types analyzed: ${summary.length}`);
+
+    await logAuditEvent({
+      event_type: 'baseline_analysis',
+      event_source: 'analyze-fusion-baseline',
+      event_payload: {
+        total_records: telemetryData.length,
+        event_types_analyzed: summary.length,
+        summary: summary.map(s => ({
+          event_type: s.event_type,
+          stability_index: s.stability_index,
+          sample_count: s.sample_count
+        }))
+      },
+      stability_score: summary.length > 0 ? summary[0].stability_index * 100 : null,
+    });
 
     return new Response(
       JSON.stringify(response, null, 2),
