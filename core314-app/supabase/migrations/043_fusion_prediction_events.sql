@@ -221,8 +221,8 @@ BEGIN
   ) THEN
     PERFORM cron.schedule(
       'predictive-model-trainer',
-      '0 */6 * * *',  -- Every 6 hours
-      $$SELECT public.run_predictive_model_trainer()$$
+      '0 */6 * * *',
+      'SELECT public.run_predictive_model_trainer()'
     );
   END IF;
 END$$;
