@@ -1,12 +1,29 @@
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-ALTER TABLE public.profiles 
-  DROP CONSTRAINT IF EXISTS profiles_role_check;
+DO $$
+DECLARE 
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'public.profiles'::regclass
+      AND contype = 'c'
+      AND pg_get_constraintdef(oid) ILIKE '%role%'
+  LOOP
+    EXECUTE format('ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS %I', r.conname);
+    RAISE NOTICE 'Dropped constraint: %', r.conname;
+  END LOOP;
+END
+$$;
 
 ALTER TABLE public.profiles 
-  ADD CONSTRAINT profiles_role_check 
-  CHECK (role IN ('admin', 'manager', 'user', 'platform_admin', 'operator', 'end_user'));
+  ADD CONSTRAINT profiles_role_check_phase41
+  CHECK (role IN ('admin', 'manager', 'user', 'platform_admin', 'operator', 'end_user'))
+  NOT VALID;
+
+ALTER TABLE public.profiles VALIDATE CONSTRAINT profiles_role_check_phase41;
 
 ALTER TABLE public.profiles 
   ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id) ON DELETE SET NULL;
@@ -16,7 +33,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 
 UPDATE public.profiles 
 SET role = 'platform_admin'
-WHERE is_platform_admin = TRUE AND role = 'admin';
+WHERE is_platform_admin = TRUE 
+  AND role IN ('admin', 'manager', 'user');
 
 ALTER TABLE public.fusion_audit_log 
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -365,3 +383,18 @@ COMMENT ON FUNCTION public.check_user_role(TEXT) IS
 
 COMMENT ON FUNCTION public.get_user_organization() IS 
   'Phase 41: Helper function to get current user organization ID';
+
+-- ============================================================================
+-- ============================================================================
+
+DO $$
+BEGIN
+  RAISE NOTICE '=== Phase 41 Migration Complete ===';
+  RAISE NOTICE 'Role constraint updated: profiles_role_check_phase41';
+  RAISE NOTICE 'Allowed roles: admin, manager, user, platform_admin, operator, end_user';
+  RAISE NOTICE 'Organization column added: profiles.organization_id';
+  RAISE NOTICE 'Audit tracking columns added: fusion_audit_log.user_id, fusion_audit_log.user_role';
+  RAISE NOTICE 'RLS policies created for 7 AI subsystem tables';
+  RAISE NOTICE 'Helper functions created: check_user_role(), get_user_organization()';
+END
+$$;
