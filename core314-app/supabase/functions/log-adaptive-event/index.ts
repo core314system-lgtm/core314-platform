@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
 import { runAdaptiveLearning } from '../_shared/adaptive-learning.ts';
+import { runFusionIntelligence } from '../_shared/fusion-intelligence.ts';
 
 
 interface AdaptiveEventRequest {
@@ -136,6 +137,7 @@ serve(async (req) => {
     }
 
     await runAdaptiveLearning(requestData);
+    await runFusionIntelligence(requestData);
 
     const supabaseAdmin = createAdminClient();
     const { data: eventData, error: insertError } = await supabaseAdmin
