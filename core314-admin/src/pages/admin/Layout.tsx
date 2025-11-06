@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Shield,
   Gauge,
+  Brain,
   LogOut
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ const navItems = [
   { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
   { path: '/alerts', label: 'Alert Center', icon: Shield },
   { path: '/efficiency', label: 'Efficiency Index', icon: Gauge },
+  { path: '/behavioral-analytics', label: 'Behavioral Analytics', icon: Brain },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
