@@ -162,11 +162,37 @@ serve(async (req) => {
 
     console.log(`[Fusion Anomaly Detector] Scan complete: ${updatedCount} anomalies flagged`);
 
+    let alertsGenerated = 0;
+    if (updatedCount > 0) {
+      try {
+        console.log('[Fusion Anomaly Detector] Triggering alert engine');
+        const alertEngineUrl = `${supabaseUrl}/functions/v1/fusion-alert-engine`;
+        const alertResponse = await fetch(alertEngineUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+        });
+
+        if (alertResponse.ok) {
+          const alertResult = await alertResponse.json();
+          alertsGenerated = alertResult.alerts_generated || 0;
+          console.log(`[Fusion Anomaly Detector] Alert engine generated ${alertsGenerated} alerts`);
+        } else {
+          console.error('[Fusion Anomaly Detector] Alert engine failed:', await alertResponse.text());
+        }
+      } catch (alertError) {
+        console.error('[Fusion Anomaly Detector] Failed to trigger alert engine:', alertError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         logs_analyzed: recentLogs.length,
         anomalies_detected: updatedCount,
+        alerts_generated: alertsGenerated,
         thresholds: THRESHOLDS,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -14,6 +14,7 @@ import {
   Zap,
   TrendingUp,
   AlertTriangle,
+  Shield,
   LogOut
 } from 'lucide-react';
 
@@ -28,6 +29,7 @@ const navItems = [
   { path: '/adaptive-workflows', label: 'Adaptive Workflows', icon: Zap },
   { path: '/fusion-risk-dashboard', label: 'Fusion Risk Dashboard', icon: TrendingUp },
   { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
+  { path: '/alerts', label: 'Alert Center', icon: Shield },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
