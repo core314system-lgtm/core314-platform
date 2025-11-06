@@ -18,6 +18,7 @@ import {
   Gauge,
   Brain,
   Lightbulb,
+  Sparkles,
   LogOut
 } from 'lucide-react';
 
@@ -36,6 +37,7 @@ const navItems = [
   { path: '/efficiency', label: 'Efficiency Index', icon: Gauge },
   { path: '/behavioral-analytics', label: 'Behavioral Analytics', icon: Brain },
   { path: '/predictive-insights', label: 'Predictive Insights', icon: Lightbulb },
+  { path: '/fusion-calibration', label: 'Fusion Calibration', icon: Sparkles },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
