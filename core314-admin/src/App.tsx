@@ -9,6 +9,7 @@ import { AILogs } from './pages/admin/AILogs';
 import { SystemHealth } from './pages/admin/SystemHealth';
 import { SelfHealingActivity } from './pages/admin/SelfHealingActivity';
 import { AdaptiveWorkflows } from './pages/admin/AdaptiveWorkflows';
+import { FusionRiskDashboard } from './pages/admin/FusionRiskDashboard';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -47,6 +48,7 @@ function App() {
           <Route path="system-health" element={<SystemHealth />} />
           <Route path="self-healing" element={<SelfHealingActivity />} />
           <Route path="adaptive-workflows" element={<AdaptiveWorkflows />} />
+          <Route path="fusion-risk-dashboard" element={<FusionRiskDashboard />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>

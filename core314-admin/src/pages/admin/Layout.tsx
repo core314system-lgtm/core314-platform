@@ -12,6 +12,7 @@ import {
   FileText,
   Wrench,
   Zap,
+  TrendingUp,
   LogOut
 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ const navItems = [
   { path: '/system-health', label: 'System Health', icon: Activity },
   { path: '/self-healing', label: 'Self-Healing Activity', icon: Wrench },
   { path: '/adaptive-workflows', label: 'Adaptive Workflows', icon: Zap },
+  { path: '/fusion-risk-dashboard', label: 'Fusion Risk Dashboard', icon: TrendingUp },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
