@@ -213,17 +213,24 @@ BEGIN
 END;
 $$;
 
--- Create pg_cron job to run predictive model trainer every 6 hours
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM cron.job WHERE jobname = 'predictive-model-trainer'
-  ) THEN
-    PERFORM cron.schedule(
-      'predictive-model-trainer',
-      '0 */6 * * *',
-      'SELECT public.run_predictive_model_trainer()'
-    );
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    BEGIN
+      PERFORM cron.schedule(
+        'predictive-model-trainer',
+        '0 */6 * * *',
+        'SELECT public.run_predictive_model_trainer()'
+      );
+      RAISE NOTICE 'Successfully scheduled predictive model trainer to run every 6 hours';
+    EXCEPTION
+      WHEN undefined_schema OR undefined_function THEN
+        RAISE NOTICE 'pg_cron present but not accessible; please schedule manually via Supabase Dashboard';
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Could not schedule pg_cron job: %. Please schedule manually.', SQLERRM;
+    END;
+  ELSE
+    RAISE NOTICE 'pg_cron extension not installed. Please schedule manually via Supabase Dashboard or enable pg_cron extension.';
   END IF;
 END$$;
 
