@@ -14,6 +14,7 @@ import { AuditAnomalies } from './pages/admin/AuditAnomalies';
 import { AlertCenter } from './pages/admin/AlertCenter';
 import { EfficiencyIndex } from './pages/admin/EfficiencyIndex';
 import { BehavioralAnalytics } from './pages/admin/BehavioralAnalytics';
+import { PredictiveInsights } from './pages/admin/PredictiveInsights';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -57,6 +58,7 @@ function App() {
           <Route path="alerts" element={<AlertCenter />} />
           <Route path="efficiency" element={<EfficiencyIndex />} />
           <Route path="behavioral-analytics" element={<BehavioralAnalytics />} />
+          <Route path="predictive-insights" element={<PredictiveInsights />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
