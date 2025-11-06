@@ -20,3 +20,6 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Private proprietary modules (Phase 25+)
+core314-app/supabase/functions/_private/
