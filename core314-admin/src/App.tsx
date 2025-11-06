@@ -12,6 +12,7 @@ import { AdaptiveWorkflows } from './pages/admin/AdaptiveWorkflows';
 import { FusionRiskDashboard } from './pages/admin/FusionRiskDashboard';
 import { AuditAnomalies } from './pages/admin/AuditAnomalies';
 import { AlertCenter } from './pages/admin/AlertCenter';
+import { EfficiencyIndex } from './pages/admin/EfficiencyIndex';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -53,6 +54,7 @@ function App() {
           <Route path="fusion-risk-dashboard" element={<FusionRiskDashboard />} />
           <Route path="audit" element={<AuditAnomalies />} />
           <Route path="alerts" element={<AlertCenter />} />
+          <Route path="efficiency" element={<EfficiencyIndex />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
