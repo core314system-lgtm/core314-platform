@@ -38,6 +38,7 @@ const navItems = [
   { path: '/behavioral-analytics', label: 'Behavioral Analytics', icon: Brain },
   { path: '/predictive-insights', label: 'Predictive Insights', icon: Lightbulb },
   { path: '/fusion-calibration', label: 'Fusion Calibration', icon: Sparkles },
+  { path: '/autonomous-oversight', label: 'Autonomous Oversight', icon: Shield },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
