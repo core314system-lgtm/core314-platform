@@ -1,6 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { verifyAuth, checkRole, createUnauthorizedResponse, createForbiddenResponse, logAuditEvent } from '../_shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -216,6 +217,19 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('authorization');
+    const authResult = await verifyAuth(authHeader, supabase);
+
+    if (!authResult.success) {
+      return createUnauthorizedResponse(authResult.error);
+    }
+
+    if (!checkRole(authResult.context, 'operator')) {
+      return createForbiddenResponse('operator or platform_admin');
+    }
+
+    const { context } = authResult;
+    
     console.log('[POE] Starting Proactive Optimization Engine analysis');
     
     const trends = await compute7DayTrends();
@@ -274,6 +288,20 @@ serve(async (req) => {
     }
     
     console.log('[POE] Optimization event created:', insertedEvent.id);
+    
+    await logAuditEvent(
+      supabase,
+      context,
+      'Optimization Engine Triggered',
+      `User ${context.userRole} triggered optimization engine. Action: ${optimizationAction.optimization_action}, Efficiency Index: ${efficiency_index.toFixed(1)}`,
+      {
+        optimization_id: insertedEvent.id,
+        action: optimizationAction.optimization_action,
+        efficiency_index,
+        predicted_stability: optimizationAction.predicted_stability,
+        predicted_variance: optimizationAction.predicted_variance,
+      }
+    );
     
     return new Response(
       JSON.stringify({
