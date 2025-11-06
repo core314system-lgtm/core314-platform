@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { verifyAndAuthorize } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,15 +48,33 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return new Response(
+      JSON.stringify({ error: 'Missing Supabase environment variables' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const authResult = await verifyAndAuthorize(
+    req,
+    supabase,
+    ['platform_admin'],
+    'fusion-orchestrator-engine'
+  );
+
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
+  const { context } = authResult;
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase environment variables');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    console.log(`[Core Intelligence Orchestrator] User ${context.userRole} (${context.userId}) starting orchestration...`);
 
     const url = new URL(req.url);
     const policyProfile = url.searchParams.get('policy') || 'Standard';

@@ -142,6 +142,71 @@ export function createUnauthorizedResponse(error: AuthError): Response {
 }
 
 /**
+ * Check if user has any of the allowed roles
+ */
+export function checkAnyRole(context: AuthContext, allowedRoles: string[]): boolean {
+  return allowedRoles.some(role => checkRole(context, role));
+}
+
+/**
+ * Safely decode JWT payload without verification (for logging only)
+ */
+function decodeJwtSafely(token: string): { sub?: string; role?: string } | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    const payload = parts[1];
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const parsed = JSON.parse(decoded);
+    
+    return {
+      sub: parsed.sub,
+      role: parsed.user_metadata?.role || parsed.role,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Log unauthorized access attempt
+ */
+async function logUnauthorizedAttempt(
+  supabase: SupabaseClient,
+  actionType: string,
+  reason: string,
+  token?: string
+): Promise<void> {
+  try {
+    let userId: string | null = null;
+    let userRole: string | null = null;
+
+    if (token) {
+      const decoded = decodeJwtSafely(token);
+      if (decoded) {
+        userId = decoded.sub || null;
+        userRole = decoded.role || null;
+      }
+    }
+
+    await supabase.from('fusion_audit_log').insert({
+      user_id: userId,
+      user_role: userRole,
+      action_type: actionType,
+      decision_summary: `Unauthorized access attempt: ${reason}`,
+      system_context: { reason, timestamp: new Date().toISOString() },
+      triggered_by: 'Edge Function',
+      confidence_level: 0,
+      decision_impact: 'unauthorized_access_attempt',
+      anomaly_detected: true,
+    });
+  } catch (error) {
+    console.error('Failed to log unauthorized attempt:', error);
+  }
+}
+
+/**
  * Log audit event with user context
  */
 export async function logAuditEvent(
@@ -166,4 +231,76 @@ export async function logAuditEvent(
   } catch (error) {
     console.error('Failed to log audit event:', error);
   }
+}
+
+/**
+ * Verify authentication and authorize request
+ * Returns either success with context or a Response to return immediately
+ */
+export async function verifyAndAuthorize(
+  req: Request,
+  supabase: SupabaseClient,
+  allowedRoles: string[],
+  actionType: string
+): Promise<
+  | { ok: true; context: AuthContext; token: string }
+  | { ok: false; response: Response }
+> {
+  const authHeader = req.headers.get('authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    await logUnauthorizedAttempt(supabase, actionType, 'Missing or invalid authorization header');
+    return {
+      ok: false,
+      response: createUnauthorizedResponse({
+        code: 'UNAUTHORIZED',
+        message: 'Missing or invalid authorization header',
+        detail: 'Authorization header must be in format: Bearer <token>',
+      }),
+    };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const authResult = await verifyAuth(authHeader, supabase);
+
+  if (!authResult.success) {
+    await logUnauthorizedAttempt(supabase, actionType, authResult.error.message, token);
+    return {
+      ok: false,
+      response: createUnauthorizedResponse(authResult.error),
+    };
+  }
+
+  const { context } = authResult;
+
+  if (!checkAnyRole(context, allowedRoles)) {
+    await logUnauthorizedAttempt(
+      supabase,
+      actionType,
+      `Insufficient permissions. Required: ${allowedRoles.join(' or ')}. User role: ${context.userRole}`,
+      token
+    );
+    return {
+      ok: false,
+      response: createForbiddenResponse(allowedRoles.join(' or ')),
+    };
+  }
+
+  await logAuditEvent(
+    supabase,
+    context,
+    actionType,
+    `User ${context.userRole} authorized to access ${actionType}`,
+    {
+      decision_impact: 'authorized_function_access',
+      anomaly_detected: false,
+      confidence_level: 1.0,
+    }
+  );
+
+  return {
+    ok: true,
+    context,
+    token,
+  };
 }

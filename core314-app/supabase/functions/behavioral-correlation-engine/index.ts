@@ -1,11 +1,12 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { verifyAndAuthorize } from '../_shared/auth.ts';
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 interface BehavioralMetric {
   id: string;
@@ -39,7 +40,7 @@ interface CorrelationResult {
 /**
  * Fetch recent behavioral metrics (last 7 days)
  */
-async function fetchRecentBehavioralMetrics(): Promise<BehavioralMetric[]> {
+async function fetchRecentBehavioralMetrics(supabase: any): Promise<BehavioralMetric[]> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
@@ -59,7 +60,7 @@ async function fetchRecentBehavioralMetrics(): Promise<BehavioralMetric[]> {
 /**
  * Fetch optimization events for correlation
  */
-async function fetchOptimizationEvents(): Promise<OptimizationEvent[]> {
+async function fetchOptimizationEvents(supabase: any): Promise<OptimizationEvent[]> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
@@ -150,6 +151,7 @@ function correlateBehaviorWithOutcomes(
  * Update behavioral metrics with recalculated scores based on correlations
  */
 async function updateBehavioralScores(
+  supabase: any,
   metrics: BehavioralMetric[],
   correlations: CorrelationResult[]
 ): Promise<number> {
@@ -186,19 +188,38 @@ async function updateBehavioralScores(
  */
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    console.log('[BCE] Behavioral Correlation Engine invoked');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    const metrics = await fetchRecentBehavioralMetrics();
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return new Response(
+      JSON.stringify({ error: 'Missing Supabase environment variables' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const authResult = await verifyAndAuthorize(
+    req,
+    supabase,
+    ['operator', 'platform_admin', 'end_user'],
+    'behavioral-correlation-engine'
+  );
+
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
+  const { context } = authResult;
+
+  try {
+    console.log(`[BCE] User ${context.userRole} (${context.userId}) starting behavioral correlation analysis...`);
+
+    const metrics = await fetchRecentBehavioralMetrics(supabase);
     console.log(`[BCE] Fetched ${metrics.length} behavioral metrics from last 7 days`);
 
     if (metrics.length === 0) {
@@ -209,21 +230,18 @@ serve(async (req) => {
           correlations: [],
         }),
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    const optimizations = await fetchOptimizationEvents();
+    const optimizations = await fetchOptimizationEvents(supabase);
     console.log(`[BCE] Fetched ${optimizations.length} optimization events`);
 
     const correlations = correlateBehaviorWithOutcomes(metrics, optimizations);
     console.log(`[BCE] Generated ${correlations.length} correlation insights`);
 
-    const updated = await updateBehavioralScores(metrics, correlations);
+    const updated = await updateBehavioralScores(supabase, metrics, correlations);
     console.log(`[BCE] Updated ${updated} behavioral metric scores`);
 
     const overall_impact_score = correlations.length > 0
@@ -244,10 +262,7 @@ serve(async (req) => {
         correlations,
       }),
       {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
 
@@ -260,10 +275,7 @@ serve(async (req) => {
       }),
       {
         status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
