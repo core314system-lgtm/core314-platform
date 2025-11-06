@@ -1,18 +1,31 @@
 import React from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Cpu, Activity, AlertCircle, Download, RefreshCw, Play, Settings } from 'lucide-react';
+import { Cpu, Download, RefreshCw, Play, Settings } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar } from 'recharts';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+interface SystemState {
+  optimization_count?: number;
+  behavioral_count?: number;
+  prediction_count?: number;
+  calibration_count?: number;
+  audit_count?: number;
+  threshold?: number;
+  total_events?: number;
+  system_health?: string;
+  anomaly_count?: number;
+  [key: string]: string | number | undefined;
+}
+
 interface OrchestratorEvent {
   id: string;
   trigger_source: string;
   action_taken: string;
   priority_level: number;
-  system_state: Record<string, any> | null;
+  system_state: SystemState | null;
   policy_profile: string;
   status: string;
   execution_time_ms: number | null;
