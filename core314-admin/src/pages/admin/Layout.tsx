@@ -19,6 +19,7 @@ import {
   Brain,
   Lightbulb,
   Sparkles,
+  Cpu,
   LogOut
 } from 'lucide-react';
 
@@ -39,6 +40,7 @@ const navItems = [
   { path: '/predictive-insights', label: 'Predictive Insights', icon: Lightbulb },
   { path: '/fusion-calibration', label: 'Fusion Calibration', icon: Sparkles },
   { path: '/autonomous-oversight', label: 'Autonomous Oversight', icon: Shield },
+  { path: '/core-orchestrator', label: 'Core Orchestrator', icon: Cpu },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
