@@ -4,6 +4,7 @@ import { createAdminClient } from '../_shared/integration-utils.ts';
 import { runAdaptiveLearning } from '../_shared/adaptive-learning.ts';
 import { runFusionIntelligence } from '../_shared/fusion-intelligence.ts';
 import { runFusionSignalProcessor } from '../_shared/fusion-signal-processor.ts';
+import { runFusionFeedbackLoop } from '../_shared/fusion-feedback-loop.ts';
 
 
 interface AdaptiveEventRequest {
@@ -139,7 +140,14 @@ serve(async (req) => {
 
     await runAdaptiveLearning(requestData);
     const fusionResults = await runFusionIntelligence(requestData);
-    await runFusionSignalProcessor(fusionResults);
+    const signalResults = await runFusionSignalProcessor(fusionResults);
+
+    let feedbackResults = { feedback_score: null, adjustment_type: null };
+    try {
+      feedbackResults = await runFusionFeedbackLoop(signalResults);
+    } catch (feedbackError) {
+      console.warn('[Fusion Feedback Loop] Non-fatal error:', feedbackError);
+    }
 
     const supabaseAdmin = createAdminClient();
     const { data: eventData, error: insertError } = await supabaseAdmin
@@ -150,7 +158,9 @@ serve(async (req) => {
         trigger_source: requestData.trigger_source,
         outcome: requestData.outcome,
         confidence_score: requestData.confidence_score,
-        metadata: requestData.metadata || {}
+        metadata: requestData.metadata || {},
+        feedback_score: feedbackResults.feedback_score,
+        adjustment_type: feedbackResults.adjustment_type
       })
       .select()
       .single();
