@@ -13,6 +13,7 @@ import {
   Wrench,
   Zap,
   TrendingUp,
+  AlertTriangle,
   LogOut
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/self-healing', label: 'Self-Healing Activity', icon: Wrench },
   { path: '/adaptive-workflows', label: 'Adaptive Workflows', icon: Zap },
   { path: '/fusion-risk-dashboard', label: 'Fusion Risk Dashboard', icon: TrendingUp },
+  { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];

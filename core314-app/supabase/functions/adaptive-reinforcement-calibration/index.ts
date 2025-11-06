@@ -16,6 +16,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
+import { logAuditEvent } from '../_shared/audit-logger.ts';
 
 interface BaselineMetrics {
   event_type: string;
@@ -224,6 +225,29 @@ serve(async (req) => {
     };
 
     console.log(`[ARC] Calibration complete. Event types analyzed: ${calibrations.length}`);
+
+    const avgVariance = calibrations.length > 0 
+      ? calibrations.reduce((sum, c) => sum + Math.abs(c.variance), 0) / calibrations.length 
+      : 0;
+    const avgStability = calibrations.length > 0
+      ? calibrations.reduce((sum, c) => sum + c.current_stability, 0) / calibrations.length
+      : 0;
+
+    await logAuditEvent({
+      event_type: 'reinforcement_calibration',
+      event_source: 'adaptive-reinforcement-calibration',
+      event_payload: {
+        calibrations_count: calibrations.length,
+        avg_variance: parseFloat(avgVariance.toFixed(4)),
+        recommendations: calibrations.map(c => ({
+          event_type: c.event_type,
+          variance: c.variance,
+          recommendation: c.recommendation
+        }))
+      },
+      stability_score: avgStability * 100,
+      reinforcement_delta: avgVariance,
+    });
 
     return new Response(
       JSON.stringify(response, null, 2),

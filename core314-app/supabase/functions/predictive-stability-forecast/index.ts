@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
+import { logAuditEvent } from '../_shared/audit-logger.ts';
 
 interface MetricRecord {
   event_type: string;
@@ -233,6 +234,32 @@ serve(async (req) => {
       forecasts: forecasts,
       timestamp: new Date().toISOString()
     };
+
+    const avgInstability = forecasts.length > 0
+      ? forecasts.reduce((sum, f) => sum + f.instability_probability, 0) / forecasts.length
+      : 0;
+    const avgStability = forecasts.length > 0
+      ? forecasts.reduce((sum, f) => sum + f.predicted_stability_index, 0) / forecasts.length
+      : 0;
+    const avgVariance = forecasts.length > 0
+      ? forecasts.reduce((sum, f) => sum + f.predicted_variance, 0) / forecasts.length
+      : 0;
+
+    await logAuditEvent({
+      event_type: 'stability_forecast',
+      event_source: 'predictive-stability-forecast',
+      event_payload: {
+        forecasts_count: forecasts.length,
+        avg_instability_probability: parseFloat(avgInstability.toFixed(4)),
+        avg_predicted_variance: parseFloat(avgVariance.toFixed(4)),
+        risk_distribution: {
+          high: forecasts.filter(f => f.risk_category === 'High Risk').length,
+          moderate: forecasts.filter(f => f.risk_category === 'Moderate Risk').length,
+          stable: forecasts.filter(f => f.risk_category === 'Stable').length,
+        }
+      },
+      stability_score: avgStability * 100,
+    });
 
     return new Response(
       JSON.stringify(response, null, 2),
