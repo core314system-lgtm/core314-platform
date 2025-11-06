@@ -20,7 +20,7 @@ interface BehavioralMetric {
   user_id: string | null;
   event_type: string;
   event_source: string;
-  event_context: Record<string, any>;
+  event_context: Record<string, unknown>;
   outcome_reference: string | null;
   behavior_score: number;
   created_at: string;
