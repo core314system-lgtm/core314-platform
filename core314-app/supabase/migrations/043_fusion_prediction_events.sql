@@ -214,23 +214,31 @@ END;
 $$;
 
 DO $$
+DECLARE
+  v_cron_schema_exists BOOLEAN;
+  v_schedule_function_exists BOOLEAN;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    BEGIN
+  SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'cron') INTO v_cron_schema_exists;
+  
+  IF v_cron_schema_exists THEN
+    SELECT EXISTS(
+      SELECT 1 FROM pg_proc p
+      JOIN pg_namespace n ON p.pronamespace = n.oid
+      WHERE n.nspname = 'cron' AND p.proname = 'schedule'
+    ) INTO v_schedule_function_exists;
+    
+    IF v_schedule_function_exists THEN
       PERFORM cron.schedule(
         'predictive-model-trainer',
         '0 */6 * * *',
         'SELECT public.run_predictive_model_trainer()'
       );
-      RAISE NOTICE 'Successfully scheduled predictive model trainer to run every 6 hours';
-    EXCEPTION
-      WHEN undefined_schema OR undefined_function THEN
-        RAISE NOTICE 'pg_cron present but not accessible; please schedule manually via Supabase Dashboard';
-      WHEN OTHERS THEN
-        RAISE NOTICE 'Could not schedule pg_cron job: %. Please schedule manually.', SQLERRM;
-    END;
+      RAISE NOTICE 'Successfully scheduled predictive model trainer to run every 6 hours via pg_cron';
+    ELSE
+      RAISE NOTICE 'pg_cron schema exists but schedule function not found. Please schedule manually.';
+    END IF;
   ELSE
-    RAISE NOTICE 'pg_cron extension not installed. Please schedule manually via Supabase Dashboard or enable pg_cron extension.';
+    RAISE NOTICE 'pg_cron not available. Please schedule manually via Supabase Dashboard or enable pg_cron extension.';
   END IF;
 END$$;
 
