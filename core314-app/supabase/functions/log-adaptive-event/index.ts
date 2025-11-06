@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
 import { runAdaptiveLearning } from '../_shared/adaptive-learning.ts';
 import { runFusionIntelligence } from '../_shared/fusion-intelligence.ts';
+import { runFusionSignalProcessor } from '../_shared/fusion-signal-processor.ts';
 
 
 interface AdaptiveEventRequest {
@@ -137,7 +138,8 @@ serve(async (req) => {
     }
 
     await runAdaptiveLearning(requestData);
-    await runFusionIntelligence(requestData);
+    const fusionResults = await runFusionIntelligence(requestData);
+    await runFusionSignalProcessor(fusionResults);
 
     const supabaseAdmin = createAdminClient();
     const { data: eventData, error: insertError } = await supabaseAdmin
