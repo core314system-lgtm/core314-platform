@@ -1,10 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
-import { runAdaptiveLearning } from '../_shared/adaptive-learning.ts';
-import { runFusionIntelligence } from '../_shared/fusion-intelligence.ts';
-import { runFusionSignalProcessor } from '../_shared/fusion-signal-processor.ts';
-import { runFusionFeedbackLoop } from '../_shared/fusion-feedback-loop.ts';
+import { runFusionFeedbackCycle } from '../_private/core-fusion-feedback-engine.ts';
 
 
 interface AdaptiveEventRequest {
@@ -138,15 +135,18 @@ serve(async (req) => {
       );
     }
 
-    await runAdaptiveLearning(requestData);
-    const fusionResults = await runFusionIntelligence(requestData);
-    const signalResults = await runFusionSignalProcessor(fusionResults);
+    let cffeResult;
+    let composite_confidence = requestData.confidence_score;
+    let feedback_score = null;
+    let adjustment_type = null;
 
-    let feedbackResults = { feedback_score: null, adjustment_type: null };
     try {
-      feedbackResults = await runFusionFeedbackLoop(signalResults);
-    } catch (feedbackError) {
-      console.warn('[Fusion Feedback Loop] Non-fatal error:', feedbackError);
+      cffeResult = await runFusionFeedbackCycle(requestData);
+      composite_confidence = cffeResult.composite_confidence;
+      feedback_score = cffeResult.telemetry.feedback_score;
+      adjustment_type = cffeResult.adjustment;
+    } catch (cffeError) {
+      console.warn('[CFFE] Processing error, using fallback values');
     }
 
     const supabaseAdmin = createAdminClient();
@@ -157,10 +157,10 @@ serve(async (req) => {
         event_type: requestData.event_type,
         trigger_source: requestData.trigger_source,
         outcome: requestData.outcome,
-        confidence_score: requestData.confidence_score,
+        confidence_score: composite_confidence,
         metadata: requestData.metadata || {},
-        feedback_score: feedbackResults.feedback_score,
-        adjustment_type: feedbackResults.adjustment_type
+        feedback_score: feedback_score,
+        adjustment_type: adjustment_type
       })
       .select()
       .single();
