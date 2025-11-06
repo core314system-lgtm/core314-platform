@@ -13,6 +13,7 @@ import { FusionRiskDashboard } from './pages/admin/FusionRiskDashboard';
 import { AuditAnomalies } from './pages/admin/AuditAnomalies';
 import { AlertCenter } from './pages/admin/AlertCenter';
 import { EfficiencyIndex } from './pages/admin/EfficiencyIndex';
+import { BehavioralAnalytics } from './pages/admin/BehavioralAnalytics';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -55,6 +56,7 @@ function App() {
           <Route path="audit" element={<AuditAnomalies />} />
           <Route path="alerts" element={<AlertCenter />} />
           <Route path="efficiency" element={<EfficiencyIndex />} />
+          <Route path="behavioral-analytics" element={<BehavioralAnalytics />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
