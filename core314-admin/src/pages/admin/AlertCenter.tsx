@@ -283,7 +283,7 @@ export function AlertCenter() {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {channelStats.map((entry, index) => (
+                {channelStats.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#6366f1'][index % 3]} />
                 ))}
               </Pie>

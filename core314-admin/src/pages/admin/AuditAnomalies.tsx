@@ -410,7 +410,7 @@ export function AuditAnomalies() {
                     fill="#8884d8"
                     dataKey="count"
                   >
-                    {topAnomalyReasons.map((entry, index) => (
+                    {topAnomalyReasons.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
