@@ -1,11 +1,23 @@
 import React from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Shield, AlertTriangle, Activity, TrendingUp, Download, RefreshCw, Search } from 'lucide-react';
+import { Shield, AlertTriangle, Activity, Download, RefreshCw, Search } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+interface SystemContext {
+  fusion_score?: number;
+  optimization_event_id?: string;
+  behavioral_event_id?: string;
+  prediction_event_id?: string;
+  score_variance_pct?: number;
+  previous_avg_score?: number;
+  current_avg_score?: number;
+  timestamp?: string;
+  [key: string]: string | number | undefined;
+}
 
 interface AuditLogEntry {
   id: string;
@@ -13,7 +25,7 @@ interface AuditLogEntry {
   action_type: string;
   decision_summary: string;
   confidence_level: number;
-  system_context: Record<string, any> | null;
+  system_context: SystemContext | null;
   decision_impact: string | null;
   anomaly_detected: boolean;
   triggered_by: string;
