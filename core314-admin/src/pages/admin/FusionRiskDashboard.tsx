@@ -70,7 +70,6 @@ interface RiskDistribution {
 
 export function FusionRiskDashboard() {
   const [riskEvents, setRiskEvents] = useState<FusionRiskEvent[]>([]);
-  const [adaptiveMetrics, setAdaptiveMetrics] = useState<AdaptiveMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [kpiStats, setKpiStats] = useState<KPIStats>({
     stabilityIndex: 0,
@@ -105,7 +104,6 @@ export function FusionRiskDashboard() {
       const metricsData = metricsResult.data || [];
 
       setRiskEvents(riskData);
-      setAdaptiveMetrics(metricsData);
 
       calculateKPIs(riskData, metricsData);
       calculateStabilityTrend(metricsData);
@@ -244,7 +242,6 @@ export function FusionRiskDashboard() {
         },
         (payload) => {
           console.log('[FRD] New adaptive metric:', payload.new);
-          setAdaptiveMetrics((prev) => [payload.new as AdaptiveMetric, ...prev.slice(0, 99)]);
           fetchData();
         }
       )
