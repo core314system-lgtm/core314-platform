@@ -60,7 +60,7 @@ export function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="flex">
-        <aside className="w-64 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+        <aside className="w-64 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
           <div className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Core314</h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">Admin Dashboard</p>
@@ -70,8 +70,30 @@ export function AdminLayout() {
               </p>
             </div>
           </div>
+
+          <div className="px-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center mb-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {adminUser?.full_name || 'Admin User'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {adminUser?.email}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={handleSignOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
           
-          <nav className="px-3 space-y-1">
+          <nav className="px-3 space-y-1 flex-1 overflow-y-auto pt-4 pb-4">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -92,28 +114,6 @@ export function AdminLayout() {
               );
             })}
           </nav>
-          
-          <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center mb-3">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {adminUser?.full_name || 'Admin User'}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {adminUser?.email}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
         </aside>
         
         <main className="flex-1 overflow-auto">
