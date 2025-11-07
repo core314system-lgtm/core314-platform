@@ -14,8 +14,8 @@ interface SimulationEvent {
   simulation_name: string;
   event_type: string;
   subsystem: string;
-  parameters: any;
-  result: any;
+  parameters: Record<string, unknown>;
+  result: Record<string, unknown>;
   execution_time_ms: number;
   outcome: string;
   created_at: string;
@@ -170,7 +170,7 @@ export function SimulationCenter() {
     else if (e.outcome === 'error') acc[subsystem].error++;
     else if (e.outcome === 'warning') acc[subsystem].warning++;
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, { subsystem: string; success: number; error: number; warning: number }>);
 
   const barData = Object.values(subsystemData);
 
