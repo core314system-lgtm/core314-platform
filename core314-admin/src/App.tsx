@@ -20,6 +20,7 @@ import { AutonomousOversight } from './pages/admin/AutonomousOversight';
 import { CoreOrchestrator } from './pages/admin/CoreOrchestrator';
 import { InsightHub } from './pages/admin/InsightHub';
 import { AdaptivePolicy } from './pages/admin/AdaptivePolicy';
+import { TrustGraph } from './pages/admin/TrustGraph';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -69,6 +70,7 @@ function App() {
           <Route path="core-orchestrator" element={<CoreOrchestrator />} />
           <Route path="insight-hub" element={<InsightHub />} />
           <Route path="adaptive-policy" element={<AdaptivePolicy />} />
+          <Route path="trust-graph" element={<TrustGraph />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
