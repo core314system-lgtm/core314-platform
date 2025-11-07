@@ -268,8 +268,8 @@ BEGIN
       AVG(latency_ms) AS avg_lat,
       AVG(stability) AS avg_stab,
       SUM(CASE WHEN error_flag THEN 1 ELSE 0 END)::INTEGER AS err_count
-    FROM public.fusion_e2e_benchmarks
-    WHERE session_id = v_campaign_session
+    FROM public.fusion_e2e_benchmarks b
+    WHERE b.session_id = v_campaign_session
   )
   UPDATE public.fusion_e2e_sessions
   SET 
@@ -300,8 +300,8 @@ BEGIN
       AVG(latency_ms) AS avg_latency,
       AVG(stability) AS avg_stability,
       SUM(CASE WHEN error_flag THEN 1 ELSE 0 END)::INTEGER AS errors_detected
-    FROM public.fusion_e2e_benchmarks
-    WHERE session_id = v_campaign_session
+    FROM public.fusion_e2e_benchmarks b
+    WHERE b.session_id = v_campaign_session
   ) b;
 END;
 $$;
