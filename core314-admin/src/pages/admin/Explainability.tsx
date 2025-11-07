@@ -384,9 +384,9 @@ export function Explainability() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Confidence</SelectItem>
-                <SelectItem value="High">High (>90%)</SelectItem>
+                <SelectItem value="High">High (&gt;90%)</SelectItem>
                 <SelectItem value="Medium">Medium (70-90%)</SelectItem>
-                <SelectItem value="Low">Low (<70%)</SelectItem>
+                <SelectItem value="Low">Low (&lt;70%)</SelectItem>
               </SelectContent>
             </Select>
           </div>
