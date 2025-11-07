@@ -44,6 +44,7 @@ const navItems = [
   { path: '/insight-hub', label: 'Insight Hub', icon: Lightbulb },
   { path: '/adaptive-policy', label: 'Policy Intelligence', icon: Shield },
   { path: '/trust-graph', label: 'Trust Graph', icon: TrendingUp },
+  { path: '/governance-insights', label: 'Governance Insights', icon: Shield },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
