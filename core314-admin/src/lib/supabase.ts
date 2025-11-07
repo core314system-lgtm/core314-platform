@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-if (!serviceRoleKey) {
-  console.error('Missing VITE_SUPABASE_SERVICE_ROLE_KEY - admin platform requires service role access');
+if (!supabaseAnonKey) {
+  console.error('Missing VITE_SUPABASE_ANON_KEY - admin platform requires anon key for client-side auth');
 }
 
-export const supabase = createClient(supabaseUrl, serviceRoleKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: false,
-    persistSession: false,
+    autoRefreshToken: true,
+    persistSession: true,
   },
 });
