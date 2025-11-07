@@ -23,6 +23,7 @@ import { AdaptivePolicy } from './pages/admin/AdaptivePolicy';
 import { TrustGraph } from './pages/admin/TrustGraph';
 import { GovernanceInsights } from './pages/admin/GovernanceInsights';
 import { Explainability } from './pages/admin/Explainability';
+import { PolicyNetwork } from './pages/admin/PolicyNetwork';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -75,6 +76,7 @@ function App() {
           <Route path="trust-graph" element={<TrustGraph />} />
           <Route path="governance-insights" element={<GovernanceInsights />} />
           <Route path="explainability" element={<Explainability />} />
+          <Route path="policy-network" element={<PolicyNetwork />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
