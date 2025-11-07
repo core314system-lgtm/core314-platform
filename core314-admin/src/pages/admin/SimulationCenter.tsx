@@ -435,7 +435,7 @@ export function SimulationCenter() {
                       </span>
                     </TableCell>
                     <TableCell>{event.execution_time_ms || 0}ms</TableCell>
-                    <TableCell>{new Date(e.created_at).toLocaleString()}</TableCell>
+                    <TableCell>{new Date(event.created_at).toLocaleString()}</TableCell>
                   </TableRow>
                 ))
               )}
