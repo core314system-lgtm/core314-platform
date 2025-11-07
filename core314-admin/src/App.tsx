@@ -27,6 +27,7 @@ import { PolicyNetwork } from './pages/admin/PolicyNetwork';
 import { SimulationCenter } from './pages/admin/SimulationCenter';
 import { E2EOrchestration } from './pages/admin/E2EOrchestration';
 import { E2ECampaign } from './pages/admin/E2ECampaign';
+import { BetaReadiness } from './pages/admin/BetaReadiness';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -83,6 +84,7 @@ function App() {
           <Route path="simulation-center" element={<SimulationCenter />} />
           <Route path="e2e-orchestration" element={<E2EOrchestration />} />
           <Route path="e2e-campaign" element={<E2ECampaign />} />
+          <Route path="beta-readiness" element={<BetaReadiness />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
