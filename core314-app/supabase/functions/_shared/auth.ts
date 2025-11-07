@@ -14,6 +14,13 @@ export interface AuthError {
   detail?: string;
 }
 
+export interface AdaptivePolicy {
+  hasRestriction: boolean;
+  policyAction: string | null;
+  policyId: string | null;
+  policyNotes: string | null;
+}
+
 /**
  * Verify JWT token and extract user context
  */
@@ -166,4 +173,186 @@ export async function logAuditEvent(
   } catch (error) {
     console.error('Failed to log audit event:', error);
   }
+}
+
+/**
+ * Check if user has any active adaptive policies
+ * Phase 42: Adaptive Policy Engine integration
+ */
+export async function checkAdaptivePolicy(
+  supabase: SupabaseClient,
+  userId: string,
+  userRole: string,
+  functionName: string
+): Promise<AdaptivePolicy> {
+  try {
+    const { data, error } = await supabase.rpc('check_adaptive_policy', {
+      p_user_id: userId,
+      p_user_role: userRole,
+      p_function_name: functionName,
+    });
+
+    if (error) {
+      console.error('Error checking adaptive policy:', error);
+      return {
+        hasRestriction: false,
+        policyAction: null,
+        policyId: null,
+        policyNotes: null,
+      };
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        hasRestriction: false,
+        policyAction: null,
+        policyId: null,
+        policyNotes: null,
+      };
+    }
+
+    const policy = data[0];
+    return {
+      hasRestriction: policy.has_restriction || false,
+      policyAction: policy.policy_action || null,
+      policyId: policy.policy_id || null,
+      policyNotes: policy.policy_notes || null,
+    };
+  } catch (error) {
+    console.error('Failed to check adaptive policy:', error);
+    return {
+      hasRestriction: false,
+      policyAction: null,
+      policyId: null,
+      policyNotes: null,
+    };
+  }
+}
+
+/**
+ * Create response for adaptive policy restriction
+ */
+export function createPolicyRestrictedResponse(
+  policyAction: string,
+  policyNotes: string | null
+): Response {
+  const message = policyAction === 'restrict' 
+    ? 'Access temporarily restricted due to security policy'
+    : policyAction === 'throttle'
+    ? 'Request throttled due to security policy'
+    : 'Access limited by security policy';
+
+  return new Response(
+    JSON.stringify({
+      code: 'POLICY_RESTRICTED',
+      message,
+      detail: policyNotes || 'An adaptive security policy is currently active for your account',
+      policyAction,
+    }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-Policy-State': policyAction,
+        'Retry-After': '3600',
+      },
+    }
+  );
+}
+
+/**
+ * Enhanced verify and authorize with adaptive policy checking
+ * Phase 42: Now includes adaptive policy enforcement
+ */
+export async function verifyAndAuthorizeWithPolicy(
+  req: Request,
+  supabase: SupabaseClient,
+  allowedRoles: string[],
+  functionName: string
+): Promise<
+  | { ok: true; context: AuthContext; token: string; policy: AdaptivePolicy }
+  | { ok: false; response: Response }
+> {
+  const authHeader = req.headers.get('authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return {
+      ok: false,
+      response: createUnauthorizedResponse({
+        code: 'UNAUTHORIZED',
+        message: 'Missing or invalid authorization header',
+        detail: 'Authorization header must be in format: Bearer <token>',
+      }),
+    };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const authResult = await verifyAuth(authHeader, supabase);
+
+  if (!authResult.success) {
+    return {
+      ok: false,
+      response: createUnauthorizedResponse(authResult.error),
+    };
+  }
+
+  const { context } = authResult;
+
+  const hasRole = allowedRoles.some(role => checkRole(context, role));
+  if (!hasRole) {
+    return {
+      ok: false,
+      response: createForbiddenResponse(allowedRoles.join(' or ')),
+    };
+  }
+
+  const policy = await checkAdaptivePolicy(
+    supabase,
+    context.userId,
+    context.userRole,
+    functionName
+  );
+
+  if (policy.hasRestriction) {
+    await logAuditEvent(
+      supabase,
+      context,
+      'policy_enforcement',
+      `Access ${policy.policyAction} by adaptive policy`,
+      {
+        policy_id: policy.policyId,
+        policy_action: policy.policyAction,
+        function_name: functionName,
+      }
+    );
+
+    if (policy.policyAction === 'restrict' || policy.policyAction === 'throttle') {
+      return {
+        ok: false,
+        response: createPolicyRestrictedResponse(policy.policyAction, policy.policyNotes),
+      };
+    }
+  }
+
+  await logAuditEvent(
+    supabase,
+    context,
+    functionName,
+    `User ${context.userRole} authorized to access ${functionName}`,
+    {
+      decision_impact: 'authorized_function_access',
+      anomaly_detected: false,
+      confidence_level: 1.0,
+      adaptive_policy_checked: true,
+      policy_active: policy.hasRestriction,
+    }
+  );
+
+  return {
+    ok: true,
+    context,
+    token,
+    policy,
+  };
 }

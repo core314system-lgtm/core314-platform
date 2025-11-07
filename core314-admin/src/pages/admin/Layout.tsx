@@ -42,6 +42,7 @@ const navItems = [
   { path: '/autonomous-oversight', label: 'Autonomous Oversight', icon: Shield },
   { path: '/core-orchestrator', label: 'Core Orchestrator', icon: Cpu },
   { path: '/insight-hub', label: 'Insight Hub', icon: Lightbulb },
+  { path: '/adaptive-policy', label: 'Policy Intelligence', icon: Shield },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
