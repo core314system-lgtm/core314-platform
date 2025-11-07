@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/lib/supabase';
 import { PieChart, Pie, Cell, ScatterChart, Scatter, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { PlayCircle, RefreshCw, Download, GitCompare } from 'lucide-react';
+import { PlayCircle, RefreshCw, Download } from 'lucide-react';
 
 interface BetaAuditRecord {
   id: string;
