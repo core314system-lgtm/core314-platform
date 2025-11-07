@@ -25,6 +25,7 @@ import { GovernanceInsights } from './pages/admin/GovernanceInsights';
 import { Explainability } from './pages/admin/Explainability';
 import { PolicyNetwork } from './pages/admin/PolicyNetwork';
 import { SimulationCenter } from './pages/admin/SimulationCenter';
+import { E2EOrchestration } from './pages/admin/E2EOrchestration';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -79,6 +80,7 @@ function App() {
           <Route path="explainability" element={<Explainability />} />
           <Route path="policy-network" element={<PolicyNetwork />} />
           <Route path="simulation-center" element={<SimulationCenter />} />
+          <Route path="e2e-orchestration" element={<E2EOrchestration />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
