@@ -3,16 +3,19 @@
 -- 
 -- =====================================================
 
+DROP FUNCTION IF EXISTS public.run_e2e_validation_cycle(TEXT);
+DROP FUNCTION IF EXISTS public.generate_explanation(UUID, TEXT, JSONB);
+
 -- =====================================================
 -- =====================================================
 
-CREATE OR REPLACE FUNCTION public.run_e2e_validation_cycle(p_session_name TEXT DEFAULT 'Core314 E2E Run')
+CREATE FUNCTION public.run_e2e_validation_cycle(p_session_name TEXT DEFAULT 'Core314 E2E Run')
 RETURNS TABLE (
   session_id UUID,
   total_phases INTEGER,
   success_rate NUMERIC,
   avg_confidence NUMERIC,
-  avg_latency NUMERIC
+  avg_latency_ms NUMERIC
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -188,7 +191,7 @@ COMMENT ON FUNCTION public.run_e2e_validation_cycle(TEXT) IS
 -- =====================================================
 -- =====================================================
 
-CREATE OR REPLACE FUNCTION public.generate_explanation(
+CREATE FUNCTION public.generate_explanation(
   p_event_id UUID,
   p_subsystem TEXT,
   p_metrics JSONB
