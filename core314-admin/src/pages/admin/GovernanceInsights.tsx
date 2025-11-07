@@ -34,7 +34,7 @@ interface GovernanceAudit {
   audit_severity: string;
   reviewer_id: string | null;
   reviewer_email: string | null;
-  explanation_context: Record<string, any>;
+  explanation_context: Record<string, unknown>;
   created_at: string;
   recency: string;
 }
