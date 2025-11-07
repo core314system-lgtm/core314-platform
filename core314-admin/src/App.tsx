@@ -19,6 +19,7 @@ import { FusionCalibration } from './pages/admin/FusionCalibration';
 import { AutonomousOversight } from './pages/admin/AutonomousOversight';
 import { CoreOrchestrator } from './pages/admin/CoreOrchestrator';
 import { InsightHub } from './pages/admin/InsightHub';
+import { AdaptivePolicy } from './pages/admin/AdaptivePolicy';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -67,6 +68,7 @@ function App() {
           <Route path="autonomous-oversight" element={<AutonomousOversight />} />
           <Route path="core-orchestrator" element={<CoreOrchestrator />} />
           <Route path="insight-hub" element={<InsightHub />} />
+          <Route path="adaptive-policy" element={<AdaptivePolicy />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
         </Route>
