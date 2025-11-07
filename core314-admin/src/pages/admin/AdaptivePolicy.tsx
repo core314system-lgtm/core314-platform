@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { RefreshCw, Play, Pause, Download, Plus, Shield, AlertTriangle, TrendingUp } from 'lucide-react';
+import { RefreshCw, Play, Pause, Download, Shield, AlertTriangle, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface AdaptivePolicy {
@@ -52,20 +52,12 @@ interface PolicyEngineResult {
   error?: string;
 }
 
-interface RiskScore {
-  user_id: string;
-  risk_score: number;
-  auth_failures_count: number;
-  anomaly_count: number;
-  calculated_at: string;
-}
 
 export function AdaptivePolicy() {
   const [policies, setPolicies] = useState<AdaptivePolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [engineRunning, setEngineRunning] = useState(false);
   const [lastEngineRun, setLastEngineRun] = useState<PolicyEngineResult | null>(null);
-  const [riskScores, setRiskScores] = useState<RiskScore[]>([]);
   
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -77,7 +69,6 @@ export function AdaptivePolicy() {
 
   useEffect(() => {
     fetchPolicies();
-    fetchRiskScores();
     fetchKPIs();
   }, []);
 
@@ -97,21 +88,6 @@ export function AdaptivePolicy() {
     }
   };
 
-  const fetchRiskScores = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_risk_scores')
-        .select('*')
-        .gte('calculated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('calculated_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      setRiskScores(data || []);
-    } catch (error) {
-      console.error('Error fetching risk scores:', error);
-    }
-  };
 
   const fetchKPIs = async () => {
     try {
@@ -174,7 +150,7 @@ export function AdaptivePolicy() {
       const result: PolicyEngineResult = await response.json();
       setLastEngineRun(result);
 
-      await Promise.all([fetchPolicies(), fetchRiskScores(), fetchKPIs()]);
+      await Promise.all([fetchPolicies(), fetchKPIs()]);
     } catch (error) {
       console.error('Error running policy engine:', error);
       alert('Failed to run policy engine. Check console for details.');
