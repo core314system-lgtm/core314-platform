@@ -262,26 +262,32 @@ BEGIN
     ))
     INTO v_connections
     FROM (
-      SELECT 
-        p.id AS connected_user_id,
-        'organization' AS connection_type,
-        0.8 AS weight
-      FROM public.profiles p
-      WHERE p.organization_id = v_user_record.organization_id
-        AND p.organization_id IS NOT NULL
-        AND p.id != v_user_record.user_id
-      LIMIT 5
+      SELECT connected_user_id, connection_type, weight
+      FROM (
+        SELECT 
+          p.id AS connected_user_id,
+          'organization' AS connection_type,
+          0.8::numeric AS weight
+        FROM public.profiles p
+        WHERE p.organization_id = v_user_record.organization_id
+          AND p.organization_id IS NOT NULL
+          AND p.id != v_user_record.user_id
+        LIMIT 5
+      ) org_connections
       
       UNION ALL
       
-      SELECT 
-        ftg.user_id AS connected_user_id,
-        'behavior_similarity' AS connection_type,
-        0.6 AS weight
-      FROM public.fusion_trust_graph ftg
-      WHERE ftg.user_id != v_user_record.user_id
-        AND ABS(ftg.behavior_consistency - COALESCE(v_behavior_consistency, 0)) < 20
-      LIMIT 5
+      SELECT connected_user_id, connection_type, weight
+      FROM (
+        SELECT 
+          ftg.user_id AS connected_user_id,
+          'behavior_similarity' AS connection_type,
+          0.6::numeric AS weight
+        FROM public.fusion_trust_graph ftg
+        WHERE ftg.user_id != v_user_record.user_id
+          AND ABS(ftg.behavior_consistency - COALESCE(v_behavior_consistency, 0)) < 20
+        LIMIT 5
+      ) behavior_connections
     ) connections;
 
     INSERT INTO public.fusion_trust_graph (
