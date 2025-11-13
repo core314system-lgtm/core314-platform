@@ -31,21 +31,12 @@ Deno.serve(async (req) => {
       'governance-engine'
     );
 
-    if (!authResult.authorized) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: authResult.error || 'Unauthorized' 
-        }),
-        { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    if (!authResult.ok) {
+      return authResult.response;
     }
 
-    const userRole = authResult.user?.role || '';
-    const isPlatformAdmin = authResult.user?.is_platform_admin === true || userRole === 'platform_admin';
+    const userRole = authResult.context.userRole || '';
+    const isPlatformAdmin = authResult.context.isPlatformAdmin === true || userRole === 'platform_admin';
 
     if (req.method === 'POST' && !isPlatformAdmin) {
       return new Response(
