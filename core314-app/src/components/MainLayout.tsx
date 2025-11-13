@@ -19,7 +19,11 @@ import {
   Sparkles,
   Activity,
   Globe,
-  Shield
+  Shield,
+  TrendingUp,
+  Code,
+  FileCheck,
+  Headphones
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -30,7 +34,7 @@ interface NavItem {
   badge?: string;
 }
 
-const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] => {
+const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionTier?: string): NavItem[] => {
   const baseItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
@@ -41,6 +45,21 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean): NavItem[] =>
     { path: '/integration-hub', label: 'Integration Hub', icon: Settings },
     { path: '/settings/security', label: 'Security', icon: Shield },
   ];
+  
+  if (subscriptionTier === 'professional' || subscriptionTier === 'enterprise') {
+    baseItems.push(
+      { path: '/advanced-analytics', label: 'Advanced Analytics', icon: TrendingUp },
+      { path: '/optimization-engine', label: 'Optimization Engine', icon: Zap }
+    );
+  }
+  
+  if (subscriptionTier === 'enterprise') {
+    baseItems.push(
+      { path: '/api-access', label: 'API Access', icon: Code },
+      { path: '/audit-trails', label: 'Audit Trails', icon: FileCheck },
+      { path: '/account-support', label: 'Account Support', icon: Headphones }
+    );
+  }
   
   if (isAdmin) {
     baseItems.push(
@@ -62,6 +81,7 @@ export function MainLayout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
   const [integrationCount, setIntegrationCount] = useState<{ current: number; max: number }>({ current: 0, max: 0 });
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('none');
 
   useEffect(() => {
     const fetchIntegrationCount = async () => {
@@ -87,7 +107,9 @@ export function MainLayout() {
           enterprise: -1,
         };
         
-        const maxIntegrations = tierLimits[profileData?.subscription_tier || 'none'];
+        const tier = profileData?.subscription_tier || 'none';
+        setSubscriptionTier(tier);
+        const maxIntegrations = tierLimits[tier];
         setIntegrationCount({ current: data.length, max: maxIntegrations });
       }
     };
@@ -103,7 +125,8 @@ export function MainLayout() {
     integrationCount.max === -1 
       ? `${integrationCount.current}` 
       : `${integrationCount.current}/${integrationCount.max}`,
-    profile?.role === 'admin'
+    profile?.role === 'admin',
+    subscriptionTier
   );
 
   return (
