@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Code, Key, Copy, RefreshCw, Eye, EyeOff, Book, Terminal } from 'lucide-react';
+import { Code, Key, Copy, Eye, EyeOff, Book, Terminal } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { FeatureGuard } from '../components/FeatureGuard';
 

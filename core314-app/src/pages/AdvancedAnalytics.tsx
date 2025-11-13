@@ -130,12 +130,12 @@ export function AdvancedAnalytics() {
 
       const fusionTrends = Object.entries(fusionByDate || {}).map(([date, data]: [string, any]) => ({
         date,
-        fusion_score: data.scores.reduce((a: number, b: number) => a + b, 0) / data.scores.length,
+        fusion_score: data.scores.reduce((a: number, b: number) => a + b, 0) / (data.scores.length || 1),
         optimization_count: optimizationsByDate?.[date] || 0,
       }));
 
       const uniqueUsers = new Set(activityData?.map((log: any) => log.user_id) || []);
-      const avgFusionScore = fusionData?.reduce((sum: number, score: any) => sum + score.score, 0) / (fusionData?.length || 1);
+      const avgFusionScore = (fusionData?.reduce((sum: number, score: any) => sum + score.score, 0) || 0) / (fusionData?.length || 1);
 
       setAnalyticsData({
         userActivity,

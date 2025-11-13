@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { FileCheck, Download, Search, Filter, User, Calendar, Activity } from 'lucide-react';
+import { FileCheck, Download, Search, User, Calendar, Activity } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { FeatureGuard } from '../components/FeatureGuard';
 import { format } from 'date-fns';
