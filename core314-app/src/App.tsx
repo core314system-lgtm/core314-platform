@@ -26,6 +26,11 @@ import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { Security } from './pages/settings/Security';
 import { Organizations } from './pages/admin/Organizations';
+import { AdvancedAnalytics } from './pages/AdvancedAnalytics';
+import { OptimizationEngine } from './pages/OptimizationEngine';
+import { ApiAccess } from './pages/ApiAccess';
+import { AuditTrails } from './pages/AuditTrails';
+import { AccountSupport } from './pages/AccountSupport';
 import OAuthCallback from './pages/OAuthCallback';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
@@ -75,6 +80,11 @@ function App() {
             <Route path="notifications" element={<Notifications />} />
             <Route path="integration-hub" element={<IntegrationHub />} />
             <Route path="settings/security" element={<Security />} />
+            <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
+            <Route path="optimization-engine" element={<OptimizationEngine />} />
+            <Route path="api-access" element={<ApiAccess />} />
+            <Route path="audit-trails" element={<AuditTrails />} />
+            <Route path="account-support" element={<AccountSupport />} />
             <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
             <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
             <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
