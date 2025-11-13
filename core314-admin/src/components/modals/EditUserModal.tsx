@@ -28,31 +28,33 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
     setError(null);
     
     try {
-      const updateData: any = {
-        role,
-        two_factor_enabled: twoFactorEnabled,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (role !== 'admin') {
-        updateData.subscription_tier = subscriptionTier;
-        updateData.subscription_status = status ? 'active' : 'inactive';
-      } else {
-        updateData.subscription_tier = 'none';
-        updateData.subscription_status = 'inactive';
-        updateData.is_platform_admin = true;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
       }
 
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id)
-        .select()
-        .single();
+      const response = await fetch('/.netlify/functions/admin-update-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          role,
+          subscriptionTier,
+          subscriptionStatus: status ? 'active' : 'inactive',
+          twoFactorEnabled,
+        }),
+      });
 
-      if (updateError) throw updateError;
+      const data = await response.json();
 
-      onUserUpdated(updatedUser);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update user');
+      }
+
+      onUserUpdated(data.user);
       onOpenChange(false);
     } catch (err) {
       console.error('Error updating user:', err);
