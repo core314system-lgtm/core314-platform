@@ -11,6 +11,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
 import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
+import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
@@ -280,8 +281,22 @@ export function Dashboard() {
         <div className="lg:col-span-1">
           <FusionGauge score={globalScore} trend={globalTrend} />
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
+          
+          {['professional', 'enterprise'].includes(subscription.tier) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-purple-600" />
+                  Ask Core314 AI
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AIQuickQuery />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
