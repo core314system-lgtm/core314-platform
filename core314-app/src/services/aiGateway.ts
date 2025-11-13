@@ -1,0 +1,147 @@
+import { supabase } from '../lib/supabase';
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatContext {
+  integration_name?: string;
+  metric_data?: Record<string, unknown>;
+  user_goal?: string;
+}
+
+export interface ChatResponse {
+  success: boolean;
+  reply?: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  error?: string;
+}
+
+export interface ScenarioCard {
+  id: string;
+  title: string;
+  description: string;
+  expected_impact: string;
+  confidence: number;
+  recommended_action: string;
+  horizon: string;
+  tags: string[];
+}
+
+export interface ScenarioRequest {
+  goal?: string;
+  metrics_snapshot?: Record<string, unknown>;
+  horizon?: string;
+  constraints?: string[];
+}
+
+export interface ScenarioResponse {
+  success: boolean;
+  scenarios?: ScenarioCard[];
+  error?: string;
+}
+
+/**
+ * Chat with Core314 AI using the conversational insight engine
+ */
+export async function chatWithCore314(
+  messages: ChatMessage[],
+  context?: ChatContext
+): Promise<ChatResponse> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion_ai_gateway`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages, context }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Chat error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Generate predictive optimization scenarios
+ */
+export async function generateScenarios(
+  request: ScenarioRequest = {}
+): Promise<ScenarioResponse> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai_scenario_generator`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Scenario generation error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Quick query helper for simple questions
+ */
+export async function quickQuery(question: string): Promise<string> {
+  const response = await chatWithCore314([
+    { role: 'user', content: question },
+  ]);
+
+  if (!response.success || !response.reply) {
+    return response.error || 'Failed to get response';
+  }
+
+  return response.reply;
+}

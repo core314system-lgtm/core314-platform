@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useSubscription } from '../hooks/useSubscription';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Zap, TrendingUp, AlertTriangle, CheckCircle, Clock, Play, Pause } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Zap, TrendingUp, AlertTriangle, CheckCircle, Clock, Play, Pause, MessageSquare, Sparkles, RefreshCw } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { FeatureGuard } from '../components/FeatureGuard';
 import { format } from 'date-fns';
+import { generateScenarios, chatWithCore314, ScenarioCard, ChatMessage } from '../services/aiGateway';
 
 interface OptimizationEvent {
   id: string;
@@ -31,6 +35,7 @@ interface OptimizationRecommendation {
 
 export function OptimizationEngine() {
   const { profile } = useAuth();
+  const { subscription } = useSubscription(profile?.id);
   const { toast } = useToast();
   
   const [loading, setLoading] = useState(false);
@@ -43,6 +48,15 @@ export function OptimizationEngine() {
     active_recommendations: 0,
     time_saved_hours: 0,
   });
+
+  const [scenarios, setScenarios] = useState<ScenarioCard[]>([]);
+  const [loadingScenarios, setLoadingScenarios] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const hasAIAccess = ['professional', 'enterprise'].includes(subscription.tier);
 
   useEffect(() => {
     if (profile?.id) {
@@ -182,6 +196,79 @@ export function OptimizationEngine() {
     }
   };
 
+  const handleGenerateScenarios = async () => {
+    setLoadingScenarios(true);
+    try {
+      const result = await generateScenarios({
+        goal: 'Optimize system performance and efficiency',
+        horizon: '7d',
+      });
+
+      if (result.success && result.scenarios) {
+        setScenarios(result.scenarios);
+        toast({
+          title: '✨ Scenarios generated',
+          description: `Generated ${result.scenarios.length} predictive scenarios`,
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to generate scenarios',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error generating scenarios:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate scenarios',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingScenarios(false);
+    }
+  };
+
+  const handleSendChatMessage = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatInput,
+    };
+
+    setChatMessages([...chatMessages, userMessage]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const result = await chatWithCore314([...chatMessages, userMessage]);
+
+      if (result.success && result.reply) {
+        const assistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: result.reply,
+        };
+        setChatMessages([...chatMessages, userMessage, assistantMessage]);
+      } else {
+        toast({
+          title: 'Error',
+          description: result.error || 'Failed to get response',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message',
+        variant: 'destructive',
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   return (
     <FeatureGuard feature="ai_insights">
       <div className="p-6 space-y-6">
@@ -195,23 +282,35 @@ export function OptimizationEngine() {
               AI-powered continuous optimization and performance enhancement
             </p>
           </div>
-          <Button
-            onClick={handleToggleEngine}
-            variant={engineEnabled ? 'default' : 'outline'}
-            className={engineEnabled ? 'bg-green-600 hover:bg-green-700' : ''}
-          >
-            {engineEnabled ? (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Pause Engine
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Activate Engine
-              </>
+          <div className="flex items-center gap-3">
+            {hasAIAccess && (
+              <Button
+                onClick={() => setChatOpen(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Chat with Core314 AI
+              </Button>
             )}
-          </Button>
+            <Button
+              onClick={handleToggleEngine}
+              variant={engineEnabled ? 'default' : 'outline'}
+              className={engineEnabled ? 'bg-green-600 hover:bg-green-700' : ''}
+            >
+              {engineEnabled ? (
+                <>
+                  <Pause className="h-4 w-4 mr-2" />
+                  Pause Engine
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Activate Engine
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -329,6 +428,98 @@ export function OptimizationEngine() {
               </CardContent>
             </Card>
 
+            {hasAIAccess && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-purple-600" />
+                        Predictive Scenarios
+                      </CardTitle>
+                      <CardDescription>AI-generated optimization forecasts and what-if analysis</CardDescription>
+                    </div>
+                    <Button
+                      onClick={handleGenerateScenarios}
+                      disabled={loadingScenarios}
+                      size="sm"
+                      variant="outline"
+                    >
+                      {loadingScenarios ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Generate Scenarios
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {scenarios.length > 0 ? (
+                    <div className="space-y-4">
+                      {scenarios.map((scenario) => (
+                        <div
+                          key={scenario.id}
+                          className="p-4 border rounded-lg bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">
+                              {scenario.title}
+                            </h4>
+                            <Badge variant="outline" className="ml-2">
+                              {Math.round(scenario.confidence * 100)}% confidence
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                            {scenario.description}
+                          </p>
+                          <div className="flex items-center gap-4 mb-3">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-600">
+                                {scenario.expected_impact}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-gray-500" />
+                              <span className="text-xs text-gray-500">{scenario.horizon}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {scenario.tags.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="p-3 bg-white dark:bg-gray-800 rounded border">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                              Recommended Action:
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {scenario.recommended_action}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Sparkles className="h-12 w-12 text-purple-400 mx-auto mb-3" />
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">
+                        No scenarios generated yet. Click "Generate Scenarios" to create AI-powered optimization forecasts.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -379,6 +570,69 @@ export function OptimizationEngine() {
             </Card>
           </>
         )}
+
+        <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+          <DialogContent className="max-w-2xl max-h-[600px] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Chat with Core314 AI
+              </DialogTitle>
+              <DialogDescription>
+                Ask questions about your system health, integrations, and optimization opportunities
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded">
+              {chatMessages.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Start a conversation with Core314 AI. Ask about system health, performance metrics, or optimization suggestions.
+                  </p>
+                </div>
+              ) : (
+                chatMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] p-3 rounded-lg ${
+                        msg.role === 'user'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !chatLoading && handleSendChatMessage()}
+                placeholder="Ask Core314 AI anything..."
+                disabled={chatLoading}
+              />
+              <Button onClick={handleSendChatMessage} disabled={chatLoading || !chatInput.trim()}>
+                Send
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </FeatureGuard>
   );
