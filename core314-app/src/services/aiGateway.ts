@@ -11,6 +11,34 @@ export interface ChatContext {
   user_goal?: string;
 }
 
+export interface DataContext {
+  global_fusion_score: number;
+  top_deficiencies: Array<{
+    integration: string;
+    score: number;
+    issue: string;
+  }>;
+  system_health: string;
+  anomalies_today: number;
+  recent_alerts: Array<{
+    type: string;
+    message: string;
+    timestamp: string;
+  }>;
+  integration_performance: Array<{
+    name: string;
+    status: string;
+    efficiency: number;
+  }>;
+  recent_optimizations: number;
+}
+
+export interface DataContextResponse {
+  success: boolean;
+  data?: DataContext;
+  error?: string;
+}
+
 export interface ChatResponse {
   success: boolean;
   reply?: string;
@@ -20,6 +48,7 @@ export interface ChatResponse {
     total_tokens: number;
   };
   error?: string;
+  quota_exceeded?: boolean;
 }
 
 export interface ScenarioCard {
@@ -47,7 +76,41 @@ export interface ScenarioResponse {
 }
 
 /**
- * Chat with Core314 AI using the conversational insight engine
+ * Fetch live data context for AI requests
+ */
+export async function fetchDataContext(): Promise<DataContext | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return null;
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai_data_context`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Failed to fetch data context:', response.statusText);
+      return null;
+    }
+
+    const result: DataContextResponse = await response.json();
+    return result.success ? result.data || null : null;
+  } catch (error) {
+    console.error('Data context fetch error:', error);
+    return null;
+  }
+}
+
+/**
+ * Chat with Core314 AI using the conversational insight engine with live data context
  */
 export async function chatWithCore314(
   messages: ChatMessage[],
@@ -59,6 +122,8 @@ export async function chatWithCore314(
       return { success: false, error: 'Not authenticated' };
     }
 
+    const dataContext = await fetchDataContext();
+
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion_ai_gateway`,
       {
@@ -67,7 +132,11 @@ export async function chatWithCore314(
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages, context }),
+        body: JSON.stringify({ 
+          messages, 
+          context,
+          data_context: dataContext,
+        }),
       }
     );
 
@@ -76,6 +145,7 @@ export async function chatWithCore314(
       return {
         success: false,
         error: errorData.error || `HTTP ${response.status}: ${response.statusText}`,
+        quota_exceeded: errorData.quota_exceeded,
       };
     }
 

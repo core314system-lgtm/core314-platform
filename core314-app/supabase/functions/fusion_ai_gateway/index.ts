@@ -14,6 +14,7 @@ interface ChatRequest {
     metric_data?: Record<string, unknown>;
     user_goal?: string;
   };
+  data_context?: Record<string, unknown>; // Live metrics from ai_data_context
 }
 
 interface ChatResponse {
@@ -49,39 +50,48 @@ Deno.serve(async (req) => {
     }
 
     const userId = authResult.context.userId;
+    const orgId = authResult.context.orgId;
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('subscription_tier')
+      .select('subscription_tier, organization_id')
       .eq('id', userId)
       .single();
 
-    if (!profile || !['professional', 'enterprise'].includes(profile.subscription_tier)) {
+    if (!profile) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Conversational Insight Engine requires Professional or Enterprise tier',
+          error: 'User profile not found',
         }),
         {
-          status: 403,
+          status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    const { data: hasAccess } = await supabase.rpc('user_has_feature_access', {
+    const userTier = profile.subscription_tier;
+    const userOrgId = profile.organization_id || orgId;
+
+    const { data: hasQuota } = await supabase.rpc('check_ai_quota', {
       p_user_id: userId,
-      p_feature_key: 'conversational_insights',
+      p_tier: userTier,
     });
 
-    if (!hasAccess) {
+    if (!hasQuota) {
+      const { data: quotaLimit } = await supabase.rpc('get_ai_quota_for_tier', {
+        p_tier: userTier,
+      });
+
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Conversational insights feature is not enabled for your account',
+          error: `AI request quota exceeded. Your ${userTier} plan includes ${quotaLimit} requests per month. Please upgrade to access more AI insights.`,
+          quota_exceeded: true,
         }),
         {
-          status: 403,
+          status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
@@ -124,13 +134,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform. You help users understand their system health, integration performance, and operational metrics.
+
+You have access to the following LIVE system data for this user:`;
+
+    if (body.data_context) {
+      systemContent += `\n\nCurrent System Metrics:\n${JSON.stringify(body.data_context, null, 2)}`;
+    }
+
+    if (body.context) {
+      systemContent += `\n\nAdditional Context:\n${JSON.stringify(body.context, null, 2)}`;
+    }
+
+    systemContent += `\n\nWhen answering questions:
+- Reference specific metrics from the live data when relevant
+- Provide actionable insights based on actual performance numbers
+- Be concise but thorough
+- If you don't have enough information, ask clarifying questions
+- Always cite specific data points when making recommendations`;
+
     const systemMessage: ChatMessage = {
       role: 'system',
-      content: `You are Core314 AI, an intelligent assistant for the Core314 business operations platform. You help users understand their system health, integration performance, and operational metrics.
-
-Context: ${body.context ? JSON.stringify(body.context) : 'General query'}
-
-Provide clear, actionable insights based on the user's data. Be concise but thorough. If you don't have enough information, ask clarifying questions.`,
+      content: systemContent,
     };
 
     const messages = [systemMessage, ...body.messages];
@@ -163,6 +188,11 @@ Provide clear, actionable insights based on the user's data. Be concise but thor
 
     const openaiData = await openaiResponse.json();
     const reply = openaiData.choices[0]?.message?.content || 'No response generated';
+
+    await supabase.rpc('increment_ai_usage', {
+      p_user_id: userId,
+      p_org_id: userOrgId,
+    });
 
     const response: ChatResponse = {
       success: true,
