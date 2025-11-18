@@ -97,14 +97,14 @@ Deno.serve(async (req) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const { count: anomalyCount } = await supabase
-      .from('audit_log')
+      .from('audit_logs')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', userOrgId)
       .eq('event_type', 'anomaly_detected')
       .gte('created_at', today.toISOString());
 
     const { data: alerts } = await supabase
-      .from('audit_log')
+      .from('audit_logs')
       .select('event_type, details, created_at')
       .eq('organization_id', userOrgId)
       .in('event_type', ['alert', 'warning', 'critical_event'])
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
     }));
 
     const { count: optimizationCount } = await supabase
-      .from('optimization_events')
+      .from('fusion_optimization_events')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', userOrgId)
       .gte('created_at', today.toISOString());

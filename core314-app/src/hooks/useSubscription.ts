@@ -15,9 +15,9 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
     status: 'active',
     maxUsers: 5,
     maxIntegrations: 3,
-    features: ['core_dashboard', 'basic_metrics'],
+    features: ['core_dashboard', 'basic_metrics', 'ai_insights'],
     maxMetricsPerIntegration: 3,
-    hasAIInsights: false,
+    hasAIInsights: true,
   },
   professional: {
     tier: 'professional',
