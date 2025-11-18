@@ -4,17 +4,15 @@ import { corsHeaders } from '../_shared/cors.ts';
 import {
   createAdminClient,
   logEvent,
-  verifyInternalToken,
 } from '../_shared/integration-utils.ts';
+import Stripe from 'https://esm.sh/stripe@13.11.0?target=deno';
 
-interface StripeEvent {
-  id: string;
-  type: string;
-  data: {
-    object: any;
-  };
-  created?: number;
-}
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2024-06-20',
+  httpClient: Stripe.createFetchHttpClient(),
+});
+
+const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -22,18 +20,37 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!verifyInternalToken(authHeader)) {
+    const signature = req.headers.get('stripe-signature');
+    
+    if (!signature) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid webhook token' }),
+        JSON.stringify({ error: 'Missing stripe-signature header' }),
         {
-          status: 401,
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    const event: StripeEvent = await req.json();
+    const body = await req.text();
+
+    let event: Stripe.Event;
+    try {
+      event = await stripe.webhooks.constructEventAsync(
+        body,
+        signature,
+        webhookSecret
+      );
+    } catch (err: any) {
+      console.error('Webhook signature verification failed:', err.message);
+      return new Response(
+        JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     if (!event.type || !event.data) {
       return new Response(
@@ -69,7 +86,7 @@ serve(async (req) => {
         event_id: event.id,
         created: event.created,
         data: event.data,
-        mock_mode: true,
+        verified: true,
       },
       user_id: userId,
     });
