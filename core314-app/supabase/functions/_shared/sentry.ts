@@ -13,7 +13,8 @@ export function initSentry() {
 
   Sentry.init({
     dsn,
-    environment: Deno.env.get('ENVIRONMENT') || 'production',
+    environment: Deno.env.get('SENTRY_ENV') || Deno.env.get('ENVIRONMENT') || 'production',
+    release: Deno.env.get('SENTRY_RELEASE') || 'phase55-sentry-integration',
     tracesSampleRate: 1.0,
   })
   

@@ -7,7 +7,8 @@ import App from './App.tsx'
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE,
+    environment: import.meta.env.VITE_SENTRY_ENV || import.meta.env.MODE,
+    release: import.meta.env.VITE_SENTRY_RELEASE || 'phase55-sentry-integration',
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({
