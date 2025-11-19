@@ -1,11 +1,22 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as Sentry from 'https://deno.land/x/sentry@7.119.0/index.mjs';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const SENTRY_DSN = Deno.env.get('SENTRY_DSN');
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: Deno.env.get('ENVIRONMENT') || 'production',
+    release: 'phase59-action-debug',
+    tracesSampleRate: 0.1,
+  });
+}
 
 interface OptimizationRequest {
   user_id: string;
@@ -73,6 +84,26 @@ serve(async (req) => {
 
     if (eventError) {
       console.error('Error creating optimization event:', eventError);
+      
+      if (SENTRY_DSN) {
+        Sentry.captureException(eventError, {
+          extra: {
+            function: 'fusion_live_optimizer',
+            user_id: optimizationData.user_id,
+            metric_type: optimizationData.metric_type,
+            optimization_type: optimizationData.optimization_type,
+            error_code: eventError.code,
+            error_details: eventError.details,
+            error_hint: eventError.hint,
+          },
+          tags: {
+            function: 'fusion_live_optimizer',
+            error_type: 'database_insert_event',
+          },
+        });
+        await Sentry.flush(2000);
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to create optimization event',
@@ -131,17 +162,63 @@ serve(async (req) => {
 
     if (actionLogError) {
       console.warn('Failed to log action:', actionLogError);
+      
+      if (SENTRY_DSN) {
+        Sentry.captureMessage('Failed to log action to fusion_action_log', {
+          level: 'warning',
+          extra: {
+            function: 'fusion_live_optimizer',
+            user_id: optimizationData.user_id,
+            error_message: actionLogError.message,
+          },
+        });
+      }
     }
 
+    const { data: optimizationResult, error: resultError } = await supabaseClient
+      .from('fusion_optimization_results')
+      .insert({
+        user_id: optimizationData.user_id,
+        rule_id: optimizationData.rule_id || null,
+        optimization_event_id: optimizationEvent.id,
+        strategy: optimizationStrategy,
+        recommended_actions: recommendedActions,
+        result: {
+          metric_type: optimizationData.metric_type,
+          metric_value: optimizationData.metric_value,
+          threshold_value: optimizationData.threshold_value,
+          optimization_type: optimizationData.optimization_type || 'auto',
+          triggered_at: new Date().toISOString(),
+        },
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (resultError) {
+      console.warn('Failed to create optimization result:', resultError);
+      
+      if (SENTRY_DSN) {
+        Sentry.captureMessage('Failed to create optimization result', {
+          level: 'warning',
+          extra: {
+            function: 'fusion_live_optimizer',
+            user_id: optimizationData.user_id,
+            error_message: resultError.message,
+          },
+        });
+      }
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         optimization_event_id: optimizationEvent.id,
+        optimization_result_id: optimizationResult?.id || null,
         strategy: optimizationStrategy,
         recommended_actions: recommendedActions,
         message: 'Optimization triggered successfully',
-        note: 'Optimization event created. Actual execution requires fusion_optimization_engine integration.',
+        note: 'Optimization event and result created. Actual execution requires fusion_optimization_engine integration.',
       }),
       {
         status: 200,
@@ -151,6 +228,22 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unexpected error:', error);
+    
+    if (SENTRY_DSN) {
+      Sentry.captureException(error, {
+        extra: {
+          function: 'fusion_live_optimizer',
+          error_message: error.message,
+          error_stack: error.stack,
+        },
+        tags: {
+          function: 'fusion_live_optimizer',
+          error_type: 'unexpected',
+        },
+      });
+      await Sentry.flush(2000);
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
