@@ -1,0 +1,49 @@
+name: Core314 Smart Agent Selftest
+
+on:
+  schedule:
+    # Run every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run AI Agent Selftest
+        run: |
+          echo "Running Core314 Smart Agent Selftest..."
+          response=$(curl -X POST "${{ secrets.SELFTEST_FUNCTION_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP_STATUS:%{http_code}" \
+            -s)
+          
+          http_status=$(echo "$response" | grep "HTTP_STATUS" | cut -d':' -f2)
+          body=$(echo "$response" | sed '/HTTP_STATUS/d')
+          
+          echo "HTTP Status: $http_status"
+          echo "Response: $body"
+          
+          if [ "$http_status" != "200" ]; then
+            echo "::error::Selftest failed with HTTP status $http_status"
+            exit 1
+          fi
+          
+          # Parse failure rate from response
+          failure_rate=$(echo "$body" | jq -r '.failure_rate // 0')
+          echo "Failure Rate: ${failure_rate}%"
+          
+          # Fail the workflow if failure rate > 50% (critical threshold)
+          if (( $(echo "$failure_rate > 50" | bc -l) )); then
+            echo "::error::Critical failure rate detected: ${failure_rate}%"
+            exit 1
+          fi
+          
+          echo "::notice::Selftest completed successfully. Failure rate: ${failure_rate}%"
+
+      - name: Report Results
+        if: always()
+        run: |
+          echo "Selftest execution completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Check Supabase logs and Sentry for detailed results"
