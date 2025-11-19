@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, Link, Outlet } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Plus, Play, Pause, Trash2, Edit, Activity, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -64,10 +65,17 @@ const RULE_TEMPLATES: RuleTemplate[] = [
 ];
 
 export function AutomationCenter() {
+  const location = useLocation();
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<RuleTemplate | null>(null);
+  
+  const isNestedRoute = location.pathname.includes('/automation-center/reliability');
+  
+  if (isNestedRoute) {
+    return <Outlet />;
+  }
 
   useEffect(() => {
     fetchRules();
@@ -136,13 +144,35 @@ export function AutomationCenter() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Tabs */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Automation Center</h1>
           <p className="text-gray-600 mt-1">
             Manage Smart Agent automation rules and triggers
           </p>
+          <div className="flex gap-4 mt-4">
+            <Link
+              to="/automation-center"
+              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                !location.pathname.includes('/reliability')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Rules
+            </Link>
+            <Link
+              to="/automation-center/reliability"
+              className={`px-4 py-2 text-sm font-medium rounded-lg ${
+                location.pathname.includes('/reliability')
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Reliability
+            </Link>
+          </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
