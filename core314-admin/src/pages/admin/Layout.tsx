@@ -22,7 +22,8 @@ import {
   Cpu,
   LogOut,
   Workflow,
-  History
+  History,
+  Settings
 } from 'lucide-react';
 
 const navItems = [
@@ -49,6 +50,7 @@ const navItems = [
   { path: '/governance-insights', label: 'Governance Insights', icon: Shield },
   { path: '/automation-center', label: 'Automation Center', icon: Workflow },
   { path: '/agent-activity', label: 'Agent Activity Log', icon: History },
+  { path: '/optimizations', label: 'Optimization Results', icon: Settings },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];

@@ -32,6 +32,7 @@ import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
 import { AutomationCenter } from './pages/admin/AutomationCenter';
 import { AgentActivityLog } from './pages/admin/AgentActivityLog';
+import { Optimizations } from './pages/admin/Optimizations';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -91,6 +92,7 @@ function App() {
           <Route path="audit-trail" element={<AuditTrail />} />
           <Route path="automation-center" element={<AutomationCenter />} />
           <Route path="agent-activity" element={<AgentActivityLog />} />
+          <Route path="optimizations" element={<Optimizations />} />
         </Route>
       </Routes>
     </Router>

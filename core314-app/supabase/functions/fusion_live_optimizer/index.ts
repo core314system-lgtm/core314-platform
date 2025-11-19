@@ -26,6 +26,7 @@ interface OptimizationRequest {
   threshold_value: number;
   optimization_type?: 'auto' | 'manual' | 'scheduled';
   target_metric?: string;
+  email_to?: string;
 }
 
 serve(async (req) => {
@@ -210,6 +211,39 @@ serve(async (req) => {
       }
     }
 
+    const emailTo = optimizationData.email_to || Deno.env.get('ADMIN_EMAIL') || 'admin@core314.com';
+    const emailNotificationResponse = await fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/core_notifications_gateway`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: optimizationData.user_id,
+          type: 'info',
+          title: `Optimization Triggered: ${optimizationStrategy}`,
+          message: `Optimization has been triggered for ${optimizationData.metric_type}.\n\nRecommended Actions:\n${recommendedActions.map((a, i) => `${i + 1}. ${a}`).join('\n')}`,
+          delivery: 'email',
+          email_to: emailTo,
+          metadata: {
+            optimization_event_id: optimizationEvent.id,
+            optimization_result_id: optimizationResult?.id,
+            strategy: optimizationStrategy
+          }
+        })
+      }
+    );
+
+    let emailDeliveryStatus = 'not_attempted';
+    if (emailNotificationResponse.ok) {
+      const emailResult = await emailNotificationResponse.json();
+      emailDeliveryStatus = emailResult.external_delivery?.[0]?.success ? 'success' : 'failed';
+    } else {
+      emailDeliveryStatus = 'failed';
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -217,8 +251,9 @@ serve(async (req) => {
         optimization_result_id: optimizationResult?.id || null,
         strategy: optimizationStrategy,
         recommended_actions: recommendedActions,
+        email_delivery_status: emailDeliveryStatus,
         message: 'Optimization triggered successfully',
-        note: 'Optimization event and result created. Actual execution requires fusion_optimization_engine integration.',
+        note: 'Optimization event and result created. Email notification sent. Actual execution requires fusion_optimization_engine integration.',
       }),
       {
         status: 200,
