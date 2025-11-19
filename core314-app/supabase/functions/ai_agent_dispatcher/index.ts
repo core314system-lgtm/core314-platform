@@ -199,25 +199,24 @@ async function fetchMetricData(
     if (metricType === 'fusion_score' || metricType === 'all') {
       const { data: fusionData } = await supabase
         .from('fusion_scores')
-        .select('score')
+        .select('fusion_score')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .order('calculated_at', { ascending: false })
         .limit(1)
         .single()
 
-      metricData.fusion_score = fusionData?.score ?? 0
+      metricData.fusion_score = fusionData?.fusion_score ?? 0
     }
 
     if (metricType === 'efficiency_index' || metricType === 'all') {
       const { data: efficiencyData } = await supabase
-        .from('efficiency_index')
-        .select('index_value')
-        .eq('user_id', userId)
+        .from('fusion_optimization_events')
+        .select('efficiency_index')
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
 
-      metricData.efficiency_index = efficiencyData?.index_value ?? 0
+      metricData.efficiency_index = efficiencyData?.efficiency_index ?? 0
     }
 
     if (metricType === 'integration_health' || metricType === 'all') {
@@ -242,15 +241,15 @@ async function fetchMetricData(
     }
 
     if (metricType === 'anomaly_count' || metricType === 'all') {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      
-      const { count } = await supabase
-        .from('anomaly_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .gte('created_at', twentyFourHoursAgo)
+      const { data: anomalyData, error: anomalyError } = await supabase
+        .rpc('get_anomaly_count', { target_user_id: userId })
 
-      metricData.anomaly_count = count ?? 0
+      if (anomalyError) {
+        console.error('[fetchMetricData] Error fetching anomaly count:', anomalyError)
+        metricData.anomaly_count = 0
+      } else {
+        metricData.anomaly_count = anomalyData ?? 0
+      }
     }
 
     return metricData
@@ -342,28 +341,42 @@ async function sendNotification(
   rule: AutomationRule,
   metricData: MetricData
 ): Promise<{ success: boolean; message?: string }> {
-  
-  const notification = {
-    user_id: rule.user_id,
-    title: `Automation Alert: ${rule.rule_name}`,
-    message: `Rule "${rule.rule_name}" triggered. ${rule.metric_type} is ${metricData[rule.metric_type]} (threshold: ${rule.threshold_value})`,
-    type: 'automation_alert',
-    read: false,
-    created_at: new Date().toISOString()
-  }
+  try {
+    const { data, error } = await supabase.functions.invoke('core_notifications_gateway', {
+      body: {
+        user_id: rule.user_id,
+        rule_id: rule.id,
+        type: rule.action_type, // 'alert' or 'notify'
+        title: `Automation ${rule.action_type === 'alert' ? 'Alert' : 'Notification'}: ${rule.rule_name}`,
+        message: `Rule "${rule.rule_name}" triggered. ${rule.metric_type} is ${metricData[rule.metric_type]} (threshold: ${rule.threshold_value})`,
+        severity: rule.action_config?.severity || (rule.action_type === 'alert' ? 'high' : 'medium'),
+        metadata: {
+          rule_id: rule.id,
+          rule_name: rule.rule_name,
+          metric_type: rule.metric_type,
+          metric_value: metricData[rule.metric_type],
+          threshold_value: rule.threshold_value,
+          condition_operator: rule.condition_operator,
+          triggered_at: new Date().toISOString()
+        }
+      }
+    })
 
-  const { error } = await supabase
-    .from('notifications')
-    .insert(notification)
+    if (error) {
+      console.error('[sendNotification] Error calling core_notifications_gateway:', error)
+      return { success: false, message: error.message }
+    }
 
-  if (error) {
-    console.error('[sendNotification] Error:', error)
-    return { success: false, message: error.message }
-  }
-
-  return {
-    success: true,
-    message: 'Notification sent successfully'
+    return {
+      success: data?.success ?? true,
+      message: data?.message || 'Notification sent successfully'
+    }
+  } catch (error) {
+    console.error('[sendNotification] Unexpected error:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }
   }
 }
 
@@ -373,24 +386,29 @@ async function triggerOptimization(
   metricData: MetricData
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('fusion_optimization_engine', {
+    const { data, error } = await supabase.functions.invoke('fusion_live_optimizer', {
       body: {
         user_id: rule.user_id,
-        trigger_source: 'automation_rule',
         rule_id: rule.id,
-        current_metrics: metricData
+        metric_type: rule.metric_type,
+        metric_value: metricData[rule.metric_type],
+        threshold_value: rule.threshold_value,
+        optimization_type: rule.action_config?.optimization_type || 'auto',
+        target_metric: rule.action_config?.target_metric || rule.metric_type
       }
     })
 
     if (error) {
+      console.error('[triggerOptimization] Error calling fusion_live_optimizer:', error)
       return { success: false, message: error.message }
     }
 
     return {
-      success: true,
-      message: 'Optimization triggered successfully'
+      success: data?.success ?? true,
+      message: data?.message || 'Optimization triggered successfully'
     }
   } catch (error) {
+    console.error('[triggerOptimization] Unexpected error:', error)
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error'
