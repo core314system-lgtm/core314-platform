@@ -1,11 +1,22 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as Sentry from 'https://deno.land/x/sentry@7.119.0/index.mjs';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const SENTRY_DSN = Deno.env.get('SENTRY_DSN');
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: Deno.env.get('ENVIRONMENT') || 'production',
+    release: 'phase59-action-debug',
+    tracesSampleRate: 0.1,
+  });
+}
 
 interface NotificationRequest {
   user_id: string;
@@ -109,6 +120,25 @@ serve(async (req) => {
 
     if (error) {
       console.error('Error creating notification:', error);
+      
+      if (SENTRY_DSN) {
+        Sentry.captureException(error, {
+          extra: {
+            function: 'core_notifications_gateway',
+            user_id: notificationData.user_id,
+            notification_type: notificationData.type,
+            error_code: error.code,
+            error_details: error.details,
+            error_hint: error.hint,
+          },
+          tags: {
+            function: 'core_notifications_gateway',
+            error_type: 'database_insert',
+          },
+        });
+        await Sentry.flush(2000);
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to create notification',
@@ -136,6 +166,22 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unexpected error:', error);
+    
+    if (SENTRY_DSN) {
+      Sentry.captureException(error, {
+        extra: {
+          function: 'core_notifications_gateway',
+          error_message: error.message,
+          error_stack: error.stack,
+        },
+        tags: {
+          function: 'core_notifications_gateway',
+          error_type: 'unexpected',
+        },
+      });
+      await Sentry.flush(2000);
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
