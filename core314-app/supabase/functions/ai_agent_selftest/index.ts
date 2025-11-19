@@ -9,7 +9,7 @@ interface TestResult {
   action_type: 'alert' | 'notify' | 'optimize'
   channel: 'slack' | 'teams' | 'email'
   latency_ms: number
-  status: 'success' | 'failed'
+  status: 'success' | 'failed' | 'skipped'
   error_message?: string
 }
 
@@ -41,8 +41,20 @@ serve(async (req) => {
     results.push(alertResult)
 
     console.log('[AI Agent Selftest] Testing Notify → Teams...')
-    const notifyResult = await testNotify(supabaseUrl, supabaseServiceKey, testUserId, testRunId, correlationId)
-    results.push(notifyResult)
+    const SKIP_TEAMS_TEST = (Deno.env.get('SKIP_TEAMS_TEST') || 'true').toLowerCase() === 'true'
+    if (SKIP_TEAMS_TEST) {
+      console.log('[AI Agent Selftest] Teams test skipped by configuration')
+      results.push({
+        action_type: 'notify',
+        channel: 'teams',
+        latency_ms: 0,
+        status: 'skipped',
+        error_message: 'Skipped by configuration (SKIP_TEAMS_TEST=true)'
+      })
+    } else {
+      const notifyResult = await testNotify(supabaseUrl, supabaseServiceKey, testUserId, testRunId, correlationId)
+      results.push(notifyResult)
+    }
 
     console.log('[AI Agent Selftest] Testing Optimize → Email...')
     const optimizeResult = await testOptimize(supabaseUrl, supabaseServiceKey, testUserId, testRunId, correlationId)
@@ -69,8 +81,10 @@ serve(async (req) => {
         })
     }
 
+    const skippedCount = results.filter(r => r.status === 'skipped').length
+    const consideredCount = results.length - skippedCount
     const failedCount = results.filter(r => r.status === 'failed').length
-    const failureRate = (failedCount / results.length) * 100
+    const failureRate = consideredCount > 0 ? (failedCount / consideredCount) * 100 : 0
 
     console.log(`[AI Agent Selftest] Test run complete. Failure rate: ${failureRate.toFixed(2)}%`)
 
@@ -85,8 +99,10 @@ serve(async (req) => {
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
 
     if (last24hLogs && last24hLogs.length > 0) {
+      const last24hSkipped = last24hLogs.filter(log => log.status === 'skipped').length
+      const last24hConsidered = last24hLogs.length - last24hSkipped
       const last24hFailures = last24hLogs.filter(log => log.status === 'failed').length
-      const last24hFailureRate = (last24hFailures / last24hLogs.length) * 100
+      const last24hFailureRate = last24hConsidered > 0 ? (last24hFailures / last24hConsidered) * 100 : 0
 
       if (last24hFailureRate > 10) {
         console.warn(`[AI Agent Selftest] 24h failure rate above threshold: ${last24hFailureRate.toFixed(2)}%`)
@@ -125,7 +141,7 @@ serve(async (req) => {
         correlation_id: correlationId,
         failure_rate: failureRate,
         results: results,
-        message: `Selftest completed. ${failedCount}/${results.length} tests failed (${failureRate.toFixed(2)}%)`
+        message: `Selftest completed. ${failedCount}/${consideredCount} tests failed (${failureRate.toFixed(2)}%)${skippedCount > 0 ? ` [${skippedCount} skipped]` : ''}`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

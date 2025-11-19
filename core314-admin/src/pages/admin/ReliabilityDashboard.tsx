@@ -74,10 +74,11 @@ export function ReliabilityDashboard() {
         return;
       }
 
-      const totalTests = logs.length;
+      const skippedTests = logs.filter(l => l.status === 'skipped').length;
+      const consideredTests = logs.length - skippedTests;
       const failedTests = logs.filter(l => l.status === 'failed').length;
-      const successRate = ((totalTests - failedTests) / totalTests) * 100;
-      const avgLatency = logs.reduce((sum, l) => sum + l.latency_ms, 0) / totalTests;
+      const successRate = consideredTests > 0 ? ((consideredTests - failedTests) / consideredTests) * 100 : 0;
+      const avgLatency = consideredTests > 0 ? logs.filter(l => l.status !== 'skipped').reduce((sum, l) => sum + l.latency_ms, 0) / consideredTests : 0;
 
       const channelGroups = logs.reduce((acc, log) => {
         if (!acc[log.channel]) {
@@ -88,14 +89,15 @@ export function ReliabilityDashboard() {
       }, {} as Record<string, typeof logs>);
 
       const channelStats = Object.entries(channelGroups).map(([channel, channelLogs]) => {
-        const total = channelLogs.length;
+        const skipped = channelLogs.filter(l => l.status === 'skipped').length;
+        const considered = channelLogs.length - skipped;
         const failed = channelLogs.filter(l => l.status === 'failed').length;
-        const avgLat = channelLogs.reduce((sum, l) => sum + l.latency_ms, 0) / total;
+        const avgLat = considered > 0 ? channelLogs.filter(l => l.status !== 'skipped').reduce((sum, l) => sum + l.latency_ms, 0) / considered : 0;
         return {
           channel,
-          success_rate: ((total - failed) / total) * 100,
+          success_rate: considered > 0 ? ((considered - failed) / considered) * 100 : 0,
           avg_latency: Math.round(avgLat),
-          total_tests: total,
+          total_tests: considered,
           failed_tests: failed
         };
       });
@@ -118,8 +120,8 @@ export function ReliabilityDashboard() {
         success_rate_7d: timeRange === '7d' ? successRate : 0,
         avg_latency_24h: timeRange === '24h' ? Math.round(avgLatency) : 0,
         avg_latency_7d: timeRange === '7d' ? Math.round(avgLatency) : 0,
-        total_tests_24h: timeRange === '24h' ? totalTests : 0,
-        total_tests_7d: timeRange === '7d' ? totalTests : 0,
+        total_tests_24h: timeRange === '24h' ? consideredTests : 0,
+        total_tests_7d: timeRange === '7d' ? consideredTests : 0,
         failed_tests_24h: timeRange === '24h' ? failedTests : 0,
         failed_tests_7d: timeRange === '7d' ? failedTests : 0
       });
