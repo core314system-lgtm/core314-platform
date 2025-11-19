@@ -238,12 +238,19 @@ serve(async (req) => {
     
     if (!optimizationAction) {
       console.log('[POE] No optimization needed - system is stable');
+      
+      const { data: adaptiveReliability } = await supabase
+        .from('fusion_adaptive_reliability')
+        .select('channel, recommended_retry_ms, confidence_score, failure_rate, avg_latency_ms')
+        .order('channel');
+      
       return new Response(
         JSON.stringify({
           status: 'success',
           message: 'No optimization needed',
           trends,
           optimization_recommended: false,
+          adaptive_reliability: adaptiveReliability || [],
         }),
         { 
           headers: { 
@@ -303,6 +310,11 @@ serve(async (req) => {
       }
     );
     
+    const { data: adaptiveReliability } = await supabase
+      .from('fusion_adaptive_reliability')
+      .select('channel, recommended_retry_ms, confidence_score, failure_rate, avg_latency_ms')
+      .order('channel');
+    
     return new Response(
       JSON.stringify({
         status: 'success',
@@ -318,6 +330,7 @@ serve(async (req) => {
           predicted_stability: optimizationAction.predicted_stability,
           predicted_variance: optimizationAction.predicted_variance,
         },
+        adaptive_reliability: adaptiveReliability || [],
       }),
       { 
         headers: { 

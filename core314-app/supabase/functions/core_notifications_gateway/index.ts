@@ -55,6 +55,39 @@ interface ExternalDeliveryResult {
   error?: string;
 }
 
+async function getAdaptiveRetryDelay(
+  supabaseClient: any,
+  channel: 'slack' | 'email'
+): Promise<number> {
+  const ADAPTIVE_OPTIMIZATION_ENABLED = (Deno.env.get('ADAPTIVE_OPTIMIZATION_ENABLED') || 'false').toLowerCase() === 'true';
+  
+  if (!ADAPTIVE_OPTIMIZATION_ENABLED) {
+    return channel === 'slack' ? 2000 : 3000;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('fusion_adaptive_reliability')
+      .select('recommended_retry_ms')
+      .eq('channel', channel)
+      .single();
+
+    if (error || !data) {
+      const fallback = channel === 'slack' ? 2000 : 3000;
+      console.log(`[Adaptive Retry] No data for ${channel}, using fallback: ${fallback}ms`);
+      return fallback;
+    }
+
+    const adaptiveDelay = Math.max(500, Math.min(10000, data.recommended_retry_ms));
+    console.log(`[Adaptive Retry] Using adaptive delay for ${channel}: ${adaptiveDelay}ms`);
+    return adaptiveDelay;
+  } catch (error) {
+    const fallback = channel === 'slack' ? 2000 : 3000;
+    console.error(`[Adaptive Retry] Error fetching delay for ${channel}:`, error);
+    return fallback;
+  }
+}
+
 async function sendWithRetry(
   url: string,
   options: RequestInit,
@@ -95,7 +128,7 @@ async function sendWithRetry(
   throw lastError || new Error('Max retries exceeded');
 }
 
-async function sendSlackNotification(title: string, message: string, actionUrl?: string): Promise<ExternalDeliveryResult> {
+async function sendSlackNotification(title: string, message: string, actionUrl?: string, supabaseClient?: any): Promise<ExternalDeliveryResult> {
   if (NOTIFICATIONS_TEST_MODE) {
     if (SENTRY_DSN) {
       Sentry.captureMessage('Simulated Slack delivery', {
@@ -115,11 +148,15 @@ async function sendSlackNotification(title: string, message: string, actionUrl?:
       text: `*${title}*\n${message}${actionUrl ? `\n<${actionUrl}|View Details>` : ''}`
     };
 
+    const adaptiveBackoff = supabaseClient 
+      ? await getAdaptiveRetryDelay(supabaseClient, 'slack')
+      : 2000;
+
     const response = await sendWithRetry(SLACK_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    });
+    }, 2, adaptiveBackoff);
 
     if (response.status === 200) {
       return { channel: 'slack', success: true, message: 'Delivered to Slack' };
@@ -171,7 +208,7 @@ async function sendTeamsNotification(title: string, message: string, actionUrl?:
   }
 }
 
-async function sendEmailNotification(title: string, message: string, emailTo: string, actionUrl?: string): Promise<ExternalDeliveryResult> {
+async function sendEmailNotification(title: string, message: string, emailTo: string, actionUrl?: string, supabaseClient?: any): Promise<ExternalDeliveryResult> {
   if (NOTIFICATIONS_TEST_MODE) {
     if (SENTRY_DSN) {
       Sentry.captureMessage('Simulated Email delivery', {
@@ -229,6 +266,10 @@ async function sendEmailNotification(title: string, message: string, emailTo: st
         value: htmlContent
       }]
     };
+
+    const adaptiveBackoff = supabaseClient 
+      ? await getAdaptiveRetryDelay(supabaseClient, 'email')
+      : 3000;
 
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
@@ -377,7 +418,8 @@ serve(async (req) => {
       const result = await sendSlackNotification(
         notificationData.title,
         notificationData.message,
-        notificationData.action_url
+        notificationData.action_url,
+        supabaseClient
       );
       externalDeliveryResults.push(result);
       
@@ -415,7 +457,8 @@ serve(async (req) => {
         notificationData.title,
         notificationData.message,
         emailTo,
-        notificationData.action_url
+        notificationData.action_url,
+        supabaseClient
       );
       externalDeliveryResults.push(result);
       
