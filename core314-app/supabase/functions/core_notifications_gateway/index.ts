@@ -9,11 +9,18 @@ const corsHeaders = {
 };
 
 const SENTRY_DSN = Deno.env.get('SENTRY_DSN');
+const SLACK_WEBHOOK_URL = Deno.env.get('SLACK_WEBHOOK_URL');
+const TEAMS_WEBHOOK_URL = Deno.env.get('TEAMS_WEBHOOK_URL');
+const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
+const SENDGRID_FROM = Deno.env.get('SENDGRID_FROM') || 'noreply@core314.com';
+const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'admin@core314.com';
+const NOTIFICATIONS_TEST_MODE = Deno.env.get('NOTIFICATIONS_TEST_MODE') === 'true';
+
 if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: Deno.env.get('ENVIRONMENT') || 'production',
-    release: 'phase59-action-debug',
+    release: 'phase60-external-notifications',
     tracesSampleRate: 0.1,
   });
 }
@@ -27,6 +34,8 @@ interface NotificationRequest {
   severity?: 'low' | 'medium' | 'high' | 'critical';
   action_url?: string;
   metadata?: Record<string, any>;
+  delivery?: 'slack' | 'teams' | 'email' | 'in-app';
+  email_to?: string;
 }
 
 interface NotificationRecord {
@@ -37,6 +46,166 @@ interface NotificationRecord {
   is_read: boolean;
   action_url?: string;
   metadata?: string;
+}
+
+interface ExternalDeliveryResult {
+  channel: string;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+async function sendSlackNotification(title: string, message: string, actionUrl?: string): Promise<ExternalDeliveryResult> {
+  if (NOTIFICATIONS_TEST_MODE) {
+    if (SENTRY_DSN) {
+      Sentry.captureMessage('Simulated Slack delivery', {
+        level: 'info',
+        extra: { title, message, actionUrl, channel: 'slack' }
+      });
+    }
+    return { channel: 'slack', success: true, message: 'Simulated delivery (test mode)' };
+  }
+
+  if (!SLACK_WEBHOOK_URL) {
+    return { channel: 'slack', success: false, error: 'SLACK_WEBHOOK_URL not configured' };
+  }
+
+  try {
+    const payload = {
+      text: `*${title}*\n${message}${actionUrl ? `\n<${actionUrl}|View Details>` : ''}`
+    };
+
+    const response = await fetch(SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.status === 200) {
+      return { channel: 'slack', success: true, message: 'Delivered to Slack' };
+    } else {
+      const errorText = await response.text();
+      return { channel: 'slack', success: false, error: `Slack returned ${response.status}: ${errorText}` };
+    }
+  } catch (error) {
+    return { channel: 'slack', success: false, error: error.message };
+  }
+}
+
+async function sendTeamsNotification(title: string, message: string, actionUrl?: string): Promise<ExternalDeliveryResult> {
+  if (NOTIFICATIONS_TEST_MODE) {
+    if (SENTRY_DSN) {
+      Sentry.captureMessage('Simulated Teams delivery', {
+        level: 'info',
+        extra: { title, message, actionUrl, channel: 'teams' }
+      });
+    }
+    return { channel: 'teams', success: true, message: 'Simulated delivery (test mode)' };
+  }
+
+  if (!TEAMS_WEBHOOK_URL) {
+    return { channel: 'teams', success: false, error: 'TEAMS_WEBHOOK_URL not configured' };
+  }
+
+  try {
+    const payload = {
+      text: `**${title}**\n\n${message}${actionUrl ? `\n\n[View Details](${actionUrl})` : ''}`
+    };
+
+    const response = await fetch(TEAMS_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.status === 200) {
+      return { channel: 'teams', success: true, message: 'Delivered to Teams' };
+    } else {
+      const errorText = await response.text();
+      return { channel: 'teams', success: false, error: `Teams returned ${response.status}: ${errorText}` };
+    }
+  } catch (error) {
+    return { channel: 'teams', success: false, error: error.message };
+  }
+}
+
+async function sendEmailNotification(title: string, message: string, emailTo: string, actionUrl?: string): Promise<ExternalDeliveryResult> {
+  if (NOTIFICATIONS_TEST_MODE) {
+    if (SENTRY_DSN) {
+      Sentry.captureMessage('Simulated Email delivery', {
+        level: 'info',
+        extra: { title, message, emailTo, actionUrl, channel: 'email' }
+      });
+    }
+    return { channel: 'email', success: true, message: 'Simulated delivery (test mode)' };
+  }
+
+  if (!SENDGRID_API_KEY) {
+    return { channel: 'email', success: false, error: 'SENDGRID_API_KEY not configured' };
+  }
+
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <body style="margin:0;background-color:#0b0c10;color:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0c10;padding:40px;text-align:center;">
+            <tr>
+              <td>
+                <h1 style="color:#00e5ff;font-size:28px;margin-bottom:10px;">${title}</h1>
+                <p style="font-size:16px;line-height:1.6;color:#cccccc;">
+                  ${message.replace(/\n/g, '<br>')}
+                </p>
+                ${actionUrl ? `
+                  <p style="margin-top:30px;">
+                    <a href="${actionUrl}" style="display:inline-block;padding:12px 24px;background:#00e5ff;color:#0b0c10;text-decoration:none;border-radius:4px;font-weight:bold;">
+                      View Details
+                    </a>
+                  </p>
+                ` : ''}
+                <hr style="border:0;height:1px;background:linear-gradient(90deg,#00e5ff,#1f2833,#00e5ff);margin:30px 0;">
+                <p style="color:#888;font-size:14px;">
+                  This is an automated notification from Core314.<br>
+                  <strong>– The Core314 Team</strong><br>
+                  "Logic in Motion. Intelligence in Control."
+                </p>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const payload = {
+      personalizations: [{
+        to: [{ email: emailTo }],
+        subject: title
+      }],
+      from: { email: SENDGRID_FROM, name: 'Core314' },
+      content: [{
+        type: 'text/html',
+        value: htmlContent
+      }]
+    };
+
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.status === 202) {
+      return { channel: 'email', success: true, message: 'Email queued for delivery' };
+    } else {
+      const errorText = await response.text();
+      return { channel: 'email', success: false, error: `SendGrid returned ${response.status}: ${errorText}` };
+    }
+  } catch (error) {
+    return { channel: 'email', success: false, error: error.message };
+  }
 }
 
 serve(async (req) => {
@@ -151,12 +320,82 @@ serve(async (req) => {
       );
     }
 
+    const externalDeliveryResults: ExternalDeliveryResult[] = [];
+    
+    let deliveryChannel = notificationData.delivery;
+    if (!deliveryChannel) {
+      if (notificationData.type === 'alert' && SLACK_WEBHOOK_URL) {
+        deliveryChannel = 'slack';
+      } else if (notificationData.type === 'notify' && TEAMS_WEBHOOK_URL) {
+        deliveryChannel = 'teams';
+      }
+    }
+
+    if (deliveryChannel === 'slack') {
+      const result = await sendSlackNotification(
+        notificationData.title,
+        notificationData.message,
+        notificationData.action_url
+      );
+      externalDeliveryResults.push(result);
+      
+      if (!result.success && SENTRY_DSN) {
+        Sentry.captureMessage('Slack delivery failed', {
+          level: 'warning',
+          extra: {
+            function: 'core_notifications_gateway',
+            error: result.error,
+            title: notificationData.title
+          }
+        });
+      }
+    } else if (deliveryChannel === 'teams') {
+      const result = await sendTeamsNotification(
+        notificationData.title,
+        notificationData.message,
+        notificationData.action_url
+      );
+      externalDeliveryResults.push(result);
+      
+      if (!result.success && SENTRY_DSN) {
+        Sentry.captureMessage('Teams delivery failed', {
+          level: 'warning',
+          extra: {
+            function: 'core_notifications_gateway',
+            error: result.error,
+            title: notificationData.title
+          }
+        });
+      }
+    } else if (deliveryChannel === 'email') {
+      const emailTo = notificationData.email_to || ADMIN_EMAIL;
+      const result = await sendEmailNotification(
+        notificationData.title,
+        notificationData.message,
+        emailTo,
+        notificationData.action_url
+      );
+      externalDeliveryResults.push(result);
+      
+      if (!result.success && SENTRY_DSN) {
+        Sentry.captureMessage('Email delivery failed', {
+          level: 'warning',
+          extra: {
+            function: 'core_notifications_gateway',
+            error: result.error,
+            title: notificationData.title,
+            email_to: emailTo
+          }
+        });
+      }
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         notification: data,
         message: 'Notification created successfully',
+        external_delivery: externalDeliveryResults.length > 0 ? externalDeliveryResults : undefined
       }),
       {
         status: 200,
