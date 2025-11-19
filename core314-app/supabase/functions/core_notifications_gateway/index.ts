@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const SENTRY_DSN = Deno.env.get('SENTRY_DSN');
 const SLACK_WEBHOOK_URL = Deno.env.get('SLACK_WEBHOOK_URL');
-const TEAMS_WEBHOOK_URL = Deno.env.get('TEAMS_WEBHOOK_URL');
+const TEAMS_WEBHOOK_URL = Deno.env.get('TEAMS_WEBHOOK_URL') ?? Deno.env.get('MICROSOFT_TEAMS_WEBHOOK_URL');
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
 const SENDGRID_FROM = Deno.env.get('SENDGRID_FROM') || 'noreply@core314.com';
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'admin@core314.com';
@@ -55,6 +55,46 @@ interface ExternalDeliveryResult {
   error?: string;
 }
 
+async function sendWithRetry(
+  url: string,
+  options: RequestInit,
+  retries: number = 2,
+  backoffMs: number = 300
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status >= 400 && response.status < 500) {
+        return response;
+      }
+      
+      if (response.status >= 500 || response.status === 429) {
+        if (attempt < retries) {
+          const delay = backoffMs * Math.pow(2, attempt);
+          console.log(`Retry attempt ${attempt + 1}/${retries} after ${delay}ms for status ${response.status}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < retries) {
+        const delay = backoffMs * Math.pow(2, attempt);
+        console.log(`Retry attempt ${attempt + 1}/${retries} after ${delay}ms due to error: ${error.message}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+  }
+  
+  throw lastError || new Error('Max retries exceeded');
+}
+
 async function sendSlackNotification(title: string, message: string, actionUrl?: string): Promise<ExternalDeliveryResult> {
   if (NOTIFICATIONS_TEST_MODE) {
     if (SENTRY_DSN) {
@@ -75,7 +115,7 @@ async function sendSlackNotification(title: string, message: string, actionUrl?:
       text: `*${title}*\n${message}${actionUrl ? `\n<${actionUrl}|View Details>` : ''}`
     };
 
-    const response = await fetch(SLACK_WEBHOOK_URL, {
+    const response = await sendWithRetry(SLACK_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -85,7 +125,8 @@ async function sendSlackNotification(title: string, message: string, actionUrl?:
       return { channel: 'slack', success: true, message: 'Delivered to Slack' };
     } else {
       const errorText = await response.text();
-      return { channel: 'slack', success: false, error: `Slack returned ${response.status}: ${errorText}` };
+      const truncatedError = errorText.length > 300 ? errorText.substring(0, 300) + '...' : errorText;
+      return { channel: 'slack', success: false, error: `Slack returned ${response.status}: ${truncatedError}` };
     }
   } catch (error) {
     return { channel: 'slack', success: false, error: error.message };
@@ -112,7 +153,7 @@ async function sendTeamsNotification(title: string, message: string, actionUrl?:
       text: `**${title}**\n\n${message}${actionUrl ? `\n\n[View Details](${actionUrl})` : ''}`
     };
 
-    const response = await fetch(TEAMS_WEBHOOK_URL, {
+    const response = await sendWithRetry(TEAMS_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -122,7 +163,8 @@ async function sendTeamsNotification(title: string, message: string, actionUrl?:
       return { channel: 'teams', success: true, message: 'Delivered to Teams' };
     } else {
       const errorText = await response.text();
-      return { channel: 'teams', success: false, error: `Teams returned ${response.status}: ${errorText}` };
+      const truncatedError = errorText.length > 300 ? errorText.substring(0, 300) + '...' : errorText;
+      return { channel: 'teams', success: false, error: `Teams returned ${response.status}: ${truncatedError}` };
     }
   } catch (error) {
     return { channel: 'teams', success: false, error: error.message };
