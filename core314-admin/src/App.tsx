@@ -91,9 +91,8 @@ function App() {
           <Route path="beta-readiness" element={<BetaReadiness />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
-          <Route path="automation-center" element={<AutomationCenter />}>
-            <Route path="reliability" element={<ReliabilityDashboard />} />
-          </Route>
+          <Route path="automation-center" element={<AutomationCenter />} />
+          <Route path="reliability" element={<ReliabilityDashboard />} />
           <Route path="agent-activity" element={<AgentActivityLog />} />
           <Route path="optimizations" element={<Optimizations />} />
         </Route>
