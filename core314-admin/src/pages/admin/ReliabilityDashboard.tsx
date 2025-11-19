@@ -31,10 +31,31 @@ interface RecentFailure {
   test_run_id: string;
 }
 
+interface AdaptiveReliability {
+  channel: string;
+  recommended_retry_ms: number;
+  confidence_score: number;
+  failure_rate: number;
+  avg_latency_ms: number;
+  last_updated: string;
+}
+
+interface OptimizationEvent {
+  id: string;
+  created_at: string;
+  parameter_delta: {
+    channel: string;
+    previous_retry_ms: number;
+    new_retry_ms: number;
+    percent_change: string;
+  };
+}
+
 export function ReliabilityDashboard() {
   const [metrics, setMetrics] = useState<ReliabilityMetrics | null>(null);
   const [channelMetrics, setChannelMetrics] = useState<ChannelMetrics[]>([]);
   const [recentFailures, setRecentFailures] = useState<RecentFailure[]>([]);
+  const [adaptiveReliability, setAdaptiveReliability] = useState<AdaptiveReliability[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'24h' | '7d'>('24h');
 
@@ -74,10 +95,11 @@ export function ReliabilityDashboard() {
         return;
       }
 
-      const totalTests = logs.length;
+      const skippedTests = logs.filter(l => l.status === 'skipped').length;
+      const consideredTests = logs.length - skippedTests;
       const failedTests = logs.filter(l => l.status === 'failed').length;
-      const successRate = ((totalTests - failedTests) / totalTests) * 100;
-      const avgLatency = logs.reduce((sum, l) => sum + l.latency_ms, 0) / totalTests;
+      const successRate = consideredTests > 0 ? ((consideredTests - failedTests) / consideredTests) * 100 : 0;
+      const avgLatency = consideredTests > 0 ? logs.filter(l => l.status !== 'skipped').reduce((sum, l) => sum + l.latency_ms, 0) / consideredTests : 0;
 
       const channelGroups = logs.reduce((acc, log) => {
         if (!acc[log.channel]) {
@@ -88,14 +110,15 @@ export function ReliabilityDashboard() {
       }, {} as Record<string, typeof logs>);
 
       const channelStats = Object.entries(channelGroups).map(([channel, channelLogs]) => {
-        const total = channelLogs.length;
+        const skipped = channelLogs.filter(l => l.status === 'skipped').length;
+        const considered = channelLogs.length - skipped;
         const failed = channelLogs.filter(l => l.status === 'failed').length;
-        const avgLat = channelLogs.reduce((sum, l) => sum + l.latency_ms, 0) / total;
+        const avgLat = considered > 0 ? channelLogs.filter(l => l.status !== 'skipped').reduce((sum, l) => sum + l.latency_ms, 0) / considered : 0;
         return {
           channel,
-          success_rate: ((total - failed) / total) * 100,
+          success_rate: considered > 0 ? ((considered - failed) / considered) * 100 : 0,
           avg_latency: Math.round(avgLat),
-          total_tests: total,
+          total_tests: considered,
           failed_tests: failed
         };
       });
@@ -118,13 +141,23 @@ export function ReliabilityDashboard() {
         success_rate_7d: timeRange === '7d' ? successRate : 0,
         avg_latency_24h: timeRange === '24h' ? Math.round(avgLatency) : 0,
         avg_latency_7d: timeRange === '7d' ? Math.round(avgLatency) : 0,
-        total_tests_24h: timeRange === '24h' ? totalTests : 0,
-        total_tests_7d: timeRange === '7d' ? totalTests : 0,
+        total_tests_24h: timeRange === '24h' ? consideredTests : 0,
+        total_tests_7d: timeRange === '7d' ? consideredTests : 0,
         failed_tests_24h: timeRange === '24h' ? failedTests : 0,
         failed_tests_7d: timeRange === '7d' ? failedTests : 0
       });
       setChannelMetrics(channelStats);
       setRecentFailures(failures);
+
+      const { data: adaptiveData, error: adaptiveError } = await supabase
+        .from('fusion_adaptive_reliability')
+        .select('*')
+        .in('channel', ['slack', 'email'])
+        .order('channel');
+
+      if (!adaptiveError && adaptiveData) {
+        setAdaptiveReliability(adaptiveData);
+      }
     } catch (error) {
       console.error('Error fetching reliability metrics:', error);
     } finally {
@@ -224,6 +257,79 @@ export function ReliabilityDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Adaptive Optimization */}
+      {adaptiveReliability.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Adaptive Optimization</h2>
+              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                Phase 62: Self-Healing Reliability
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              Real-time adaptive retry delays based on 24h performance metrics
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
+            {adaptiveReliability.map((adaptive) => (
+              <div key={adaptive.channel} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="px-2 py-1 text-sm font-medium bg-blue-100 text-blue-700 rounded capitalize">
+                    {adaptive.channel}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    Updated {new Date(adaptive.last_updated).toLocaleTimeString()}
+                  </span>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Retry Delay</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {adaptive.recommended_retry_ms}ms
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Confidence</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-green-500 rounded-full"
+                          style={{ width: `${adaptive.confidence_score * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {(adaptive.confidence_score * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                    <div>
+                      <p className="text-xs text-gray-500">Failure Rate (24h)</p>
+                      <p className={`text-sm font-medium ${
+                        adaptive.failure_rate < 0.05 ? 'text-green-600' : 
+                        adaptive.failure_rate < 0.2 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {(adaptive.failure_rate * 100).toFixed(2)}%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Avg Latency (24h)</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {Math.round(adaptive.avg_latency_ms)}ms
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Channel Metrics */}
       <div className="bg-white rounded-lg border border-gray-200">
