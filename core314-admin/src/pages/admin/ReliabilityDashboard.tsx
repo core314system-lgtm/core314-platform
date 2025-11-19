@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Activity, AlertCircle, CheckCircle, Clock, TrendingUp, RefreshCw } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 
 interface ReliabilityMetrics {
   success_rate_24h: number;
@@ -40,15 +40,15 @@ interface AdaptiveReliability {
   last_updated: string;
 }
 
-interface OptimizationEvent {
+interface AutomationLog {
   id: string;
   created_at: string;
-  parameter_delta: {
-    channel: string;
-    previous_retry_ms: number;
-    new_retry_ms: number;
-    percent_change: string;
-  };
+  action_type: string;
+  channel: string;
+  status: string;
+  latency_ms: number;
+  error_message: string | null;
+  test_run_id: string;
 }
 
 export function ReliabilityDashboard() {
@@ -107,13 +107,13 @@ export function ReliabilityDashboard() {
         }
         acc[log.channel].push(log);
         return acc;
-      }, {} as Record<string, typeof logs>);
+      }, {} as Record<string, AutomationLog[]>);
 
-      const channelStats = Object.entries(channelGroups).map(([channel, channelLogs]) => {
-        const skipped = channelLogs.filter(l => l.status === 'skipped').length;
+      const channelStats = (Object.entries(channelGroups) as [string, AutomationLog[]][]).map(([channel, channelLogs]) => {
+        const skipped = channelLogs.filter((l: AutomationLog) => l.status === 'skipped').length;
         const considered = channelLogs.length - skipped;
-        const failed = channelLogs.filter(l => l.status === 'failed').length;
-        const avgLat = considered > 0 ? channelLogs.filter(l => l.status !== 'skipped').reduce((sum, l) => sum + l.latency_ms, 0) / considered : 0;
+        const failed = channelLogs.filter((l: AutomationLog) => l.status === 'failed').length;
+        const avgLat = considered > 0 ? channelLogs.filter((l: AutomationLog) => l.status !== 'skipped').reduce((sum: number, l: AutomationLog) => sum + l.latency_ms, 0) / considered : 0;
         return {
           channel,
           success_rate: considered > 0 ? ((considered - failed) / considered) * 100 : 0,
