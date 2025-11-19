@@ -30,6 +30,8 @@ import { E2ECampaign } from './pages/admin/E2ECampaign';
 import { BetaReadiness } from './pages/admin/BetaReadiness';
 import { NotificationCenter } from './pages/admin/NotificationCenter';
 import { AuditTrail } from './pages/admin/AuditTrail';
+import { AutomationCenter } from './pages/admin/AutomationCenter';
+import { AgentActivityLog } from './pages/admin/AgentActivityLog';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -87,6 +89,8 @@ function App() {
           <Route path="beta-readiness" element={<BetaReadiness />} />
           <Route path="notifications" element={<NotificationCenter />} />
           <Route path="audit-trail" element={<AuditTrail />} />
+          <Route path="automation-center" element={<AutomationCenter />} />
+          <Route path="agent-activity" element={<AgentActivityLog />} />
         </Route>
       </Routes>
     </Router>

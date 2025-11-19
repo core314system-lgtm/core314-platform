@@ -20,7 +20,9 @@ import {
   Lightbulb,
   Sparkles,
   Cpu,
-  LogOut
+  LogOut,
+  Workflow,
+  History
 } from 'lucide-react';
 
 const navItems = [
@@ -45,6 +47,8 @@ const navItems = [
   { path: '/adaptive-policy', label: 'Policy Intelligence', icon: Shield },
   { path: '/trust-graph', label: 'Trust Graph', icon: TrendingUp },
   { path: '/governance-insights', label: 'Governance Insights', icon: Shield },
+  { path: '/automation-center', label: 'Automation Center', icon: Workflow },
+  { path: '/agent-activity', label: 'Agent Activity Log', icon: History },
   { path: '/notifications', label: 'Notification Center', icon: Bell },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
 ];
