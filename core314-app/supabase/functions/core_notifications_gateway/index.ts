@@ -18,6 +18,16 @@ interface NotificationRequest {
   metadata?: Record<string, any>;
 }
 
+interface NotificationRecord {
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  action_url?: string;
+  metadata?: string;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -74,19 +84,26 @@ serve(async (req) => {
       'low'
     );
 
+    const enrichedMetadata = {
+      ...(notificationData.metadata || {}),
+      rule_id: notificationData.rule_id || null,
+      severity: severity,
+      triggered_at: new Date().toISOString(),
+    };
+
+    const notification: NotificationRecord = {
+      user_id: notificationData.user_id,
+      type: notificationData.type,
+      title: notificationData.title,
+      message: notificationData.message,
+      is_read: false,
+      action_url: notificationData.action_url || null,
+      metadata: JSON.stringify(enrichedMetadata),
+    };
+
     const { data, error } = await supabaseClient
       .from('notifications')
-      .insert({
-        user_id: notificationData.user_id,
-        rule_id: notificationData.rule_id || null,
-        type: notificationData.type,
-        title: notificationData.title,
-        message: notificationData.message,
-        severity: severity,
-        status: 'unread',
-        action_url: notificationData.action_url || null,
-        metadata: notificationData.metadata || {},
-      })
+      .insert(notification)
       .select()
       .single();
 
