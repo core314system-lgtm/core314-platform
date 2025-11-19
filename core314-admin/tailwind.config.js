@@ -10,6 +10,17 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			core: {
+  				primary: '#2563EB',
+  				'primary-hover': '#1D4ED8',
+  				background: '#F9FAFB',
+  				border: '#E5E7EB',
+  				'text-primary': '#111827',
+  				'text-secondary': '#6B7280',
+  				success: '#16A34A',
+  				warning: '#F59E0B',
+  				error: '#DC2626'
+  			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',
   				foreground: 'hsl(var(--sidebar-foreground))',
@@ -20,6 +31,9 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			}
+  		},
+  		boxShadow: {
+  			card: '0 1px 2px 0 rgb(0 0 0 / 0.05)'
   		},
   		keyframes: {
   			'accordion-down': {
