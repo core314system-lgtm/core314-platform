@@ -68,7 +68,6 @@ export function AutomationCenter() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<RuleTemplate | null>(null);
-  const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
 
   useEffect(() => {
     fetchRules();
@@ -290,7 +289,9 @@ export function AutomationCenter() {
                       )}
                     </button>
                     <button
-                      onClick={() => setEditingRule(rule)}
+                      onClick={() => {
+                        console.log('Edit rule:', rule.id);
+                      }}
                       className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
                       title="Edit"
                     >
