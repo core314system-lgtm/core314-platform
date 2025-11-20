@@ -37,6 +37,7 @@ import { ReliabilityDashboard } from './pages/admin/ReliabilityDashboard';
 import { FusionEfficiency } from './pages/admin/FusionEfficiency';
 import { AddOnPurchases } from './pages/admin/AddOnPurchases';
 import Subscriptions from './pages/admin/Subscriptions';
+import BetaFeedback from './pages/admin/BetaFeedback';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -101,6 +102,7 @@ function App() {
           <Route path="fusion-efficiency" element={<FusionEfficiency />} />
           <Route path="addon-purchases" element={<AddOnPurchases />} />
           <Route path="subscriptions" element={<Subscriptions />} />
+          <Route path="beta-feedback" element={<BetaFeedback />} />
         </Route>
       </Routes>
     </Router>
