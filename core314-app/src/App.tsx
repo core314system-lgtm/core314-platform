@@ -31,6 +31,7 @@ import { OptimizationEngine } from './pages/OptimizationEngine';
 import { ApiAccess } from './pages/ApiAccess';
 import { AuditTrails } from './pages/AuditTrails';
 import { AccountSupport } from './pages/AccountSupport';
+import { FusionDetails } from './pages/FusionDetails';
 import OAuthCallback from './pages/OAuthCallback';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
@@ -85,6 +86,7 @@ function App() {
             <Route path="api-access" element={<ApiAccess />} />
             <Route path="audit-trails" element={<AuditTrails />} />
             <Route path="account-support" element={<AccountSupport />} />
+            <Route path="fusion-details" element={<FusionDetails />} />
             <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
             <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
             <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
