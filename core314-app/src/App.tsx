@@ -33,6 +33,7 @@ import { AuditTrails } from './pages/AuditTrails';
 import { AccountSupport } from './pages/AccountSupport';
 import { FusionDetails } from './pages/FusionDetails';
 import Billing from './pages/Billing';
+import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
@@ -62,6 +63,7 @@ function App() {
               <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
               <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/beta-invite" element={<BetaInvite />} />
           
           <Route
             path="/"
