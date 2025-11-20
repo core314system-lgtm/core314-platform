@@ -46,6 +46,7 @@ const navGroups = [
       { path: '/users', label: 'User Management', icon: Users },
       { path: '/integrations', label: 'Integration Tracking', icon: Layers },
       { path: '/billing', label: 'Billing Overview', icon: DollarSign },
+      { path: '/addon-purchases', label: 'Add-On Purchases', icon: DollarSign },
     ]
   },
   {
