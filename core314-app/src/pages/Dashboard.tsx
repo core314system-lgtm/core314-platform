@@ -12,6 +12,7 @@ import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
 import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
+import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
@@ -276,6 +277,9 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Fusion Efficiency Overview Widget */}
+      <FusionOverviewWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">

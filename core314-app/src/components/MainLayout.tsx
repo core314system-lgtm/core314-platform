@@ -39,6 +39,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
     { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
+    { path: '/fusion-details', label: 'Fusion Overview', icon: Zap },
     { path: '/dashboard-builder', label: 'Dashboard Builder', icon: LayoutDashboard },
     { path: '/goals', label: 'Goals & KPIs', icon: Target },
     { path: '/notifications', label: 'Notifications', icon: Bell },
