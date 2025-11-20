@@ -34,6 +34,7 @@ import { AutomationCenter } from './pages/admin/AutomationCenter';
 import { AgentActivityLog } from './pages/admin/AgentActivityLog';
 import { Optimizations } from './pages/admin/Optimizations';
 import { ReliabilityDashboard } from './pages/admin/ReliabilityDashboard';
+import { FusionEfficiency } from './pages/admin/FusionEfficiency';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -95,6 +96,7 @@ function App() {
           <Route path="reliability" element={<ReliabilityDashboard />} />
           <Route path="agent-activity" element={<AgentActivityLog />} />
           <Route path="optimizations" element={<Optimizations />} />
+          <Route path="fusion-efficiency" element={<FusionEfficiency />} />
         </Route>
       </Routes>
     </Router>

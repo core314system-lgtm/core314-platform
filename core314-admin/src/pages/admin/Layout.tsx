@@ -55,6 +55,7 @@ const navGroups = [
     items: [
       { path: '/metrics', label: 'Metrics Dashboard', icon: BarChart3 },
       { path: '/efficiency', label: 'Efficiency Index', icon: Gauge },
+      { path: '/fusion-efficiency', label: 'Fusion Efficiency', icon: Zap },
       { path: '/behavioral-analytics', label: 'Behavioral Analytics', icon: Brain },
       { path: '/predictive-insights', label: 'Predictive Insights', icon: Lightbulb },
     ]
