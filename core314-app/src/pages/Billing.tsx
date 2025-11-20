@@ -372,23 +372,14 @@ export default function Billing() {
         </CardContent>
         <CardFooter className="flex gap-2">
           {!isFreePlan && !isCanceled && (
-            <>
-              <Button
-                variant="outline"
-                onClick={handleCancelPlan}
-                disabled={processingAction}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                Manage Billing
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleCancelPlan}
-                disabled={processingAction}
-              >
-                Cancel Plan
-              </Button>
-            </>
+            <Button
+              variant="default"
+              onClick={handleManageBilling}
+              disabled={processingAction}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              {processingAction ? 'Loading...' : 'Manage Billing'}
+            </Button>
           )}
           {isCanceled && (
             <Button onClick={() => handleUpgradePlan(subscription.plan_name)} disabled={processingAction}>
