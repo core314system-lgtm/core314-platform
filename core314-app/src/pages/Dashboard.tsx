@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
-import { Users, Layers, Bot, TrendingUp, RefreshCw } from 'lucide-react';
+import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -14,6 +14,7 @@ import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
 import { AddOnCTA } from '../components/AddOnCTA';
+import { FeedbackModal } from '../components/FeedbackModal';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
@@ -42,6 +43,7 @@ export function Dashboard() {
     score: number;
   }[]>([]);
   const [sessionData, setSessionData] = useState<{ last_login: string; active_sessions: number } | null>(null);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -222,8 +224,14 @@ export function Dashboard() {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
             Sync Data
           </Button>
+          <Button onClick={() => setFeedbackModalOpen(true)} variant="outline">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Feedback
+          </Button>
         </div>
       </div>
+
+      <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
