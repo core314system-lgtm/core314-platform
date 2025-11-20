@@ -23,5 +23,27 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%
   }
+  
+  /* Typography Standards */
+  h1 {
+    @apply text-3xl font-bold leading-tight mb-2 text-gray-900 dark:text-white;
+  }
+  
+  h2 {
+    @apply text-xl font-semibold leading-snug mb-2 text-gray-900 dark:text-white;
+  }
+  
+  h3 {
+    @apply text-lg font-medium leading-normal mb-2 text-gray-900 dark:text-white;
+  }
+  
+  body {
+    @apply text-sm leading-6 tracking-normal text-gray-900 dark:text-white;
+  }
+  
+  /* Focus Ring Standards */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-core-primary ring-offset-2;
+  }
 }
 

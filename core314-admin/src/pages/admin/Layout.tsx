@@ -174,13 +174,13 @@ export function AdminLayout() {
                 return (
                   <AccordionItem key={group.id} value={group.id} className="border-b-0">
                     <AccordionTrigger 
-                      className={`py-2 px-3 rounded-md hover:no-underline hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      className={`py-2 px-3 rounded-md hover:no-underline hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
                         groupActive ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                       }`}
                     >
-                      <div className="flex items-center text-sm font-semibold">
-                        <GroupIcon className="mr-2 h-4 w-4" />
-                        {group.label}
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <GroupIcon className="h-4 w-4 flex-shrink-0" />
+                        <span className="leading-none">{group.label}</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pb-1 pt-1">
@@ -193,14 +193,14 @@ export function AdminLayout() {
                             <Link
                               key={item.path}
                               to={item.path}
-                              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ml-6 ${
+                              className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md ml-6 transition-colors ${
                                 isActive
                                   ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
                                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                               }`}
                             >
-                              <Icon className="mr-3 h-4 w-4" />
-                              {item.label}
+                              <Icon className="h-4 w-4 flex-shrink-0" />
+                              <span className="leading-none">{item.label}</span>
                             </Link>
                           );
                         })}
