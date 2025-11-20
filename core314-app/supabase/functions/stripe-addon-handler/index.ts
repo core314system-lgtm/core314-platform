@@ -8,15 +8,18 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseUrl = Deno.env.get('CORE314_URL') ?? Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('CORE314_SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 serve(async (req) => {
   try {
+    console.log('Received webhook request');
+    
     const signature = req.headers.get('stripe-signature');
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 
     if (!signature || !webhookSecret) {
+      console.error('Missing signature or webhook secret');
       return new Response('Missing signature or webhook secret', { status: 400 });
     }
 
@@ -31,6 +34,17 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    console.log(`Processing event: ${event.type}`);
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log('Session metadata:', {
+        type: session.metadata?.type,
+        hasUserId: !!session.metadata?.user_id,
+        hasAddonName: !!session.metadata?.addon_name,
+        hasAddonCategory: !!session.metadata?.addon_category,
+      });
+    }
 
     switch (event.type) {
       case 'checkout.session.completed': {
