@@ -13,6 +13,7 @@ import { IntegrationCard } from '../components/dashboard/IntegrationCard';
 import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
+import { AddOnCTA } from '../components/AddOnCTA';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
@@ -430,6 +431,9 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add-On CTA Footer */}
+      <AddOnCTA type="dashboard_footer" />
     </div>
   );
 }

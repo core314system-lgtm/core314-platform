@@ -35,6 +35,7 @@ import { AgentActivityLog } from './pages/admin/AgentActivityLog';
 import { Optimizations } from './pages/admin/Optimizations';
 import { ReliabilityDashboard } from './pages/admin/ReliabilityDashboard';
 import { FusionEfficiency } from './pages/admin/FusionEfficiency';
+import { AddOnPurchases } from './pages/admin/AddOnPurchases';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -97,6 +98,7 @@ function App() {
           <Route path="agent-activity" element={<AgentActivityLog />} />
           <Route path="optimizations" element={<Optimizations />} />
           <Route path="fusion-efficiency" element={<FusionEfficiency />} />
+          <Route path="addon-purchases" element={<AddOnPurchases />} />
         </Route>
       </Routes>
     </Router>
