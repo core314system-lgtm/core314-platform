@@ -10,6 +10,20 @@ interface TestRequest {
   provider: string;
 }
 
+interface ProviderConfig {
+  id: string;
+  service_name: string;
+  display_name: string;
+  provider_type: string;
+  validation_endpoint: string;
+  validation_method: string;
+  validation_headers: Record<string, string>;
+  validation_body: Record<string, any>;
+  success_indicators: {
+    status_codes: number[];
+  };
+}
+
 async function decryptData(encrypted: { iv: string; data: string }, key: CryptoKey): Promise<string> {
   const iv = Uint8Array.from(atob(encrypted.iv), c => c.charCodeAt(0));
   const data = Uint8Array.from(atob(encrypted.data), c => c.charCodeAt(0));
@@ -41,29 +55,72 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   );
 }
 
-async function testSendGrid(apiKey: string): Promise<{ valid: boolean; error?: string }> {
-  try {
-    const response = await fetch('https://api.sendgrid.com/v3/user/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (response.ok) {
-      return { valid: true };
+function replaceTokens(template: string, credentials: Record<string, any>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(credentials)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+  }
+  return result;
+}
+
+async function decryptCredentials(
+  encryptedCredentials: Record<string, any>,
+  encryptionKey: CryptoKey
+): Promise<Record<string, any>> {
+  const decrypted: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(encryptedCredentials)) {
+    if (typeof value === 'object' && value !== null && 'iv' in value && 'data' in value) {
+      decrypted[key] = await decryptData(value, encryptionKey);
     } else {
-      return { valid: false, error: `SendGrid API error: ${response.status}` };
+      decrypted[key] = value;
+    }
+  }
+  
+  return decrypted;
+}
+
+async function testCredentials(
+  provider: ProviderConfig,
+  credentials: Record<string, any>
+): Promise<{ valid: boolean; error?: string; details?: any }> {
+  try {
+    if (!provider.validation_endpoint) {
+      return { valid: true };
+    }
+
+    const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(provider.validation_headers)) {
+      headers[key] = replaceTokens(value, credentials);
+    }
+
+    let body: any = undefined;
+    if (provider.validation_method !== 'GET' && Object.keys(provider.validation_body).length > 0) {
+      const bodyTemplate = JSON.stringify(provider.validation_body);
+      body = JSON.parse(replaceTokens(bodyTemplate, credentials));
+    }
+
+    const response = await fetch(provider.validation_endpoint, {
+      method: provider.validation_method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+
+    const successCodes = provider.success_indicators?.status_codes || [200, 201, 204];
+    if (successCodes.includes(response.status)) {
+      const responseData = await response.json().catch(() => ({}));
+      return { valid: true, details: responseData };
+    } else {
+      const errorText = await response.text();
+      return { 
+        valid: false, 
+        error: `Validation failed: ${response.status} - ${errorText.substring(0, 200)}` 
+      };
     }
   } catch (error) {
     return { valid: false, error: `Network error: ${error.message}` };
   }
 }
-
-const providerTesters: Record<string, (apiKey: string) => Promise<{ valid: boolean; error?: string }>> = {
-  sendgrid: testSendGrid
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -97,65 +154,79 @@ serve(async (req) => {
       throw new Error('Provider is required');
     }
 
-    const tester = providerTesters[provider.toLowerCase()];
-    if (!tester) {
-      throw new Error(`Unsupported provider: ${provider}`);
-    }
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: integration, error: integrationError } = await supabaseAdmin
-      .from('integrations_master')
-      .select('id')
-      .eq('integration_type', provider.toLowerCase())
+    const { data: providerConfig, error: providerError } = await supabaseAdmin
+      .from('integration_registry')
+      .select('*')
+      .eq('service_name', provider.toLowerCase())
+      .eq('is_enabled', true)
       .single();
 
-    if (integrationError || !integration) {
-      throw new Error(`Integration type not found: ${provider}`);
+    if (providerError || !providerConfig) {
+      throw new Error(`Provider not found: ${provider}`);
     }
 
-    const { data: userIntegration, error: fetchError } = await supabaseAdmin
+    const { data: userIntegration, error: integrationError } = await supabaseAdmin
       .from('user_integrations')
-      .select('config')
+      .select('*')
       .eq('user_id', user.id)
-      .eq('integration_id', integration.id)
+      .eq('provider_id', providerConfig.id)
       .single();
 
-    if (fetchError || !userIntegration) {
+    if (integrationError || !userIntegration) {
       throw new Error('Integration not found. Please connect first.');
     }
 
     const encryptionKey = await getEncryptionKey();
     const config = userIntegration.config as any;
-    
-    if (!config.credentials?.api_key) {
-      throw new Error('No API key found in integration config');
+    const decryptedCredentials = await decryptCredentials(config.credentials, encryptionKey);
+
+    const validation = await testCredentials(providerConfig as ProviderConfig, decryptedCredentials);
+
+    const updateData: any = {
+      last_verified_at: new Date().toISOString()
+    };
+
+    if (validation.valid) {
+      updateData.status = 'active';
+      updateData.error_message = null;
+    } else {
+      updateData.status = 'error';
+      updateData.error_message = validation.error;
     }
-
-    const apiKey = await decryptData(config.credentials.api_key, encryptionKey);
-
-    const testResult = await tester(apiKey);
 
     const { error: updateError } = await supabaseAdmin
       .from('user_integrations')
-      .update({
-        status: testResult.valid ? 'active' : 'error',
-        last_verified_at: new Date().toISOString(),
-        error_message: testResult.valid ? null : testResult.error
-      })
-      .eq('user_id', user.id)
-      .eq('integration_id', integration.id);
+      .update(updateData)
+      .eq('id', userIntegration.id);
 
     if (updateError) {
-      console.error('Failed to update integration status:', updateError);
+      console.error('Update error:', updateError);
+    }
+
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: validation.error,
+          status: 'error'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     return new Response(
       JSON.stringify({
-        success: testResult.valid,
-        status: testResult.valid ? 'active' : 'error',
-        error: testResult.error,
-        last_verified_at: new Date().toISOString()
+        success: true,
+        message: `${providerConfig.display_name} connection is valid`,
+        provider: provider.toLowerCase(),
+        status: 'active',
+        last_verified_at: updateData.last_verified_at,
+        details: validation.details
       }),
       {
         status: 200,
