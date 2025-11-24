@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { PlanCard } from '../components/billing/PlanCard';
 import { UsageProgressBar } from '../components/billing/UsageProgressBar';
 import { AddOnManager } from '../components/billing/AddOnManager';
-import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { Loader2, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface SubscriptionSummary {
@@ -31,7 +31,7 @@ interface SubscriptionSummary {
     id: string;
     addon_name: string;
     addon_category: string;
-    status: string;
+    status: 'active' | 'canceled' | 'pending';
     activated_at: string;
   }>;
 }
@@ -184,9 +184,7 @@ export default function Billing() {
     }
   };
 
-  const handleCancelPlan = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription?')) return;
-
+  const handleManageBilling = async () => {
     setProcessingAction(true);
     try {
       const response = await fetch('/api/create-portal-session', {
@@ -200,7 +198,7 @@ export default function Billing() {
       const { url } = await response.json();
       window.location.href = url;
     } catch (error) {
-      console.error('Error canceling plan:', error);
+      console.error('Error managing billing:', error);
       setNotification({
         type: 'error',
         message: 'Failed to open billing portal. Please try again.',
