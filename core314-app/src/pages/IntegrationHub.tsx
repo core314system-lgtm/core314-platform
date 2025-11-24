@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
@@ -14,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { OAuthConnect } from '../components/integrations/OAuthConnect';
 
 export default function IntegrationHub() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { subscription, canAddIntegration } = useSubscription(user?.id);
   const [integrations, setIntegrations] = useState<IntegrationWithStatus[]>([]);
@@ -93,6 +95,7 @@ export default function IntegrationHub() {
 
   const handleToggleIntegration = async (integration: IntegrationWithStatus) => {
     if (integration.is_enabled) {
+      // Disconnect: delete the integration
       if (integration.user_integration_id) {
         const { error } = await supabase
           .from('user_integrations')
@@ -109,18 +112,12 @@ export default function IntegrationHub() {
         return;
       }
 
-      const { error } = await supabase
-        .from('user_integrations')
-        .insert({
-          user_id: user?.id,
-          integration_id: integration.id,
-          added_by_user: !integration.is_core_integration,
-          status: 'active',
-        });
-
-      if (!error) {
-        await fetchIntegrations();
-      }
+      navigate('/integrations', { 
+        state: { 
+          selectedIntegration: integration.integration_name,
+          integrationId: integration.id 
+        } 
+      });
     }
   };
 
