@@ -8,12 +8,26 @@ const corsHeaders = {
 
 interface ConnectRequest {
   provider: string;
-  credentials: {
-    api_key?: string;
-    from_email?: string;
-    client_id?: string;
-    client_secret?: string;
-    tenant_id?: string;
+  credentials: Record<string, any>;
+}
+
+interface ProviderConfig {
+  id: string;
+  service_name: string;
+  display_name: string;
+  provider_type: string;
+  validation_endpoint: string;
+  validation_method: string;
+  validation_headers: Record<string, string>;
+  validation_body: Record<string, any>;
+  required_fields: Array<{
+    name: string;
+    type: string;
+    label: string;
+    required: boolean;
+  }>;
+  success_indicators: {
+    status_codes: number[];
   };
 }
 
@@ -51,35 +65,80 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   );
 }
 
-async function validateSendGrid(apiKey: string): Promise<{ valid: boolean; error?: string }> {
+function replaceTokens(template: string, credentials: Record<string, any>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(credentials)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+  }
+  return result;
+}
+
+async function validateCredentials(
+  provider: ProviderConfig,
+  credentials: Record<string, any>
+): Promise<{ valid: boolean; error?: string; details?: any }> {
   try {
-    const response = await fetch('https://api.sendgrid.com/v3/user/profile', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+    for (const field of provider.required_fields) {
+      if (field.required && !credentials[field.name]) {
+        return { valid: false, error: `Missing required field: ${field.label}` };
       }
-    });
-    
-    if (response.ok) {
+    }
+
+    if (!provider.validation_endpoint) {
       return { valid: true };
+    }
+
+    const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(provider.validation_headers)) {
+      headers[key] = replaceTokens(value, credentials);
+    }
+
+    let body: any = undefined;
+    if (provider.validation_method !== 'GET' && Object.keys(provider.validation_body).length > 0) {
+      const bodyTemplate = JSON.stringify(provider.validation_body);
+      body = JSON.parse(replaceTokens(bodyTemplate, credentials));
+    }
+
+    const response = await fetch(provider.validation_endpoint, {
+      method: provider.validation_method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+
+    const successCodes = provider.success_indicators?.status_codes || [200, 201, 204];
+    if (successCodes.includes(response.status)) {
+      const responseData = await response.json().catch(() => ({}));
+      return { valid: true, details: responseData };
     } else {
       const errorText = await response.text();
-      return { valid: false, error: `SendGrid API error: ${response.status}` };
+      return { 
+        valid: false, 
+        error: `Validation failed: ${response.status} - ${errorText.substring(0, 200)}` 
+      };
     }
   } catch (error) {
     return { valid: false, error: `Network error: ${error.message}` };
   }
 }
 
-const providerValidators: Record<string, (credentials: any) => Promise<{ valid: boolean; error?: string }>> = {
-  sendgrid: async (creds) => {
-    if (!creds.api_key) {
-      return { valid: false, error: 'API key is required' };
+async function encryptCredentials(
+  credentials: Record<string, any>,
+  encryptionKey: CryptoKey
+): Promise<Record<string, any>> {
+  const encrypted: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(credentials)) {
+    if (typeof value === 'string' && value.length > 0) {
+      if (key.includes('key') || key.includes('token') || key.includes('secret') || key.includes('password')) {
+        encrypted[key] = await encryptData(value, encryptionKey);
+      } else {
+        encrypted[key] = value;
+      }
     }
-    return await validateSendGrid(creds.api_key);
   }
-};
+  
+  return encrypted;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -113,12 +172,20 @@ serve(async (req) => {
       throw new Error('Provider and credentials are required');
     }
 
-    const validator = providerValidators[provider.toLowerCase()];
-    if (!validator) {
-      throw new Error(`Unsupported provider: ${provider}`);
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: providerConfig, error: providerError } = await supabaseAdmin
+      .from('integration_registry')
+      .select('*')
+      .eq('service_name', provider.toLowerCase())
+      .eq('is_enabled', true)
+      .single();
+
+    if (providerError || !providerConfig) {
+      throw new Error(`Provider not found or not enabled: ${provider}`);
     }
 
-    const validation = await validator(credentials);
+    const validation = await validateCredentials(providerConfig as ProviderConfig, credentials);
     if (!validation.valid) {
       return new Response(
         JSON.stringify({
@@ -133,43 +200,26 @@ serve(async (req) => {
     }
 
     const encryptionKey = await getEncryptionKey();
-    const encryptedConfig: any = {
+    const encryptedCredentials = await encryptCredentials(credentials, encryptionKey);
+
+    const configData = {
       provider: provider.toLowerCase(),
-      credentials: {}
+      credentials: encryptedCredentials,
+      validation_details: validation.details
     };
-
-    if (credentials.api_key) {
-      encryptedConfig.credentials.api_key = await encryptData(credentials.api_key, encryptionKey);
-    }
-
-    if (credentials.from_email) {
-      encryptedConfig.from_email = credentials.from_email;
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: integration, error: integrationError } = await supabaseAdmin
-      .from('integrations_master')
-      .select('id')
-      .eq('integration_type', provider.toLowerCase())
-      .single();
-
-    if (integrationError || !integration) {
-      throw new Error(`Integration type not found: ${provider}`);
-    }
 
     const { error: upsertError } = await supabaseAdmin
       .from('user_integrations')
       .upsert({
         user_id: user.id,
-        integration_id: integration.id,
-        config: encryptedConfig,
+        provider_id: providerConfig.id,
+        config: configData,
         status: 'active',
         last_verified_at: new Date().toISOString(),
         error_message: null,
         added_by_user: true
       }, {
-        onConflict: 'user_id,integration_id'
+        onConflict: 'user_id,provider_id'
       });
 
     if (upsertError) {
@@ -180,7 +230,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `${provider} integration connected successfully`,
+        message: `${providerConfig.display_name} connected successfully`,
+        provider: provider.toLowerCase(),
         status: 'active',
         last_verified_at: new Date().toISOString()
       }),

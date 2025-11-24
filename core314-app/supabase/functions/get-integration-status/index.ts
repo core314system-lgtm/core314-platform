@@ -40,21 +40,31 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: integration, error: integrationError } = await supabaseAdmin
-      .from('integrations_master')
-      .select('id')
-      .eq('integration_type', provider.toLowerCase())
+    const { data: providerConfig, error: providerError } = await supabaseAdmin
+      .from('integration_registry')
+      .select('id, service_name, display_name')
+      .eq('service_name', provider.toLowerCase())
+      .eq('is_enabled', true)
       .single();
 
-    if (integrationError || !integration) {
-      throw new Error(`Integration type not found: ${provider}`);
+    if (providerError || !providerConfig) {
+      return new Response(
+        JSON.stringify({
+          connected: false,
+          error: `Provider not found: ${provider}`
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const { data: userIntegration, error: fetchError } = await supabaseAdmin
       .from('user_integrations')
       .select('status, last_verified_at, error_message, config')
       .eq('user_id', user.id)
-      .eq('integration_id', integration.id)
+      .eq('provider_id', providerConfig.id)
       .maybeSingle();
 
     if (fetchError) {
@@ -65,10 +75,11 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           connected: false,
-          status: null,
+          status: 'inactive',
+          provider: provider.toLowerCase(),
+          provider_name: providerConfig.display_name,
           last_verified_at: null,
-          error_message: null,
-          from_email: null
+          error_message: null
         }),
         {
           status: 200,
@@ -78,15 +89,25 @@ serve(async (req) => {
     }
 
     const config = userIntegration.config as any;
-    const fromEmail = config?.from_email || null;
+    const publicConfig: Record<string, any> = {};
+    
+    if (config) {
+      for (const [key, value] of Object.entries(config)) {
+        if (key !== 'credentials' && typeof value !== 'object') {
+          publicConfig[key] = value;
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({
         connected: userIntegration.status === 'active',
         status: userIntegration.status,
+        provider: provider.toLowerCase(),
+        provider_name: providerConfig.display_name,
         last_verified_at: userIntegration.last_verified_at,
         error_message: userIntegration.error_message,
-        from_email: fromEmail
+        ...publicConfig
       }),
       {
         status: 200,
