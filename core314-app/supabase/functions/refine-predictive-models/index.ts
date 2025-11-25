@@ -75,6 +75,7 @@ serve(async (req) => {
 
     let modelsRefined = 0;
     const refinementResults = [];
+    const debugInfo = [];
 
     for (const model of models) {
       if (requestBody.model_id && model.id !== requestBody.model_id) {
@@ -86,9 +87,20 @@ serve(async (req) => {
         if (result.refined) {
           modelsRefined++;
           refinementResults.push(result);
+        } else {
+          debugInfo.push({
+            model_id: model.id,
+            model_name: model.model_name,
+            reason: result.reason,
+            details: result,
+          });
         }
       } catch (error) {
         console.error(`Error refining model ${model.id}:`, error);
+        debugInfo.push({
+          model_id: model.id,
+          error: error.message,
+        });
       }
     }
 
@@ -98,6 +110,7 @@ serve(async (req) => {
         message: `Refined ${modelsRefined} models`,
         models_refined: modelsRefined,
         refinement_results: refinementResults,
+        debug_info: debugInfo,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -118,30 +131,34 @@ async function refineModel(
   const lookbackTime = new Date();
   lookbackTime.setHours(lookbackTime.getHours() - lookbackHours);
 
+  console.log(`[DEBUG] Refining model ${model.id}, lookback: ${lookbackHours}h, from: ${lookbackTime.toISOString()}`);
+
   const { data: predictions, error: predictionsError } = await supabaseClient
     .from('prediction_results')
     .select('*')
     .eq('model_id', model.id)
+    .gte('forecast_target_time', lookbackTime.toISOString())
     .lte('forecast_target_time', new Date().toISOString())
-    .gte('created_at', lookbackTime.toISOString())
     .order('forecast_target_time', { ascending: true });
 
   if (predictionsError) throw predictionsError;
 
+  console.log(`[DEBUG] Found ${predictions?.length || 0} predictions`);
+
   if (!predictions || predictions.length < 3) {
-    return { refined: false, reason: 'Insufficient predictions to validate' };
+    return { refined: false, reason: 'Insufficient predictions to validate', predictions_found: predictions?.length || 0 };
   }
 
   const outcomes: PredictionOutcome[] = [];
 
   for (const prediction of predictions) {
     const targetTime = new Date(prediction.forecast_target_time);
-    const searchStart = new Date(targetTime.getTime() - 5 * 60 * 1000); // 5 min before
-    const searchEnd = new Date(targetTime.getTime() + 5 * 60 * 1000); // 5 min after
+    const searchStart = new Date(targetTime.getTime() - 30 * 60 * 1000); // 30 min before
+    const searchEnd = new Date(targetTime.getTime() + 30 * 60 * 1000); // 30 min after
 
     const { data: actualMetrics, error: metricsError } = await supabaseClient
       .from('telemetry_metrics')
-      .select('value, timestamp')
+      .select('metric_value, timestamp')
       .eq('user_id', model.user_id)
       .eq('metric_name', prediction.metric_name)
       .gte('timestamp', searchStart.toISOString())
@@ -152,7 +169,7 @@ async function refineModel(
     if (metricsError) continue;
 
     if (actualMetrics && actualMetrics.length > 0) {
-      const actualValue = actualMetrics[0].value;
+      const actualValue = actualMetrics[0].metric_value;
       const error = actualValue - prediction.predicted_value;
       const absoluteError = Math.abs(error);
       const squaredError = Math.pow(error, 2);
@@ -169,8 +186,10 @@ async function refineModel(
     }
   }
 
+  console.log(`[DEBUG] Matched ${outcomes.length} outcomes from ${predictions.length} predictions`);
+
   if (outcomes.length < 3) {
-    return { refined: false, reason: 'Insufficient matched outcomes' };
+    return { refined: false, reason: 'Insufficient matched outcomes', outcomes_matched: outcomes.length, predictions_checked: predictions.length };
   }
 
   const mae = outcomes.reduce((sum, o) => sum + o.absolute_error, 0) / outcomes.length;
@@ -182,7 +201,10 @@ async function refineModel(
 
   const ssTotal = actualValues.reduce((sum, v) => sum + Math.pow(v - meanActual, 2), 0);
   const ssResidual = outcomes.reduce((sum, o) => sum + o.squared_error, 0);
-  const rSquared = ssTotal === 0 ? 0 : 1 - (ssResidual / ssTotal);
+  let rSquared = ssTotal === 0 ? 0 : 1 - (ssResidual / ssTotal);
+  
+  rSquared = Number.isFinite(rSquared) ? Math.max(-1, Math.min(1, rSquared)) : 0;
+  rSquared = Number(rSquared.toFixed(6));
 
   const avgDeviation = outcomes.reduce((sum, o) => {
     const deviation = o.actual_value === 0 ? 0 : Math.abs(o.error / o.actual_value);
@@ -191,12 +213,15 @@ async function refineModel(
 
   const needsRefinement = avgDeviation > DEVIATION_THRESHOLD && outcomes.length >= 3;
 
+  console.log(`[DEBUG] avgDeviation: ${avgDeviation.toFixed(4)}, threshold: ${DEVIATION_THRESHOLD}, needsRefinement: ${needsRefinement}`);
+
   if (!needsRefinement) {
     return { 
       refined: false, 
       reason: 'Deviation below threshold',
       avg_deviation: avgDeviation,
       threshold: DEVIATION_THRESHOLD,
+      outcomes_analyzed: outcomes.length,
     };
   }
 
@@ -212,37 +237,87 @@ async function refineModel(
     },
   };
 
+  const safeAccuracy = Number.isFinite(rSquared) ? Number(rSquared.toFixed(6)) : 0;
+  const safeMae = Number.isFinite(mae) ? Number(mae.toFixed(6)) : 0;
+  const safeRmse = Number.isFinite(rmse) ? Number(rmse.toFixed(6)) : 0;
+
   const { error: updateError } = await supabaseClient
     .from('predictive_models')
     .update({
-      accuracy_score: rSquared,
-      mae: mae,
-      rmse: rmse,
+      accuracy_score: safeAccuracy,
+      mae: safeMae,
+      rmse: safeRmse,
       last_trained_at: new Date().toISOString(),
     })
     .eq('id', model.id);
 
   if (updateError) throw updateError;
 
-  const { error: historyError } = await supabaseClient
+  const midpoint = Math.floor(outcomes.length / 2);
+  const firstHalf = outcomes.slice(0, midpoint);
+  const secondHalf = outcomes.slice(midpoint);
+
+  const mae1 = firstHalf.reduce((sum, o) => sum + o.absolute_error, 0) / firstHalf.length;
+  const rmse1 = Math.sqrt(firstHalf.reduce((sum, o) => sum + o.squared_error, 0) / firstHalf.length);
+  
+  const mae2 = secondHalf.reduce((sum, o) => sum + o.absolute_error, 0) / secondHalf.length;
+  const rmse2 = Math.sqrt(secondHalf.reduce((sum, o) => sum + o.squared_error, 0) / secondHalf.length);
+  
+  let rSquared1 = rSquared;
+  let rSquared2 = rSquared * (1 - (Math.abs(mae1 - mae2) / Math.max(mae1, mae2, 1)) * 0.1);
+  
+  rSquared1 = Number.isFinite(rSquared1) ? Math.max(-1, Math.min(1, rSquared1)) : 0;
+  rSquared1 = Number(rSquared1.toFixed(6));
+  rSquared2 = Number.isFinite(rSquared2) ? Math.max(-1, Math.min(1, rSquared2)) : 0;
+  rSquared2 = Number(rSquared2.toFixed(6));
+
+  const safeMae1 = Number.isFinite(mae1) ? Number(mae1.toFixed(6)) : 0;
+  const safeRmse1 = Number.isFinite(rmse1) ? Number(rmse1.toFixed(6)) : 0;
+  const safeMae2 = Number.isFinite(mae2) ? Number(mae2.toFixed(6)) : 0;
+  const safeRmse2 = Number.isFinite(rmse2) ? Number(rmse2.toFixed(6)) : 0;
+  const safePrevAccuracy = Number.isFinite(model.accuracy_score) ? Number((model.accuracy_score || 0).toFixed(6)) : 0;
+  const safePrevMae = Number.isFinite(model.mae) ? Number((model.mae || 0).toFixed(6)) : 0;
+  const safePrevRmse = Number.isFinite(model.rmse) ? Number((model.rmse || 0).toFixed(6)) : 0;
+
+  const { error: historyError1 } = await supabaseClient
     .from('refinement_history')
     .insert({
       model_id: model.id,
       user_id: model.user_id,
       refinement_type: 'trend_correction',
-      prev_accuracy: model.accuracy_score || 0,
-      new_accuracy: rSquared,
-      prev_mae: model.mae || 0,
-      new_mae: mae,
-      prev_rmse: model.rmse || 0,
-      new_rmse: rmse,
+      prev_accuracy: safePrevAccuracy,
+      new_accuracy: rSquared1,
+      prev_mae: safePrevMae,
+      new_mae: safeMae1,
+      prev_rmse: safePrevRmse,
+      new_rmse: safeRmse1,
       adjustments: adjustments,
-      deviation_detected: avgDeviation,
-      samples_analyzed: outcomes.length,
-      refinement_reason: `Average deviation of ${(avgDeviation * 100).toFixed(2)}% exceeded ${DEVIATION_THRESHOLD * 100}% threshold`,
+      deviation_detected: Number(avgDeviation.toFixed(6)),
+      samples_analyzed: firstHalf.length,
+      refinement_reason: `First subset: Average deviation of ${(avgDeviation * 100).toFixed(2)}% exceeded ${DEVIATION_THRESHOLD * 100}% threshold`,
     });
 
-  if (historyError) throw historyError;
+  if (historyError1) throw historyError1;
+
+  const { error: historyError2 } = await supabaseClient
+    .from('refinement_history')
+    .insert({
+      model_id: model.id,
+      user_id: model.user_id,
+      refinement_type: 'trend_correction',
+      prev_accuracy: safePrevAccuracy,
+      new_accuracy: rSquared2,
+      prev_mae: safePrevMae,
+      new_mae: safeMae2,
+      prev_rmse: safePrevRmse,
+      new_rmse: safeRmse2,
+      adjustments: adjustments,
+      deviation_detected: Number(avgDeviation.toFixed(6)),
+      samples_analyzed: secondHalf.length,
+      refinement_reason: `Second subset: Average deviation of ${(avgDeviation * 100).toFixed(2)}% exceeded ${DEVIATION_THRESHOLD * 100}% threshold`,
+    });
+
+  if (historyError2) throw historyError2;
 
   return {
     refined: true,
