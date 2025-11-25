@@ -98,7 +98,7 @@ async function insertHistoricalMetrics(userId: string, metricName: string, days:
     metrics.push({
       user_id: userId,
       metric_name: metricName,
-      value: value,
+      metric_value: value,
       timestamp: timestamp.toISOString(),
     });
   }
@@ -240,16 +240,16 @@ async function testModelRefinement(userId: string): Promise<boolean> {
       .insert({
         user_id: userId,
         model_name: 'Test Refinement Model',
-        model_type: 'time_series_forecast',
+        model_type: 'time_series',
         target_metric: 'revenue',
-        training_window_days: 30,
+        features: [],
         accuracy_score: 0.75,
         mae: 50,
         rmse: 60,
         is_active: true,
         last_trained_at: new Date().toISOString(),
         next_retrain_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        retrain_frequency_hours: 24,
+        retrain_frequency_days: 1,
       })
       .select()
       .single();
@@ -287,7 +287,7 @@ async function testModelRefinement(userId: string): Promise<boolean> {
         .insert({
           user_id: userId,
           metric_name: 'revenue',
-          value: actualValue,
+          metric_value: actualValue,
           timestamp: targetTime.toISOString(),
         });
 
@@ -387,6 +387,7 @@ async function testInsightMemory(userId: string): Promise<boolean> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        user_id: userId,
         insight_text: 'Revenue is trending upward',
         insight_category: 'trend',
         related_metrics: ['revenue', 'sales'],
@@ -406,9 +407,10 @@ async function testInsightMemory(userId: string): Promise<boolean> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        user_id: userId,
         insight_text: 'Revenue shows positive trend',
         insight_category: 'trend',
-        related_metrics: ['revenue'],
+        related_metrics: ['revenue', 'sales'],
         context_data: { period: '60 days' },
         impact_score: 0.75,
         confidence_before: 0.65,

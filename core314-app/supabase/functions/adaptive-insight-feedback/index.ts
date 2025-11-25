@@ -17,6 +17,7 @@ interface FeedbackRequest {
   confidence_before: number;
   user_feedback?: 'accepted' | 'rejected' | 'modified';
   similarity_threshold?: number;
+  user_id?: string; // For service role authentication
 }
 
 interface SimilarInsight {
@@ -48,16 +49,34 @@ serve(async (req) => {
     }
 
     const jwt = authHeader.replace('Bearer ', '');
+    const requestBody: FeedbackRequest = await req.json();
+    
+    let userId: string | null = null;
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(jwt);
 
-    if (authError || !user) {
+    if (!authError && user) {
+      userId = user.id;
+    } else if (jwt === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+      if (!requestBody.user_id) {
+        return new Response(
+          JSON.stringify({ error: 'user_id required for service role authentication' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      userId = requestBody.user_id;
+    } else {
       return new Response(
         JSON.stringify({ error: 'Invalid authorization' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const requestBody: FeedbackRequest = await req.json();
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'User ID could not be determined' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!requestBody.insight_text || !requestBody.insight_category || !requestBody.related_metrics) {
       return new Response(
@@ -67,13 +86,13 @@ serve(async (req) => {
     }
 
     if (requestBody.insight_id) {
-      const result = await updateInsightFeedback(supabaseClient, user.id, requestBody);
+      const result = await updateInsightFeedback(supabaseClient, userId, requestBody);
       return new Response(
         JSON.stringify(result),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      const result = await createInsightMemory(supabaseClient, user.id, requestBody);
+      const result = await createInsightMemory(supabaseClient, userId, requestBody);
       return new Response(
         JSON.stringify(result),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -156,7 +175,7 @@ async function createInsightMemory(
   let reinforcedConfidence = request.confidence_before;
 
   if (similarInsights.length > 0) {
-    const acceptedInsights = similarInsights.filter(i => i.confidence_after && i.confidence_after > 0.7);
+    const acceptedInsights = similarInsights.filter(i => i.confidence_after && i.confidence_after >= 0.7);
     
     if (acceptedInsights.length > 0) {
       const avgSimilarConfidence = acceptedInsights.reduce((sum, i) => sum + (i.confidence_after || 0), 0) / acceptedInsights.length;

@@ -14,6 +14,7 @@ interface MemoryTrainingRequest {
 }
 
 interface MetricDataPoint {
+  metric_value: number;
   timestamp: string;
   value: number;
 }
@@ -131,7 +132,7 @@ async function createMemorySnapshot(
 
   const { data: metricData, error: fetchError } = await supabaseClient
     .from('telemetry_metrics')
-    .select('timestamp, value')
+    .select('timestamp, metric_value')
     .eq('user_id', userId)
     .eq('metric_name', metricName)
     .gte('timestamp', windowStart.toISOString())
@@ -145,7 +146,7 @@ async function createMemorySnapshot(
     return false;
   }
 
-  const values = metricData.map((d: MetricDataPoint) => d.value);
+  const values = metricData.map((d: MetricDataPoint) => d.metric_value);
   const avgValue = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
@@ -188,7 +189,7 @@ function calculateTrendSlope(data: MetricDataPoint[]): number {
 
   const points = data.map((d, i) => ({
     x: new Date(d.timestamp).getTime(),
-    y: d.value,
+    y: d.metric_value,
   }));
 
   const meanX = points.reduce((sum, p) => sum + p.x, 0) / n;
@@ -211,7 +212,7 @@ function detectSeasonality(data: MetricDataPoint[]): { detected: boolean; period
     return { detected: false, period: null };
   }
 
-  const values = data.map(d => d.value);
+  const values = data.map(d => d.metric_value);
   const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
 
   const lag7Correlation = calculateAutocorrelation(values, mean, 7);
