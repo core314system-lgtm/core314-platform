@@ -18,23 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-
-    if (authError || !user) {
-      throw new Error('Invalid authentication token');
-    }
-
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const {
       threshold_id,
       metric_name,
@@ -45,6 +29,30 @@ serve(async (req) => {
       channels = ['email'],
     } = body;
 
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
+
+    let actingUserId: string | null = null;
+
+    if (token && token === serviceKey) {
+      if (!body?.user_id) {
+        throw new Error('user_id required in request body when using service role key');
+      }
+      actingUserId = body.user_id;
+    } else {
+      if (!token) {
+        throw new Error('Missing authorization header');
+      }
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+      if (authError || !user) {
+        throw new Error('Invalid authentication token');
+      }
+      actingUserId = user.id;
+    }
+
     if (!metric_name || metric_value === undefined || !alert_level) {
       throw new Error('Missing required fields: metric_name, metric_value, alert_level');
     }
@@ -52,7 +60,7 @@ serve(async (req) => {
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('email, full_name')
-      .eq('id', user.id)
+      .eq('id', actingUserId)
       .single();
 
     if (profileError || !profile) {
@@ -84,7 +92,7 @@ serve(async (req) => {
 
           case 'slack':
             await sendSlackAlert({
-              user_id: user.id,
+              user_id: actingUserId,
               metric_name,
               metric_value,
               threshold_value,
@@ -98,7 +106,7 @@ serve(async (req) => {
 
           case 'teams':
             await sendTeamsAlert({
-              user_id: user.id,
+              user_id: actingUserId,
               metric_name,
               metric_value,
               threshold_value,
@@ -122,7 +130,7 @@ serve(async (req) => {
     const { data: alertHistory, error: historyError } = await supabaseClient
       .from('alert_history')
       .insert({
-        user_id: user.id,
+        user_id: actingUserId,
         threshold_id: threshold_id || null,
         metric_name,
         metric_value,
@@ -140,11 +148,17 @@ serve(async (req) => {
     }
 
     if (threshold_id) {
+      const { data: threshold } = await supabaseClient
+        .from('metric_thresholds')
+        .select('trigger_count')
+        .eq('id', threshold_id)
+        .single();
+      
       await supabaseClient
         .from('metric_thresholds')
         .update({
           last_triggered_at: new Date().toISOString(),
-          trigger_count: supabaseClient.raw('trigger_count + 1'),
+          trigger_count: (threshold?.trigger_count || 0) + 1,
         })
         .eq('id', threshold_id);
     }

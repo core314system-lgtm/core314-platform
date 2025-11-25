@@ -24,30 +24,38 @@ serve(async (req) => {
   try {
     const startTime = Date.now();
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-
-    if (authError || !user) {
-      throw new Error('Invalid authentication token');
-    }
-
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const metricGroup = body.metric_group || 'general';
     const timeWindow = body.time_window || '7 days';
     const specificMetrics = body.metrics || null; // Optional: specific metrics to analyze
 
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
+
+    let actingUserId: string | null = null;
+
+    if (token && token === serviceKey) {
+      if (!body?.user_id) {
+        throw new Error('user_id required in request body when using service role key');
+      }
+      actingUserId = body.user_id;
+    } else {
+      if (!token) {
+        throw new Error('Missing authorization header');
+      }
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+      if (authError || !user) {
+        throw new Error('Invalid authentication token');
+      }
+      actingUserId = user.id;
+    }
+
     const { data: latestMetrics, error: metricsError } = await supabaseClient
       .rpc('get_latest_metrics', {
-        p_user_id: user.id,
+        p_user_id: actingUserId,
         p_limit: 20,
       });
 
@@ -73,7 +81,7 @@ serve(async (req) => {
         try {
           const { data: trend, error: trendError } = await supabaseClient
             .rpc('calculate_metric_trend', {
-              p_user_id: user.id,
+              p_user_id: actingUserId,
               p_metric_name: metric.metric_name,
               p_time_window: timeWindow,
             });
@@ -188,7 +196,7 @@ Format your response as JSON:
     const { data: insertedInsight, error: insertError } = await supabaseClient
       .from('insight_logs')
       .insert({
-        user_id: user.id,
+        user_id: actingUserId,
         metric_group: metricGroup,
         insight_text: aiResponse.insight,
         sentiment: aiResponse.sentiment,
