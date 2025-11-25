@@ -43,15 +43,45 @@ interface PredictiveAlert {
   created_at: string;
 }
 
+interface MemorySnapshot {
+  id: string;
+  metric_name: string;
+  data_window: string;
+  avg_value: number;
+  trend_slope: number;
+  variance: number;
+  sample_count: number;
+  seasonality_detected: boolean;
+  seasonality_period: string | null;
+  created_at: string;
+}
+
+interface RefinementLog {
+  id: string;
+  model_id: string;
+  refinement_type: string;
+  prev_accuracy: number;
+  new_accuracy: number;
+  accuracy_delta: number;
+  deviation_detected: number;
+  created_at: string;
+  predictive_models?: {
+    model_name: string;
+  };
+}
+
 export function PredictiveInsights() {
   const { profile } = useAuth();
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [alerts, setAlerts] = useState<PredictiveAlert[]>([]);
+  const [memorySnapshots, setMemorySnapshots] = useState<MemorySnapshot[]>([]);
+  const [refinementLogs, setRefinementLogs] = useState<RefinementLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [metricFilter, setMetricFilter] = useState<string>('all');
   const [alertLevelFilter, setAlertLevelFilter] = useState<string>('all');
   const [confidenceFilter, setConfidenceFilter] = useState<string>('all');
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
+  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
@@ -97,6 +127,33 @@ export function PredictiveInsights() {
       const metrics = new Set<string>();
       predictionData?.forEach(p => metrics.add(p.metric_name));
       setAvailableMetrics(Array.from(metrics));
+
+      const { data: snapshotsData, error: snapshotsError } = await supabase
+        .from('memory_snapshots')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!snapshotsError) {
+        setMemorySnapshots(snapshotsData || []);
+      }
+
+      const { data: refinementsData, error: refinementsError } = await supabase
+        .from('refinement_history')
+        .select(`
+          *,
+          predictive_models (
+            model_name
+          )
+        `)
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (!refinementsError) {
+        setRefinementLogs(refinementsData || []);
+      }
     } catch (error) {
       console.error('Error fetching predictive data:', error);
     } finally {
@@ -382,6 +439,132 @@ export function PredictiveInsights() {
               <div className="text-sm text-gray-500 mt-2">
                 Forecast for: {format(new Date(filteredPredictions[0].forecast_target_time), 'MMMM d, yyyy h:mm a')}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Forecast Detail Panel with Historical Patterns */}
+      {selectedMetric && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Historical Patterns: {selectedMetric}</span>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedMetric(null)}>
+                Close
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Memory Snapshots for Selected Metric */}
+              <div>
+                <h3 className="font-semibold mb-2">Historical Trend Analysis</h3>
+                {memorySnapshots.filter(s => s.metric_name === selectedMetric).length > 0 ? (
+                  <div className="space-y-2">
+                    {memorySnapshots
+                      .filter(s => s.metric_name === selectedMetric)
+                      .map(snapshot => (
+                        <div key={snapshot.id} className="border rounded p-3 bg-gray-50 dark:bg-gray-800">
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge variant="outline">{snapshot.data_window}</Badge>
+                            <span className="text-xs text-gray-500">
+                              {format(new Date(snapshot.created_at), 'MMM d, h:mm a')}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-600">Avg Value:</span>
+                              <span className="font-semibold ml-1">{snapshot.avg_value.toFixed(2)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Trend:</span>
+                              <span className={`font-semibold ml-1 ${snapshot.trend_slope > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {snapshot.trend_slope > 0 ? '↑' : '↓'} {Math.abs(snapshot.trend_slope * 1000).toFixed(2)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Variance:</span>
+                              <span className="font-semibold ml-1">{snapshot.variance.toFixed(2)}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Samples:</span>
+                              <span className="font-semibold ml-1">{snapshot.sample_count}</span>
+                            </div>
+                          </div>
+                          {snapshot.seasonality_detected && (
+                            <div className="mt-2 text-xs text-purple-600">
+                              ✓ Seasonality detected: {snapshot.seasonality_period}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No historical patterns available for this metric yet.</p>
+                )}
+              </div>
+
+              {/* Model Refinement Logs */}
+              {refinementLogs.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Recent Model Refinements</h3>
+                  <div className="space-y-2">
+                    {refinementLogs.map(log => (
+                      <div key={log.id} className="border rounded p-3 bg-blue-50 dark:bg-blue-900/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-sm">
+                            {log.predictive_models?.model_name || 'Unknown Model'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {format(new Date(log.created_at), 'MMM d, h:mm a')}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-600">Accuracy Change:</span>
+                            <span className={`font-semibold ml-1 ${log.accuracy_delta > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {log.accuracy_delta > 0 ? '+' : ''}{(log.accuracy_delta * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Deviation:</span>
+                            <span className="font-semibold ml-1">{(log.deviation_detected * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="mt-2 text-xs">
+                          {log.refinement_type}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quick Access to Historical Patterns */}
+      {memorySnapshots.length > 0 && !selectedMetric && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Historical Pattern Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {Array.from(new Set(memorySnapshots.map(s => s.metric_name))).map(metric => (
+                <button
+                  key={metric}
+                  onClick={() => setSelectedMetric(metric)}
+                  className="border rounded p-3 hover:bg-gray-50 dark:hover:bg-gray-800 text-left transition-colors"
+                >
+                  <div className="font-medium mb-1">{metric}</div>
+                  <div className="text-xs text-gray-500">
+                    {memorySnapshots.filter(s => s.metric_name === metric).length} snapshots available
+                  </div>
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>
