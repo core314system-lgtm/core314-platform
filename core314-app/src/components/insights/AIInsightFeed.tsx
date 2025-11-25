@@ -18,7 +18,6 @@ export const AIInsightFeed: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
 
   useEffect(() => {
     loadInsights();
@@ -109,7 +108,48 @@ export const AIInsightFeed: React.FC = () => {
   };
 
   const explainInsight = async (insight: Insight) => {
-    setSelectedInsight(insight);
+    try {
+      setGenerating(true);
+      setError(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const metricNames = (insight as any).metrics_analyzed?.map((m: any) => m.name) || [];
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-insights`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            metric_group: insight.metric_group,
+            time_window: '7 days',
+            metrics: metricNames.length > 0 ? metricNames : null,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate deeper insight');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        await loadInsights();
+      }
+    } catch (err) {
+      console.error('Error explaining insight:', err);
+      setError(err instanceof Error ? err.message : 'Failed to explain insight');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const getSentimentIcon = (sentiment: string) => {
