@@ -26,12 +26,14 @@ import { Users } from './pages/admin/Users';
 import { Visualizations } from './pages/Visualizations';
 import { Security } from './pages/settings/Security';
 import { Organizations } from './pages/admin/Organizations';
+import { PredictiveModels } from './pages/admin/PredictiveModels';
 import { AdvancedAnalytics } from './pages/AdvancedAnalytics';
 import { OptimizationEngine } from './pages/OptimizationEngine';
 import { ApiAccess } from './pages/ApiAccess';
 import { AuditTrails } from './pages/AuditTrails';
 import { AccountSupport } from './pages/AccountSupport';
 import { FusionDetails } from './pages/FusionDetails';
+import { PredictiveInsights } from './pages/PredictiveInsights';
 import Billing from './pages/Billing';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
@@ -83,6 +85,7 @@ function App() {
             <Route path="goals/create" element={<GoalCreate />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="integration-hub" element={<IntegrationHub />} />
+            <Route path="predictive-insights" element={<PredictiveInsights />} />
             <Route path="settings/security" element={<Security />} />
             <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
             <Route path="optimization-engine" element={<OptimizationEngine />} />
@@ -103,6 +106,7 @@ function App() {
             <Route path="admin/governance" element={<ProtectedRoute requireAdmin><Governance /></ProtectedRoute>} />
             <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
             <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
+            <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
           </Route>
           <Route path="/oauth-callback" element={<OAuthCallback />} />
           </Routes>
