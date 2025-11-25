@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
-import { TrendingUp, TrendingDown, AlertTriangle, RefreshCw, Brain, Clock } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Brain, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { LineChart, Line, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface PredictionResult {
   id: string;
@@ -175,12 +174,6 @@ export function PredictiveInsights() {
     if (score >= 0.8) return <Badge className="bg-green-500">High ({(score * 100).toFixed(0)}%)</Badge>;
     if (score >= 0.6) return <Badge className="bg-yellow-500">Medium ({(score * 100).toFixed(0)}%)</Badge>;
     return <Badge className="bg-red-500">Low ({(score * 100).toFixed(0)}%)</Badge>;
-  };
-
-  const getTrendIcon = (predicted: number, current: number) => {
-    if (predicted > current) return <TrendingUp className="h-4 w-4 text-green-500" />;
-    if (predicted < current) return <TrendingDown className="h-4 w-4 text-red-500" />;
-    return <div className="h-4 w-4" />;
   };
 
   return (

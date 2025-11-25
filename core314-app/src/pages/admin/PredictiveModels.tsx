@@ -7,7 +7,7 @@ import { Switch } from '../../components/ui/switch';
 import { Badge } from '../../components/ui/badge';
 import { Brain, RefreshCw, Play, TrendingUp, Calendar, Target, Zap } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from '../../components/ui/use-toast';
+import { useToast } from '../../hooks/use-toast';
 
 interface PredictiveModel {
   id: string;
@@ -39,6 +39,7 @@ interface TrainingLog {
 
 export function PredictiveModels() {
   const { profile } = useAuth();
+  const { toast } = useToast();
   const [models, setModels] = useState<PredictiveModel[]>([]);
   const [trainingLogs, setTrainingLogs] = useState<Map<string, TrainingLog[]>>(new Map());
   const [loading, setLoading] = useState(true);

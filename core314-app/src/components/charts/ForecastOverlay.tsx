@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { LineChart, Line, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Line, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ForecastOverlayProps {
   metricName: string;
@@ -95,12 +95,6 @@ export function ForecastOverlay({ metricName, userId, historicalData, height = 3
       upper: p.upper_bound,
     })),
   ];
-
-  const getThresholdColor = (value: number) => {
-    if (value > 80) return '#ef4444'; // red for critical
-    if (value > 60) return '#f59e0b'; // yellow for warning
-    return '#10b981'; // green for normal
-  };
 
   if (loading) {
     return (

@@ -18,7 +18,6 @@ export const AIInsightFeed: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
 
   useEffect(() => {
     loadInsights();
@@ -110,7 +109,6 @@ export const AIInsightFeed: React.FC = () => {
 
   const explainInsight = async (insight: Insight) => {
     try {
-      setSelectedInsight(insight);
       setGenerating(true);
       setError(null);
 
@@ -145,7 +143,6 @@ export const AIInsightFeed: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         await loadInsights();
-        setSelectedInsight(null);
       }
     } catch (err) {
       console.error('Error explaining insight:', err);
