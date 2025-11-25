@@ -113,8 +113,9 @@ async function insertMetrics(): Promise<void> {
         user_id: userId,
         metric_name: metricName,
         metric_value: baseValue + (Math.random() * 20 - 10),
-        recorded_at: recordedAt.toISOString(),
-        source: 'phase3_e2e_test',
+        metric_unit: metricName === 'response_time' ? 'ms' : metricName === 'throughput' ? 'req/s' : '%',
+        timestamp: recordedAt.toISOString(),
+        source_app: 'phase3_e2e_test',
       });
     }
   }
@@ -250,9 +251,9 @@ async function validateThresholdBreaches(): Promise<void> {
         user_id: userId,
         metric_name: 'cpu_usage',
         threshold_value: 75,
-        comparison_operator: '>',
+        threshold_type: 'above',
         alert_level: 'warning',
-        is_active: true,
+        enabled: true,
       }))
     )
     .select();
