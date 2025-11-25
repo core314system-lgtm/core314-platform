@@ -82,12 +82,12 @@ serve(async (req) => {
 
     const { data: trainingData, error: dataError } = await supabaseClient
       .from('telemetry_metrics')
-      .select('metric_name, metric_value, recorded_at, metadata')
+      .select('metric_name, metric_value, timestamp, metadata')
       .eq('user_id', actingUserId)
       .eq('metric_name', target_metric)
-      .gte('recorded_at', datasetStartDate.toISOString())
-      .lte('recorded_at', datasetEndDate.toISOString())
-      .order('recorded_at', { ascending: true });
+      .gte('timestamp', datasetStartDate.toISOString())
+      .lte('timestamp', datasetEndDate.toISOString())
+      .order('timestamp', { ascending: true });
 
     if (dataError || !trainingData || trainingData.length < 10) {
       throw new Error(`Insufficient training data for ${target_metric}. Need at least 10 samples, found ${trainingData?.length || 0}`);
@@ -103,7 +103,7 @@ serve(async (req) => {
       samples: trainingData.length,
       date_range: `${datasetStartDate.toISOString()} to ${datasetEndDate.toISOString()}`,
       values: trainingData.map((d: any) => ({
-        timestamp: d.recorded_at,
+        timestamp: d.timestamp,
         value: d.metric_value,
       })),
       statistics: {
