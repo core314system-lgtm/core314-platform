@@ -80,11 +80,11 @@ serve(async (req) => {
 
     const { data: historicalData, error: dataError } = await supabaseClient
       .from('telemetry_metrics')
-      .select('metric_name, metric_value, recorded_at')
+      .select('metric_name, metric_value, timestamp')
       .eq('user_id', actingUserId)
       .eq('metric_name', model.target_metric)
-      .gte('recorded_at', lookbackDate.toISOString())
-      .order('recorded_at', { ascending: true });
+      .gte('timestamp', lookbackDate.toISOString())
+      .order('timestamp', { ascending: true });
 
     if (dataError || !historicalData || historicalData.length < 5) {
       throw new Error(`Insufficient historical data for ${model.target_metric}. Need at least 5 samples.`);
@@ -95,7 +95,7 @@ serve(async (req) => {
       .select('*')
       .eq('user_id', actingUserId)
       .eq('metric_name', model.target_metric)
-      .eq('is_active', true);
+      .eq('enabled', true);
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
