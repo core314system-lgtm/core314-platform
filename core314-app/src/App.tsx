@@ -35,6 +35,8 @@ import { AuditTrails } from './pages/AuditTrails';
 import { AccountSupport } from './pages/AccountSupport';
 import { FusionDetails } from './pages/FusionDetails';
 import { PredictiveInsights } from './pages/PredictiveInsights';
+import { DecisionCenter } from './pages/DecisionCenter';
+import { DecisionAudit } from './pages/admin/DecisionAudit';
 import Billing from './pages/Billing';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
@@ -87,6 +89,7 @@ function App() {
             <Route path="notifications" element={<Notifications />} />
             <Route path="integration-hub" element={<IntegrationHub />} />
             <Route path="predictive-insights" element={<PredictiveInsights />} />
+            <Route path="decision-center" element={<DecisionCenter />} />
             <Route path="settings/security" element={<Security />} />
             <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
             <Route path="optimization-engine" element={<OptimizationEngine />} />
@@ -109,6 +112,7 @@ function App() {
             <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
             <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
             <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
+            <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
           </Route>
           <Route path="/oauth-callback" element={<OAuthCallback />} />
           </Routes>
