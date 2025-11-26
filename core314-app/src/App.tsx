@@ -38,6 +38,10 @@ import { PredictiveInsights } from './pages/PredictiveInsights';
 import { DecisionCenter } from './pages/DecisionCenter';
 import { DecisionAudit } from './pages/admin/DecisionAudit';
 import { AutomationCenter } from './pages/AutomationCenter';
+import { SystemMonitor } from './pages/SystemMonitor';
+import { AnomalyConsole } from './components/monitoring/AnomalyConsole';
+import { RecoveryManager } from './components/monitoring/RecoveryManager';
+import { SelfTestPanel } from './components/monitoring/SelfTestPanel';
 import Billing from './pages/Billing';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
@@ -92,6 +96,10 @@ function App() {
             <Route path="predictive-insights" element={<PredictiveInsights />} />
             <Route path="decision-center" element={<DecisionCenter />} />
             <Route path="automation-center" element={<AutomationCenter />} />
+            <Route path="system-monitor" element={<SystemMonitor />} />
+            <Route path="anomaly-console" element={<AnomalyConsole />} />
+            <Route path="recovery-manager" element={<RecoveryManager />} />
+            <Route path="selftest-panel" element={<SelfTestPanel />} />
             <Route path="settings/security" element={<Security />} />
             <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
             <Route path="optimization-engine" element={<OptimizationEngine />} />
