@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Play, Pause, AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react';
+import { Play, AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react';
 import { ExecutionMonitor } from '../components/automation/ExecutionMonitor';
 import { OrchestrationBuilder } from '../components/automation/OrchestrationBuilder';
 import { EscalationConsole } from '../components/automation/EscalationConsole';

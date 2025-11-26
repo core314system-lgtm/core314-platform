@@ -9,7 +9,7 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
-import { Plus, Save, Play, Trash2, Copy, Settings } from 'lucide-react';
+import { Plus, Save, Play, Pause, Trash2, Copy, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 
 interface OrchestrationFlow {
@@ -30,7 +30,6 @@ export function OrchestrationBuilder() {
   const { user } = useAuth();
   const [flows, setFlows] = useState<OrchestrationFlow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFlow, setSelectedFlow] = useState<OrchestrationFlow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   const [flowName, setFlowName] = useState('');
