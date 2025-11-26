@@ -1,24 +1,37 @@
-import { HeroSection } from './components/sections/HeroSection';
-import { ValueProposition } from './components/sections/ValueProposition';
-import { HowItWorks } from './components/sections/HowItWorks';
-import { KeyFeatures } from './components/sections/KeyFeatures';
-import { Industries } from './components/sections/Industries';
-import { PricingSection } from './components/sections/PricingSection';
-import { LeadCaptureForm } from './components/sections/LeadCaptureForm';
-import { Footer } from './components/sections/Footer';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import PricingPage from './pages/PricingPage';
+import SignupPage from './pages/SignupPage';
+import SignupSuccessPage from './pages/SignupSuccessPage';
+import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import BillingPage from './pages/BillingPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import CookiesPage from './pages/CookiesPage';
+import DPAPage from './pages/DPAPage';
+import './App.css';
 
 function App() {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
-      <HeroSection />
-      <ValueProposition />
-      <HowItWorks />
-      <KeyFeatures />
-      <Industries />
-      <PricingSection />
-      <LeadCaptureForm />
-      <Footer />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup-success" element={<SignupSuccessPage />} />
+        <Route path="/signup/success" element={<SignupSuccessPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/billing" element={<BillingPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/cookies" element={<CookiesPage />} />
+        <Route path="/dpa" element={<DPAPage />} />
+      </Routes>
+    </Router>
   );
 }
 
