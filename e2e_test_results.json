@@ -1,0 +1,68 @@
+{
+  "test_start_time": "2025-11-12T12:57:52Z",
+  "preflight": {
+    "dns_ssl": {
+      "core314_com": "FAILED - ERR_TOO_MANY_REDIRECTS",
+      "admin_core314_com": "PASSED - HTTP 200",
+      "netlify_direct_url": "PASSED - HTTP 200"
+    },
+    "supabase": {
+      "rest_api": "PASSED - Accessible",
+      "profiles_count": "PASSED - 3 users found with service role",
+      "rls_helper_function": "WARNING - Returns false (expected boolean check)"
+    },
+    "stripe_webhook": "PASSED - Endpoint accessible, returns proper error for invalid signature",
+    "netlify_env_vars": "WARNING - Only 3 env vars found (STRIPE_WEBHOOK_SECRET, VITE_SUPABASE_ANON_KEY, VITE_SUPABASE_URL) - missing STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY",
+    "rls_policies": "PASSED - Helper function exists, 3 users visible with service role"
+  },
+  "landing_page": {
+    "accessibility": "PASSED - Loads via direct Netlify URL",
+    "hero_section": "PASSED - Logo, headline, CTAs visible",
+    "animations": "PASSED - Scroll animations working",
+    "console_errors": "PASSED - No console errors",
+    "navigation": "PASSED - All nav links present"
+  },
+  "authentication": {
+    "signup_api": "PASSED - Successfully created user e2etest1762952442@core314test.com",
+    "signup_browser": "FAILED - HTTP 429 rate limit exceeded",
+    "login_page": "PASSED - Form loads correctly",
+    "password_reset": "NOT TESTED - Blocked by rate limit"
+  },
+  "billing": {},
+  "user_app": {},
+  "admin_dashboard": {},
+  "integrations": {},
+  "github_actions": {},
+  "failures": [
+    {
+      "component": "DNS/SSL",
+      "issue": "core314.com redirect loop (ERR_TOO_MANY_REDIRECTS)",
+      "severity": "CRITICAL",
+      "root_cause": "Netlify domain configuration issue - SSL certificate not properly provisioned on edge server 99.83.190.102",
+      "workaround": "Use direct Netlify URL (core314-landing.netlify.app) for testing",
+      "fix_required": "Contact Netlify Support to re-provision SSL certificate across all edge servers"
+    },
+    {
+      "component": "Netlify Environment Variables",
+      "issue": "Missing STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY",
+      "severity": "HIGH",
+      "root_cause": "Environment variables not configured in Netlify",
+      "fix_required": "Add missing Stripe keys to Netlify environment variables"
+    },
+    {
+      "component": "Database Schema",
+      "issue": "Missing column profiles.company_name",
+      "severity": "HIGH",
+      "root_cause": "Database schema mismatch - signup form expects company_name column that doesn't exist",
+      "fix_required": "Add company_name column to profiles table OR remove from signup form"
+    },
+    {
+      "component": "Supabase Auth",
+      "issue": "Email rate limit exceeded (HTTP 429)",
+      "severity": "MEDIUM",
+      "root_cause": "Multiple signup attempts in short time period during E2E testing",
+      "fix_required": "Wait for rate limit to reset (typically 1 hour) OR use different email addresses"
+    }
+  ],
+  "fixes_applied": []
+}

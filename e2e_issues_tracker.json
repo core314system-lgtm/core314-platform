@@ -1,0 +1,63 @@
+{
+  "test_session": "2025-11-12T13:34:56Z",
+  "total_modules_tested": 4,
+  "issues_found": [
+    {
+      "id": 1,
+      "severity": "CRITICAL",
+      "module": "Dashboard Initialization",
+      "issue": "user_sessions table missing",
+      "error": "404 - /rest/v1/user_sessions",
+      "fix_type": "CREATE_TABLE",
+      "status": "PENDING"
+    },
+    {
+      "id": 2,
+      "severity": "CRITICAL",
+      "module": "Dashboard Initialization",
+      "issue": "profiles.last_login column missing",
+      "error": "400 - /rest/v1/profiles?select=last_login",
+      "fix_type": "ALTER_TABLE",
+      "status": "PENDING"
+    },
+    {
+      "id": 3,
+      "severity": "CRITICAL",
+      "module": "Dashboard Initialization",
+      "issue": "fusion_action_log table error",
+      "error": "500 - /rest/v1/fusion_action_log",
+      "fix_type": "INVESTIGATE_RLS",
+      "status": "PENDING"
+    },
+    {
+      "id": 4,
+      "severity": "HIGH",
+      "module": "Dashboard Initialization",
+      "issue": "fusion_visual_cache RLS policy issue",
+      "error": "403 - /rest/v1/fusion_visual_cache",
+      "fix_type": "FIX_RLS_POLICY",
+      "status": "PENDING"
+    },
+    {
+      "id": 5,
+      "severity": "CRITICAL",
+      "module": "Integration Hub",
+      "issue": "integration_registry table missing",
+      "error": "404 - /rest/v1/integration_registry",
+      "fix_type": "CREATE_TABLE",
+      "status": "PENDING"
+    },
+    {
+      "id": 6,
+      "severity": "MINOR",
+      "module": "Integrations Management",
+      "issue": "Password fields not in forms",
+      "error": "Accessibility warning",
+      "fix_type": "WRAP_IN_FORM",
+      "status": "PENDING"
+    }
+  ],
+  "modules_passed": 4,
+  "modules_with_issues": 3,
+  "pass_rate": "67%"
+}
