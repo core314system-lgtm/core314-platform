@@ -9,8 +9,6 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  AlertTriangle,
-  TrendingUp,
   Eye
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
