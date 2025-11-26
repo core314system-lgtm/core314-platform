@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { AlertTriangle, CheckCircle, XCircle, TrendingUp, Clock, Target, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, TrendingUp, Target, Zap } from 'lucide-react';
 
 interface AnomalySignal {
   id: string;
