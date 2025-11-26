@@ -6,7 +6,7 @@ import { DecisionChart } from '../components/decisions/DecisionChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Brain, TrendingUp, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Brain, TrendingUp, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 interface DecisionStats {
   total: number;
