@@ -19,11 +19,6 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			},
-  			core314: {
-  				navy: '#0B162B',
-  				slate: '#7C869A',
-  				'electric-blue': '#00C2FF',
   			}
   		},
   		keyframes: {

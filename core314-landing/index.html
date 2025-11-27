@@ -2,23 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/logo-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <title>Core314 | The AI Control Core for Your Operations</title>
-    <meta name="description" content="Unify your systems, automate insights, and take control of operations. Connect Slack, Teams, QuickBase, Costpoint, and more." />
-    <meta name="keywords" content="AI operations platform, SaaS integration dashboard, automation intelligence, operations management, business intelligence" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
     
-    <meta property="og:title" content="Core314 | The AI Control Core for Your Operations" />
-    <meta property="og:description" content="Unify your systems, automate insights, and take control of operations. Connect Slack, Teams, QuickBase, Costpoint, and more." />
+    <!-- Primary Meta Tags -->
+    <title>Core314 | Command Every Operation from One Core</title>
+    <meta name="title" content="Core314 | Command Every Operation from One Core" />
+    <meta name="description" content="The future of business orchestration, powered by AI. Core314 ends operational fragmentation with patent-pending intelligence systems." />
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/images/core314-og.png" />
+    <meta property="og:url" content="https://core314.com/" />
+    <meta property="og:title" content="Core314 | Command Every Operation from One Core" />
+    <meta property="og:description" content="The future of business orchestration, powered by AI. Core314 ends operational fragmentation with patent-pending intelligence systems." />
+    <meta property="og:image" content="https://core314.com/logo.png" />
     
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Core314 | The AI Control Core for Your Operations" />
-    <meta name="twitter:description" content="Unify your systems, automate insights, and take control of operations." />
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://core314.com/" />
+    <meta property="twitter:title" content="Core314 | Command Every Operation from One Core" />
+    <meta property="twitter:description" content="The future of business orchestration, powered by AI. Core314 ends operational fragmentation with patent-pending intelligence systems." />
+    <meta property="twitter:image" content="https://core314.com/logo.png" />
   </head>
   <body>
+    <!-- Hidden form for Netlify form detection -->
+    <form name="core314-contact-form" netlify netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <input type="tel" name="phone" />
+      <input type="text" name="company" />
+      <textarea name="message"></textarea>
+      <input type="text" name="bot-field" />
+    </form>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
