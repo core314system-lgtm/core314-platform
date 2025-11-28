@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -14,7 +15,6 @@ import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
 import { AddOnCTA } from '../components/AddOnCTA';
-import { FeedbackModal } from '../components/FeedbackModal';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
@@ -24,6 +24,7 @@ import { betaTrackingService } from '../services/betaTracking';
 export function Dashboard() {
   const { profile, isAdmin } = useAuth();
   const { subscription } = useSubscription(profile?.id);
+  const navigate = useNavigate();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
   const [globalScore, setGlobalScore] = useState<number>(0);
   const [globalTrend, setGlobalTrend] = useState<'up' | 'down' | 'stable'>('stable');
@@ -44,7 +45,6 @@ export function Dashboard() {
     score: number;
   }[]>([]);
   const [sessionData, setSessionData] = useState<{ last_login: string; active_sessions: number } | null>(null);
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -242,14 +242,12 @@ export function Dashboard() {
             <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
             Sync Data
           </Button>
-          <Button onClick={() => setFeedbackModalOpen(true)} variant="outline">
+          <Button onClick={() => navigate('/feedback')} variant="outline">
             <MessageSquare className="h-4 w-4 mr-2" />
-            Feedback
+            Submit Feedback
           </Button>
         </div>
       </div>
-
-      <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>

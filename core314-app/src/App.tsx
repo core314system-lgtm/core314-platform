@@ -39,6 +39,7 @@ import { DecisionCenter } from './pages/DecisionCenter';
 import { DecisionAudit } from './pages/admin/DecisionAudit';
 import { AutomationCenter } from './pages/AutomationCenter';
 import { SystemMonitor } from './pages/SystemMonitor';
+import Feedback from './pages/Feedback';
 import { AnomalyConsole } from './components/monitoring/AnomalyConsole';
 import { RecoveryManager } from './components/monitoring/RecoveryManager';
 import { SelfTestPanel } from './components/monitoring/SelfTestPanel';
@@ -123,6 +124,7 @@ function App() {
             <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
             <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
             <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
+            <Route path="feedback" element={<Feedback />} />
           </Route>
           <Route path="/oauth-callback" element={<OAuthCallback />} />
           </Routes>
