@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface BetaUser {
@@ -40,7 +40,18 @@ interface FeedbackItem {
   user_email: string;
 }
 
-type TabType = 'beta-users' | 'feedback';
+interface AccessCode {
+  id: string;
+  code: string;
+  max_uses: number;
+  uses: number;
+  assigned_to: string | null;
+  expires_at: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+type TabType = 'beta-users' | 'feedback' | 'access-codes';
 
 interface BetaOpsConsoleProps {
   defaultTab?: TabType;
@@ -50,6 +61,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
   const [betaUsers, setBetaUsers] = useState<BetaUser[]>([]);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
+  const [accessCodes, setAccessCodes] = useState<AccessCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<BetaEvent[]>([]);
@@ -61,11 +73,23 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [savingFeedback, setSavingFeedback] = useState(false);
 
+  const [showCreateCodeModal, setShowCreateCodeModal] = useState(false);
+  const [newCode, setNewCode] = useState({
+    code: '',
+    max_uses: 1,
+    assigned_to: '',
+    expires_at: '',
+    notes: '',
+  });
+  const [creatingCode, setCreatingCode] = useState(false);
+
   useEffect(() => {
     if (activeTab === 'beta-users') {
       fetchBetaUsers();
     } else if (activeTab === 'feedback') {
       fetchFeedback();
+    } else if (activeTab === 'access-codes') {
+      fetchAccessCodes();
     }
   }, [activeTab]);
 
@@ -204,6 +228,26 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     } catch (error) {
       console.error('Error fetching feedback:', error);
       toast.error('Failed to load feedback');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAccessCodes = async () => {
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from('beta_access_codes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setAccessCodes(data || []);
+    } catch (error) {
+      console.error('Error fetching access codes:', error);
+      toast.error('Failed to load access codes');
     } finally {
       setLoading(false);
     }
@@ -370,6 +414,55 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     }
   };
 
+  const generateRandomCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 12; i++) {
+      if (i > 0 && i % 4 === 0) code += '-';
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const handleCreateCode = async () => {
+    if (!newCode.code.trim()) {
+      toast.error('Please enter a code');
+      return;
+    }
+
+    try {
+      setCreatingCode(true);
+
+      const { error } = await supabase
+        .from('beta_access_codes')
+        .insert({
+          code: newCode.code.trim(),
+          max_uses: newCode.max_uses,
+          assigned_to: newCode.assigned_to.trim() || null,
+          expires_at: newCode.expires_at || null,
+          notes: newCode.notes.trim() || null,
+        });
+
+      if (error) throw error;
+
+      toast.success('Access code created');
+      setShowCreateCodeModal(false);
+      setNewCode({
+        code: '',
+        max_uses: 1,
+        assigned_to: '',
+        expires_at: '',
+        notes: '',
+      });
+      fetchAccessCodes();
+    } catch (error) {
+      console.error('Error creating code:', error);
+      toast.error('Failed to create access code');
+    } finally {
+      setCreatingCode(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -388,13 +481,28 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
             <p className="text-sm text-gray-600">Monitor beta users, scores, feedback, and activity</p>
           </div>
         </div>
-        <button
-          onClick={() => activeTab === 'beta-users' ? fetchBetaUsers() : fetchFeedback()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          {activeTab === 'access-codes' && (
+            <button
+              onClick={() => setShowCreateCodeModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create Code
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (activeTab === 'beta-users') fetchBetaUsers();
+              else if (activeTab === 'feedback') fetchFeedback();
+              else if (activeTab === 'access-codes') fetchAccessCodes();
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 border-b border-gray-200">
@@ -423,6 +531,19 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               Feedback
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('access-codes')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'access-codes'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              Access Codes
             </div>
           </button>
         </div>
@@ -632,6 +753,97 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
         </>
       )}
 
+      {activeTab === 'access-codes' && (
+        <>
+          {accessCodes.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <p className="text-gray-600">No access codes created yet</p>
+              <button
+                onClick={() => setShowCreateCodeModal(true)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Create First Code
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Code
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Uses
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assigned To
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Expires
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Notes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {accessCodes.map((code) => {
+                    const isExpired = code.expires_at && new Date(code.expires_at) < new Date();
+                    const isMaxedOut = code.uses >= code.max_uses;
+                    const isActive = !isExpired && !isMaxedOut;
+
+                    return (
+                      <tr key={code.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-mono font-medium text-gray-900">{code.code}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {code.uses} / {code.max_uses}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {code.assigned_to || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {code.expires_at ? formatDate(code.expires_at) : 'Never'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                          {code.notes || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(code.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {isActive ? (
+                            <span className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700">
+                              Active
+                            </span>
+                          ) : isExpired ? (
+                            <span className="px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-700">
+                              Expired
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
+                              Used Up
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Events Modal */}
       {showEventsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -758,6 +970,114 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateCodeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Create Access Code</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Code
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCode.code}
+                    onChange={(e) => setNewCode({ ...newCode, code: e.target.value })}
+                    placeholder="XXXX-XXXX-XXXX"
+                    className="flex-1 text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => setNewCode({ ...newCode, code: generateRandomCode() })}
+                    className="px-3 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+                  >
+                    Generate
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max Uses
+                </label>
+                <input
+                  type="number"
+                  value={newCode.max_uses}
+                  onChange={(e) => setNewCode({ ...newCode, max_uses: parseInt(e.target.value) || 1 })}
+                  min="1"
+                  className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Assigned To (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={newCode.assigned_to}
+                  onChange={(e) => setNewCode({ ...newCode, assigned_to: e.target.value })}
+                  placeholder="Name or email"
+                  className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Expires At (Optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newCode.expires_at}
+                  onChange={(e) => setNewCode({ ...newCode, expires_at: e.target.value })}
+                  className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  value={newCode.notes}
+                  onChange={(e) => setNewCode({ ...newCode, notes: e.target.value })}
+                  placeholder="Internal notes about this code"
+                  className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={handleCreateCode}
+                disabled={creatingCode}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {creatingCode ? 'Creating...' : 'Create Code'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateCodeModal(false);
+                  setNewCode({
+                    code: '',
+                    max_uses: 1,
+                    assigned_to: '',
+                    expires_at: '',
+                    notes: '',
+                  });
+                }}
+                disabled={creatingCode}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                Cancel
               </button>
             </div>
           </div>
