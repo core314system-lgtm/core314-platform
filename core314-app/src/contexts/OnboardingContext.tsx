@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { UserOnboardingProgress } from '../types';
 import { toast } from 'sonner';
+import { betaTrackingService } from '../services/betaTracking';
 
 interface OnboardingContextType {
   isOpen: boolean;
@@ -23,6 +24,23 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState<UserOnboardingProgress | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getToken = async () => {
+      if (user) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token || null;
+          betaTrackingService.setAccessToken(token);
+        } catch (error) {
+          console.error('Error getting access token for beta tracking:', error);
+        }
+      } else {
+        betaTrackingService.setAccessToken(null);
+      }
+    };
+    getToken();
+  }, [user]);
 
   useEffect(() => {
     if (user && profile) {
@@ -57,6 +75,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         setIsOpen(true);
         setCurrentStep(1);
         setLoading(false);
+        
+        betaTrackingService.trackEvent({
+          event_type: 'onboarding',
+          event_name: 'onboarding_start',
+          metadata: { timestamp: new Date().toISOString() },
+        });
+        
         return;
       }
 
@@ -128,6 +153,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         if (stepNumber === 5) {
           setIsOpen(false);
           toast.success('Welcome to Core314! Your setup is complete.');
+          
+          betaTrackingService.trackEvent({
+            event_type: 'onboarding',
+            event_name: 'onboarding_completed',
+            metadata: { 
+              timestamp: new Date().toISOString(),
+              total_steps: 5,
+            },
+          });
         } else {
           const nextStep = stepNumber + 1;
           console.log('[OnboardingContext] Moving to next step', { nextStep });

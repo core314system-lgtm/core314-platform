@@ -34,7 +34,9 @@ import {
   FolderKanban,
   LineChart,
   Sparkle,
-  HeartPulse
+  HeartPulse,
+  ClipboardList,
+  MessageSquare
 } from 'lucide-react';
 
 const navGroups = [
@@ -94,6 +96,15 @@ const navGroups = [
       { path: '/notifications', label: 'Notification Center', icon: Bell },
       { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
     ]
+  },
+  {
+    id: 'beta-operations',
+    label: 'Beta Operations',
+    icon: ClipboardList,
+    items: [
+      { path: '/beta-feedback', label: 'Beta Feedback', icon: MessageSquare },
+      { path: '/beta-ops', label: 'Beta Ops Console', icon: ClipboardList },
+    ]
   }
 ];
 
@@ -107,10 +118,10 @@ export function AdminLayout() {
       try {
         return JSON.parse(saved);
       } catch {
-        return ['management', 'analytics', 'ai-intelligence', 'system-health'];
+        return ['management', 'analytics', 'ai-intelligence', 'system-health', 'beta-operations'];
       }
     }
-    return ['management', 'analytics', 'ai-intelligence', 'system-health'];
+    return ['management', 'analytics', 'ai-intelligence', 'system-health', 'beta-operations'];
   });
 
   useEffect(() => {
