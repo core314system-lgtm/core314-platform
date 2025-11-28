@@ -19,6 +19,7 @@ import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
 import { format } from 'date-fns';
+import { betaTrackingService } from '../services/betaTracking';
 
 export function Dashboard() {
   const { profile, isAdmin } = useAuth();
@@ -49,6 +50,23 @@ export function Dashboard() {
     if (profile?.id) {
       fetchDashboardData();
       fetchSessionData();
+      
+      const trackDashboard = async () => {
+        try {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token || null;
+          betaTrackingService.setAccessToken(token);
+          
+          betaTrackingService.trackEvent({
+            event_type: 'navigation',
+            event_name: 'dashboard_open',
+            metadata: { timestamp: new Date().toISOString() },
+          });
+        } catch (error) {
+          console.error('Error tracking dashboard open:', error);
+        }
+      };
+      trackDashboard();
     }
   }, [profile?.id]);
 
