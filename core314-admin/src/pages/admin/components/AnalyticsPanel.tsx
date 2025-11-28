@@ -106,7 +106,7 @@ export default function AnalyticsPanel() {
 
       const { data: usersWithEvents } = await supabase
         .from('beta_events_admin_view')
-        .select('user_id');
+        .select('user_id, created_at');
       const firstFeatureUsage = new Set(usersWithEvents?.map(e => e.user_id) || []).size;
 
       const userEventDays = new Map<string, Set<string>>();
