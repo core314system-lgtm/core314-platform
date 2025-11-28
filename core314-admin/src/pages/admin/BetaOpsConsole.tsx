@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface BetaUser {
@@ -26,18 +26,48 @@ interface BetaEvent {
   created_at: string;
 }
 
-export default function BetaOpsConsole() {
+interface FeedbackItem {
+  feedback_id: string;
+  user_id: string;
+  category: string;
+  message: string;
+  screenshot_url: string | null;
+  resolved: boolean;
+  resolved_at: string | null;
+  admin_notes: string;
+  created_at: string;
+  user_name: string | null;
+  user_email: string;
+}
+
+type TabType = 'beta-users' | 'feedback';
+
+interface BetaOpsConsoleProps {
+  defaultTab?: TabType;
+}
+
+export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsConsoleProps = {}) {
+  const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
   const [betaUsers, setBetaUsers] = useState<BetaUser[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<BetaEvent[]>([]);
   const [showEventsModal, setShowEventsModal] = useState(false);
   const [savingNotes, setSavingNotes] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState<string | null>(null);
+  
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [savingFeedback, setSavingFeedback] = useState(false);
 
   useEffect(() => {
-    fetchBetaUsers();
-  }, []);
+    if (activeTab === 'beta-users') {
+      fetchBetaUsers();
+    } else if (activeTab === 'feedback') {
+      fetchFeedback();
+    }
+  }, [activeTab]);
 
   const fetchBetaUsers = async () => {
     try {
@@ -120,6 +150,60 @@ export default function BetaOpsConsole() {
     } catch (error) {
       console.error('Error fetching beta users:', error);
       toast.error('Failed to load beta users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchFeedback = async () => {
+    try {
+      setLoading(true);
+
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('beta_feedback')
+        .select(`
+          feedback_id,
+          user_id,
+          category,
+          message,
+          screenshot_url,
+          resolved,
+          resolved_at,
+          admin_notes,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
+
+      if (feedbackError) throw feedbackError;
+
+      if (!feedbackData || feedbackData.length === 0) {
+        setFeedback([]);
+        setLoading(false);
+        return;
+      }
+
+      const userIds = [...new Set(feedbackData.map(f => f.user_id))];
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      const feedbackWithUsers: FeedbackItem[] = feedbackData.map(fb => {
+        const profile = profilesData?.find(p => p.id === fb.user_id);
+        return {
+          ...fb,
+          user_name: profile?.full_name || null,
+          user_email: profile?.email || 'Unknown',
+        };
+      });
+
+      setFeedback(feedbackWithUsers);
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+      toast.error('Failed to load feedback');
     } finally {
       setLoading(false);
     }
@@ -222,6 +306,43 @@ export default function BetaOpsConsole() {
     }
   };
 
+  const handleViewFeedback = (feedbackItem: FeedbackItem) => {
+    setSelectedFeedback(feedbackItem);
+    setShowFeedbackModal(true);
+  };
+
+  const handleSaveFeedback = async () => {
+    if (!selectedFeedback) return;
+
+    try {
+      setSavingFeedback(true);
+
+      const { error } = await supabase
+        .from('beta_feedback')
+        .update({
+          resolved: selectedFeedback.resolved,
+          resolved_at: selectedFeedback.resolved ? new Date().toISOString() : null,
+          admin_notes: selectedFeedback.admin_notes,
+        })
+        .eq('feedback_id', selectedFeedback.feedback_id);
+
+      if (error) throw error;
+
+      toast.success('Feedback updated');
+
+      setFeedback(prev => prev.map(f =>
+        f.feedback_id === selectedFeedback.feedback_id ? selectedFeedback : f
+      ));
+
+      setShowFeedbackModal(false);
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+      toast.error('Failed to save feedback');
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -239,6 +360,16 @@ export default function BetaOpsConsole() {
     return 'text-red-600';
   };
 
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'Bug': return 'bg-red-100 text-red-700';
+      case 'Feature Request': return 'bg-blue-100 text-blue-700';
+      case 'UI/UX': return 'bg-purple-100 text-purple-700';
+      case 'Performance': return 'bg-yellow-100 text-yellow-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -254,11 +385,11 @@ export default function BetaOpsConsole() {
           <ClipboardList className="w-8 h-8 text-blue-600" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Beta Operations Console</h1>
-            <p className="text-sm text-gray-600">Monitor beta users, scores, and activity</p>
+            <p className="text-sm text-gray-600">Monitor beta users, scores, feedback, and activity</p>
           </div>
         </div>
         <button
-          onClick={fetchBetaUsers}
+          onClick={() => activeTab === 'beta-users' ? fetchBetaUsers() : fetchFeedback()}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
@@ -266,7 +397,40 @@ export default function BetaOpsConsole() {
         </button>
       </div>
 
-      {betaUsers.length === 0 ? (
+      <div className="mb-6 border-b border-gray-200">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('beta-users')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'beta-users'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Beta Users
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('feedback')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'feedback'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Feedback
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'beta-users' && (
+        <>
+          {betaUsers.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-600">No beta users found</p>
         </div>
@@ -385,6 +549,88 @@ export default function BetaOpsConsole() {
           ))}
         </div>
       )}
+        </>
+      )}
+
+      {activeTab === 'feedback' && (
+        <>
+          {feedback.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <p className="text-gray-600">No feedback submissions yet</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Message
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {feedback.map((item) => (
+                    <tr key={item.feedback_id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{item.user_name || 'No name'}</div>
+                        <div className="text-sm text-gray-500">{item.user_email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded ${getCategoryColor(item.category)}`}>
+                          {item.category}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 max-w-md truncate">
+                          {item.message.substring(0, 120)}
+                          {item.message.length > 120 && '...'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(item.created_at)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {item.resolved ? (
+                          <span className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700">
+                            Resolved
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-700">
+                            Open
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => handleViewFeedback(item)}
+                          className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          View / Manage
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Events Modal */}
       {showEventsModal && (
@@ -426,6 +672,90 @@ export default function BetaOpsConsole() {
               <button
                 onClick={() => setShowEventsModal(false)}
                 className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFeedbackModal && selectedFeedback && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Feedback Details</h2>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh] space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">User</h3>
+                <p className="font-semibold text-gray-900">{selectedFeedback.user_name || 'No name'}</p>
+                <p className="text-sm text-gray-600">{selectedFeedback.user_email}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Category</h3>
+                <span className={`px-2 py-1 text-xs font-medium rounded ${getCategoryColor(selectedFeedback.category)}`}>
+                  {selectedFeedback.category}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Submitted</h3>
+                <p className="text-sm text-gray-900">{formatDate(selectedFeedback.created_at)}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Message</h3>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedFeedback.message}</p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedFeedback.resolved}
+                    onChange={(e) => setSelectedFeedback({
+                      ...selectedFeedback,
+                      resolved: e.target.checked,
+                    })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">Mark as Resolved</span>
+                </label>
+                {selectedFeedback.resolved && selectedFeedback.resolved_at && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Resolved at: {formatDate(selectedFeedback.resolved_at)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Admin Notes</h3>
+                <textarea
+                  value={selectedFeedback.admin_notes}
+                  onChange={(e) => setSelectedFeedback({
+                    ...selectedFeedback,
+                    admin_notes: e.target.value,
+                  })}
+                  placeholder="Add internal notes about this feedback..."
+                  className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={4}
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={handleSaveFeedback}
+                disabled={savingFeedback}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {savingFeedback ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => setShowFeedbackModal(false)}
+                disabled={savingFeedback}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
                 Close
               </button>
