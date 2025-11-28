@@ -39,6 +39,9 @@ interface FeedbackItem {
   created_at: string;
   user_name: string | null;
   user_email: string;
+  ai_category: string | null;
+  ai_summary: string | null;
+  ai_sentiment: string | null;
 }
 
 interface AccessCode {
@@ -73,6 +76,9 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [savingFeedback, setSavingFeedback] = useState(false);
+  const [categorizingFeedback, setCategorizingFeedback] = useState<string | null>(null);
+  const [bulkCategorizing, setBulkCategorizing] = useState(false);
+  const [categorizationProgress, setCategorizationProgress] = useState({ current: 0, total: 0 });
 
   const [showCreateCodeModal, setShowCreateCodeModal] = useState(false);
   const [newCode, setNewCode] = useState({
@@ -197,7 +203,10 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
           resolved,
           resolved_at,
           admin_notes,
-          created_at
+          created_at,
+          ai_category,
+          ai_summary,
+          ai_sentiment
         `)
         .order('created_at', { ascending: false });
 
@@ -390,6 +399,121 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     }
   };
 
+  const handleCategorizeFeedback = async (feedbackId: string) => {
+    try {
+      setCategorizingFeedback(feedbackId);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/categorize-feedback`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ feedback_id: feedbackId }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to categorize feedback');
+      }
+
+      const result = await response.json();
+
+      toast.success('AI Categorization Complete');
+
+      setFeedback(prev => prev.map(f =>
+        f.feedback_id === feedbackId ? {
+          ...f,
+          ai_category: result.ai_category,
+          ai_summary: result.ai_summary,
+          ai_sentiment: result.ai_sentiment,
+        } : f
+      ));
+
+    } catch (error) {
+      console.error('Error categorizing feedback:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to categorize feedback');
+    } finally {
+      setCategorizingFeedback(null);
+    }
+  };
+
+  const handleBulkCategorize = async () => {
+    const unprocessedFeedback = feedback.filter(f => !f.ai_category);
+    
+    if (unprocessedFeedback.length === 0) {
+      toast.error('No unprocessed feedback found');
+      return;
+    }
+
+    try {
+      setBulkCategorizing(true);
+      setCategorizationProgress({ current: 0, total: unprocessedFeedback.length });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      for (let i = 0; i < unprocessedFeedback.length; i++) {
+        const feedbackItem = unprocessedFeedback[i];
+        setCategorizationProgress({ current: i + 1, total: unprocessedFeedback.length });
+
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/categorize-feedback`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ feedback_id: feedbackItem.feedback_id }),
+            }
+          );
+
+          if (response.ok) {
+            const result = await response.json();
+            
+            setFeedback(prev => prev.map(f =>
+              f.feedback_id === feedbackItem.feedback_id ? {
+                ...f,
+                ai_category: result.ai_category,
+                ai_summary: result.ai_summary,
+                ai_sentiment: result.ai_sentiment,
+              } : f
+            ));
+          } else {
+            console.error(`Failed to categorize feedback ${feedbackItem.feedback_id}`);
+          }
+        } catch (itemError) {
+          console.error(`Error categorizing feedback ${feedbackItem.feedback_id}:`, itemError);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      toast.success(`Categorized ${unprocessedFeedback.length} feedback items`);
+
+    } catch (error) {
+      console.error('Error in bulk categorization:', error);
+      toast.error('Bulk categorization failed');
+    } finally {
+      setBulkCategorizing(false);
+      setCategorizationProgress({ current: 0, total: 0 });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -413,7 +537,18 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
       case 'Feature Request': return 'bg-blue-100 text-blue-700';
       case 'UI/UX': return 'bg-purple-100 text-purple-700';
       case 'Performance': return 'bg-yellow-100 text-yellow-700';
+      case 'Confusion/Clarity': return 'bg-orange-100 text-orange-700';
+      case 'Praise': return 'bg-green-100 text-green-700';
       default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getSentimentColor = (sentiment: string | null) => {
+    switch (sentiment) {
+      case 'positive': return 'bg-green-100 text-green-700';
+      case 'negative': return 'bg-red-100 text-red-700';
+      case 'neutral': return 'bg-gray-100 text-gray-700';
+      default: return 'bg-gray-100 text-gray-500';
     }
   };
 
@@ -492,6 +627,25 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
             >
               <Plus className="w-4 h-4" />
               Create Code
+            </button>
+          )}
+          {activeTab === 'feedback' && (
+            <button
+              onClick={handleBulkCategorize}
+              disabled={bulkCategorizing || feedback.filter(f => !f.ai_category).length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            >
+              {bulkCategorizing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Categorizing ({categorizationProgress.current}/{categorizationProgress.total})
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="w-4 h-4" />
+                  Categorize All Unprocessed
+                </>
+              )}
             </button>
           )}
           {activeTab !== 'analytics' && (
@@ -712,6 +866,15 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
                       Message
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      AI Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      AI Summary
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sentiment
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -736,9 +899,37 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 max-w-md truncate">
-                          {item.message.substring(0, 120)}
-                          {item.message.length > 120 && '...'}
+                          {item.message.substring(0, 80)}
+                          {item.message.length > 80 && '...'}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {item.ai_category ? (
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${getCategoryColor(item.ai_category)}`}>
+                            {item.ai_category}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 max-w-xs">
+                        {item.ai_summary ? (
+                          <div className="text-xs text-gray-600 truncate" title={item.ai_summary}>
+                            {item.ai_summary.substring(0, 60)}
+                            {item.ai_summary.length > 60 && '...'}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {item.ai_sentiment ? (
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${getSentimentColor(item.ai_sentiment)}`}>
+                            {item.ai_sentiment}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(item.created_at)}
@@ -754,13 +945,22 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                         <button
                           onClick={() => handleViewFeedback(item)}
                           className="text-blue-600 hover:text-blue-700 font-medium"
                         >
-                          View / Manage
+                          View
                         </button>
+                        {!item.ai_category && (
+                          <button
+                            onClick={() => handleCategorizeFeedback(item.feedback_id)}
+                            disabled={categorizingFeedback === item.feedback_id}
+                            className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+                          >
+                            {categorizingFeedback === item.feedback_id ? 'Categorizing...' : 'Categorize'}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
