@@ -38,6 +38,7 @@ import { FusionEfficiency } from './pages/admin/FusionEfficiency';
 import { AddOnPurchases } from './pages/admin/AddOnPurchases';
 import Subscriptions from './pages/admin/Subscriptions';
 import BetaFeedback from './pages/admin/BetaFeedback';
+import BetaOpsConsole from './pages/admin/BetaOpsConsole';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -103,6 +104,7 @@ function App() {
           <Route path="addon-purchases" element={<AddOnPurchases />} />
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="beta-feedback" element={<BetaFeedback />} />
+          <Route path="beta-ops" element={<BetaOpsConsole />} />
         </Route>
       </Routes>
     </Router>
