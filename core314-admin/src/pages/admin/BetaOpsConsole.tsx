@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import AnalyticsPanel from './components/AnalyticsPanel';
 
 interface BetaUser {
   user_id: string;
@@ -51,7 +52,7 @@ interface AccessCode {
   created_at: string;
 }
 
-type TabType = 'beta-users' | 'feedback' | 'access-codes';
+type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics';
 
 interface BetaOpsConsoleProps {
   defaultTab?: TabType;
@@ -90,6 +91,8 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
       fetchFeedback();
     } else if (activeTab === 'access-codes') {
       fetchAccessCodes();
+    } else if (activeTab === 'analytics') {
+      setLoading(false);
     }
   }, [activeTab]);
 
@@ -491,17 +494,19 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
               Create Code
             </button>
           )}
-          <button
-            onClick={() => {
-              if (activeTab === 'beta-users') fetchBetaUsers();
-              else if (activeTab === 'feedback') fetchFeedback();
-              else if (activeTab === 'access-codes') fetchAccessCodes();
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
+          {activeTab !== 'analytics' && (
+            <button
+              onClick={() => {
+                if (activeTab === 'beta-users') fetchBetaUsers();
+                else if (activeTab === 'feedback') fetchFeedback();
+                else if (activeTab === 'access-codes') fetchAccessCodes();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          )}
         </div>
       </div>
 
@@ -544,6 +549,19 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
             <div className="flex items-center gap-2">
               <Key className="w-4 h-4" />
               Access Codes
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'analytics'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
             </div>
           </button>
         </div>
@@ -843,6 +861,8 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
           )}
         </>
       )}
+
+      {activeTab === 'analytics' && <AnalyticsPanel />}
 
       {/* Events Modal */}
       {showEventsModal && (
