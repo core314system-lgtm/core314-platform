@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ChurnPanel from './components/ChurnPanel';
 import ReliabilityPanel from './components/ReliabilityPanel';
+import AlertsPanel from './components/AlertsPanel';
 
 interface BetaUser {
   user_id: string;
@@ -57,7 +58,7 @@ interface AccessCode {
   created_at: string;
 }
 
-type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability';
+type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability' | 'alerts';
 
 interface BetaOpsConsoleProps {
   defaultTab?: TabType;
@@ -650,7 +651,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
               )}
             </button>
           )}
-          {activeTab !== 'analytics' && activeTab !== 'churn-intelligence' && activeTab !== 'reliability' && (
+          {activeTab !== 'analytics' && activeTab !== 'churn-intelligence' && activeTab !== 'reliability' && activeTab !== 'alerts' && (
             <button
               onClick={() => {
                 if (activeTab === 'beta-users') fetchBetaUsers();
@@ -1082,6 +1083,8 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
       {activeTab === 'churn-intelligence' && <ChurnPanel />}
 
       {activeTab === 'reliability' && <ReliabilityPanel />}
+
+      {activeTab === 'alerts' && <AlertsPanel />}
 
       {/* Events Modal */}
       {showEventsModal && (
