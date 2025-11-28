@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { getValidatedEnv } from './validateEnv';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const { supabaseUrl, supabaseAnonKey } = getValidatedEnv();
 
-if (!supabaseAnonKey) {
-  console.error('Missing VITE_SUPABASE_ANON_KEY - admin platform requires anon key for client-side auth');
-}
+console.info('🔌 Supabase client initialized successfully');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

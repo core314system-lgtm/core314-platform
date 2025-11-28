@@ -39,6 +39,7 @@ import { AddOnPurchases } from './pages/admin/AddOnPurchases';
 import Subscriptions from './pages/admin/Subscriptions';
 import BetaFeedback from './pages/admin/BetaFeedback';
 import BetaOpsConsole from './pages/admin/BetaOpsConsole';
+import HealthCheck from './pages/HealthCheck';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 
@@ -57,6 +58,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <AdminLogin />} />
+        <Route path="/admin-health" element={<HealthCheck />} />
         
         <Route
           path="/"

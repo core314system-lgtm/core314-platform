@@ -1,9 +1,15 @@
 # Core314 Admin Platform - Netlify Configuration
 
 [build]
-  command = "npm run build"
+  command = "npm run build || exit 1"
   publish = "dist"
   functions = "netlify/functions"
+
+# Note: Environment variables must be set in Netlify UI
+# Go to: https://app.netlify.com/sites/core314-admin/configuration/env
+# Required variables:
+#   - VITE_SUPABASE_URL
+#   - VITE_SUPABASE_ANON_KEY
 
 [[redirects]]
   from = "/*"
