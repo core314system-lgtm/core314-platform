@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell, Route } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ChurnPanel from './components/ChurnPanel';
 import ReliabilityPanel from './components/ReliabilityPanel';
 import AlertsPanel from './components/AlertsPanel';
+import { UserJourneyPanel } from './components/UserJourneyPanel';
 
 interface BetaUser {
   user_id: string;
@@ -58,7 +59,7 @@ interface AccessCode {
   created_at: string;
 }
 
-type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability' | 'alerts';
+type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability' | 'alerts' | 'user-journey';
 
 interface BetaOpsConsoleProps {
   defaultTab?: TabType;
@@ -734,6 +735,45 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
               Churn Intelligence
             </div>
           </button>
+          <button
+            onClick={() => setActiveTab('reliability')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'reliability'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Reliability
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('alerts')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'alerts'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4" />
+              Alerts
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('user-journey')}
+            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+              activeTab === 'user-journey'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Route className="w-4 h-4" />
+              User Journey
+            </div>
+          </button>
         </div>
       </div>
 
@@ -1085,6 +1125,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
       {activeTab === 'reliability' && <ReliabilityPanel />}
 
       {activeTab === 'alerts' && <AlertsPanel />}
+      {activeTab === 'user-journey' && <UserJourneyPanel />}
 
       {/* Events Modal */}
       {showEventsModal && (
