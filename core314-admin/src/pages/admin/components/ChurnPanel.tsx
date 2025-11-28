@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { Users, AlertTriangle, TrendingDown, CheckCircle, RefreshCw, Mail, MessageSquare } from 'lucide-react';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabase } from '../../../lib/supabase';
 
 interface ChurnData {
   user_id: string;
