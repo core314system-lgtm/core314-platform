@@ -47,6 +47,7 @@ serve(async (req) => {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
 
   if (!openaiKey) {
+    await logError(null, 500, "missing_openai_key", "OPENAI_API_KEY not configured", req.url);
     return new Response(JSON.stringify({ error: "OPENAI_API_KEY not configured" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,16 +59,42 @@ serve(async (req) => {
   });
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
   if (userErr || !user) {
+    await logError(null, 401, "unauthorized", "Unauthorized", req.url);
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
+  const userId = user.id;
+
+  const rateLimitResult = await checkRateLimit(supabase, userId);
+  if (!rateLimitResult.allowed) {
+    await logError(userId, 429, "rate_limit_exceeded", `Rate limit exceeded: ${rateLimitResult.count}/20 requests in current minute`, req.url);
+    return new Response(
+      JSON.stringify({ 
+        error: "Rate limit exceeded",
+        limit: 20,
+        window: "1 minute",
+        current: rateLimitResult.count,
+        retry_after: rateLimitResult.retryAfter
+      }),
+      { 
+        status: 429, 
+        headers: { 
+          ...corsHeaders, 
+          "Content-Type": "application/json",
+          "Retry-After": rateLimitResult.retryAfter.toString()
+        }
+      }
+    );
+  }
+
   let body: AIRequest;
   try {
     body = await req.json();
   } catch {
+    await logError(userId, 400, "invalid_json", "Invalid JSON", req.url);
     return new Response(JSON.stringify({ error: "Invalid JSON" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,12 +103,14 @@ serve(async (req) => {
 
   const prompt = (body.prompt ?? "").trim();
   if (!prompt) {
+    await logError(userId, 400, "missing_prompt", "Missing prompt", req.url);
     return new Response(JSON.stringify({ error: "Missing prompt" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   if (prompt.length > 8000) {
+    await logError(userId, 400, "prompt_too_long", `Prompt length ${prompt.length} exceeds maximum 8000`, req.url);
     return new Response(JSON.stringify({ error: "Prompt too long" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -107,6 +136,7 @@ serve(async (req) => {
       const json = await resp.json();
       if (!resp.ok) {
         console.error("OpenAI embedding error:", json);
+        await logError(userId, 500, "openai_api_error", `OpenAI API error: ${json.error?.message || 'Unknown error'}`, req.url);
         return new Response(JSON.stringify({ error: "OpenAI API error" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -125,6 +155,7 @@ serve(async (req) => {
 
       const allowedModels = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"];
       if (!allowedModels.includes(model)) {
+        await logError(userId, 400, "invalid_model", `Model ${model} not allowed`, req.url);
         return new Response(JSON.stringify({ error: "Model not allowed" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,6 +185,7 @@ serve(async (req) => {
       const json = await resp.json();
       if (!resp.ok) {
         console.error("OpenAI chat error:", json);
+        await logError(userId, 500, "openai_api_error", `OpenAI API error: ${json.error?.message || 'Unknown error'}`, req.url);
         return new Response(JSON.stringify({ error: "OpenAI API error" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -168,9 +200,116 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error("Unexpected error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    await logError(userId, 500, "internal_error", errorMessage, req.url);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
+
+interface RateLimitResult {
+  allowed: boolean;
+  count: number;
+  retryAfter: number;
+}
+
+async function checkRateLimit(supabase: any, userId: string): Promise<RateLimitResult> {
+  try {
+    const now = new Date();
+    const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 
+                                  now.getHours(), now.getMinutes(), 0, 0);
+    
+    const { data, error } = await supabase
+      .from('rate_limits')
+      .upsert({
+        user_id: userId,
+        window_start: windowStart.toISOString(),
+        count: 1
+      }, {
+        onConflict: 'user_id,window_start',
+        returning: 'representation'
+      })
+      .select('count')
+      .single();
+
+    if (error) {
+      const { data: existingData, error: selectError } = await supabase
+        .from('rate_limits')
+        .select('count')
+        .eq('user_id', userId)
+        .eq('window_start', windowStart.toISOString())
+        .single();
+
+      if (selectError || !existingData) {
+        console.error('Rate limit check failed:', error, selectError);
+        return { allowed: true, count: 1, retryAfter: 60 };
+      }
+
+      const newCount = existingData.count + 1;
+      await supabase
+        .from('rate_limits')
+        .update({ count: newCount })
+        .eq('user_id', userId)
+        .eq('window_start', windowStart.toISOString());
+
+      const secondsUntilReset = 60 - now.getSeconds();
+      return {
+        allowed: newCount <= 20,
+        count: newCount,
+        retryAfter: secondsUntilReset
+      };
+    }
+
+    const count = data?.count || 1;
+    const secondsUntilReset = 60 - now.getSeconds();
+
+    return {
+      allowed: count <= 20,
+      count,
+      retryAfter: secondsUntilReset
+    };
+  } catch (error) {
+    console.error('Rate limit check error:', error);
+    return { allowed: true, count: 1, retryAfter: 60 };
+  }
+}
+
+async function logError(
+  userId: string | null,
+  statusCode: number,
+  errorType: string,
+  errorMessage: string,
+  requestPath: string
+): Promise<void> {
+  try {
+    if (statusCode < 400) return;
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Cannot log error: missing Supabase credentials');
+      return;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    await supabase
+      .from('function_error_events')
+      .insert({
+        function_name: 'ai-generate',
+        user_id: userId,
+        status_code: statusCode,
+        error_type: errorType,
+        error_message: errorMessage,
+        request_path: requestPath,
+        metadata: {
+          timestamp: new Date().toISOString()
+        }
+      });
+  } catch (error) {
+    console.error('Failed to log error event:', error);
+  }
+}
