@@ -8,7 +8,13 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "migrate": "node scripts/run-migration-programmatic.js"
+    "migrate": "node scripts/run-migration-programmatic.js",
+    "test:backend": "cd .. && node scripts/e2e/test-backend.mjs",
+    "test:user-app": "cd .. && node scripts/e2e/test-user-app.mjs",
+    "test:admin-app": "cd .. && node scripts/e2e/test-admin-app.mjs",
+    "test:ai": "cd .. && node scripts/e2e/test-ai.mjs",
+    "validate:env": "cd .. && node scripts/e2e/validate-env.mjs",
+    "test:e2e": "cd .. && node scripts/e2e/run-all.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
