@@ -1,0 +1,108 @@
+name: AI Security & Smoke Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'core314-app/supabase/functions/**'
+      - 'core314-admin/src/services/ai.ts'
+      - 'core314-app/src/services/ai.ts'
+      - 'scripts/check-secrets-in-bundle.js'
+      - 'scripts/test-ai-edge-function.mjs'
+      - '.github/workflows/ai-smoke-test.yml'
+
+jobs:
+  build-and-scan:
+    name: Build & Secret Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            core314-admin/package-lock.json
+            core314-app/package-lock.json
+
+      - name: Install admin dependencies
+        working-directory: core314-admin
+        run: npm ci
+
+      - name: Build admin app
+        working-directory: core314-admin
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+          VITE_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+          VITE_STRIPE_STARTER_PRICE_ID: price_placeholder
+          VITE_STRIPE_PRO_PRICE_ID: price_placeholder
+          VITE_STRIPE_ENTERPRISE_PRICE_ID: price_placeholder
+        run: npm run build
+
+      - name: Install user app dependencies
+        working-directory: core314-app
+        run: npm ci
+
+      - name: Build user app
+        working-directory: core314-app
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+        run: npm run build
+
+      - name: Scan admin bundle for secrets
+        run: node scripts/check-secrets-in-bundle.js core314-admin/dist
+
+      - name: Scan user app bundle for secrets
+        run: node scripts/check-secrets-in-bundle.js core314-app/dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: |
+            core314-admin/dist
+            core314-app/dist
+          retention-days: 1
+
+  ai-smoke-tests:
+    name: AI Edge Function Tests
+    runs-on: ubuntu-latest
+    needs: build-and-scan
+    # Only run when secrets are available (main branch or PRs from same repo)
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install test dependencies
+        run: npm install @supabase/supabase-js
+
+      - name: Run AI smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node scripts/test-ai-edge-function.mjs
+
+      - name: Report test results
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ All AI smoke tests passed"
+          else
+            echo "❌ AI smoke tests failed"
+            exit 1
+          fi
