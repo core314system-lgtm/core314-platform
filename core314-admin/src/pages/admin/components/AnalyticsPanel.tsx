@@ -35,7 +35,7 @@ export default function AnalyticsPanel() {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
       const { data: activeUsersData } = await supabase
-        .from('beta_events_admin_view')
+        .from('beta_events')
         .select('user_id')
         .gte('created_at', sevenDaysAgo.toISOString());
       
@@ -64,7 +64,7 @@ export default function AnalyticsPanel() {
         const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString();
 
         const { data: dayEvents } = await supabase
-          .from('beta_events_admin_view')
+          .from('beta_events')
           .select('user_id')
           .gte('created_at', startOfDay)
           .lte('created_at', endOfDay);
@@ -77,7 +77,7 @@ export default function AnalyticsPanel() {
       }
 
       const { data: eventsData } = await supabase
-        .from('beta_events_admin_view')
+        .from('beta_events')
         .select('event_name, user_id');
 
       const featureMap = new Map<string, Set<string>>();
@@ -105,7 +105,7 @@ export default function AnalyticsPanel() {
       const completedOnboarding = allBetaUsers?.filter(u => u.onboarding_completed).length || 0;
 
       const { data: usersWithEvents } = await supabase
-        .from('beta_events_admin_view')
+        .from('beta_events')
         .select('user_id, created_at');
       const firstFeatureUsage = new Set(usersWithEvents?.map(e => e.user_id) || []).size;
 
@@ -137,7 +137,7 @@ export default function AnalyticsPanel() {
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
       const { data: recentEvents } = await supabase
-        .from('beta_events_admin_view')
+        .from('beta_events')
         .select('user_id, created_at')
         .gte('created_at', threeDaysAgo.toISOString());
 
@@ -161,7 +161,7 @@ export default function AnalyticsPanel() {
           .in('user_id', atRiskUserIds);
 
         const { data: lastEvents } = await supabase
-          .from('beta_events_admin_view')
+          .from('beta_events')
           .select('user_id, created_at')
           .in('user_id', atRiskUserIds)
           .order('created_at', { ascending: false });

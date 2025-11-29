@@ -254,21 +254,13 @@ export default function ChurnPanel() {
 
   const handleOpenNotes = async (user: ChurnData) => {
     try {
-      const { data: notes, error } = await supabase
-        .from('beta_user_notes')
-        .select('notes')
-        .eq('user_id', user.user_id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        console.error('Error fetching notes:', error);
-      }
-
+      toast('Notes feature not yet available in simplified schema');
+      
       setNotesModal({
         user_id: user.user_id,
         user_name: user.user_name || 'Unknown User',
         user_email: user.user_email,
-        notes: notes?.notes || '',
+        notes: '',
       });
     } catch (error) {
       console.error('Error opening notes:', error);
@@ -282,21 +274,7 @@ export default function ChurnPanel() {
     try {
       setSavingNotes(true);
 
-      const { error } = await supabase
-        .from('beta_user_notes')
-        .upsert({
-          user_id: notesModal.user_id,
-          notes: notesModal.notes,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (error) {
-        throw error;
-      }
-
-      toast.success('Notes saved successfully');
+      toast('Notes feature not yet available in simplified schema');
       setNotesModal(null);
     } catch (error) {
       console.error('Error saving notes:', error);
