@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ChurnPanel from './components/ChurnPanel';
+import ReliabilityPanel from './components/ReliabilityPanel';
+import AlertsPanel from './components/AlertsPanel';
 
 interface BetaUser {
   user_id: string;
@@ -56,7 +58,7 @@ interface AccessCode {
   created_at: string;
 }
 
-type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence';
+type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability' | 'alerts';
 
 interface BetaOpsConsoleProps {
   defaultTab?: TabType;
@@ -135,15 +137,10 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
 
       if (scoresError) throw scoresError;
 
-      const { data: notesData, error: notesError } = await supabase
-        .from('beta_user_notes')
-        .select('user_id, internal_notes')
-        .in('user_id', userIds);
-
-      if (notesError) throw notesError;
+      const notesData: { user_id: string; internal_notes?: string }[] = [];
 
       const { data: eventsData, error: eventsError } = await supabase
-        .from('beta_events_admin_view')
+        .from('beta_events')
         .select('user_id, event_type, event_name, metadata, created_at')
         .in('user_id', userIds)
         .order('created_at', { ascending: false })
@@ -168,7 +165,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
           feature_usage_score: score?.feature_usage_score || 0,
           total_score: score?.total_score || 0,
           last_calculated_at: score?.last_calculated_at || null,
-          internal_notes: notes?.internal_notes || '',
+          internal_notes: notes?.internal_notes ?? '',
           recent_events: userEvents.map(e => ({
             event_type: e.event_type,
             event_name: e.event_name,
@@ -250,14 +247,8 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from('beta_access_codes')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setAccessCodes(data || []);
+      toast('Access codes feature not yet available in simplified schema');
+      setAccessCodes([]);
     } catch (error) {
       console.error('Error fetching access codes:', error);
       toast.error('Failed to load access codes');
@@ -269,7 +260,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
   const handleViewAllEvents = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('beta_events_admin_view')
+        .from('beta_events')
         .select('event_type, event_name, metadata, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -290,18 +281,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     try {
       setSavingNotes(userId);
 
-      const { error } = await supabase
-        .from('beta_user_notes')
-        .upsert({
-          user_id: userId,
-          internal_notes: notes,
-        }, {
-          onConflict: 'user_id',
-        });
-
-      if (error) throw error;
-
-      toast.success('Notes saved');
+      toast('Notes feature not yet available in simplified schema');
       
       setBetaUsers(prev => prev.map(u => 
         u.user_id === userId ? { ...u, internal_notes: notes } : u
@@ -572,19 +552,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     try {
       setCreatingCode(true);
 
-      const { error } = await supabase
-        .from('beta_access_codes')
-        .insert({
-          code: newCode.code.trim(),
-          max_uses: newCode.max_uses,
-          assigned_to: newCode.assigned_to.trim() || null,
-          expires_at: newCode.expires_at || null,
-          notes: newCode.notes.trim() || null,
-        });
-
-      if (error) throw error;
-
-      toast.success('Access code created');
+      toast('Access codes feature not yet available in simplified schema');
       setShowCreateCodeModal(false);
       setNewCode({
         code: '',
@@ -593,7 +561,6 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
         expires_at: '',
         notes: '',
       });
-      fetchAccessCodes();
     } catch (error) {
       console.error('Error creating code:', error);
       toast.error('Failed to create access code');
@@ -649,7 +616,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
               )}
             </button>
           )}
-          {activeTab !== 'analytics' && activeTab !== 'churn-intelligence' && (
+          {activeTab !== 'analytics' && activeTab !== 'churn-intelligence' && activeTab !== 'reliability' && activeTab !== 'alerts' && (
             <button
               onClick={() => {
                 if (activeTab === 'beta-users') fetchBetaUsers();
@@ -1079,6 +1046,10 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
       {activeTab === 'analytics' && <AnalyticsPanel />}
 
       {activeTab === 'churn-intelligence' && <ChurnPanel />}
+
+      {activeTab === 'reliability' && <ReliabilityPanel />}
+
+      {activeTab === 'alerts' && <AlertsPanel />}
 
       {/* Events Modal */}
       {showEventsModal && (

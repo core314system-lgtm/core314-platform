@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "functions": {
+    "evaluate-alerts": {
+      "schedule": "*/5 * * * *"
+    }
+  }
+}
