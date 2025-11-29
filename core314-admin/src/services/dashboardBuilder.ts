@@ -1,4 +1,4 @@
-import { analyzeAPISchema } from './openai';
+import { analyzeAPISchema } from './ai';
 import { discoverSchema, getTemplateForPlatform } from './schemaDiscovery';
 import { supabase } from '../lib/supabase';
 
