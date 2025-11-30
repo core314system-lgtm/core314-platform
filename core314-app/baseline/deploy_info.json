@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-11-30T16:28:07.215Z",
+  "user_app_url": "https://app.core314.com",
+  "admin_app_url": "https://admin.core314.com",
+  "edge_functions": [
+    "ai-generate",
+    "monitor-ai-generate"
+  ],
+  "note": "Commit hashes pulled from Netlify/Supabase deploy dashboards manually if needed."
+}
