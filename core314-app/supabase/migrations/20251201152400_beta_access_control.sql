@@ -1,4 +1,6 @@
 
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE public.profiles 
 ADD COLUMN IF NOT EXISTS beta_status TEXT NOT NULL DEFAULT 'pending' 
 CHECK (beta_status IN ('pending', 'approved', 'revoked'));
@@ -17,14 +19,18 @@ WHERE role = 'admin'
 COMMENT ON COLUMN public.profiles.beta_status IS 'Beta access status: pending (awaiting approval), approved (can access app), revoked (access removed)';
 COMMENT ON COLUMN public.profiles.beta_approved_at IS 'Timestamp when beta access was approved';
 
-CREATE POLICY IF NOT EXISTS "Users can read own beta status"
+DROP POLICY IF EXISTS "Users can read own beta status" ON public.profiles;
+CREATE POLICY "Users can read own beta status"
 ON public.profiles
 FOR SELECT
+TO authenticated
 USING (auth.uid() = id);
 
-CREATE POLICY IF NOT EXISTS "Admins can update beta status"
+DROP POLICY IF EXISTS "Admins can update beta status" ON public.profiles;
+CREATE POLICY "Admins can update beta status"
 ON public.profiles
 FOR UPDATE
+TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.profiles p 
@@ -33,6 +39,19 @@ USING (
   )
 )
 WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.beta_monitoring_log (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL,
+  event_type TEXT NOT NULL,
+  old_status TEXT,
+  new_status TEXT,
+  changed_by UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_beta_monitoring_log_user_id ON public.beta_monitoring_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_beta_monitoring_log_created_at ON public.beta_monitoring_log(created_at);
 
 CREATE OR REPLACE FUNCTION log_beta_status_change()
 RETURNS TRIGGER AS $$
