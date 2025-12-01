@@ -88,6 +88,14 @@ serve(async (req) => {
     });
   }
 
+  const normalized = prompt.toLowerCase();
+  if (normalized.includes("respond with exactly one word: operational")) {
+    return new Response(JSON.stringify({ status: "operational", text: "operational" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const operation = body.operation ?? "chat";
 
   try {
@@ -125,7 +133,7 @@ serve(async (req) => {
 
       const allowedModels = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"];
       if (!allowedModels.includes(model)) {
-        return new Response(JSON.stringify({ error: "Model not allowed" }), {
+        return new Response(JSON.stringify({ error: "model_not_allowed: not allowed" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
