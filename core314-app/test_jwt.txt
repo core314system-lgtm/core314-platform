@@ -1,0 +1,11 @@
+Login failed: AuthApiError: Invalid API key
+    at handleError (/home/ubuntu/repos/core314-platform/core314-app/node_modules/@supabase/auth-js/dist/main/lib/fetch.js:66:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async _handleRequest (/home/ubuntu/repos/core314-platform/core314-app/node_modules/@supabase/auth-js/dist/main/lib/fetch.js:109:9)
+    at async _request (/home/ubuntu/repos/core314-platform/core314-app/node_modules/@supabase/auth-js/dist/main/lib/fetch.js:91:18)
+    at async SupabaseAuthClient.signInWithPassword (/home/ubuntu/repos/core314-platform/core314-app/node_modules/@supabase/auth-js/dist/main/GoTrueClient.js:419:23)
+    at async [eval]:6:29 {
+  __isAuthError: true,
+  status: 401,
+  code: undefined
+}
