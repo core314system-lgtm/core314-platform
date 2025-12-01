@@ -75,8 +75,8 @@ serve(async (req) => {
   }
 
   const prompt = (body.prompt ?? "").trim();
-  if (!prompt) {
-    return new Response(JSON.stringify({ error: "Missing prompt" }), {
+  if (!prompt || prompt.trim() === "") {
+    return new Response(JSON.stringify({ error: "empty_prompt" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
