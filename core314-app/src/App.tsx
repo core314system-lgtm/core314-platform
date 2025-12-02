@@ -76,6 +76,7 @@ function App() {
               <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/beta-invite" element={<BetaInvite />} />
+              <Route path="/sentry-test" element={<SentryTest />} />
           
           <Route
             path="/"
@@ -126,7 +127,6 @@ function App() {
             <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
             <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
             <Route path="feedback" element={<Feedback />} />
-            <Route path="sentry-test" element={<ProtectedRoute requireAdmin><SentryTest /></ProtectedRoute>} />
           </Route>
           <Route path="/oauth-callback" element={<OAuthCallback />} />
           </Routes>
