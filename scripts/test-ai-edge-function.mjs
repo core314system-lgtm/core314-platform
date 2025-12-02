@@ -113,15 +113,17 @@ async function runTests() {
       }
     });
     
-    if (error && error.message.includes('Missing prompt')) {
-      logTest('Empty prompt error handling', true, 'Correctly rejected empty prompt');
-    } else if (data && data.error && data.error.includes('Missing prompt')) {
+    const hasEmptyPromptError = (error && (error.message?.includes('empty_prompt') || error.message?.includes('Missing prompt'))) ||
+                                (data && (data.error?.includes('empty_prompt') || data.error?.includes('Missing prompt') || 
+                                         data.message?.includes('empty_prompt') || data.message?.includes('Missing prompt')));
+    
+    if (hasEmptyPromptError) {
       logTest('Empty prompt error handling', true, 'Correctly rejected empty prompt');
     } else {
       logTest('Empty prompt error handling', false, 'Should reject empty prompts');
     }
   } catch (error) {
-    if (error.message.includes('Missing prompt') || error.message.includes('400')) {
+    if (error.message?.includes('empty_prompt') || error.message?.includes('Missing prompt') || error.message?.includes('400')) {
       logTest('Empty prompt error handling', true, 'Correctly rejected empty prompt');
     } else {
       logTest('Empty prompt error handling', false, error.message);
@@ -179,15 +181,16 @@ async function runTests() {
       }
     });
     
-    if (error && error.message.includes('not allowed')) {
-      logTest('Model whitelist enforcement', true, 'Correctly rejected non-whitelisted model');
-    } else if (data && data.error && data.error.includes('not allowed')) {
+    const hasModelNotAllowedError = (error && error.message?.includes('model_not_allowed')) ||
+                                    (data && (data.error?.includes('model_not_allowed') || data.message?.includes('model_not_allowed')));
+    
+    if (hasModelNotAllowedError) {
       logTest('Model whitelist enforcement', true, 'Correctly rejected non-whitelisted model');
     } else {
       logTest('Model whitelist enforcement', false, 'Should reject non-whitelisted models');
     }
   } catch (error) {
-    if (error.message.includes('not allowed') || error.message.includes('400')) {
+    if (error.message?.includes('model_not_allowed') || error.message?.includes('not allowed') || error.message?.includes('400')) {
       logTest('Model whitelist enforcement', true, 'Correctly rejected non-whitelisted model');
     } else {
       logTest('Model whitelist enforcement', false, error.message);
