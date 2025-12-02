@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
-import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 import {
   createAdminClient,
   postToSlack,

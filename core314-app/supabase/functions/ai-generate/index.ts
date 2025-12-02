@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
 const allowedOrigins = new Set([
   "https://admin.core314.com",
@@ -39,10 +39,7 @@ serve(withSentry(async (req) => {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(405, "method_not_allowed", "Method Not Allowed", corsHeaders);
   }
 
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -51,10 +48,7 @@ serve(withSentry(async (req) => {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
 
   if (!openaiKey) {
-    return new Response(JSON.stringify({ error: "OPENAI_API_KEY not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(500, "openai_key_not_configured", "OPENAI_API_KEY not configured", corsHeaders);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -62,34 +56,22 @@ serve(withSentry(async (req) => {
   });
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
   if (userErr || !user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(401, "unauthorized", "Unauthorized", corsHeaders);
   }
 
   let body: AIRequest;
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(400, "invalid_json", "Invalid JSON", corsHeaders);
   }
 
   const prompt = (body.prompt ?? "").trim();
   if (!prompt || prompt.trim() === "") {
-    return new Response(JSON.stringify({ error: "empty_prompt", message: "empty_prompt" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(400, "empty_prompt", "empty_prompt", corsHeaders);
   }
   if (prompt.length > 8000) {
-    return new Response(JSON.stringify({ error: "Prompt too long" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(400, "prompt_too_long", "Prompt too long", corsHeaders);
   }
 
   const normalized = prompt.toLowerCase();
@@ -120,10 +102,7 @@ serve(withSentry(async (req) => {
       const json = await resp.json();
       if (!resp.ok) {
         console.error("OpenAI embedding error:", json);
-        return new Response(JSON.stringify({ error: "OpenAI API error" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonError(500, "openai_api_error", "OpenAI API error", corsHeaders);
       }
 
       const embedding = json?.data?.[0]?.embedding ?? [];
@@ -138,10 +117,7 @@ serve(withSentry(async (req) => {
 
       const allowedModels = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"];
       if (!allowedModels.includes(model)) {
-        return new Response(JSON.stringify({ error: "model_not_allowed: not allowed" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonError(400, "model_not_allowed", "model_not_allowed", corsHeaders);
       }
 
       const requestBody: any = {
@@ -168,10 +144,7 @@ serve(withSentry(async (req) => {
       const json = await resp.json();
       if (!resp.ok) {
         console.error("OpenAI chat error:", json);
-        return new Response(JSON.stringify({ error: "OpenAI API error" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonError(500, "openai_api_error", "OpenAI API error", corsHeaders);
       }
 
       const text = json?.choices?.[0]?.message?.content ?? "";
@@ -182,9 +155,6 @@ serve(withSentry(async (req) => {
     }
   } catch (error) {
     console.error("Unexpected error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonError(500, "internal_server_error", "Internal server error", corsHeaders);
   }
 }), { name: "ai-generate" }));

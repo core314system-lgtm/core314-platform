@@ -1,4 +1,4 @@
-import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
