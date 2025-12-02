@@ -113,15 +113,15 @@ async function runTests() {
       }
     });
     
-    if (error && error.message.includes('Missing prompt')) {
+    if (error && (error.message.includes('Missing prompt') || error.message.includes('empty_prompt'))) {
       logTest('Empty prompt error handling', true, 'Correctly rejected empty prompt');
-    } else if (data && data.error && data.error.includes('Missing prompt')) {
+    } else if (data && data.error && (data.error.includes('Missing prompt') || data.error.includes('empty_prompt'))) {
       logTest('Empty prompt error handling', true, 'Correctly rejected empty prompt');
     } else {
       logTest('Empty prompt error handling', false, 'Should reject empty prompts');
     }
   } catch (error) {
-    if (error.message.includes('Missing prompt') || error.message.includes('400')) {
+    if (error.message.includes('Missing prompt') || error.message.includes('empty_prompt') || error.message.includes('400')) {
       logTest('Empty prompt error handling', true, 'Correctly rejected empty prompt');
     } else {
       logTest('Empty prompt error handling', false, error.message);
