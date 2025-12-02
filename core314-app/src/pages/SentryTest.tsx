@@ -1,97 +1,65 @@
-import { useState } from 'react';
 import * as Sentry from '@sentry/react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function SentryTest() {
-  const [testResults, setTestResults] = useState<string[]>([]);
-
-  const addResult = (message: string) => {
-    setTestResults(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  const handleTestError = () => {
+    throw new Error('Test error from SentryTest page');
   };
 
-  const testException = () => {
-    try {
-      addResult('Triggering test exception...');
-      throw new Error('Sentry test exception from core314-app');
-    } catch (error) {
-      Sentry.captureException(error);
-      addResult('✅ Exception captured and sent to Sentry');
-    }
+  const handleConsoleError = () => {
+    console.error('Console error test');
   };
 
-  const testMessage = () => {
-    addResult('Sending test message...');
-    Sentry.captureMessage('Sentry test message from core314-app', 'info');
-    addResult('✅ Message sent to Sentry');
+  const handleCaptureMessage = () => {
+    Sentry.captureMessage('Manual message test');
   };
 
-  const testBreadcrumb = () => {
-    addResult('Adding test breadcrumb...');
-    Sentry.addBreadcrumb({
-      category: 'test',
-      message: 'Test breadcrumb from core314-app',
-      level: 'info',
-    });
-    addResult('✅ Breadcrumb added');
-  };
-
-  const testErrorBoundary = () => {
-    addResult('Triggering ErrorBoundary...');
-    throw new Error('Sentry ErrorBoundary test from core314-app');
+  const handleCaptureException = () => {
+    Sentry.captureException(new Error('Manual exception test'));
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Sentry Integration Test</CardTitle>
-          <CardDescription>
-            Test Sentry error tracking and monitoring for core314-app
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Button onClick={testException} variant="outline">
-              Test Exception
-            </Button>
-            <Button onClick={testMessage} variant="outline">
-              Test Message
-            </Button>
-            <Button onClick={testBreadcrumb} variant="outline">
-              Test Breadcrumb
-            </Button>
-            <Button onClick={testErrorBoundary} variant="destructive">
-              Test ErrorBoundary
-            </Button>
-          </div>
-
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Test Results</h3>
-            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md max-h-64 overflow-y-auto">
-              {testResults.length === 0 ? (
-                <p className="text-gray-500">No tests run yet. Click a button above to test.</p>
-              ) : (
-                <ul className="space-y-1 font-mono text-sm">
-                  {testResults.map((result, index) => (
-                    <li key={index}>{result}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-            <h4 className="font-semibold mb-2">Instructions</h4>
-            <ol className="list-decimal list-inside space-y-1 text-sm">
-              <li>Click the test buttons above to trigger Sentry events</li>
-              <li>Go to your Sentry dashboard for core314-app project</li>
-              <li>Verify that events appear in the Issues tab</li>
-              <li>Check that breadcrumbs and context are captured correctly</li>
-            </ol>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
+          Sentry Diagnostics Test Page
+        </h1>
+        
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-4">
+          <button
+            onClick={handleTestError}
+            className="w-full px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+          >
+            Trigger Test Error
+          </button>
+          
+          <button
+            onClick={handleConsoleError}
+            className="w-full px-4 py-3 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors font-medium"
+          >
+            Trigger Console Error
+          </button>
+          
+          <button
+            onClick={handleCaptureMessage}
+            className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+          >
+            Trigger Sentry.captureMessage
+          </button>
+          
+          <button
+            onClick={handleCaptureException}
+            className="w-full px-4 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors font-medium"
+          >
+            Trigger Sentry.captureException
+          </button>
+        </div>
+        
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Click each button to test different Sentry event types. Check your Sentry dashboard to verify events are being captured.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

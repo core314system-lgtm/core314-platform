@@ -60,6 +60,7 @@ function App() {
       <Routes>
         <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <AdminLogin />} />
         <Route path="/admin-health" element={<HealthCheck />} />
+        <Route path="/sentry-test" element={<SentryTest />} />
         
         <Route
           path="/"
@@ -108,7 +109,6 @@ function App() {
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="beta-feedback" element={<BetaFeedback />} />
           <Route path="beta-ops" element={<BetaOpsConsole />} />
-          <Route path="sentry-test" element={<SentryTest />} />
         </Route>
       </Routes>
     </Router>
