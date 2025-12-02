@@ -46,6 +46,7 @@ import { SelfTestPanel } from './components/monitoring/SelfTestPanel';
 import Billing from './pages/Billing';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
+import { SentryTest } from './pages/SentryTest';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 import { OrganizationProvider } from './contexts/OrganizationContext';
@@ -125,6 +126,7 @@ function App() {
             <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
             <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
             <Route path="feedback" element={<Feedback />} />
+            <Route path="sentry-test" element={<ProtectedRoute requireAdmin><SentryTest /></ProtectedRoute>} />
           </Route>
           <Route path="/oauth-callback" element={<OAuthCallback />} />
           </Routes>

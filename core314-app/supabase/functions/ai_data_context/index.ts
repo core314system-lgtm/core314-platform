@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface DataContext {
   global_fusion_score: number;
@@ -30,7 +31,10 @@ interface DataContextResponse {
   error?: string;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -168,4 +172,4 @@ Deno.serve(async (req) => {
       }
     );
   }
-});
+}), { name: "ai_data_context" }));

@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,10 @@ const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') || '';
 const SENDGRID_SENDER_EMAIL = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'support@core314.com';
 const SENDGRID_SENDER_NAME = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -178,4 +182,4 @@ serve(async (req) => {
       }
     );
   }
-});
+}), { name: "send-bulk-email" }));

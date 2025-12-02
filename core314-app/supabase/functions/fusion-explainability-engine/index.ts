@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +22,10 @@ interface ExplainabilityResponse {
   error?: string;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -340,4 +344,4 @@ serve(async (req) => {
       status: 500,
     });
   }
-});
+}), { name: "fusion-explainability-engine" }));

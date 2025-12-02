@@ -17,6 +17,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { applyReinforcement } from '../_private/core-fusion-feedback-engine.ts';
 import { logAuditEvent } from '../_shared/audit-logger.ts';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface CalibrationResult {
   event_type: string;
@@ -45,7 +46,10 @@ interface SyncResponse {
   timestamp: string;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -187,4 +191,4 @@ serve(async (req) => {
       }
     );
   }
-});
+}), { name: "cffe-reinforcement-sync" }));

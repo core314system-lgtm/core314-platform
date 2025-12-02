@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 const allowedOrigins = new Set([
   "https://admin.core314.com",
@@ -27,7 +28,10 @@ interface AIRequest {
   operation?: "chat" | "embedding";
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   const origin = req.headers.get("Origin");
   const corsHeaders = cors(origin);
 
@@ -100,7 +104,7 @@ serve(async (req) => {
 
   try {
     if (operation === "embedding") {
-      const resp = await fetch("https://api.openai.com/v1/embeddings", {
+      const resp = await (breadcrumb.openai("embeddings", undefined, body?.model), fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${openaiKey}`,
@@ -150,7 +154,7 @@ serve(async (req) => {
         requestBody.response_format = body.response_format;
       }
 
-      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      const resp = await (breadcrumb.openai("chat/completions", undefined, body?.model), fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${openaiKey}`,
@@ -181,4 +185,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}), { name: "ai-generate" }));

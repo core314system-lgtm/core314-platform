@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as Sentry from 'https://deno.land/x/sentry@7.119.0/index.mjs';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -291,7 +292,10 @@ async function sendEmailNotification(title: string, message: string, emailTo: st
   }
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -517,4 +521,4 @@ serve(async (req) => {
       }
     );
   }
-});
+}), { name: "core_notifications_gateway" }));

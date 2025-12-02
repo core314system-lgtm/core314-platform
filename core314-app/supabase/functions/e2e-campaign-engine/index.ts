@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface E2ECampaignRequest {
   test_mode?: 'functional' | 'performance' | 'resilience';
@@ -321,7 +322,10 @@ async function handleGet(req: Request, supabase: any): Promise<Response> {
 /**
  * Main handler
  */
-Deno.serve(async (req) => {
+Deno.serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -409,4 +413,4 @@ Deno.serve(async (req) => {
       }
     );
   }
-});
+}), { name: "e2e-campaign-engine" }));

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface CategorizeRequest {
   feedback_id: string;
@@ -19,7 +20,10 @@ interface AICategorizationResult {
   sentiment: string;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   try {
     if (req.method === 'OPTIONS') {
       return new Response(null, {
@@ -218,4 +222,4 @@ Feedback: "${feedback.message}"`;
       headers: { 'Content-Type': 'application/json' }
     });
   }
-});
+}), { name: "categorize-feedback" }));

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface ChurnScoreRequest {
   user_id: string;
@@ -15,7 +16,10 @@ interface ChurnScoreResult {
   prediction_reason: string;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   try {
     if (req.method === 'OPTIONS') {
       return new Response(null, {
@@ -210,4 +214,4 @@ serve(async (req) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
-});
+}), { name: "calc-churn-score" }));
