@@ -104,7 +104,8 @@ serve(withSentry(async (req) => {
 
   try {
     if (operation === "embedding") {
-      const resp = await (breadcrumb.openai("embeddings", undefined, body?.model), fetch("https://api.openai.com/v1/embeddings", {
+      breadcrumb.openai("embeddings", undefined, "text-embedding-3-small");
+      const resp = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${openaiKey}`,
@@ -154,7 +155,8 @@ serve(withSentry(async (req) => {
         requestBody.response_format = body.response_format;
       }
 
-      const resp = await (breadcrumb.openai("chat/completions", undefined, body?.model), fetch("https://api.openai.com/v1/chat/completions", {
+      breadcrumb.openai("chat/completions", undefined, model);
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${openaiKey}`,
