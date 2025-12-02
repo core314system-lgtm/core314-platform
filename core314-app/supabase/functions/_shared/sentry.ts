@@ -209,7 +209,8 @@ export async function handleSentryTest(req: Request): Promise<Response | null> {
 
 /**
  * Helper to create consistent error responses for Edge Functions.
- * Sets statusText to match the error code so supabase-js error.message contains the code.
+ * Includes multiple error fields (error, message, msg, code) to ensure supabase-js
+ * can surface the error code in error.message regardless of which field it prefers.
  * 
  * @param status HTTP status code (400, 401, 403, 404, 500, etc.)
  * @param code Error code string (e.g., 'empty_prompt', 'unauthorized', 'invalid_json')
@@ -223,9 +224,12 @@ export function jsonError(
   message?: string,
   extraHeaders?: Record<string, string>
 ): Response {
+  const errorMessage = message || code;
   const body = {
     error: code,
-    message: message || code,
+    message: errorMessage,
+    msg: errorMessage,  // supabase-js may prefer this field
+    code: code,         // redundant but ensures code is always available
   };
   
   const headers: Record<string, string> = {
@@ -237,7 +241,7 @@ export function jsonError(
     JSON.stringify(body),
     {
       status,
-      statusText: code, // Critical: supabase-js uses statusText for error.message
+      statusText: code, // Best-effort (HTTP/2 may drop this)
       headers,
     }
   );

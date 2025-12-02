@@ -88,6 +88,20 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy ai-generate Edge Function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          cd core314-app
+          supabase functions deploy ai-generate --project-ref $SUPABASE_PROJECT_REF
+        continue-on-error: false
+
       - name: Install test dependencies
         run: npm install @supabase/supabase-js
 
