@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface BetaReadinessResult {
   total_subsystems: number;
@@ -47,7 +48,10 @@ async function verifyPlatformAdmin(supabase: any, userId: string): Promise<boole
   return profile.is_platform_admin === true || profile.role === 'platform_admin';
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -204,4 +208,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}), { name: "beta-readiness-engine" }));

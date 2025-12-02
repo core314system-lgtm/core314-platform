@@ -18,6 +18,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    'import.meta.env.SENTRY_DSN_ADMIN': JSON.stringify(process.env.SENTRY_DSN_ADMIN),
+    'import.meta.env.SENTRY_ENVIRONMENT': JSON.stringify(process.env.SENTRY_ENVIRONMENT || 'beta-test'),
+  },
   build: {
     sourcemap: true,
   },

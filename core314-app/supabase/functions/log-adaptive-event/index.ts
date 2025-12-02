@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
 import { runFusionFeedbackCycle } from '../_private/core-fusion-feedback-engine.ts';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 
 interface AdaptiveEventRequest {
@@ -86,7 +87,10 @@ function validateAuthentication(req: Request): boolean {
 }
 
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -204,4 +208,4 @@ serve(async (req) => {
       }
     );
   }
-});
+}), { name: "log-adaptive-event" }));

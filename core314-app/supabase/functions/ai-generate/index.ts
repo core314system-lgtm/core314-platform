@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 const allowedOrigins = new Set([
   "https://admin.core314.com",
@@ -27,7 +28,10 @@ interface AIRequest {
   operation?: "chat" | "embedding";
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   const origin = req.headers.get("Origin");
   const corsHeaders = cors(origin);
 
@@ -100,6 +104,7 @@ serve(async (req) => {
 
   try {
     if (operation === "embedding") {
+      breadcrumb.openai("embeddings", undefined, "text-embedding-3-small");
       const resp = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
         headers: {
@@ -150,6 +155,7 @@ serve(async (req) => {
         requestBody.response_format = body.response_format;
       }
 
+      breadcrumb.openai("chat/completions", undefined, model);
       const resp = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -181,4 +187,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}), { name: "ai-generate" }));

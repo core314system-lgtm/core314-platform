@@ -42,6 +42,7 @@ import BetaOpsConsole from './pages/admin/BetaOpsConsole';
 import HealthCheck from './pages/HealthCheck';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
+import { SentryTest } from './pages/SentryTest';
 
 function App() {
   const { isAuthenticated, loading } = useAdminAuth();
@@ -107,6 +108,7 @@ function App() {
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="beta-feedback" element={<BetaFeedback />} />
           <Route path="beta-ops" element={<BetaOpsConsole />} />
+          <Route path="sentry-test" element={<SentryTest />} />
         </Route>
       </Routes>
     </Router>

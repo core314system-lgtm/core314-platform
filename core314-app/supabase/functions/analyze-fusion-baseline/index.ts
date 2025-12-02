@@ -17,6 +17,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { createAdminClient } from '../_shared/integration-utils.ts';
 import { logAuditEvent } from '../_shared/audit-logger.ts';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 interface BaselineMetrics {
   event_type: string;
@@ -35,7 +36,10 @@ interface BaselineResponse {
   summary: BaselineMetrics[];
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -195,4 +199,4 @@ serve(async (req) => {
       }
     );
   }
-});
+}), { name: "analyze-fusion-baseline" }));

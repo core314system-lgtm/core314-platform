@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +24,10 @@ const CORE314_TABLES = [
   'dashboards', 'dashboard_widgets', 'goals', 'user_sessions', 'schema_cache'
 ];
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -57,7 +61,8 @@ serve(async (req) => {
 
     for (const tableName of CORE314_TABLES) {
       try {
-        const { data, error } = await supabase.from(tableName).select('*').limit(1);
+        breadcrumb.supabase("query");
+  const { data, error } = await supabase.from(tableName).select('*').limit(1);
 
         if (error) {
           if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
@@ -145,4 +150,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}), { name: "maintain-schema-integrity" }));

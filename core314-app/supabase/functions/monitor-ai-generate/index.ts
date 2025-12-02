@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
 /**
  * Monitor AI Generate Function
@@ -25,7 +26,10 @@ interface ErrorStats {
   }>;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   try {
     console.log('🔍 Starting AI function monitoring check...');
 

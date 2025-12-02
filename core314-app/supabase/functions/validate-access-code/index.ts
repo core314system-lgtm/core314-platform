@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -30,4 +34,4 @@ serve(async (req) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 });
   }
-});
+}), { name: "validate-access-code" }));

@@ -1,3 +1,5 @@
+import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -114,7 +116,10 @@ const REVOKED_TEMPLATE = `<!DOCTYPE html>
 </body>
 </html>`;
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -213,4 +218,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
-})
+}), { name: "beta-notify" }));
