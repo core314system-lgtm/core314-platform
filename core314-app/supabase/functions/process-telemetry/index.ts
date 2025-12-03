@@ -1,7 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -95,9 +95,20 @@ serve(withSentry(async (req) => {
     const thresholdChecks = await Promise.all(
       normalizedMetrics.map(async (metric) => {
         try {
-          const { data: thresholds, error: thresholdError } = await supabaseClient
+          const userScopedClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            {
+              global: {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            }
+          );
+          
+          const { data: thresholds, error: thresholdError } = await userScopedClient
             .rpc('get_active_thresholds', {
-              p_user_id: user.id,
               p_metric_name: metric.metric_name,
             });
 

@@ -206,3 +206,43 @@ export async function handleSentryTest(req: Request): Promise<Response | null> {
   
   return null;
 }
+
+/**
+ * Helper to create consistent error responses for Edge Functions.
+ * Includes multiple error fields (error, message, msg, code) to ensure supabase-js
+ * can surface the error code in error.message regardless of which field it prefers.
+ * 
+ * @param status HTTP status code (400, 401, 403, 404, 500, etc.)
+ * @param code Error code string (e.g., 'empty_prompt', 'unauthorized', 'invalid_json')
+ * @param message Human-readable error message (defaults to code if not provided)
+ * @param extraHeaders Additional headers to include (e.g., CORS headers)
+ * @returns Response object with consistent error format
+ */
+export function jsonError(
+  status: number,
+  code: string,
+  message?: string,
+  extraHeaders?: Record<string, string>
+): Response {
+  const errorMessage = message || code;
+  const body = {
+    error: code,
+    message: errorMessage,
+    msg: errorMessage,  // supabase-js may prefer this field
+    code: code,         // redundant but ensures code is always available
+  };
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  };
+  
+  return new Response(
+    JSON.stringify(body),
+    {
+      status,
+      statusText: code, // Best-effort (HTTP/2 may drop this)
+      headers,
+    }
+  );
+}

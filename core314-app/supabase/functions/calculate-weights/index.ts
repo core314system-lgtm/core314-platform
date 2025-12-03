@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
 const ALPHA = 0.3;
 const BETA = 0.5;

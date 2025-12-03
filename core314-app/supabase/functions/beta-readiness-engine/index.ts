@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
-import { withSentry, breadcrumb, handleSentryTest } from "../_shared/sentry.ts";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
 interface BetaReadinessResult {
   total_subsystems: number;
