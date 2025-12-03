@@ -65,27 +65,43 @@ const criticalTables = [
 ];
 
 for (const tableName of criticalTables) {
-  const { data, error } = await supabase.rpc('exec_sql', {
-    sql: `
-      SELECT 
-        relname AS table_name,
-        relrowsecurity AS rls_enabled
-      FROM pg_class
-      WHERE relnamespace = 'public'::regnamespace
-        AND relkind = 'r'
-        AND relname = '${tableName}'
-    `
-  }).catch(() => ({ data: null, error: 'exec_sql function not available' }));
+  let data = null;
+  let error = null;
+  
+  try {
+    const result = await supabase.rpc('exec_sql', {
+      sql: `
+        SELECT 
+          relname AS table_name,
+          relrowsecurity AS rls_enabled
+        FROM pg_class
+        WHERE relnamespace = 'public'::regnamespace
+          AND relkind = 'r'
+          AND relname = '${tableName}'
+      `
+    });
+    data = result.data;
+    error = result.error;
+  } catch (e) {
+    error = 'exec_sql function not available';
+  }
 
   if (error || !data || data.length === 0) {
     // Fallback: Try direct query
-    const { data: tableData, error: tableError } = await supabase
-      .from('pg_tables')
-      .select('*')
-      .eq('schemaname', 'public')
-      .eq('tablename', tableName)
-      .single()
-      .catch(() => ({ data: null, error: 'Cannot verify RLS status' }));
+    let tableData = null;
+    let tableError = null;
+    try {
+      const result = await supabase
+        .from('pg_tables')
+        .select('*')
+        .eq('schemaname', 'public')
+        .eq('tablename', tableName)
+        .single();
+      tableData = result.data;
+      tableError = result.error;
+    } catch (e) {
+      tableError = { message: 'Cannot verify RLS status' };
+    }
 
     if (tableError) {
       logCheck(`RLS on ${tableName}`, false, `Cannot verify: ${tableError.message || error}`);
@@ -126,11 +142,17 @@ console.log('\n📋 CHECK 3: New Secure Function Signatures');
 console.log('-'.repeat(80));
 
 // Test get_active_thresholds with new signature (single parameter)
-const { data: thresholdsTest, error: thresholdsError } = await supabase
-  .rpc('get_active_thresholds', {
+let thresholdsTest = null;
+let thresholdsError = null;
+try {
+  const result = await supabase.rpc('get_active_thresholds', {
     p_metric_name: 'test_metric',
-  })
-  .catch((err) => ({ data: null, error: err }));
+  });
+  thresholdsTest = result.data;
+  thresholdsError = result.error;
+} catch (err) {
+  thresholdsError = err;
+}
 
 logCheck(
   'get_active_thresholds(p_metric_name)',
@@ -139,11 +161,17 @@ logCheck(
 );
 
 // Test get_unacknowledged_alerts with new signature (single parameter)
-const { data: alertsTest, error: alertsError } = await supabase
-  .rpc('get_unacknowledged_alerts', {
+let alertsTest = null;
+let alertsError = null;
+try {
+  const result = await supabase.rpc('get_unacknowledged_alerts', {
     p_limit: 10,
-  })
-  .catch((err) => ({ data: null, error: err }));
+  });
+  alertsTest = result.data;
+  alertsError = result.error;
+} catch (err) {
+  alertsError = err;
+}
 
 logCheck(
   'get_unacknowledged_alerts(p_limit)',
@@ -152,11 +180,17 @@ logCheck(
 );
 
 // Test acknowledge_alert with new signature (single parameter)
-const { data: ackTest, error: ackError } = await supabase
-  .rpc('acknowledge_alert', {
-    p_alert_id: '00000000-0000-0000-0000-000000000000', // Dummy UUID
-  })
-  .catch((err) => ({ data: null, error: err }));
+let ackTest = null;
+let ackError = null;
+try {
+  const result = await supabase.rpc('acknowledge_alert', {
+    p_alert_id: '00000000-0000-0000-0000-000000000000',
+  });
+  ackTest = result.data;
+  ackError = result.error;
+} catch (err) {
+  ackError = err;
+}
 
 logCheck(
   'acknowledge_alert(p_alert_id)',
@@ -172,12 +206,16 @@ console.log('\n📋 CHECK 4: Old Insecure Function Signatures Removed');
 console.log('-'.repeat(80));
 
 // Try calling old signature - should fail
-const { error: oldThresholdsError } = await supabase
-  .rpc('get_active_thresholds', {
+let oldThresholdsError = null;
+try {
+  const result = await supabase.rpc('get_active_thresholds', {
     p_user_id: '00000000-0000-0000-0000-000000000000',
     p_metric_name: 'test_metric',
-  })
-  .catch((err) => ({ error: err }));
+  });
+  oldThresholdsError = result.error;
+} catch (err) {
+  oldThresholdsError = err;
+}
 
 logCheck(
   'get_active_thresholds(p_user_id, p_metric_name) removed',
