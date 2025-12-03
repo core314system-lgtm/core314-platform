@@ -3,26 +3,9 @@ import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App.tsx'
+import { initSentry } from './lib/sentry'
 
-if (import.meta.env.SENTRY_DSN_APP) {
-  Sentry.init({
-    dsn: import.meta.env.SENTRY_DSN_APP,
-    environment: import.meta.env.SENTRY_ENVIRONMENT || 'beta-test',
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: false,
-        blockAllMedia: false,
-      }),
-      Sentry.captureConsoleIntegration({ levels: ['error'] }),
-    ],
-    tracesSampleRate: 0.2, // 20% sampling to reduce volume during beta
-    replaysSessionSampleRate: 0.1, // 10% of sessions
-    replaysOnErrorSampleRate: 1.0, // 100% of error sessions
-  })
-  
-  Sentry.setTag('app', 'core314-app')
-}
+initSentry()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

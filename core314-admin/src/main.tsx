@@ -4,26 +4,9 @@ import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App.tsx'
 import { validateEnv } from './lib/validateEnv'
+import { initSentry } from './lib/sentry'
 
-if (import.meta.env.SENTRY_DSN_ADMIN) {
-  Sentry.init({
-    dsn: import.meta.env.SENTRY_DSN_ADMIN,
-    environment: import.meta.env.SENTRY_ENVIRONMENT || 'beta-test',
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: false,
-        blockAllMedia: false,
-      }),
-      Sentry.captureConsoleIntegration({ levels: ['error'] }),
-    ],
-    tracesSampleRate: 0.2, // 20% sampling to reduce volume during beta
-    replaysSessionSampleRate: 0.1, // 10% of sessions
-    replaysOnErrorSampleRate: 1.0, // 100% of error sessions
-  })
-  
-  Sentry.setTag('app', 'core314-admin')
-}
+initSentry()
 
 try {
   validateEnv();

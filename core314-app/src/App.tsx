@@ -47,6 +47,7 @@ import Billing from './pages/Billing';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
 import { SentryTest } from './pages/SentryTest';
+import SentryVerify from './pages/SentryVerify';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
 import { OrganizationProvider } from './contexts/OrganizationContext';
@@ -76,6 +77,9 @@ function App() {
         <Route path="/beta-invite" element={<BetaInvite />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
         <Route path="/sentry-test" element={<SentryTest />} />
+        {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
+          <Route path="/sentry-verify" element={<SentryVerify />} />
+        )}
         
         {/* Protected routes - auth required, wrapped with providers */}
         <Route
