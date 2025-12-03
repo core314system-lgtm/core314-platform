@@ -38,7 +38,7 @@ ALTER TABLE public.beta_users FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.beta_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.beta_feedback FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.beta_user_notes FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.beta_feature_usage FORCE ROW LEVEL SECURITY;
+-- ALTER TABLE public.beta_feature_usage FORCE ROW LEVEL SECURITY; -- Does not exist in production
 ALTER TABLE public.fusion_neural_policy_weights FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.fusion_explainability_log FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.fusion_adaptive_policies FORCE ROW LEVEL SECURITY;
@@ -59,14 +59,14 @@ ALTER TABLE public.fusion_e2e_results FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.fusion_e2e_sessions FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.telemetry_metrics FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.integration_credentials FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.integration_sync_log FORCE ROW LEVEL SECURITY;
+-- ALTER TABLE public.integration_credentials FORCE ROW LEVEL SECURITY; -- Does not exist in production
+-- ALTER TABLE public.integration_sync_log FORCE ROW LEVEL SECURITY; -- Does not exist in production
 ALTER TABLE public.ai_agents FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_tasks FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_rules FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_logs FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.alerts FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.alert_throttle FORCE ROW LEVEL SECURITY;
+-- ALTER TABLE public.alerts FORCE ROW LEVEL SECURITY; -- Does not exist in production
+-- ALTER TABLE public.alert_throttle FORCE ROW LEVEL SECURITY; -- Does not exist in production
 ALTER TABLE public.audit_logs FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_metrics FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.adaptive_workflow_metrics FORCE ROW LEVEL SECURITY;
