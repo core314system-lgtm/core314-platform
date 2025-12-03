@@ -95,9 +95,20 @@ serve(withSentry(async (req) => {
     const thresholdChecks = await Promise.all(
       normalizedMetrics.map(async (metric) => {
         try {
-          const { data: thresholds, error: thresholdError } = await supabaseClient
+          const userScopedClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            {
+              global: {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            }
+          );
+          
+          const { data: thresholds, error: thresholdError } = await userScopedClient
             .rpc('get_active_thresholds', {
-              p_user_id: user.id,
               p_metric_name: metric.metric_name,
             });
 
