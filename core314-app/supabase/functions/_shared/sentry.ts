@@ -121,18 +121,16 @@ function extractUserIdFromJWT(req: Request): string | undefined {
 }
 
 /**
- * Calculate request/response size safely
+ * Get size from Content-Length header
+ * Does not read body to avoid consuming the stream
  */
-async function calculateSize(data: Request | Response): Promise<number> {
+function getSizeFromHeaders(data: Request | Response): number {
   try {
     const contentLength = data.headers.get('Content-Length');
     if (contentLength) {
       return parseInt(contentLength, 10);
     }
-    
-    const cloned = data.clone();
-    const text = await cloned.text();
-    return text.length;
+    return 0;
   } catch {
     return 0;
   }
@@ -160,8 +158,10 @@ export function withSentry<T>(
         Sentry.setUser({ id: userId });
       }
       
-      const inputSize = await calculateSize(req);
-      Sentry.setTag('input_size_bytes', inputSize.toString());
+      const inputSize = getSizeFromHeaders(req);
+      if (inputSize > 0) {
+        Sentry.setTag('input_size_bytes', inputSize.toString());
+      }
 
       Sentry.addBreadcrumb({
         category: 'http',
@@ -178,8 +178,10 @@ export function withSentry<T>(
       const response = await handler(req);
       const duration = performance.now() - startTime;
       
-      const outputSize = await calculateSize(response);
-      Sentry.setTag('output_size_bytes', outputSize.toString());
+      const outputSize = getSizeFromHeaders(response);
+      if (outputSize > 0) {
+        Sentry.setTag('output_size_bytes', outputSize.toString());
+      }
       Sentry.setTag('duration_ms', Math.round(duration).toString());
 
       Sentry.addBreadcrumb({
