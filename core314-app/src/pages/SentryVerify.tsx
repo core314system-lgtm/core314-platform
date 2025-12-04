@@ -5,7 +5,7 @@
  * Guarded by VITE_DEV_SENTRY_VERIFY flag and ?ok=1 query parameter
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -17,6 +17,16 @@ export default function SentryVerify() {
     const timestamp = new Date().toLocaleTimeString();
     setResults(prev => [...prev, `${timestamp}: ${message}`]);
   };
+  
+  useEffect(() => {
+    console.log('🧪 SentryVerify mounted - firing test events');
+    
+    Sentry.captureMessage('SentryVerify: Test message on mount');
+    
+    Sentry.captureException(new Error('SentryVerify: Test exception on mount'));
+    
+    console.log('🧪 Test events fired - check Network tab for "envelope" requests to sentry.io');
+  }, []);
   
   const testMessage = () => {
     addResult('Sending test message...');
