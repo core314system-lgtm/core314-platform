@@ -83,6 +83,59 @@ export const breadcrumb = {
   },
 };
 
+/**
+ * Normalize error messages to reduce duplicate issues
+ * Strips UUIDs, IDs, timestamps, and other dynamic values
+ */
+function normalizeErrorMessage(message: string): string {
+  return message
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<uuid>')
+    .replace(/\b\d{6,}\b/g, '<id>')
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, '<timestamp>')
+    .replace(/\d{13,}/g, '<timestamp_ms>')
+    .replace(/0x[0-9a-f]+/gi, '<hex>');
+}
+
+/**
+ * Extract user ID from JWT Authorization header
+ * Decodes without verification (trusts Supabase)
+ */
+function extractUserIdFromJWT(req: Request): string | undefined {
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return undefined;
+    }
+    
+    const token = authHeader.substring(7);
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return undefined;
+    }
+    
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Get size from Content-Length header
+ * Does not read body to avoid consuming the stream
+ */
+function getSizeFromHeaders(data: Request | Response): number {
+  try {
+    const contentLength = data.headers.get('Content-Length');
+    if (contentLength) {
+      return parseInt(contentLength, 10);
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function withSentry<T>(
   handler: (req: Request) => Promise<Response> | Response,
   options: { name: string }
@@ -93,11 +146,22 @@ export function withSentry<T>(
     }
 
     const requestId = crypto.randomUUID();
+    const startTime = performance.now();
     
     try {
       Sentry.setTag('function_name', options.name);
       Sentry.setTag('request_id', requestId);
       Sentry.setTag('environment', SENTRY_ENVIRONMENT);
+      
+      const userId = extractUserIdFromJWT(req);
+      if (userId) {
+        Sentry.setUser({ id: userId });
+      }
+      
+      const inputSize = getSizeFromHeaders(req);
+      if (inputSize > 0) {
+        Sentry.setTag('input_size_bytes', inputSize.toString());
+      }
 
       Sentry.addBreadcrumb({
         category: 'http',
@@ -106,11 +170,19 @@ export function withSentry<T>(
           method: req.method,
           url: req.url,
           request_id: requestId,
+          input_size: inputSize,
         },
         level: 'info',
       });
 
       const response = await handler(req);
+      const duration = performance.now() - startTime;
+      
+      const outputSize = getSizeFromHeaders(response);
+      if (outputSize > 0) {
+        Sentry.setTag('output_size_bytes', outputSize.toString());
+      }
+      Sentry.setTag('duration_ms', Math.round(duration).toString());
 
       Sentry.addBreadcrumb({
         category: 'http',
@@ -118,23 +190,32 @@ export function withSentry<T>(
         data: {
           status: response.status,
           request_id: requestId,
+          duration_ms: Math.round(duration),
+          output_size: outputSize,
         },
         level: response.status >= 400 ? 'warning' : 'info',
       });
 
       return response;
     } catch (error) {
+      const duration = performance.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const normalizedMessage = normalizeErrorMessage(errorMessage);
+      
       Sentry.captureException(error, {
         tags: {
           function_name: options.name,
           request_id: requestId,
           environment: SENTRY_ENVIRONMENT,
+          duration_ms: Math.round(duration).toString(),
         },
         extra: {
           method: req.method,
           url: req.url,
           headers: Object.fromEntries(req.headers.entries()),
+          normalized_message: normalizedMessage,
         },
+        fingerprint: ['edge', options.name, normalizedMessage],
       });
 
       await Sentry.flush(2000);

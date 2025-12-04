@@ -43,6 +43,7 @@ import HealthCheck from './pages/HealthCheck';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import { SentryTest } from './pages/SentryTest';
+import SentryVerify from './pages/SentryVerify';
 
 function App() {
   const { isAuthenticated, loading } = useAdminAuth();
@@ -109,6 +110,9 @@ function App() {
           <Route path="beta-feedback" element={<BetaFeedback />} />
           <Route path="beta-ops" element={<BetaOpsConsole />} />
           <Route path="sentry-test" element={<SentryTest />} />
+          {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
+            <Route path="sentry-verify" element={<SentryVerify />} />
+          )}
         </Route>
       </Routes>
     </Router>
