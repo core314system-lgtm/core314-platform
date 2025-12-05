@@ -12,9 +12,18 @@ import { wrapFetchWithBreadcrumbs } from './breadcrumbs';
 
 /**
  * Initialize Sentry with all configurations
+ * Fetches DSN at runtime to keep it out of the client bundle
  */
-export function initSentry(): void {
-  const dsn = import.meta.env.VITE_SENTRY_DSN_ADMIN;
+export async function initSentry(): Promise<void> {
+  let dsn: string | null = null;
+  
+  try {
+    const response = await fetch('/.netlify/functions/get-sentry-config');
+    const config = await response.json();
+    dsn = config.dsn;
+  } catch (error) {
+    return;
+  }
   
   if (!dsn) {
     return;

@@ -6,7 +6,8 @@ import App from './App.tsx'
 import { validateEnv } from './lib/validateEnv'
 import { initSentry } from './lib/sentry'
 
-initSentry()
+initSentry().catch(() => {
+});
 
 try {
   validateEnv();
