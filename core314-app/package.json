@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node ./scripts/verify-no-dsn.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "migrate": "node scripts/run-migration-programmatic.js"

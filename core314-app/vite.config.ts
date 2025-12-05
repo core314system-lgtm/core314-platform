@@ -24,7 +24,7 @@ export default defineConfig({
     'import.meta.env.VITE_CONTEXT': JSON.stringify(process.env.CONTEXT || 'development'),
   },
   build: {
-    sourcemap: true,
+    sourcemap: false,
   },
 })
 
