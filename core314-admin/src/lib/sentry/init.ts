@@ -14,10 +14,9 @@ import { wrapFetchWithBreadcrumbs } from './breadcrumbs';
  * Initialize Sentry with all configurations
  */
 export function initSentry(): void {
-  const dsn = import.meta.env.SENTRY_DSN_APP;
+  const dsn = import.meta.env.VITE_SENTRY_DSN_ADMIN;
   
   if (!dsn) {
-    console.warn('Sentry DSN not configured, skipping initialization');
     return;
   }
   
@@ -63,10 +62,4 @@ export function initSentry(): void {
   initLongTaskDetection();
   
   wrapFetchWithBreadcrumbs();
-  
-  console.info('✅ Sentry initialized', {
-    release: getRelease(),
-    environment: getEnvironment(),
-    buildId: getBuildId(),
-  });
 }

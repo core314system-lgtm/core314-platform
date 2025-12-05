@@ -19,13 +19,8 @@ export default function SentryVerify() {
   };
   
   useEffect(() => {
-    console.log('🧪 SentryVerify mounted - firing test events');
-    
     Sentry.captureMessage('SentryVerify: Test message on mount');
-    
     Sentry.captureException(new Error('SentryVerify: Test exception on mount'));
-    
-    console.log('🧪 Test events fired - check Network tab for "envelope" requests to sentry.io');
   }, []);
   
   const testMessage = () => {
