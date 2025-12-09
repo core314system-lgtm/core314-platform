@@ -3,13 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "migrate": "node scripts/run-migration-programmatic.js"
-  },
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc -b && vite build",
+      "postbuild": "node ./scripts/verify-no-dsn.js",
+      "lint": "eslint .",
+      "preview": "vite preview",
+      "migrate": "node scripts/run-migration-programmatic.js"
+    },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@netlify/functions": "^4.3.0",
