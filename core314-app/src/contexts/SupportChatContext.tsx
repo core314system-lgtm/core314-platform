@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from './SupabaseClientContext';
+import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { ChatMessage } from '../types';
 import { toast } from 'sonner';
@@ -19,6 +20,7 @@ const SupportChatContext = createContext<SupportChatContextType | undefined>(und
 
 export function SupportChatProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const supabase = useSupabaseClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -86,7 +88,7 @@ export function SupportChatProvider({ children }: { children: ReactNode }) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonKey = await getSupabaseAnonKey();
       
       const headers = {
         'Content-Type': 'application/json',
@@ -95,8 +97,9 @@ export function SupportChatProvider({ children }: { children: ReactNode }) {
           : `Bearer ${anonKey}`,
       };
 
+      const url = await getSupabaseFunctionUrl('support-chat-handler');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/support-chat-handler`,
+        url,
         {
           method: 'POST',
           headers,
@@ -142,8 +145,9 @@ export function SupportChatProvider({ children }: { children: ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('ai-feedback');
       await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-feedback`,
+        url,
         {
           method: 'POST',
           headers: {

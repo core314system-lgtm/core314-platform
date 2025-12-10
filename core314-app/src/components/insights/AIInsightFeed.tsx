@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Brain, TrendingUp, AlertTriangle, Info, XCircle, Sparkles, RefreshCw } from 'lucide-react';
 
 interface Insight {
@@ -14,6 +15,7 @@ interface Insight {
 }
 
 export const AIInsightFeed: React.FC = () => {
+  const supabase = useSupabaseClient();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,8 +77,9 @@ export const AIInsightFeed: React.FC = () => {
         throw new Error('Not authenticated');
       }
 
+      const url = await getSupabaseFunctionUrl('generate-insights');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-insights`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -119,8 +122,9 @@ export const AIInsightFeed: React.FC = () => {
 
       const metricNames = (insight as any).metrics_analyzed?.map((m: any) => m.name) || [];
 
+      const url = await getSupabaseFunctionUrl('generate-insights');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-insights`,
+        url,
         {
           method: 'POST',
           headers: {

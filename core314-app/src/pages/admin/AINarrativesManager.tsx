@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -9,6 +10,7 @@ import type { EventNarrative } from '../../types';
 
 export function AINarrativesManager() {
   const { currentOrganization } = useOrganization();
+  const supabase = useSupabaseClient();
   const [narratives, setNarratives] = useState<EventNarrative[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -27,8 +29,9 @@ export function AINarrativesManager() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const baseUrl = await getSupabaseFunctionUrl('narrative-list');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/narrative-list?organization_id=${currentOrganization.id}`,
+        `${baseUrl}?organization_id=${currentOrganization.id}`,
         {
           method: 'GET',
           headers: {
@@ -56,8 +59,9 @@ export function AINarrativesManager() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('narrative-generate');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/narrative-generate`,
+        url,
         {
           method: 'POST',
           headers: {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -13,6 +14,7 @@ import type { EventSimulation } from '../../types';
 
 export function SimulationsManager() {
   const { currentOrganization } = useOrganization();
+  const supabase = useSupabaseClient();
   const [simulations, setSimulations] = useState<EventSimulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -38,15 +40,16 @@ export function SimulationsManager() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/simulate-list?organization_id=${currentOrganization.id}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
-      );
+            const baseUrl = await getSupabaseFunctionUrl('simulate-list');
+            const response = await fetch(
+              `${baseUrl}?organization_id=${currentOrganization.id}`,
+              {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+              }
+            );
 
       const data = await response.json();
       if (response.ok) {
@@ -92,28 +95,29 @@ export function SimulationsManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!session || !user) return;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/simulate-run`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            organization_id: currentOrganization.id,
-            user_id: user.id,
-            name: simulationName,
-            inputs: {
-              weights: {
-                Slack: slackWeight[0],
-                Teams: teamsWeight[0],
-              },
-              confidence: confidence[0],
-            },
-          }),
-        }
-      );
+            const url = await getSupabaseFunctionUrl('simulate-run');
+            const response = await fetch(
+              url,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  organization_id: currentOrganization.id,
+                  user_id: user.id,
+                  name: simulationName,
+                  inputs: {
+                    weights: {
+                      Slack: slackWeight[0],
+                      Teams: teamsWeight[0],
+                    },
+                    confidence: confidence[0],
+                  },
+                }),
+              }
+            );
 
       if (response.ok) {
         await fetchSimulations();
@@ -139,17 +143,18 @@ export function SimulationsManager() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/simulate-delete`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ simulation_id: simulationId }),
-        }
-      );
+            const deleteUrl = await getSupabaseFunctionUrl('simulate-delete');
+            const response = await fetch(
+              deleteUrl,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ simulation_id: simulationId }),
+              }
+            );
 
       if (response.ok) {
         await fetchSimulations();

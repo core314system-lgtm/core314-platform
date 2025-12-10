@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from '../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -37,6 +38,7 @@ export function OptimizationEngine() {
   const { profile } = useAuth();
   const { subscription } = useSubscription(profile?.id);
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   
   const [loading, setLoading] = useState(false);
   const [engineEnabled, setEngineEnabled] = useState(true);
@@ -100,30 +102,31 @@ export function OptimizationEngine() {
     }
   };
 
-  const fetchRecommendations = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+    const fetchRecommendations = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/optimize-recommendations`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
-      );
+        const url = await getSupabaseFunctionUrl('optimize-recommendations');
+        const response = await fetch(
+          url,
+          {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+          }
+        );
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.recommendations) {
-          setRecommendations(result.recommendations);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.recommendations) {
+            setRecommendations(result.recommendations);
+          }
         }
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
       }
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
-    }
-  };
+    };
 
   const handleToggleEngine = async () => {
     setEngineEnabled(!engineEnabled);
@@ -135,22 +138,23 @@ export function OptimizationEngine() {
     });
   };
 
-  const handleApplyRecommendation = async (recommendationId: string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+    const handleApplyRecommendation = async (recommendationId: string) => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/optimize-analyze`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ recommendationId }),
-        }
-      );
+        const url = await getSupabaseFunctionUrl('optimize-analyze');
+        const response = await fetch(
+          url,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ recommendationId }),
+          }
+        );
 
       if (response.ok) {
         toast({

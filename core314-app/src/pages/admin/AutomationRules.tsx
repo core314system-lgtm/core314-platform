@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -40,6 +41,7 @@ export function AutomationRules() {
   const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [loading, setLoading] = useState(false);
@@ -236,14 +238,15 @@ export function AutomationRules() {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-auto-decide`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ manual: true }),
-      });
+            const url = await getSupabaseFunctionUrl('fusion-auto-decide');
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ manual: true }),
+            });
 
       const result = await response.json();
 

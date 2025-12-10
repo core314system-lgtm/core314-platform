@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { initSupabaseClient, getSupabaseFunctionUrl } from './supabase';
 
 export interface AutomationEvent {
   organization_id: string;
@@ -10,14 +10,16 @@ export interface AutomationEvent {
 
 export async function dispatchEvent(event: AutomationEvent): Promise<boolean> {
   try {
+    const supabase = await initSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       console.error('No session available for event dispatch');
       return false;
     }
 
+    const url = await getSupabaseFunctionUrl('automation-evaluate');
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-evaluate`,
+      url,
       {
         method: 'POST',
         headers: {

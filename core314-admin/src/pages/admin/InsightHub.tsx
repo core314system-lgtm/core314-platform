@@ -1,11 +1,8 @@
 import React from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useSupabaseClient } from '@/contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl, getSupabaseAnonKeySync } from '@/lib/supabaseRuntimeConfig';
 import { Lightbulb, Download, RefreshCw, Play, TrendingUp, Activity } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface SystemInsight {
   id: string;
@@ -34,6 +31,7 @@ interface ExplainabilityResponse {
 }
 
 export function InsightHub() {
+  const supabase = useSupabaseClient();
   const [insights, setInsights] = React.useState<SystemInsight[]>([]);
   const [stats, setStats] = React.useState<InsightStats>({
     currentCohesionScore: 0,
@@ -104,12 +102,14 @@ export function InsightHub() {
   const triggerCohesionEngine = async () => {
     try {
       setTriggering(true);
+      const url = await getSupabaseFunctionUrl('fusion-cohesion-engine');
+      const anonKey = getSupabaseAnonKeySync();
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/fusion-cohesion-engine`,
+        url,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${anonKey}`,
             'Content-Type': 'application/json',
           },
         }
@@ -150,12 +150,14 @@ export function InsightHub() {
         params.append('phase', explainQuery.trim());
       }
 
+      const baseUrl = await getSupabaseFunctionUrl('fusion-explainability-engine');
+      const anonKey = getSupabaseAnonKeySync();
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/fusion-explainability-engine?${params.toString()}`,
+        `${baseUrl}?${params.toString()}`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${anonKey}`,
             'Content-Type': 'application/json',
           },
         }

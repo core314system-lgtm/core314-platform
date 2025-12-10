@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -34,6 +35,7 @@ interface TimeSeriesData {
 
 export function Governance() {
   const { currentOrganization } = useOrganization();
+  const supabase = useSupabaseClient();
   const [policies, setPolicies] = useState<GovernancePolicy[]>([]);
   const [audits, setAudits] = useState<GovernanceAudit[]>([]);
   const [summary, setSummary] = useState<GovernanceSummary | null>(null);
@@ -55,21 +57,23 @@ export function Governance() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const [policiesRes, auditsRes, summaryRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/governance-policies`, {
-          headers: { 'Authorization': `Bearer ${session.access_token}` },
-        }),
-        supabase
-          .from('fusion_governance_audit')
-          .select('*')
-          .eq('organization_id', currentOrganization!.id)
-          .order('created_at', { ascending: false })
-          .limit(50),
-        fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/governance-summary?organization_id=${currentOrganization!.id}&days=30`,
-          { headers: { 'Authorization': `Bearer ${session.access_token}` } }
-        ),
-      ]);
+            const policiesUrl = await getSupabaseFunctionUrl('governance-policies');
+            const summaryBaseUrl = await getSupabaseFunctionUrl('governance-summary');
+            const [policiesRes, auditsRes, summaryRes] = await Promise.all([
+              fetch(policiesUrl, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+              }),
+              supabase
+                .from('fusion_governance_audit')
+                .select('*')
+                .eq('organization_id', currentOrganization!.id)
+                .order('created_at', { ascending: false })
+                .limit(50),
+              fetch(
+                `${summaryBaseUrl}?organization_id=${currentOrganization!.id}&days=30`,
+                { headers: { 'Authorization': `Bearer ${session.access_token}` } }
+              ),
+            ]);
 
       const policiesData = await policiesRes.json();
       if (policiesRes.ok) {

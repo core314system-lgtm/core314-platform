@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { initSupabaseClient, getSupabaseFunctionUrl } from '../lib/supabase';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -80,13 +80,15 @@ export interface ScenarioResponse {
  */
 export async function fetchDataContext(): Promise<DataContext | null> {
   try {
+    const supabase = await initSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return null;
     }
 
+    const url = await getSupabaseFunctionUrl('ai_data_context');
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai_data_context`,
+      url,
       {
         method: 'GET',
         headers: {
@@ -117,6 +119,7 @@ export async function chatWithCore314(
   context?: ChatContext
 ): Promise<ChatResponse> {
   try {
+    const supabase = await initSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return { success: false, error: 'Not authenticated' };
@@ -124,8 +127,9 @@ export async function chatWithCore314(
 
     const dataContext = await fetchDataContext();
 
+    const url = await getSupabaseFunctionUrl('fusion_ai_gateway');
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion_ai_gateway`,
+      url,
       {
         method: 'POST',
         headers: {
@@ -166,13 +170,15 @@ export async function generateScenarios(
   request: ScenarioRequest = {}
 ): Promise<ScenarioResponse> {
   try {
+    const supabase = await initSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return { success: false, error: 'Not authenticated' };
     }
 
+    const url = await getSupabaseFunctionUrl('ai_scenario_generator');
     const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai_scenario_generator`,
+      url,
       {
         method: 'POST',
         headers: {

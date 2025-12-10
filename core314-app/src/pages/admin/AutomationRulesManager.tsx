@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -11,6 +12,7 @@ import type { EventAutomationRule } from '../../types';
 
 export function AutomationRulesManager() {
   const { currentOrganization } = useOrganization();
+  const supabase = useSupabaseClient();
   const [rules, setRules] = useState<EventAutomationRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -29,8 +31,9 @@ export function AutomationRulesManager() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const baseUrl = await getSupabaseFunctionUrl('automation-list');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-list?organization_id=${currentOrganization.id}`,
+        `${baseUrl}?organization_id=${currentOrganization.id}`,
         {
           method: 'GET',
           headers: {
@@ -67,8 +70,9 @@ export function AutomationRulesManager() {
 
       const newStatus = rule.status === 'active' ? 'paused' : 'active';
 
+      const url = await getSupabaseFunctionUrl('automation-update');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-update`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -99,8 +103,9 @@ export function AutomationRulesManager() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('automation-delete');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-delete`,
+        url,
         {
           method: 'POST',
           headers: {

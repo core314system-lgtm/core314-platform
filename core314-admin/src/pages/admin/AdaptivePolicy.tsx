@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -54,6 +55,7 @@ interface PolicyEngineResult {
 
 
 export function AdaptivePolicy() {
+  const supabase = useSupabaseClient();
   const [policies, setPolicies] = useState<AdaptivePolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [engineRunning, setEngineRunning] = useState(false);
@@ -131,8 +133,9 @@ export function AdaptivePolicy() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
+      const url = await getSupabaseFunctionUrl('adaptive-policy-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/adaptive-policy-engine`,
+        url,
         {
           method: 'POST',
           headers: {

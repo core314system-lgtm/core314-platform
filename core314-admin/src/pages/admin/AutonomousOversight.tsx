@@ -1,11 +1,8 @@
 import React from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl, getSupabaseAnonKeySync } from '../../lib/supabaseRuntimeConfig';
 import { Shield, AlertTriangle, Activity, Download, RefreshCw, Search } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface SystemContext {
   fusion_score?: number;
@@ -42,6 +39,7 @@ interface OversightStats {
 }
 
 export function AutonomousOversight() {
+  const supabase = useSupabaseClient();
   const [auditEntries, setAuditEntries] = React.useState<AuditLogEntry[]>([]);
   const [stats, setStats] = React.useState<OversightStats>({
     totalAuditEntries: 0,
@@ -109,17 +107,19 @@ export function AutonomousOversight() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchAuditEntries]);
+  }, [fetchAuditEntries, supabase]);
 
   const triggerOversight = async () => {
     try {
       setTriggering(true);
+      const url = await getSupabaseFunctionUrl('fusion-oversight-engine');
+      const anonKey = getSupabaseAnonKeySync();
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/fusion-oversight-engine`,
+        url,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${anonKey}`,
             'Content-Type': 'application/json',
           },
         }

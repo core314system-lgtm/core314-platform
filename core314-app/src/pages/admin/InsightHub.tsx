@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -24,6 +25,7 @@ interface OrgComparisonMetrics {
 
 export function InsightHub() {
   const { currentOrganization } = useOrganization();
+  const supabase = useSupabaseClient();
   const [latestInsight, setLatestInsight] = useState<GlobalInsight | null>(null);
   const [trends, setTrends] = useState<TrendDataPoint[]>([]);
   const [recommendations, setRecommendations] = useState<GlobalRecommendation[]>([]);
@@ -63,8 +65,9 @@ export function InsightHub() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const baseUrl = await getSupabaseFunctionUrl('insights-trends');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/insights-trends?limit=30`,
+        `${baseUrl}?limit=30`,
         {
           method: 'GET',
           headers: {
@@ -89,8 +92,9 @@ export function InsightHub() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('insights-recommendations');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/insights-recommendations`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -119,8 +123,9 @@ export function InsightHub() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('insights-aggregate');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/insights-aggregate`,
+        url,
         {
           method: 'POST',
           headers: {

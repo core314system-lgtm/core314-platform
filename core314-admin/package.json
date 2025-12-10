@@ -6,7 +6,7 @@
     "scripts": {
       "dev": "vite",
       "build": "tsc -b && vite build",
-      "postbuild": "node ./scripts/check-env-vars.js && node ./scripts/verify-no-dsn.js",
+      "postbuild": "node ./scripts/verify-no-secrets.js",
       "lint": "eslint .",
       "preview": "vite preview"
     },

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,6 +14,7 @@ interface CreateOrgModalProps {
 }
 
 export function CreateOrgModal({ open, onOpenChange, onSuccess }: CreateOrgModalProps) {
+  const supabase = useSupabaseClient();
   const [name, setName] = useState('');
   const [plan, setPlan] = useState('starter');
   const [loading, setLoading] = useState(false);
@@ -27,8 +29,9 @@ export function CreateOrgModal({ open, onOpenChange, onSuccess }: CreateOrgModal
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('organizations-create');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/organizations-create`,
+        url,
         {
           method: 'POST',
           headers: {

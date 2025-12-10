@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -16,6 +17,7 @@ interface CreateRuleModalProps {
 
 export function CreateRuleModal({ open, onOpenChange, onSuccess }: CreateRuleModalProps) {
   const { currentOrganization } = useOrganization();
+  const supabase = useSupabaseClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [triggerType, setTriggerType] = useState('fusion_score_drop');
@@ -36,8 +38,9 @@ export function CreateRuleModal({ open, onOpenChange, onSuccess }: CreateRuleMod
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('automation-create');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-create`,
+        url,
         {
           method: 'POST',
           headers: {

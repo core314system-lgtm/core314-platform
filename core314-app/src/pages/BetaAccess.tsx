@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { initSupabaseClient, getSupabaseFunctionUrl } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -22,11 +22,13 @@ export default function BetaAccess() {
     try {
       setLoading(true);
 
+      const supabase = await initSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
 
+      const url = await getSupabaseFunctionUrl('validate-access-code');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-access-code`,
+        url,
         {
           method: 'POST',
           headers: {

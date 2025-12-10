@@ -9,7 +9,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from '../contexts/SupabaseClientContext';
+import { isConfigLoaded } from '../lib/supabaseRuntimeConfig';
 
 interface HealthStatus {
   status: 'healthy' | 'unhealthy';
@@ -22,6 +23,7 @@ interface HealthStatus {
 }
 
 export default function HealthCheck() {
+  const supabase = useSupabaseClient();
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [verbose, setVerbose] = useState(false);
@@ -38,28 +40,27 @@ export default function HealthCheck() {
     let overallStatus: 'healthy' | 'unhealthy' = 'healthy';
 
     try {
-      const hasUrl = !!import.meta.env.VITE_SUPABASE_URL;
-      const hasKey = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const configLoaded = isConfigLoaded();
       
-      if (hasUrl && hasKey) {
+      if (configLoaded) {
         checks.push({
-          name: 'Environment Variables',
+          name: 'Runtime Configuration',
           status: 'pass',
-          message: 'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are present',
+          message: 'Supabase configuration loaded from Netlify Function',
         });
       } else {
         checks.push({
-          name: 'Environment Variables',
+          name: 'Runtime Configuration',
           status: 'fail',
-          message: `Missing: ${!hasUrl ? 'VITE_SUPABASE_URL ' : ''}${!hasKey ? 'VITE_SUPABASE_ANON_KEY' : ''}`,
+          message: 'Runtime configuration not yet loaded',
         });
         overallStatus = 'unhealthy';
       }
     } catch (error) {
       checks.push({
-        name: 'Environment Variables',
+        name: 'Runtime Configuration',
         status: 'fail',
-        message: `Error checking env vars: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Error checking config: ${error instanceof Error ? error.message : String(error)}`,
       });
       overallStatus = 'unhealthy';
     }
@@ -196,15 +197,9 @@ export default function HealthCheck() {
               <div className="bg-gray-100 rounded-lg p-4 font-mono text-sm">
                 <div className="space-y-2">
                   <div>
-                    <span className="text-gray-600">VITE_SUPABASE_URL:</span>{' '}
+                    <span className="text-gray-600">Runtime Config:</span>{' '}
                     <span className="text-gray-900">
-                      {import.meta.env.VITE_SUPABASE_URL ? '✓ present' : '✗ missing'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">VITE_SUPABASE_ANON_KEY:</span>{' '}
-                    <span className="text-gray-900">
-                      {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✓ present' : '✗ missing'}
+                      {isConfigLoaded() ? '✓ loaded from Netlify Function' : '✗ not loaded'}
                     </span>
                   </div>
                   <div>
@@ -220,7 +215,7 @@ export default function HealthCheck() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Note: Sensitive values are not displayed for security reasons
+                Note: Configuration is fetched at runtime from Netlify Functions for security
               </p>
             </div>
           )}

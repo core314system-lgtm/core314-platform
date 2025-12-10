@@ -4,13 +4,16 @@ import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App.tsx'
 import { initSentry } from './lib/sentry'
+import { SupabaseClientProvider } from './contexts/SupabaseClientContext'
 
 initSentry()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Sentry.ErrorBoundary fallback={<ErrorFallback />} showDialog>
-      <App />
+      <SupabaseClientProvider>
+        <App />
+      </SupabaseClientProvider>
     </Sentry.ErrorBoundary>
   </StrictMode>,
 )

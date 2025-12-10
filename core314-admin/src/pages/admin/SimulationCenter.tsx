@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Play, RefreshCw, Download, Trash2, Activity, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { supabase } from '@/lib/supabase';
+import { useSupabaseClient } from '@/contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '@/lib/supabaseRuntimeConfig';
 
 interface SimulationEvent {
   id: string;
@@ -31,6 +32,7 @@ interface SimulationSummary {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF6B9D'];
 
 export function SimulationCenter() {
+  const supabase = useSupabaseClient();
   const [events, setEvents] = useState<SimulationEvent[]>([]);
   const [summary, setSummary] = useState<SimulationSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,8 +83,9 @@ export function SimulationCenter() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
+      const url = await getSupabaseFunctionUrl('simulation-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/simulation-engine`,
+        url,
         {
           method: 'POST',
           headers: {

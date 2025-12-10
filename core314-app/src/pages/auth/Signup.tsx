@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { initSupabaseClient, getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -27,9 +27,11 @@ export function Signup() {
 
       if (data.user) {
         try {
+          const supabase = await initSupabaseClient();
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-transactional-email`, {
+            const url = await getSupabaseFunctionUrl('send-transactional-email');
+            await fetch(url, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

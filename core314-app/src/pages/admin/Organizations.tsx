@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -13,6 +14,7 @@ import type { OrganizationWithMembers } from '../../types';
 export function Organizations() {
   const { user } = useAuth();
   const { refreshOrganizations } = useOrganization();
+  const supabase = useSupabaseClient();
   const [organizations, setOrganizations] = useState<OrganizationWithMembers[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -92,8 +94,9 @@ export function Organizations() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('organizations-delete');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/organizations-delete`,
+        url,
         {
           method: 'POST',
           headers: {

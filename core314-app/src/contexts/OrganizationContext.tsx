@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from './SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { Organization } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
@@ -15,6 +16,7 @@ const OrganizationContext = createContext<OrganizationContextType | undefined>(u
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const supabase = useSupabaseClient();
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/organizations-switch`, {
+          const url = await getSupabaseFunctionUrl('organizations-switch');
+          await fetch(url, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.access_token}`,

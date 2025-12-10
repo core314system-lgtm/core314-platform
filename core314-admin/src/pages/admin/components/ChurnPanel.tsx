@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Users, AlertTriangle, TrendingDown, CheckCircle, RefreshCw, Mail, MessageSquare } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
+import { useSupabaseClient } from '../../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../../lib/supabaseRuntimeConfig';
 
 interface ChurnData {
   user_id: string;
@@ -45,6 +46,7 @@ function getChurnBadgeColor(score: number) {
 }
 
 export default function ChurnPanel() {
+  const supabase = useSupabaseClient();
   const [loading, setLoading] = useState(true);
   const [churnData, setChurnData] = useState<ChurnData[]>([]);
   const [kpis, setKpis] = useState<ChurnKPIs>({ highRisk: 0, moderateRisk: 0, lowRisk: 0, veryLowRisk: 0 });
@@ -132,8 +134,9 @@ export default function ChurnPanel() {
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('calc-churn-score');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calc-churn-score`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -203,8 +206,9 @@ export default function ChurnPanel() {
         setRecalcProgress({ current: i + 1, total: churnData.length });
 
         try {
+          const url = await getSupabaseFunctionUrl('calc-churn-score');
           const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calc-churn-score`,
+            url,
             {
               method: 'POST',
               headers: {

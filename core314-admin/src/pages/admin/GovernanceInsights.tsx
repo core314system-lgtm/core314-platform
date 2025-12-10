@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -47,6 +48,7 @@ interface GovernanceMetrics {
 }
 
 export function GovernanceInsights() {
+  const supabase = useSupabaseClient();
   const [audits, setAudits] = useState<GovernanceAudit[]>([]);
   const [metrics, setMetrics] = useState<GovernanceMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,8 +73,9 @@ export function GovernanceInsights() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('governance-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/governance-engine`,
+        url,
         {
           method: 'GET',
           headers: {
@@ -103,8 +106,9 @@ export function GovernanceInsights() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('governance-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/governance-engine`,
+        url,
         {
           method: 'POST',
           headers: {
