@@ -1,11 +1,14 @@
 # Local Netlify folder
 .netlify
 
-# Environment variables
+# Environment variables - NEVER commit .env files with real secrets
 .env
 .env.local
 .env.development
-# Note: .env.production is committed (contains public Supabase anon key)
+.env.production
+.env.*.local
+**/.env
+**/.env.production
 
 # Dependencies
 node_modules/
