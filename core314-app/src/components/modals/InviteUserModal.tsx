@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -16,6 +17,7 @@ interface InviteUserModalProps {
 }
 
 export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess }: InviteUserModalProps) {
+  const supabase = useSupabaseClient();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
   const [loading, setLoading] = useState(false);
@@ -32,8 +34,9 @@ export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('organizations-invite');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/organizations-invite`,
+        url,
         {
           method: 'POST',
           headers: {

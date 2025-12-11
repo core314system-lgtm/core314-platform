@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { useToast } from '../../hooks/use-toast';
 
 interface OAuthConnectProps {
@@ -13,6 +14,7 @@ interface OAuthConnectProps {
 export function OAuthConnect({ serviceName, displayName, logoUrl }: OAuthConnectProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
 
   const handleConnect = async () => {
     setIsConnecting(true);
@@ -27,8 +29,9 @@ export function OAuthConnect({ serviceName, displayName, logoUrl }: OAuthConnect
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('oauth-initiate');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oauth-initiate`,
+        url,
         {
           method: 'POST',
           headers: {

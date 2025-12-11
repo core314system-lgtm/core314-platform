@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -16,6 +17,7 @@ interface EditRuleModalProps {
 }
 
 export function EditRuleModal({ open, onOpenChange, rule, onSuccess }: EditRuleModalProps) {
+  const supabase = useSupabaseClient();
   const [name, setName] = useState(rule.name);
   const [description, setDescription] = useState(rule.description || '');
   const [triggerType, setTriggerType] = useState(rule.trigger_type);
@@ -47,8 +49,9 @@ export function EditRuleModal({ open, onOpenChange, rule, onSuccess }: EditRuleM
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('automation-update');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/automation-update`,
+        url,
         {
           method: 'POST',
           headers: {

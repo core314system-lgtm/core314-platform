@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from '../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -28,6 +29,7 @@ import { FeatureGuard } from '../components/FeatureGuard';
 export function Visualizations() {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,7 +75,8 @@ export function Visualizations() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-visualize${
+      const baseUrl = await getSupabaseFunctionUrl('fusion-visualize');
+      const url = `${baseUrl}${
         selectedIntegration && selectedIntegration !== 'all' ? `?integration=${selectedIntegration}` : ''
       }`;
 
@@ -106,8 +109,9 @@ export function Visualizations() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('fusion-refresh-visual-cache');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-refresh-visual-cache`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -144,8 +148,9 @@ export function Visualizations() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('fusion-export-report');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-export-report`,
+        url,
         {
           method: 'POST',
           headers: {

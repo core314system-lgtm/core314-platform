@@ -1,14 +1,9 @@
-
 import { BetaEvent } from '../types/beta';
+import { getSupabaseFunctionUrl } from '../lib/supabase';
 
 class BetaTrackingService {
-  private supabaseUrl: string;
   private accessToken: string | null = null;
   private enabled: boolean = true;
-
-  constructor() {
-    this.supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  }
 
   setAccessToken(token: string | null) {
     this.accessToken = token;
@@ -25,7 +20,8 @@ class BetaTrackingService {
     }
 
     try {
-      const response = await fetch(`${this.supabaseUrl}/functions/v1/log-beta-event`, {
+      const url = await getSupabaseFunctionUrl('log-beta-event');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext'
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig'
 
 interface User {
   id: string
@@ -13,6 +14,7 @@ interface User {
 type FilterType = 'all' | 'pending' | 'approved' | 'revoked'
 
 export default function BetaAccessControl() {
+  const supabase = useSupabaseClient()
   const [users, setUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [filter, setFilter] = useState<FilterType>('all')
@@ -68,8 +70,9 @@ export default function BetaAccessControl() {
         throw new Error('Not authenticated')
       }
 
+      const url = await getSupabaseFunctionUrl('beta-admin')
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/beta-admin`,
+        url,
         {
           method: 'POST',
           headers: {

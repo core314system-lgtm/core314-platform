@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl, getSupabaseAnonKeySync } from '../../lib/supabaseRuntimeConfig';
 import { Activity, TrendingUp, TrendingDown, Eye, RefreshCw, Download, Play } from 'lucide-react';
 
 interface CalibrationEvent {
@@ -23,6 +24,7 @@ interface CalibrationStats {
 }
 
 export function FusionCalibration() {
+  const supabase = useSupabaseClient();
   const [events, setEvents] = useState<CalibrationEvent[]>([]);
   const [stats, setStats] = useState<CalibrationStats>({
     avgFusionScore: 0,
@@ -58,7 +60,7 @@ export function FusionCalibration() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [dateRange]);
+  }, [dateRange, supabase]);
 
   const fetchCalibrationData = async () => {
     try {
@@ -104,15 +106,15 @@ export function FusionCalibration() {
   const triggerCalibration = async () => {
     try {
       setTriggering(true);
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const url = await getSupabaseFunctionUrl('fusion-calibration-engine');
+      const anonKey = getSupabaseAnonKeySync();
 
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/fusion-calibration-engine`,
+        url,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${anonKey}`,
             'Content-Type': 'application/json',
           },
         }

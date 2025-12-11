@@ -4,7 +4,8 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { FusionInsight } from '../../types';
 import { useToast } from '../../hooks/use-toast';
 import { RefreshCw, TrendingUp, AlertTriangle, TrendingDown, BarChart3 } from 'lucide-react';
@@ -17,6 +18,7 @@ interface AIInsightsPanelProps {
 export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   const [insights, setInsights] = useState<FusionInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -70,7 +72,8 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-analyze`, {
+      const url = await getSupabaseFunctionUrl('fusion-analyze');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

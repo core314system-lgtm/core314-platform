@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from './SupabaseClientContext';
+import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { ChatMessage } from '../types';
 import { toast } from 'sonner';
@@ -21,6 +22,7 @@ const AISupportContext = createContext<AISupportContextType | undefined>(undefin
 
 export function AISupportProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const supabase = useSupabaseClient();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -118,7 +120,7 @@ export function AISupportProvider({ children }: { children: ReactNode }) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const anonKey = await getSupabaseAnonKey();
       
       const headers = {
         'Content-Type': 'application/json',
@@ -127,8 +129,9 @@ export function AISupportProvider({ children }: { children: ReactNode }) {
           : `Bearer ${anonKey}`,
       };
 
+      const url = await getSupabaseFunctionUrl('ai-support-handler');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-support-handler`,
+        url,
         {
           method: 'POST',
           headers,
@@ -174,8 +177,9 @@ export function AISupportProvider({ children }: { children: ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const url = await getSupabaseFunctionUrl('ai-feedback');
       await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-feedback`,
+        url,
         {
           method: 'POST',
           headers: {

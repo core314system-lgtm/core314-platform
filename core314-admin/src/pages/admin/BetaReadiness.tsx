@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabase } from '@/lib/supabase';
+import { useSupabaseClient } from '@/contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '@/lib/supabaseRuntimeConfig';
 import { PieChart, Pie, Cell, ScatterChart, Scatter, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { PlayCircle, RefreshCw, Download } from 'lucide-react';
 
@@ -41,6 +42,7 @@ interface ReadinessMetrics {
 }
 
 export function BetaReadiness() {
+  const supabase = useSupabaseClient();
   const [auditRecords, setAuditRecords] = useState<BetaAuditRecord[]>([]);
   const [summaries, setSummaries] = useState<ReadinessSummary[]>([]);
   const [currentMetrics, setCurrentMetrics] = useState<ReadinessMetrics>({
@@ -69,8 +71,9 @@ export function BetaReadiness() {
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('beta-readiness-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/beta-readiness-engine`,
+        url,
         {
           method: 'GET',
           headers: {
@@ -118,8 +121,9 @@ export function BetaReadiness() {
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('beta-readiness-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/beta-readiness-engine`,
+        url,
         {
           method: 'POST',
           headers: {

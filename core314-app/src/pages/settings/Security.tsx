@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { initSupabaseClient, getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
@@ -28,11 +28,13 @@ export function Security() {
     setLoading(true);
     setError(null);
     try {
+      const supabase = await initSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('auth-2fa-enable');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-2fa-enable`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -62,11 +64,13 @@ export function Security() {
     setLoading(true);
     setError(null);
     try {
+      const supabase = await initSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('auth-2fa-verify');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-2fa-verify`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -104,11 +108,13 @@ export function Security() {
     setLoading(true);
     setError(null);
     try {
+      const supabase = await initSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('auth-2fa-disable');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-2fa-disable`,
+        url,
         {
           method: 'POST',
           headers: {

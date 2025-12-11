@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -31,6 +32,7 @@ export function FusionIntelligence() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   
   const [scoreHistory, setScoreHistory] = useState<ScoreHistoryData[]>([]);
   const [predictions, setPredictions] = useState<FusionInsight[]>([]);
@@ -172,7 +174,8 @@ export function FusionIntelligence() {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-analyze`, {
+      const url = await getSupabaseFunctionUrl('fusion-analyze');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

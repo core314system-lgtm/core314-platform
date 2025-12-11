@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabase } from '@/lib/supabase';
+import { useSupabaseClient } from '@/contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '@/lib/supabaseRuntimeConfig';
 import { LineChart, Line, ScatterChart, Scatter, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { PlayCircle, RefreshCw, Download } from 'lucide-react';
 
@@ -47,6 +48,7 @@ interface E2ESummary {
 }
 
 export function E2ECampaign() {
+  const supabase = useSupabaseClient();
   const [sessions, setSessions] = useState<E2ESession[]>([]);
   const [benchmarks, setBenchmarks] = useState<E2EBenchmark[]>([]);
   const [summary, setSummary] = useState<E2ESummary>({
@@ -121,8 +123,9 @@ export function E2ECampaign() {
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('e2e-campaign-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/e2e-campaign-engine`,
+        url,
         {
           method: 'POST',
           headers: {

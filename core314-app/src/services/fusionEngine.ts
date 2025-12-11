@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { initSupabaseClient, getSupabaseFunctionUrl } from '../lib/supabase';
 
 interface MetricWeights {
   count: number;
@@ -48,6 +48,7 @@ export async function calculateFusionScore(
   userId: string,
   integrationId: string
 ): Promise<{ score: number; breakdown: Record<string, number>; trend: 'up' | 'down' | 'stable' }> {
+  const supabase = await initSupabaseClient();
   const { data: metrics, error } = await supabase
     .from('fusion_metrics')
     .select('*')
@@ -120,6 +121,7 @@ export async function updateFusionScore(
   integrationId: string,
   includeAI: boolean = false
 ): Promise<void> {
+  const supabase = await initSupabaseClient();
   const { score, breakdown, trend } = await calculateFusionScore(userId, integrationId);
 
   let aiSummary: string | undefined;
@@ -169,10 +171,12 @@ export async function updateFusionScore(
 
 async function generateAISummary(userId: string, integrationId: string): Promise<string> {
   try {
+    const supabase = await initSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return 'Unable to generate AI summary';
 
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ai-insights`, {
+    const url = await getSupabaseFunctionUrl('generate-ai-insights');
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

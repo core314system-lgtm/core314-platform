@@ -1,11 +1,8 @@
 import React from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useSupabaseClient } from '@/contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl, getSupabaseAnonKeySync } from '@/lib/supabaseRuntimeConfig';
 import { Cpu, Download, RefreshCw, Play, Settings } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar } from 'recharts';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface SystemState {
   optimization_count?: number;
@@ -45,6 +42,7 @@ interface OrchestratorStats {
 }
 
 export function CoreOrchestrator() {
+  const supabase = useSupabaseClient();
   const [events, setEvents] = React.useState<OrchestratorEvent[]>([]);
   const [stats, setStats] = React.useState<OrchestratorStats>({
     activeSubsystems: 0,
@@ -124,12 +122,14 @@ export function CoreOrchestrator() {
   const triggerOrchestration = async () => {
     try {
       setTriggering(true);
+      const baseUrl = await getSupabaseFunctionUrl('fusion-orchestrator-engine');
+      const anonKey = getSupabaseAnonKeySync();
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/fusion-orchestrator-engine?policy=${policyProfile}&priority=4`,
+        `${baseUrl}?policy=${policyProfile}&priority=4`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Authorization': `Bearer ${anonKey}`,
             'Content-Type': 'application/json',
           },
         }

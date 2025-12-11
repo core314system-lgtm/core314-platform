@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from '../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { DecisionFeed } from '../components/decisions/DecisionFeed';
 import { DecisionChart } from '../components/decisions/DecisionChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -20,6 +21,7 @@ interface DecisionStats {
 
 export function DecisionCenter() {
   const { user } = useAuth();
+  const supabase = useSupabaseClient();
   const [stats, setStats] = useState<DecisionStats>({
     total: 0,
     pending: 0,
@@ -93,7 +95,8 @@ export function DecisionCenter() {
     if (!user) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cognitive-decision-engine`, {
+      const url = await getSupabaseFunctionUrl('cognitive-decision-engine');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,

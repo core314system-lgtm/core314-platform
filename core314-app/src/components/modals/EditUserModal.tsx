@@ -5,7 +5,8 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { useToast } from '../../hooks/use-toast';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { User } from '../../types';
 
 interface EditUserModalProps {
@@ -17,6 +18,7 @@ interface EditUserModalProps {
 
 export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditUserModalProps) {
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   const [saving, setSaving] = useState(false);
   
   const [role, setRole] = useState<'admin' | 'manager' | 'user'>(user.role);
@@ -32,8 +34,9 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
         throw new Error('No active session');
       }
 
+      const url = await getSupabaseFunctionUrl('admin-update-user');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-update-user`,
+        url,
         {
           method: 'POST',
           headers: {

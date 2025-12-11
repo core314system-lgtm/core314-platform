@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
 import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AnalyticsPanel from './components/AnalyticsPanel';
@@ -65,6 +66,7 @@ interface BetaOpsConsoleProps {
 }
 
 export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsConsoleProps = {}) {
+  const supabase = useSupabaseClient();
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
   const [betaUsers, setBetaUsers] = useState<BetaUser[]>([]);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
@@ -304,8 +306,9 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('calculate-user-score');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calculate-user-score`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -390,8 +393,9 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
         return;
       }
 
+      const url = await getSupabaseFunctionUrl('categorize-feedback');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/categorize-feedback`,
+        url,
         {
           method: 'POST',
           headers: {
@@ -451,8 +455,9 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
         setCategorizationProgress({ current: i + 1, total: unprocessedFeedback.length });
 
         try {
+          const url = await getSupabaseFunctionUrl('categorize-feedback');
           const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/categorize-feedback`,
+            url,
             {
               method: 'POST',
               headers: {

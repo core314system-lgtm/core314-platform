@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "postbuild": "node ./scripts/check-env-vars.js",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc -b && vite build",
+      "postbuild": "node ./scripts/verify-no-secrets.js",
+      "lint": "eslint .",
+      "preview": "vite preview"
+    },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@netlify/functions": "^4.2.7",

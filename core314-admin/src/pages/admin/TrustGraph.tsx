@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -62,6 +63,7 @@ interface GraphNode {
 }
 
 export function TrustGraph() {
+  const supabase = useSupabaseClient();
   const [trustRecords, setTrustRecords] = useState<TrustRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [engineRunning, setEngineRunning] = useState(false);
@@ -132,8 +134,9 @@ export function TrustGraph() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
+      const url = await getSupabaseFunctionUrl('trust-graph-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trust-graph-engine`,
+        url,
         {
           method: 'POST',
           headers: {

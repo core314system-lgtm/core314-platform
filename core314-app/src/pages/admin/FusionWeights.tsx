@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Switch } from '../../components/ui/switch';
@@ -42,6 +43,7 @@ export function FusionWeights() {
   const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const supabase = useSupabaseClient();
   
   const [weights, setWeights] = useState<WeightData[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogData[]>([]);
@@ -183,7 +185,8 @@ export function FusionWeights() {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fusion-recalibrate`, {
+      const url = await getSupabaseFunctionUrl('fusion-recalibrate');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

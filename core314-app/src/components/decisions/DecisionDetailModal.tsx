@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ interface DecisionDetailModalProps {
 }
 
 export function DecisionDetailModal({ decision, open, onClose }: DecisionDetailModalProps) {
+  const supabase = useSupabaseClient();
   const [factors, setFactors] = useState<DecisionFactor[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [validationResult, setValidationResult] = useState<any>(null);
@@ -94,8 +96,9 @@ export function DecisionDetailModal({ decision, open, onClose }: DecisionDetailM
   async function runValidation() {
     try {
       const session = await supabase.auth.getSession();
+      const url = await getSupabaseFunctionUrl('decision-validation');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/decision-validation`,
+        url,
         {
           method: 'POST',
           headers: {

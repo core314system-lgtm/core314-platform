@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -42,6 +43,7 @@ interface ExplainabilitySummary {
 }
 
 export function Explainability() {
+  const supabase = useSupabaseClient();
   const [explanations, setExplanations] = useState<ExplainabilityLog[]>([]);
   const [summary, setSummary] = useState<ExplainabilitySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,8 +67,9 @@ export function Explainability() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('explainability-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/explainability-engine`,
+        url,
         {
           method: 'GET',
           headers: {

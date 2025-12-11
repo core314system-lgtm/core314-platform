@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -45,6 +46,7 @@ interface NeuralPolicySummary {
 }
 
 export function PolicyNetwork() {
+  const supabase = useSupabaseClient();
   const [weights, setWeights] = useState<NeuralPolicyWeight[]>([]);
   const [summary, setSummary] = useState<NeuralPolicySummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,8 +69,9 @@ export function PolicyNetwork() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('neural-policy-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neural-policy-engine`,
+        url,
         {
           method: 'GET',
           headers: {
@@ -99,8 +102,9 @@ export function PolicyNetwork() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      const url = await getSupabaseFunctionUrl('neural-policy-engine');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/neural-policy-engine`,
+        url,
         {
           method: 'POST',
           headers: {

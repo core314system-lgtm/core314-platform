@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase } from '../../lib/supabase';
+import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
+import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -51,6 +52,7 @@ interface RefinementHistory {
 
 export function MemoryEngine() {
   const { profile } = useAuth();
+  const supabase = useSupabaseClient();
   const [snapshots, setSnapshots] = useState<MemorySnapshot[]>([]);
   const [refinements, setRefinements] = useState<RefinementHistory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,8 +150,8 @@ export function MemoryEngine() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/train-memory-model`, {
+      const url = await getSupabaseFunctionUrl('train-memory-model');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -180,8 +182,8 @@ export function MemoryEngine() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/refine-predictive-models`, {
+      const url = await getSupabaseFunctionUrl('refine-predictive-models');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
