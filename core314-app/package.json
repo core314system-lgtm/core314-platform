@@ -8,8 +8,7 @@
       "build": "tsc -b && vite build",
       "postbuild": "node ./scripts/verify-no-secrets.js",
       "lint": "eslint .",
-      "preview": "vite preview",
-      "migrate": "node scripts/run-migration-programmatic.js"
+      "preview": "vite preview"
     },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
