@@ -62,15 +62,10 @@ export default function BetaFeedback() {
   const fetchFeedback = async () => {
     setLoading(true);
 
+    // Fetch feedback first
     let query = supabase
       .from('beta_feedback')
-      .select(`
-        *,
-        profiles:user_id (
-          full_name,
-          email
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (statusFilter !== 'all') {
@@ -89,22 +84,47 @@ export default function BetaFeedback() {
 
     if (error) {
       console.error('Error fetching feedback:', error);
+      setFeedback([]);
+    } else if (data && data.length > 0) {
+      // Fetch profiles for all user_ids
+      const userIds = [...new Set(data.map(f => f.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      // Create a map of user_id to profile
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Merge profiles with feedback
+      const feedbackWithProfiles = data.map(f => ({
+        ...f,
+        profiles: profileMap.get(f.user_id) || null
+      }));
+
+      setFeedback(feedbackWithProfiles);
     } else {
-      setFeedback(data || []);
+      setFeedback([]);
     }
 
     setLoading(false);
   };
 
   const fetchAnalytics = async () => {
-    const { data, error } = await supabase
-      .rpc('get_feedback_analytics')
-      .single();
+    try {
+      const { data, error } = await supabase
+        .rpc('get_feedback_analytics')
+        .single();
 
-    if (error) {
-      console.error('Error fetching analytics:', error);
-    } else {
+      if (error) {
+        // Function may not exist - calculate analytics from feedback data instead
+        console.warn('get_feedback_analytics not available, using fallback');
+        return;
+      }
       setAnalytics(data as FeedbackAnalytics);
+    } catch {
+      // Silently fail - analytics are optional
+      console.warn('Analytics fetch failed');
     }
   };
 
