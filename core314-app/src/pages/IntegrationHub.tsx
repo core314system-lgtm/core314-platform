@@ -8,7 +8,6 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Loader2, Search, Plus, Filter } from 'lucide-react';
-import { IntegrationWithStatus } from '../types';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { addCustomIntegration } from '../services/addCustomIntegration';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -17,11 +16,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 
+interface RegistryIntegration {
+  id: string;
+  service_name: string;
+  display_name: string;
+  auth_type: string;
+  base_url?: string;
+  logo_url?: string;
+  category?: string;
+  description?: string;
+  is_custom?: boolean;
+  is_enabled?: boolean;
+  provider_type?: string;
+  user_integration_id?: string;
+  is_connected?: boolean;
+}
+
 export default function IntegrationHub() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subscription, canAddIntegration } = useSubscription(user?.id);
-  const [integrations, setIntegrations] = useState<IntegrationWithStatus[]>([]);
+  const [integrations, setIntegrations] = useState<RegistryIntegration[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -31,16 +46,6 @@ export default function IntegrationHub() {
   const [customType, setCustomType] = useState('');
   const [customLogo, setCustomLogo] = useState('');
   const [customDescription, setCustomDescription] = useState('');
-  const [integrationRegistry, setIntegrationRegistry] = useState<Array<{
-    id: string;
-    service_name: string;
-    display_name: string;
-    auth_type: string;
-    logo_url?: string;
-    category?: string;
-    description?: string;
-    is_custom?: boolean;
-  }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [customApiUrl, setCustomApiUrl] = useState('');
   const [customAuthType, setCustomAuthType] = useState<string>('api_key');
@@ -50,19 +55,19 @@ export default function IntegrationHub() {
   useEffect(() => {
     if (user) {
       fetchIntegrations();
-      fetchIntegrationRegistry();
     }
   }, [user]);
 
   const fetchIntegrations = async () => {
     try {
-      const { data: masterIntegrations, error: masterError } = await supabase
-        .from('integrations_master')
+      const { data: registryData, error: registryError } = await supabase
+        .from('integration_registry')
         .select('*')
-        .order('is_core_integration', { ascending: false })
-        .order('integration_name');
+        .eq('is_enabled', true)
+        .order('is_custom', { ascending: true })
+        .order('display_name');
 
-      if (masterError) throw masterError;
+      if (registryError) throw registryError;
 
       const { data: userIntegrations, error: userError } = await supabase
         .from('user_integrations')
@@ -71,18 +76,19 @@ export default function IntegrationHub() {
 
       if (userError) throw userError;
 
-      const mergedIntegrations: IntegrationWithStatus[] = (masterIntegrations || []).map(master => {
-        const userInt = userIntegrations?.find(ui => ui.integration_id === master.id);
+      const mergedIntegrations: RegistryIntegration[] = (registryData || []).map(registry => {
+        const userInt = userIntegrations?.find(ui => 
+          ui.provider_id === registry.id || ui.integration_id === registry.id
+        );
         return {
-          ...master,
+          ...registry,
           user_integration_id: userInt?.id,
-          is_enabled: !!userInt && userInt.status === 'active',
-          date_added: userInt?.date_added,
+          is_connected: !!userInt && userInt.status === 'active',
         };
       });
 
       setIntegrations(mergedIntegrations);
-      setEnabledCount(mergedIntegrations.filter(i => i.is_enabled).length);
+      setEnabledCount(mergedIntegrations.filter(i => i.is_connected).length);
     } catch (error) {
       console.error('Error fetching integrations:', error);
     } finally {
@@ -90,23 +96,8 @@ export default function IntegrationHub() {
     }
   };
 
-  const fetchIntegrationRegistry = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('integration_registry')
-        .select('*')
-        .eq('is_enabled', true);
-
-      if (error) throw error;
-      setIntegrationRegistry(data || []);
-    } catch (error) {
-      console.error('Error fetching integration registry:', error);
-    }
-  };
-
-  const handleToggleIntegration = async (integration: IntegrationWithStatus) => {
-    if (integration.is_enabled) {
-      // Disconnect: delete the integration
+  const handleToggleIntegration = async (integration: RegistryIntegration) => {
+    if (integration.is_connected) {
       if (integration.user_integration_id) {
         const { error } = await supabase
           .from('user_integrations')
@@ -125,8 +116,9 @@ export default function IntegrationHub() {
 
       navigate('/integrations', { 
         state: { 
-          selectedIntegration: integration.integration_name,
-          integrationId: integration.id 
+          selectedIntegration: integration.display_name,
+          integrationId: integration.id,
+          serviceName: integration.service_name
         } 
       });
     }
@@ -134,42 +126,25 @@ export default function IntegrationHub() {
 
   const categories = useMemo(() => {
     const cats = new Set<string>();
-    integrationRegistry.forEach(r => {
+    integrations.forEach(r => {
       if (r.category) cats.add(r.category);
     });
     return Array.from(cats).sort();
-  }, [integrationRegistry]);
+  }, [integrations]);
 
   const filteredIntegrations = useMemo(() => {
     let filtered = integrations.filter(integration =>
-      integration.integration_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      integration.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      integration.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      integration.service_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (selectedCategory !== 'all') {
-      const registryIdsInCategory = integrationRegistry
-        .filter(r => r.category === selectedCategory)
-        .map(r => r.service_name);
-      filtered = filtered.filter(i => 
-        registryIdsInCategory.includes(i.integration_type)
-      );
+      filtered = filtered.filter(i => i.category === selectedCategory);
     }
 
     return filtered;
-  }, [integrations, searchQuery, selectedCategory, integrationRegistry]);
-
-  const registryIntegrations = useMemo(() => {
-    let filtered = integrationRegistry.filter(r => 
-      r.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(r => r.category === selectedCategory);
-    }
-
-    return filtered;
-  }, [integrationRegistry, searchQuery, selectedCategory]);
+  }, [integrations, searchQuery, selectedCategory]);
 
   if (loading) {
     return (
@@ -231,62 +206,61 @@ export default function IntegrationHub() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredIntegrations.map((integration) => {
-          const registryEntry = integrationRegistry.find(
-            r => r.service_name === integration.integration_type
-          );
-          
-          return (
-            <Card key={integration.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {integration.logo_url && (
-                      <img
-                        src={integration.logo_url}
-                        alt={integration.integration_name}
-                        className="w-10 h-10 object-contain"
-                      />
-                    )}
-                    <div>
-                      <CardTitle className="text-lg">{integration.integration_name}</CardTitle>
-                      <div className="flex gap-2 mt-1">
-                        <Badge variant={integration.is_core_integration ? 'default' : 'secondary'} className="text-xs">
-                          {integration.is_core_integration ? 'Core' : 'Custom'}
+        {filteredIntegrations.map((integration) => (
+          <Card key={integration.id}>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  {integration.logo_url && (
+                    <img
+                      src={integration.logo_url}
+                      alt={integration.display_name}
+                      className="w-10 h-10 object-contain"
+                    />
+                  )}
+                  <div>
+                    <CardTitle className="text-lg">{integration.display_name}</CardTitle>
+                    <div className="flex gap-2 mt-1">
+                      <Badge variant={!integration.is_custom ? 'default' : 'secondary'} className="text-xs">
+                        {!integration.is_custom ? 'Core' : 'Custom'}
+                      </Badge>
+                      {integration.category && (
+                        <Badge variant="outline" className="text-xs">
+                          {integration.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </Badge>
-                        {integration.is_enabled && (
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
+                      )}
+                      {integration.is_connected && (
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          Active
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
-                <CardDescription className="mt-2">
-                  {integration.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {registryEntry && registryEntry.auth_type === 'oauth2' ? (
-                  <OAuthConnect
-                    serviceName={registryEntry.service_name}
-                    displayName={registryEntry.display_name}
-                    logoUrl={registryEntry.logo_url}
-                  />
-                ) : (
-                  <Button
-                    onClick={() => handleToggleIntegration(integration)}
-                    variant={integration.is_enabled ? 'outline' : 'default'}
-                    className="w-full"
-                  >
-                    {integration.is_enabled ? 'Disconnect' : 'Connect'}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+              <CardDescription className="mt-2">
+                {integration.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {integration.auth_type === 'oauth2' ? (
+                <OAuthConnect
+                  serviceName={integration.service_name}
+                  displayName={integration.display_name}
+                  logoUrl={integration.logo_url}
+                />
+              ) : (
+                <Button
+                  onClick={() => handleToggleIntegration(integration)}
+                  variant={integration.is_connected ? 'outline' : 'default'}
+                  className="w-full"
+                >
+                  {integration.is_connected ? 'Disconnect' : 'Connect'}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {filteredIntegrations.length === 0 && (
@@ -414,7 +388,6 @@ export default function IntegrationHub() {
                   });
                   if (!error) {
                     await fetchIntegrations();
-                    await fetchIntegrationRegistry();
                     setAddCustomModalOpen(false);
                     setCustomName('');
                     setCustomType('');
