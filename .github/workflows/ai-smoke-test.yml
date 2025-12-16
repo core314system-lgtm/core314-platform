@@ -76,8 +76,13 @@ jobs:
     name: AI Edge Function Tests
     runs-on: ubuntu-latest
     needs: build-and-scan
-    # Only run when secrets are available (main branch or PRs from same repo)
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
+    # AI Edge Function tests are gated behind ENABLE_AI_EDGE_TESTS flag.
+    # These tests are disabled by default because:
+    # - AI Support Widget is intentionally disabled via feature flag (VITE_ENABLE_AI_SUPPORT_WIDGET=false)
+    # - Associated Supabase Edge Functions (e.g. support-chat-handler) are not deployed/configured
+    # - This should not block beta readiness
+    # Re-enable these tests post-beta when Edge Functions are deployed by setting ENABLE_AI_EDGE_TESTS=true
+    if: vars.ENABLE_AI_EDGE_TESTS == 'true' && (github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false))
     
     steps:
       - name: Checkout code
