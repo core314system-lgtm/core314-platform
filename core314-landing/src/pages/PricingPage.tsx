@@ -17,7 +17,7 @@ export default function PricingPage() {
       description: 'Perfect for small teams getting started',
       features: [
         'Unified dashboards',
-        '2 integrations included',
+        '3 integrations included',
         'Basic AI recommendations',
         'Email support',
         '14-day free trial'
