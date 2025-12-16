@@ -69,15 +69,17 @@ export function Integrations() {
 
       if (registryError) throw registryError;
 
-      const merged: ConnectedIntegration[] = userIntegrations.map(ui => {
-        const registry = registryData?.find(r => 
-          r.id === ui.provider_id || r.id === ui.integration_id
-        );
-        return {
-          ...ui,
-          registry,
-        };
-      });
+      const merged: ConnectedIntegration[] = userIntegrations
+        .map(ui => {
+          const registry = registryData?.find(r => 
+            r.id === ui.provider_id || r.id === ui.integration_id
+          );
+          return {
+            ...ui,
+            registry,
+          };
+        })
+        .filter(integration => integration.registry !== undefined);
 
       setConnectedIntegrations(merged);
     } catch (error) {
@@ -181,7 +183,7 @@ export function Integrations() {
                     )}
                     <div>
                       <CardTitle className="text-lg">
-                        {integration.registry?.display_name || 'Unknown Integration'}
+                        {integration.registry!.display_name}
                       </CardTitle>
                       <div className="flex gap-2 mt-1">
                         <Badge 
@@ -207,7 +209,7 @@ export function Integrations() {
                   </div>
                 </div>
                 <CardDescription className="mt-2">
-                  {integration.registry?.description || 'Integration details unavailable'}
+                  {integration.registry!.description}
                 </CardDescription>
                 {integration.error_message && (
                   <p className="text-sm text-red-600 mt-2">
