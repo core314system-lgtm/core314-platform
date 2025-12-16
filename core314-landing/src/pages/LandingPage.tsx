@@ -1,13 +1,10 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Play, ChevronDown, Database, Zap, BarChart3, TrendingUp, Shield, Slack } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, Database, Zap, BarChart3, TrendingUp, Shield, Slack } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 export default function LandingPage() {
-  const [showVideo, setShowVideo] = useState(false);
-
   return (
     <div className="min-h-screen bg-[#0A0F1A] text-white overflow-hidden">
       <Header />
@@ -92,7 +89,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 1.1 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+            className="flex justify-center mb-16"
           >
             <Link
               to="/pricing"
@@ -101,14 +98,6 @@ export default function LandingPage() {
             >
               Start Free Trial
             </Link>
-            <button 
-              onClick={() => setShowVideo(true)}
-              className="px-10 py-5 bg-transparent border-2 border-[#00BFFF] rounded-lg font-semibold text-lg hover:bg-[#00BFFF]/10 transition-all duration-300 flex items-center justify-center gap-2"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700 }}
-            >
-              <Play className="h-5 w-5" />
-              Watch Demo Video
-            </button>
           </motion.div>
 
           <motion.div
@@ -495,26 +484,6 @@ export default function LandingPage() {
       </section>
 
       <Footer />
-
-      {/* Demo Video Modal */}
-      {showVideo && (
-        <div 
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowVideo(false)}
-        >
-          <div className="max-w-4xl w-full bg-[#0A0F1A] border border-[#00BFFF] rounded-xl p-8">
-            <div className="aspect-video bg-gradient-to-br from-[#001a33] to-[#0A0F1A] rounded-lg flex items-center justify-center">
-              <p className="text-gray-400 text-xl">Demo Video Placeholder</p>
-            </div>
-            <button 
-              onClick={() => setShowVideo(false)}
-              className="mt-6 px-6 py-3 bg-[#00BFFF] rounded-lg font-semibold hover:bg-[#007BFF] transition-colors w-full"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
