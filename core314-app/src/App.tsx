@@ -56,6 +56,10 @@ import { SupportChatProvider } from './contexts/SupportChatContext';
 import { OnboardingAssistant } from './components/assistants/OnboardingAssistant';
 import { SupportAssistant } from './components/assistants/SupportAssistant';
 
+// Feature flag to enable/disable AI Support widget
+// Disabled by default until backend Edge Functions are properly deployed
+const ENABLE_AI_SUPPORT_WIDGET = import.meta.env.VITE_ENABLE_AI_SUPPORT_WIDGET === 'true';
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -88,11 +92,11 @@ function App() {
             <ProtectedRoute>
               <OrganizationProvider>
                 <OnboardingProvider>
-                  <SupportChatProvider>
-                    <MainLayout />
-                    <OnboardingAssistant />
-                    <SupportAssistant />
-                  </SupportChatProvider>
+                                    <SupportChatProvider>
+                                      <MainLayout />
+                                      <OnboardingAssistant />
+                                      {ENABLE_AI_SUPPORT_WIDGET && <SupportAssistant />}
+                                    </SupportChatProvider>
                 </OnboardingProvider>
               </OrganizationProvider>
             </ProtectedRoute>
