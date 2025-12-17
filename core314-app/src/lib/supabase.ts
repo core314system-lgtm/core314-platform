@@ -35,20 +35,53 @@ export {
 import { getSupabaseClientSync } from './supabaseClient';
 
 /**
+ * Creates a stub that throws a helpful error when auth methods are called
+ * before the Supabase client is initialized.
+ */
+function createAuthStub() {
+  const errorMessage = 'Authentication service unavailable. Please try again later.';
+  const createAsyncStub = () => async () => {
+    throw new Error(errorMessage);
+  };
+  
+  return {
+    getSession: createAsyncStub(),
+    getUser: createAsyncStub(),
+    signInWithPassword: createAsyncStub(),
+    signUp: createAsyncStub(),
+    signOut: createAsyncStub(),
+    onAuthStateChange: () => {
+      console.warn('Supabase client not initialized. Auth state changes will not be tracked.');
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    },
+  };
+}
+
+/**
  * @deprecated Use useSupabaseClient() hook or initSupabaseClient() instead.
  * This getter returns null if the client hasn't been initialized yet.
  * 
  * This is a Proxy that forwards all property accesses to the actual client.
  * TypeScript sees it as SupabaseClient for compatibility with existing code.
+ * 
+ * When accessed before initialization, auth methods will throw a user-friendly
+ * error instead of crashing with "Cannot read properties of null".
  */
 export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
     const client = getSupabaseClientSync();
     if (!client) {
-      console.warn(
-        'Supabase client accessed before initialization. ' +
-        'Use useSupabaseClient() hook or await initSupabaseClient() instead.'
-      );
+      if (import.meta.env.DEV) {
+        console.warn(
+          'Supabase client accessed before initialization. ' +
+          'Use useSupabaseClient() hook or await initSupabaseClient() instead.'
+        );
+      }
+      // Return auth stub to prevent "Cannot read properties of null (reading 'auth')" errors
+      if (prop === 'auth') {
+        return createAuthStub();
+      }
+      // For other properties, return undefined (will cause errors but won't crash on .auth access)
       return undefined;
     }
     const value = (client as unknown as Record<string | symbol, unknown>)[prop];
