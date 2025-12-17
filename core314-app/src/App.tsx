@@ -44,6 +44,7 @@ import { AnomalyConsole } from './components/monitoring/AnomalyConsole';
 import { RecoveryManager } from './components/monitoring/RecoveryManager';
 import { SelfTestPanel } from './components/monitoring/SelfTestPanel';
 import Billing from './pages/Billing';
+import { AccountPlan } from './pages/AccountPlan';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
 import { SentryTest } from './pages/SentryTest';
@@ -126,6 +127,7 @@ function App() {
           <Route path="audit-trails" element={<AuditTrails />} />
           <Route path="account-support" element={<AccountSupport />} />
           <Route path="billing" element={<Billing />} />
+          <Route path="account/plan" element={<AccountPlan />} />
           <Route path="fusion-details" element={<FusionDetails />} />
           <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
           <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { Button } from './ui/button';
@@ -15,6 +16,7 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
   const { user, profile } = useAuth();
   const { subscription } = useSubscription(profile?.id);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handlePurchase = async (priceId: string, addonName: string, category: string) => {
     setLoading(true);
@@ -51,7 +53,7 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
                 </p>
               </div>
             </div>
-            <Button onClick={() => window.location.href = '/pricing'}>
+            <Button onClick={() => navigate('/account/plan')}>
               View Add-Ons
             </Button>
           </div>
