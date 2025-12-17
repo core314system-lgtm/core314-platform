@@ -7,6 +7,13 @@
   to = "/.netlify/functions/health"
   status = 200
 
+# Redirect login to platform app - landing site should not handle auth
+[[redirects]]
+  from = "/login"
+  to = "https://app.core314.com/login"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
