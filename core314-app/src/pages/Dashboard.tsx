@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -30,6 +30,7 @@ export function Dashboard() {
   const [globalTrend, setGlobalTrend] = useState<'up' | 'down' | 'stable'>('stable');
   const [syncing, setSyncing] = useState(false);
   const [activeIntegrationCount, setActiveIntegrationCount] = useState(0);
+  const [hasConnectedIntegrations, setHasConnectedIntegrations] = useState(false);
   const [autoOptimize, setAutoOptimize] = useState(false);
   const [automationActivity, setAutomationActivity] = useState<{
     total_actions_24h: number;
@@ -83,9 +84,25 @@ export function Dashboard() {
       .eq('user_id', profile.id)
       .eq('status', 'active');
 
-    if (!userInts) return;
+    // Early return if no connected integrations - prevents querying global caches
+    // that may contain seeded/demo data
+    if (!userInts || userInts.length === 0) {
+      setActiveIntegrationCount(0);
+      setHasConnectedIntegrations(false);
+      setIntegrations([]);
+      setGlobalScore(0);
+      setGlobalTrend('stable');
+      setTrendSnapshot([]);
+      setAutomationActivity({
+        total_actions_24h: 0,
+        success_rate: 0,
+        recent_actions: []
+      });
+      return;
+    }
 
     setActiveIntegrationCount(userInts.length);
+    setHasConnectedIntegrations(true);
 
     const { data: scores } = await supabase
       .from('fusion_scores')
@@ -303,31 +320,54 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Fusion Efficiency Overview Widget */}
-      <FusionOverviewWidget />
+      {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
+      {hasConnectedIntegrations && <FusionOverviewWidget />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <FusionGauge score={globalScore} trend={globalTrend} />
+      {/* Analytics sections - only show when user has connected integrations */}
+      {hasConnectedIntegrations ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <FusionGauge score={globalScore} trend={globalTrend} />
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
+            
+            {['professional', 'enterprise'].includes(subscription.tier) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="h-5 w-5 text-purple-600" />
+                    Ask Core314 AI
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AIQuickQuery />
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-        <div className="lg:col-span-2 space-y-6">
-          <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
-          
-          {['professional', 'enterprise'].includes(subscription.tier) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-purple-600" />
-                  Ask Core314 AI
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AIQuickQuery />
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+      ) : (
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Layers className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Connect your first integration to begin analysis
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                Integration performance data, fusion scores, and AI insights will appear here once you connect your first service.
+              </p>
+              <Link to="/integration-hub">
+                <Button>
+                  <Layers className="h-4 w-4 mr-2" />
+                  Open Integration Hub
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isAdmin() && (
         <Card>
@@ -379,58 +419,55 @@ export function Dashboard() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Fusion Trend Snapshot (7 Days)</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = '/visualizations'}
-            >
-              View Full Visualization
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {trendSnapshot.length > 0 ? (
-            <ResponsiveContainer width="100%" height={120}>
-              <LineChart data={trendSnapshot}>
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Tooltip />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-center text-gray-600 py-4 text-sm">
-              No trend data available. Visit Visualizations to generate analytics.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Integration Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {integrations.map(integration => (
-            <IntegrationCard key={integration.id} integration={integration} />
-          ))}
-        </div>
-        {integrations.length === 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-gray-600 py-8">
-                No active integrations. Visit the Integration Hub to connect your first service.
+      {/* Fusion Trend Snapshot - only show when user has connected integrations */}
+      {hasConnectedIntegrations && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Fusion Trend Snapshot (7 Days)</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/visualizations'}
+              >
+                View Full Visualization
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {trendSnapshot.length > 0 ? (
+              <ResponsiveContainer width="100%" height={120}>
+                <LineChart data={trendSnapshot}>
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Tooltip />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-gray-600 py-4 text-sm">
+                No trend data available. Visit Visualizations to generate analytics.
               </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Integration Performance - only show when user has connected integrations */}
+      {hasConnectedIntegrations && (
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Integration Performance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {integrations.map(integration => (
+              <IntegrationCard key={integration.id} integration={integration} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
