@@ -8,8 +8,84 @@ import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
 import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { FusionInsight } from '../../types';
 import { useToast } from '../../hooks/use-toast';
-import { RefreshCw, TrendingUp, AlertTriangle, TrendingDown, BarChart3 } from 'lucide-react';
+import { RefreshCw, TrendingUp, AlertTriangle, TrendingDown, BarChart3, Info, X, Shield } from 'lucide-react';
 import { format } from 'date-fns';
+
+// Storage key for first AI Insight explanation dismissal
+const AI_INSIGHT_EXPLAINED_KEY = 'core314_ai_insight_explained';
+
+// First AI Insight Explainability Component
+function FirstAIInsightExplainer({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="mb-4 rounded-lg border border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center">
+            <Info className="h-5 w-5 text-purple-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+              Understanding AI Insights
+            </h4>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+              AI Insights are generated after detecting changes in response latency, workflow patterns, and activity signals across your connected tools. They help surface patterns that might otherwise go unnoticed.
+            </p>
+            
+            <div className="mb-3 p-3 bg-white/60 dark:bg-gray-800/60 rounded-md">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">What these insights are:</p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 mt-0.5">•</span>
+                  <span>Observational — they highlight patterns, not mandates</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 mt-0.5">•</span>
+                  <span>Suggestive — they offer context, not prescriptions</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 mt-0.5">•</span>
+                  <span>Not mandatory — you decide if action is needed</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="mb-3 p-3 bg-white/60 dark:bg-gray-800/60 rounded-md">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">How to use insights:</p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">→</span>
+                  <span>Review the context and consider if it applies to your situation</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">→</span>
+                  <span>Decide if action is needed based on your knowledge</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">→</span>
+                  <span>Track how patterns change over time</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+              <Shield className="h-4 w-4 text-blue-500" />
+              <span className="italic">Insights are generated from operational signals only — not message content or files.</span>
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDismiss}
+          className="flex-shrink-0 text-gray-500 hover:text-gray-700"
+        >
+          <X className="h-4 w-4 mr-1" />
+          Got it
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 interface AIInsightsPanelProps {
   hasAccess: boolean;
@@ -23,12 +99,23 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'trend' | 'prediction' | 'anomaly' | 'summary'>('all');
+  
+  // State for first AI Insight explainer visibility
+  const [showExplainer, setShowExplainer] = useState(() => {
+    // Check if user has already dismissed the explainer
+    return !localStorage.getItem(AI_INSIGHT_EXPLAINED_KEY);
+  });
 
   useEffect(() => {
     if (hasAccess && profile?.id) {
       fetchInsights();
     }
   }, [hasAccess, profile?.id, filter]);
+
+  const handleDismissExplainer = () => {
+    localStorage.setItem(AI_INSIGHT_EXPLAINED_KEY, 'true');
+    setShowExplainer(false);
+  };
 
   const fetchInsights = async () => {
     if (!profile?.id) return;
@@ -176,6 +263,9 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
           </p>
         ) : (
           <div className="space-y-4">
+            {/* First AI Insight explainer - shows only once per user when insights are available */}
+            {showExplainer && <FirstAIInsightExplainer onDismiss={handleDismissExplainer} />}
+            
             {insights.map((insight) => (
               <div key={insight.id} className="border-b pb-3 last:border-0 last:pb-0">
                 <div className="flex items-start gap-3">
