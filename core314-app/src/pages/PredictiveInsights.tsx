@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
-import { AlertTriangle, RefreshCw, Brain, Clock } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Brain, Clock, Lock } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAddons } from '../hooks/useAddons';
+import { Link } from 'react-router-dom';
 
 interface PredictionResult {
   id: string;
@@ -72,6 +74,7 @@ interface RefinementLog {
 
 export function PredictiveInsights() {
   const { profile } = useAuth();
+  const { hasAddon, loading: addonsLoading } = useAddons();
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [alerts, setAlerts] = useState<PredictiveAlert[]>([]);
   const [memorySnapshots, setMemorySnapshots] = useState<MemorySnapshot[]>([]);
@@ -83,12 +86,14 @@ export function PredictiveInsights() {
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
+  const hasAdvancedFusionAI = hasAddon('advanced_fusion_ai');
+
   useEffect(() => {
-    if (profile?.id) {
+    if (profile?.id && hasAdvancedFusionAI) {
       fetchPredictiveData();
       setupRealtimeSubscriptions();
     }
-  }, [profile?.id]);
+  }, [profile?.id, hasAdvancedFusionAI]);
 
   const fetchPredictiveData = async () => {
     if (!profile?.id) return;
@@ -232,6 +237,53 @@ export function PredictiveInsights() {
     if (score >= 0.6) return <Badge className="bg-yellow-500">Medium ({(score * 100).toFixed(0)}%)</Badge>;
     return <Badge className="bg-red-500">Low ({(score * 100).toFixed(0)}%)</Badge>;
   };
+
+  // Show loading state while checking add-on entitlements
+  if (addonsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show gated UI if user doesn't have advanced_fusion_ai add-on
+  if (!hasAdvancedFusionAI) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Brain className="h-8 w-8 text-purple-600" />
+              Predictive Insights
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              AI-powered forecasts and proactive alerts for your operations
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="py-16">
+            <div className="text-center">
+              <Lock className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Advanced Fusion AI Required
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-lg mx-auto">
+                Predictive Insights provides AI-powered forecasts, proactive alerts, and optimization recommendations. 
+                This feature requires the Advanced Fusion AI add-on.
+              </p>
+              <Link to="/account/plan">
+                <Button>
+                  View Add-Ons
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

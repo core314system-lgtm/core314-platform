@@ -20,11 +20,12 @@ import {
   AreaChart,
   Legend
 } from 'recharts';
-import { RefreshCw, Download, TrendingUp, AlertTriangle, Activity, BarChart3 } from 'lucide-react';
+import { RefreshCw, TrendingUp, AlertTriangle, Activity, BarChart3 } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { VisualizationData } from '../types';
 import { format } from 'date-fns';
 import { FeatureGuard } from '../components/FeatureGuard';
+import { ExportDataButton } from '../components/ExportDataButton';
 
 export function Visualizations() {
   const { profile } = useAuth();
@@ -33,7 +34,6 @@ export function Visualizations() {
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<string>('all');
   const [integrations, setIntegrations] = useState<string[]>([]);
   const [visualData, setVisualData] = useState<VisualizationData>({
@@ -142,59 +142,7 @@ export function Visualizations() {
     }
   };
 
-  const handleExport = async (format: 'csv' | 'pdf') => {
-    setExporting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const url = await getSupabaseFunctionUrl('fusion-export-report');
-      const response = await fetch(
-        url,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            format,
-            integration: selectedIntegration,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `core314_intelligence_report_${new Date().toISOString().split('T')[0]}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-
-        toast({
-          title: '✅ Report exported',
-          description: `Downloaded ${format.toUpperCase()} report`,
-        });
-      } else {
-        throw new Error('Export failed');
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to export report',
-        variant: 'destructive',
-      });
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const automationPieData = [
+  const automationPieData =[
     { name: 'Success', value: visualData.actions.filter(a => a.result === 'success').length, color: '#10b981' },
     { name: 'Failed', value: visualData.actions.filter(a => a.result === 'failed').length, color: '#ef4444' },
   ].filter(item => item.value > 0);
@@ -230,10 +178,15 @@ export function Visualizations() {
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh Data
           </Button>
-          <Button onClick={() => handleExport('csv')} disabled={exporting}>
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
+          <ExportDataButton
+            data={visualData.timeline.map(t => ({
+              date: t.date,
+              fusion_score: t.fusion_score,
+              variance: t.variance,
+            }))}
+            filename="visualizations"
+            headers={['date', 'fusion_score', 'variance']}
+          />
           </div>
         </div>
 
