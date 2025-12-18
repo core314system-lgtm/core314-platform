@@ -15,6 +15,7 @@ import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
 import { AddOnCTA } from '../components/AddOnCTA';
+import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
@@ -472,13 +473,20 @@ export function Dashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Fusion Trend Snapshot (7 Days)</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = '/visualizations'}
-              >
-                View Full Visualization
-              </Button>
+              <div className="flex items-center gap-2">
+                <ExportDataButton
+                  data={trendSnapshot}
+                  filename="fusion-trend"
+                  headers={['date', 'score']}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = '/visualizations'}
+                >
+                  View Full Visualization
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -507,7 +515,19 @@ export function Dashboard() {
       {/* Integration Performance - only show when user has connected integrations */}
       {hasConnectedIntegrations && (
         <div>
-          <h2 className="text-2xl font-bold mb-4">Integration Performance</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Integration Performance</h2>
+            <ExportDataButton
+              data={integrations.map(i => ({
+                integration_name: i.integration_name,
+                fusion_score: i.fusion_score || 0,
+                trend_direction: i.trend_direction || 'stable',
+                metrics_count: i.metrics_count,
+              }))}
+              filename="integration-performance"
+              headers={['integration_name', 'fusion_score', 'trend_direction', 'metrics_count']}
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {integrations.map(integration => (
               <IntegrationCard key={integration.id} integration={integration} />

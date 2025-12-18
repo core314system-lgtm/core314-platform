@@ -18,9 +18,10 @@ import {
   Area,
   AreaChart
 } from 'recharts';
-import { TrendingUp, Download, RefreshCw, Calendar, Users, Activity } from 'lucide-react';
+import { TrendingUp, RefreshCw, Calendar, Users, Activity } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { FeatureGuard } from '../components/FeatureGuard';
+import { ExportDataButton } from '../components/ExportDataButton';
 
 interface AnalyticsData {
   userActivity: Array<{ date: string; active_users: number; sessions: number }>;
@@ -170,33 +171,15 @@ export function AdvancedAnalytics() {
     });
   };
 
-  const handleExport = () => {
-    const csvData = [
-      ['Date', 'Active Users', 'Sessions', 'Fusion Score', 'Optimizations'],
-      ...analyticsData.userActivity.map((day, index) => [
-        day.date,
-        day.active_users,
-        day.sessions,
-        analyticsData.fusionTrends[index]?.fusion_score || 0,
-        analyticsData.fusionTrends[index]?.optimization_count || 0,
-      ]),
-    ];
-
-    const csv = csvData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `core314_analytics_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-
-    toast({
-      title: '✅ Report exported',
-      description: 'Downloaded CSV report',
-    });
+  // Prepare export data by combining user activity with fusion trends
+  const getExportData = () => {
+    return analyticsData.userActivity.map((day, index) => ({
+      date: day.date,
+      active_users: day.active_users,
+      sessions: day.sessions,
+      fusion_score: analyticsData.fusionTrends[index]?.fusion_score || 0,
+      optimization_count: analyticsData.fusionTrends[index]?.optimization_count || 0,
+    }));
   };
 
   return (
@@ -227,10 +210,11 @@ export function AdvancedAnalytics() {
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
+            <ExportDataButton
+              data={getExportData()}
+              filename="analytics"
+              headers={['date', 'active_users', 'sessions', 'fusion_score', 'optimization_count']}
+            />
           </div>
         </div>
 
