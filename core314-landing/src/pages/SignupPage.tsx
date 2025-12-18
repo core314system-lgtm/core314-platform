@@ -45,7 +45,15 @@ export default function SignupPage() {
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Check if this is a duplicate email error from Supabase Auth
+        if (authError.message?.toLowerCase().includes('already registered') ||
+            authError.message?.toLowerCase().includes('already exists') ||
+            authError.message?.toLowerCase().includes('user already exists')) {
+          throw new Error('An account with this email already exists. Please log in instead.');
+        }
+        throw authError;
+      }
 
       if (!authData.user) throw new Error('Failed to create user account');
 
@@ -61,6 +69,11 @@ export default function SignupPage() {
 
       if (profileError) {
         console.error('Profile upsert error:', profileError);
+        // Check if this is a duplicate email constraint violation
+        if (profileError.message?.includes('profiles_email_key') || 
+            profileError.message?.includes('duplicate key value violates unique constraint')) {
+          throw new Error('An account with this email already exists. Please log in instead.');
+        }
         throw new Error(`Failed to update profile: ${profileError.message}`);
       }
 
@@ -139,6 +152,14 @@ export default function SignupPage() {
             {error && (
               <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200">
                 {error}
+                {error.includes('log in') && (
+                  <Link 
+                    to={`/login?email=${encodeURIComponent(formData.email)}`}
+                    className="block mt-2 text-[#00BFFF] hover:text-[#66FCF1] font-semibold transition-colors"
+                  >
+                    Go to Login →
+                  </Link>
+                )}
               </div>
             )}
 
