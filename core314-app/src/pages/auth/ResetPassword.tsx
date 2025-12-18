@@ -1,18 +1,17 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Alert, AlertDescription } from '../../components/ui/alert';
+import { CheckCircle } from 'lucide-react';
 
-export function Login() {
+export function ResetPassword() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,25 +19,53 @@ export function Login() {
     setLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password/confirm`
+      });
       if (error) throw error;
-      navigate('/dashboard');
+      setSuccess(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
+      setError(err instanceof Error ? err.message : 'Failed to send reset email');
     } finally {
       setLoading(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+              Check Your Email
+            </h2>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">
+              If an account exists for <strong>{email}</strong>, a password reset link has been sent.
+            </p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
+              The link will expire in 1 hour.
+            </p>
+          </div>
+          <div className="text-center">
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              Back to Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            Core314
+            Reset Password
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Sign in to your account
+            Enter your email to receive a password reset link
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -64,36 +91,18 @@ export function Login() {
                 Use the email address you signed up with
               </p>
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-              />
-              <div className="mt-1 text-right">
-                <Link to="/reset-password" className="text-xs text-blue-600 hover:text-blue-500">
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
           </div>
 
           <div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </div>
 
           <div className="text-sm text-center">
-            <span className="text-gray-600 dark:text-gray-400">Don't have an account? </span>
-            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-              Sign up
+            <span className="text-gray-600 dark:text-gray-400">Remember your password? </span>
+            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              Sign in
             </Link>
           </div>
         </form>

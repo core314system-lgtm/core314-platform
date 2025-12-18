@@ -5,6 +5,7 @@ import SignupPage from './pages/SignupPage';
 import SignupSuccessPage from './pages/SignupSuccessPage';
 import LoginPage from './pages/LoginPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import ResetPasswordConfirmPage from './pages/ResetPasswordConfirmPage';
 import BillingPage from './pages/BillingPage';
 import ContactPage from './pages/ContactPage';
 import PrivacyPage from './pages/PrivacyPage';
@@ -24,6 +25,7 @@ function App() {
         <Route path="/signup/success" element={<SignupSuccessPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/reset-password/confirm" element={<ResetPasswordConfirmPage />} />
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
