@@ -45,6 +45,7 @@ import { RecoveryManager } from './components/monitoring/RecoveryManager';
 import { SelfTestPanel } from './components/monitoring/SelfTestPanel';
 import Billing from './pages/Billing';
 import { AccountPlan } from './pages/AccountPlan';
+import { ContactSales } from './pages/ContactSales';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
 import { SentryTest } from './pages/SentryTest';
@@ -127,8 +128,9 @@ function App() {
           <Route path="audit-trails" element={<AuditTrails />} />
           <Route path="account-support" element={<AccountSupport />} />
           <Route path="billing" element={<Billing />} />
-          <Route path="account/plan" element={<AccountPlan />} />
-          <Route path="fusion-details" element={<FusionDetails />} />
+                    <Route path="account/plan" element={<AccountPlan />} />
+                    <Route path="contact-sales" element={<ContactSales />} />
+                    <Route path="fusion-details" element={<FusionDetails />} />
           <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
           <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
           <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
