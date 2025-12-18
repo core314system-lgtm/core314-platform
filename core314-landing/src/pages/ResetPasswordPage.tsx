@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { initSupabaseClient } from '../lib/supabase';
 import { Loader2, CheckCircle } from 'lucide-react';
 
 export default function ResetPasswordPage() {
@@ -16,6 +16,9 @@ export default function ResetPasswordPage() {
     setError('');
 
     try {
+      // Initialize Supabase client at runtime (fetches config from Netlify Function)
+      const supabase = await initSupabaseClient();
+
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password/confirm`
       });

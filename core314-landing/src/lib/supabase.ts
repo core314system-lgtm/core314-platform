@@ -39,6 +39,6 @@ export function getSupabaseClient(): SupabaseClient | null {
   return supabaseClient;
 }
 
-// Legacy export for backward compatibility - will be null until initialized
-// Components should use initSupabaseClient() or the SupabaseClientContext
-export const supabase = null as unknown as SupabaseClient;
+// NOTE: The legacy `export const supabase` has been removed.
+// All components must use initSupabaseClient() for async initialization
+// or getSupabaseClient() for synchronous access (returns null if not initialized).

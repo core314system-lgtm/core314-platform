@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { initSupabaseClient } from '../lib/supabase';
 import { CreditCard, Loader2, ExternalLink } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -16,19 +16,27 @@ export default function BillingPage() {
   }, []);
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUser(user);
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile) {
-        setSubscription(profile);
+    try {
+      // Initialize Supabase client at runtime (fetches config from Netlify Function)
+      const supabase = await initSupabaseClient();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile) {
+          setSubscription(profile);
+        }
       }
+    } catch (err) {
+      console.error('Failed to check user:', err);
+      // Page will show "Please Log In" state if user is null
     }
   };
 
