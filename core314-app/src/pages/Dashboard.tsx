@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
-import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare } from 'lucide-react';
+import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -25,6 +25,7 @@ export function Dashboard() {
   const { profile, isAdmin } = useAuth();
   const { subscription } = useSubscription(profile?.id);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
   const [globalScore, setGlobalScore] = useState<number>(0);
   const [globalTrend, setGlobalTrend] = useState<'up' | 'down' | 'stable'>('stable');
@@ -32,6 +33,8 @@ export function Dashboard() {
   const [activeIntegrationCount, setActiveIntegrationCount] = useState(0);
   const [hasConnectedIntegrations, setHasConnectedIntegrations] = useState(false);
   const [autoOptimize, setAutoOptimize] = useState(false);
+  const [showBillingSuccess, setShowBillingSuccess] = useState(false);
+  const [successAddonName, setSuccessAddonName] = useState<string | null>(null);
   const [automationActivity, setAutomationActivity] = useState<{
     total_actions_24h: number;
     success_rate: number;
@@ -46,6 +49,30 @@ export function Dashboard() {
     score: number;
   }[]>([]);
   const [sessionData, setSessionData] = useState<{ last_login: string; active_sessions: number } | null>(null);
+
+  // Handle billing success redirect
+  useEffect(() => {
+    const billingSuccess = searchParams.get('billing_success');
+    const addonName = searchParams.get('addon');
+    
+    if (billingSuccess === '1') {
+      setShowBillingSuccess(true);
+      if (addonName) {
+        setSuccessAddonName(addonName);
+      }
+      // Clear query params after showing success
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('billing_success');
+      newParams.delete('addon');
+      setSearchParams(newParams, { replace: true });
+      
+      // Auto-hide after 10 seconds
+      setTimeout(() => {
+        setShowBillingSuccess(false);
+        setSuccessAddonName(null);
+      }, 10000);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -235,6 +262,23 @@ export function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Billing Success Banner */}
+      {showBillingSuccess && (
+        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <p className="font-medium text-green-800 dark:text-green-200">
+                Add-on activated successfully
+              </p>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {successAddonName ? `${successAddonName.replace(/_/g, ' ')} is now active for your organization.` : 'Your add-on is now active and ready to use.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
