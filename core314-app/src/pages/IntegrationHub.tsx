@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Loader2, Search, Plus, Filter } from 'lucide-react';
+import { Loader2, Search, Plus, Filter, Zap, BarChart3, Lightbulb, CheckCircle, ArrowRight, Shield } from 'lucide-react';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { addCustomIntegration } from '../services/addCustomIntegration';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -15,6 +15,181 @@ import { OAuthConnect } from '../components/integrations/OAuthConnect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+
+// Integration-specific copy for data analyzed and benefits
+const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }> = {
+  slack: {
+    dataAnalyzed: 'Message volume, response time, channel activity',
+    benefit: 'Spot bottlenecks in communication and overloaded teams',
+  },
+  teams: {
+    dataAnalyzed: 'Meeting frequency, chat patterns, collaboration signals',
+    benefit: 'Identify communication gaps and team coordination issues',
+  },
+  gmail: {
+    dataAnalyzed: 'Email volume, response latency, thread patterns',
+    benefit: 'Detect workflow delays and communication breakdowns',
+  },
+  asana: {
+    dataAnalyzed: 'Task completion rates, project velocity, workload distribution',
+    benefit: 'Optimize team productivity and project timelines',
+  },
+  jira: {
+    dataAnalyzed: 'Issue throughput, sprint metrics, cycle time',
+    benefit: 'Improve development velocity and delivery predictability',
+  },
+  hubspot: {
+    dataAnalyzed: 'Pipeline activity, deal velocity, engagement metrics',
+    benefit: 'Accelerate sales cycles and improve conversion rates',
+  },
+  salesforce: {
+    dataAnalyzed: 'Opportunity stages, activity logs, forecast accuracy',
+    benefit: 'Enhance sales visibility and revenue predictability',
+  },
+  stripe: {
+    dataAnalyzed: 'Transaction volume, revenue trends, churn signals',
+    benefit: 'Monitor financial health and identify growth opportunities',
+  },
+  quickbooks: {
+    dataAnalyzed: 'Cash flow patterns, expense trends, invoice cycles',
+    benefit: 'Improve financial planning and operational efficiency',
+  },
+  zendesk: {
+    dataAnalyzed: 'Ticket volume, resolution time, satisfaction scores',
+    benefit: 'Enhance customer support quality and team efficiency',
+  },
+  zoom: {
+    dataAnalyzed: 'Meeting frequency, duration patterns, attendance rates',
+    benefit: 'Optimize meeting culture and collaboration time',
+  },
+  trello: {
+    dataAnalyzed: 'Card movement, list throughput, board activity',
+    benefit: 'Streamline workflows and identify process bottlenecks',
+  },
+  notion: {
+    dataAnalyzed: 'Page activity, collaboration patterns, content updates',
+    benefit: 'Improve knowledge sharing and documentation practices',
+  },
+  sendgrid: {
+    dataAnalyzed: 'Email delivery rates, engagement metrics, bounce patterns',
+    benefit: 'Optimize email campaigns and communication reach',
+  },
+};
+
+// Default copy for integrations not in the mapping
+const DEFAULT_INTEGRATION_COPY = {
+  dataAnalyzed: 'Usage patterns and operational signals',
+  benefit: 'Improve visibility into how this tool impacts your workflows',
+};
+
+// First-time user intro component
+function FirstTimeIntro() {
+  return (
+    <Card className="mb-8 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+      <CardHeader>
+        <CardTitle className="text-2xl flex items-center gap-2">
+          <Zap className="h-6 w-6 text-blue-600" />
+          Connect Your Systems to Activate Insights
+        </CardTitle>
+        <CardDescription className="text-base">
+          Core314 uses your connected tools to generate Fusion Scores, AI Insights, and optimization recommendations. Connect your first integration to begin analysis.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">1</div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">Connect your tools</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Link the apps your team uses daily</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">2</div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">We monitor signals</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Core314 analyzes operational patterns</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">3</div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">Insights are generated</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Fusion Scores and AI analysis appear</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">4</div>
+            <div>
+              <p className="font-medium text-gray-900 dark:text-white">Recommendations surface</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Actionable optimizations are suggested</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// First connection success component
+interface FirstConnectionSuccessProps {
+  enabledCount: number;
+  onViewDashboard: () => void;
+  onConnectAnother: () => void;
+  onDismiss: () => void;
+}
+
+function FirstConnectionSuccess({ enabledCount, onViewDashboard, onConnectAnother, onDismiss }: FirstConnectionSuccessProps) {
+  return (
+    <Card className="mb-6 border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+      <CardContent className="py-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              First Integration Connected
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-3">
+              We're now monitoring signals from your connected tools. Initial insights will start appearing on your dashboard shortly as data begins flowing.
+            </p>
+            {enabledCount === 1 && (
+              <p className="text-sm text-gray-500 dark:text-gray-500 mb-4 flex items-center gap-2">
+                <Lightbulb className="h-4 w-4" />
+                Adding at least one more integration will improve Fusion accuracy across your operations.
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button onClick={onViewDashboard}>
+                View Dashboard
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button variant="outline" onClick={onConnectAnother}>
+                Connect Another Integration
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onDismiss} className="ml-auto">
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Trust reassurance note component
+function TrustReassuranceNote() {
+  return (
+    <div className="mb-4 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 flex items-center gap-3">
+      <Shield className="h-5 w-5 text-blue-600 flex-shrink-0" />
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        <span className="font-medium">Privacy first:</span> Core314 reads operational metadata only (such as usage patterns and performance signals). No messages or files are modified.
+      </p>
+    </div>
+  );
+}
 
 interface RegistryIntegration {
   id: string;
@@ -51,12 +226,51 @@ export default function IntegrationHub() {
   const [customAuthType, setCustomAuthType] = useState<string>('api_key');
   const [customWebhookUrl, setCustomWebhookUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State for first connection success detection
+  const [showFirstConnectionSuccess, setShowFirstConnectionSuccess] = useState(false);
+  const prevEnabledCountRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchIntegrations();
     }
   }, [user]);
+
+  // Detect first connection (0 -> 1+ integrations)
+  useEffect(() => {
+    if (prevEnabledCountRef.current === null) {
+      // First run - just initialize
+      prevEnabledCountRef.current = enabledCount;
+      return;
+    }
+
+    if (
+      prevEnabledCountRef.current === 0 &&
+      enabledCount > 0 &&
+      !showFirstConnectionSuccess &&
+      !sessionStorage.getItem('integrationHubFirstConnectionShown')
+    ) {
+      setShowFirstConnectionSuccess(true);
+      sessionStorage.setItem('integrationHubFirstConnectionShown', 'true');
+    }
+
+    prevEnabledCountRef.current = enabledCount;
+  }, [enabledCount, showFirstConnectionSuccess]);
+
+  const handleDismissSuccess = () => {
+    setShowFirstConnectionSuccess(false);
+  };
+
+  const handleViewDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  const handleConnectAnother = () => {
+    setShowFirstConnectionSuccess(false);
+    // Scroll to the grid
+    document.getElementById('integration-grid')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const fetchIntegrations = async () => {
     try {
@@ -171,6 +385,19 @@ export default function IntegrationHub() {
         </div>
       </div>
 
+      {/* First-time user intro - only show if no integrations connected */}
+      {enabledCount === 0 && <FirstTimeIntro />}
+
+      {/* First connection success state */}
+      {showFirstConnectionSuccess && (
+        <FirstConnectionSuccess
+          enabledCount={enabledCount}
+          onViewDashboard={handleViewDashboard}
+          onConnectAnother={handleConnectAnother}
+          onDismiss={handleDismissSuccess}
+        />
+      )}
+
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-1 gap-4 w-full sm:w-auto">
           <div className="relative flex-1">
@@ -205,7 +432,10 @@ export default function IntegrationHub() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Trust reassurance note - shown once per page */}
+      <TrustReassuranceNote />
+
+      <div id="integration-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredIntegrations.map((integration) => (
           <Card key={integration.id}>
             <CardHeader>
@@ -241,6 +471,22 @@ export default function IntegrationHub() {
               <CardDescription className="mt-2">
                 {integration.description}
               </CardDescription>
+              {/* Enhanced data/benefit copy from INTEGRATION_COPY */}
+              {(() => {
+                const copy = INTEGRATION_COPY[integration.service_name.toLowerCase()] || DEFAULT_INTEGRATION_COPY;
+                return (
+                  <div className="mt-3 space-y-1 text-sm">
+                    <p className="text-gray-600 dark:text-gray-400 flex items-start gap-2">
+                      <BarChart3 className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                      <span><span className="font-medium">Analyzes:</span> {copy.dataAnalyzed}</span>
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400 flex items-start gap-2">
+                      <Lightbulb className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                      <span><span className="font-medium">Benefit:</span> {copy.benefit}</span>
+                    </p>
+                  </div>
+                );
+              })()}
             </CardHeader>
             <CardContent>
               {integration.auth_type === 'oauth2' ? (
