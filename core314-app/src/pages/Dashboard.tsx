@@ -74,6 +74,8 @@ export function Dashboard() {
   const fetchDashboardData = async () => {
     if (!profile?.id) return;
 
+    // Query only integrations that the user has explicitly connected via Integration Hub
+    // added_by_user=true distinguishes real connections from seeded/demo integrations
     const { data: userInts } = await supabase
       .from('user_integrations')
       .select(`
@@ -82,7 +84,8 @@ export function Dashboard() {
         integrations_master (*)
       `)
       .eq('user_id', profile.id)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .eq('added_by_user', true);
 
     // Early return if no connected integrations - prevents querying global caches
     // that may contain seeded/demo data
