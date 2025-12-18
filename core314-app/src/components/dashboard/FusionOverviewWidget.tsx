@@ -3,8 +3,83 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { TrendingUp, TrendingDown, Activity, Gauge, Zap, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Gauge, Zap, Shield, Info, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+
+// Storage key for first Fusion Score explanation dismissal
+const FUSION_SCORE_EXPLAINED_KEY = 'core314_fusion_score_explained';
+
+// First Fusion Score Explainability Component
+function FirstFusionScoreExplainer({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="mb-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+            <Info className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+              Understanding Your Fusion Score
+            </h4>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+              Your Fusion Score reflects the overall operational health of your connected systems based on activity patterns, latency, and consistency. It provides a unified view of how well your tools are working together.
+            </p>
+            
+            <div className="mb-3 p-3 bg-white/60 dark:bg-gray-800/60 rounded-md">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">What this score is:</p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>An operational signal showing system coordination</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>A trend indicator to track over time</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 mt-0.5">•</span>
+                  <span>A way to prioritize attention across your operations</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="mb-3 p-3 bg-white/60 dark:bg-gray-800/60 rounded-md">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">How to use this score:</p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">→</span>
+                  <span>Track trends over time rather than focusing on a single number</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">→</span>
+                  <span>Look for changes after system or process updates</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5">→</span>
+                  <span>Use it to guide attention, not as a KPI to optimize blindly</span>
+                </li>
+              </ul>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-500 italic">
+              Note: This is not a performance grade or compliance score — it's an operational signal to help you understand your systems better.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDismiss}
+          className="flex-shrink-0 text-gray-500 hover:text-gray-700"
+        >
+          <X className="h-4 w-4 mr-1" />
+          Got it
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 interface FusionMetrics {
   fusion_score: number;
@@ -18,12 +93,23 @@ export function FusionOverviewWidget() {
   const { profile } = useAuth();
   const [metrics, setMetrics] = useState<FusionMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // State for first Fusion Score explainer visibility
+  const [showExplainer, setShowExplainer] = useState(() => {
+    // Check if user has already dismissed the explainer
+    return !localStorage.getItem(FUSION_SCORE_EXPLAINED_KEY);
+  });
 
   useEffect(() => {
     if (profile?.id) {
       fetchMetrics();
     }
   }, [profile?.id]);
+
+  const handleDismissExplainer = () => {
+    localStorage.setItem(FUSION_SCORE_EXPLAINED_KEY, 'true');
+    setShowExplainer(false);
+  };
 
   const fetchMetrics = async () => {
     if (!profile?.id) return;
@@ -140,6 +226,9 @@ export function FusionOverviewWidget() {
         </div>
       </CardHeader>
       <CardContent>
+        {/* First Fusion Score explainer - shows only once per user */}
+        {showExplainer && <FirstFusionScoreExplainer onDismiss={handleDismissExplainer} />}
+        
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Fusion Score */}
           <div className={`p-4 rounded-lg ${getScoreBgColor(metrics.fusion_score)}`}>
