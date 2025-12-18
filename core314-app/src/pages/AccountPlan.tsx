@@ -1,10 +1,22 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
+import { useOrganization } from '../contexts/OrganizationContext';
+import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Check, Sparkles, TrendingUp, Zap, ArrowRight, Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Check, Sparkles, TrendingUp, Zap, ArrowRight, Lock, Loader2, CheckCircle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+// Self-serve add-on IDs that can be purchased via Stripe checkout
+// Enterprise-only add-ons and additional_integration_starter remain Contact Sales
+const SELF_SERVE_ADDON_IDS = [
+  'additional_integration_pro',
+  'premium_analytics',
+  'advanced_fusion_ai',
+  'data_export',
+];
 
 // Plan configuration - prices and limits match Pricing.tsx exactly
 const PLAN_CONFIG: Record<string, {
@@ -167,13 +179,107 @@ const getAvailableUpgrades = (currentTier: string | undefined): string[] => {
 };
 
 export function AccountPlan() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { subscription, loading } = useSubscription(profile?.id);
+  const { currentOrganization } = useOrganization();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // State for add-on management
+  const [activeAddons, setActiveAddons] = useState<string[]>([]);
+  const [processingAddon, setProcessingAddon] = useState<string | null>(null);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successAddonName, setSuccessAddonName] = useState<string | null>(null);
 
   const currentTier = subscription.tier || 'none';
   const planConfig = PLAN_CONFIG[currentTier] || PLAN_CONFIG.none;
   const availableUpgrades = getAvailableUpgrades(currentTier);
+
+  // Fetch user's active add-ons
+  useEffect(() => {
+    const fetchActiveAddons = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Get all users in the same org for org-level addon checking
+        let userIds = [user.id];
+        
+        if (currentOrganization?.id) {
+          const { data: orgMembers } = await supabase
+            .from('organization_members')
+            .select('user_id')
+            .eq('organization_id', currentOrganization.id);
+          
+          if (orgMembers) {
+            userIds = orgMembers.map(m => m.user_id);
+          }
+        }
+
+        const { data: addons, error } = await supabase
+          .from('user_addons')
+          .select('addon_name')
+          .in('user_id', userIds)
+          .eq('status', 'active');
+
+        if (error) {
+          console.error('Error fetching active addons:', error);
+          return;
+        }
+
+        setActiveAddons(addons?.map(a => a.addon_name) || []);
+      } catch (error) {
+        console.error('Error fetching active addons:', error);
+      }
+    };
+
+    fetchActiveAddons();
+  }, [user?.id, currentOrganization?.id]);
+
+  // Handle success redirect from Stripe checkout
+  useEffect(() => {
+    const billingSuccess = searchParams.get('billing_success');
+    const addonParam = searchParams.get('addon');
+
+    if (billingSuccess === '1' && addonParam) {
+      setShowSuccessBanner(true);
+      setSuccessAddonName(addonParam);
+      
+      // Clear the URL params
+      searchParams.delete('billing_success');
+      searchParams.delete('addon');
+      setSearchParams(searchParams, { replace: true });
+
+      // Refresh active addons
+      const refreshAddons = async () => {
+        if (!user?.id) return;
+        
+        let userIds = [user.id];
+        if (currentOrganization?.id) {
+          const { data: orgMembers } = await supabase
+            .from('organization_members')
+            .select('user_id')
+            .eq('organization_id', currentOrganization.id);
+          
+          if (orgMembers) {
+            userIds = orgMembers.map(m => m.user_id);
+          }
+        }
+
+        const { data: addons } = await supabase
+          .from('user_addons')
+          .select('addon_name')
+          .in('user_id', userIds)
+          .eq('status', 'active');
+
+        setActiveAddons(addons?.map(a => a.addon_name) || []);
+      };
+
+      refreshAddons();
+
+      // Auto-hide banner after 10 seconds
+      setTimeout(() => setShowSuccessBanner(false), 10000);
+    }
+  }, [searchParams, user?.id, currentOrganization?.id]);
 
   const scrollToUpgrades = () => {
     document.getElementById('upgrade-options')?.scrollIntoView({ behavior: 'smooth' });
@@ -181,6 +287,68 @@ export function AccountPlan() {
 
   const handleContactSales = () => {
     navigate('/contact-sales');
+  };
+
+  // Handle self-serve add-on purchase via Stripe checkout
+  const handleAddOnPurchase = async (addonId: string) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    setProcessingAddon(addonId);
+
+    try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await fetch('/.netlify/functions/create-addon-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          addonId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.alreadyActive) {
+          // Addon already active, refresh the list
+          setActiveAddons(prev => [...prev, addonId]);
+        } else {
+          console.error('Checkout error:', data.error);
+        }
+        return;
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Error initiating checkout:', error);
+    } finally {
+      setProcessingAddon(null);
+    }
+  };
+
+  // Check if an addon is self-serve (can be purchased via Stripe)
+  const isSelfServeAddon = (addonId: string): boolean => {
+    return SELF_SERVE_ADDON_IDS.includes(addonId);
+  };
+
+  // Check if user already has this addon active
+  const isAddonActive = (addonId: string): boolean => {
+    return activeAddons.includes(addonId);
   };
 
   if (loading) {
@@ -193,6 +361,23 @@ export function AccountPlan() {
 
   return (
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
+      {/* Success Banner for Add-On Purchase */}
+      {showSuccessBanner && (
+        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <div>
+              <p className="font-medium text-green-800 dark:text-green-200">
+                Add-on activated successfully
+              </p>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {successAddonName ? `${successAddonName.replace(/_/g, ' ')} is now active for your organization.` : 'Your add-on is now active.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Plan & Add-Ons</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
@@ -332,17 +517,24 @@ export function AccountPlan() {
           {ADDONS.map((addon) => {
             const isEligible = canUseAddon(currentTier, addon.minTier, addon.maxTier);
             const needsUpgrade = !isEligible && tierRank[(currentTier as Tier) ?? 'none'] < tierRank[addon.minTier];
-            const notApplicable = !isEligible && !needsUpgrade;
+            const isActive = isAddonActive(addon.id);
+            const isSelfServe = isSelfServeAddon(addon.id);
+            const isProcessing = processingAddon === addon.id;
             const IconComponent = addon.icon;
 
             return (
-              <Card key={addon.id} className={!isEligible ? 'opacity-75' : ''}>
+              <Card key={addon.id} className={`${!isEligible && !isActive ? 'opacity-75' : ''} ${isActive ? 'ring-2 ring-green-500' : ''}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       <IconComponent className="h-5 w-5 text-blue-600" />
                       <CardTitle className="text-lg">{addon.name}</CardTitle>
                     </div>
+                    {isActive && (
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                        Active
+                      </Badge>
+                    )}
                   </div>
                   <CardDescription className="mt-2">
                     {addon.description}
@@ -362,14 +554,41 @@ export function AccountPlan() {
                     </span>
                   </div>
 
-                  {isEligible ? (
+                  {isActive ? (
                     <Button
                       className="w-full"
                       variant="outline"
-                      onClick={handleContactSales}
+                      disabled
                     >
-                      Add to Plan
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                      Active
                     </Button>
+                  ) : isEligible ? (
+                    isSelfServe ? (
+                      <Button
+                        className="w-full"
+                        variant="default"
+                        onClick={() => handleAddOnPurchase(addon.id)}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          'Add to Plan'
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={handleContactSales}
+                      >
+                        Contact Sales
+                      </Button>
+                    )
                   ) : needsUpgrade ? (
                     <Button
                       className="w-full"

@@ -57,7 +57,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
   const customerEmail = session.customer_email;
+  const metadata = session.metadata || {};
 
+  // Check if this is an addon purchase (vs a plan subscription)
+  if (metadata.kind === 'addon') {
+    await handleAddonCheckoutCompleted(session);
+    return;
+  }
+
+  // Original plan subscription handling
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   const priceId = subscription.items.data[0].price.id;
   
@@ -96,6 +104,101 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     new_tier: tier,
     new_status: subscription.status,
   });
+}
+
+// Handle addon purchase checkout completion
+async function handleAddonCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const customerId = session.customer as string;
+  const subscriptionId = session.subscription as string;
+  const metadata = session.metadata || {};
+
+  const addonName = metadata.addon_name;
+  const addonCategory = metadata.addon_category;
+  const userId = metadata.user_id;
+
+  if (!addonName || !userId) {
+    console.error('Missing addon metadata:', { addonName, userId });
+    return;
+  }
+
+  // Retrieve the subscription to get the price ID
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const priceId = subscription.items.data[0].price.id;
+
+  // Check if this addon already exists for this user (idempotency)
+  const { data: existingAddon } = await supabase
+    .from('user_addons')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('addon_name', addonName)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (existingAddon) {
+    // Addon already active, update the subscription ID if different
+    await supabase
+      .from('user_addons')
+      .update({
+        stripe_subscription_id: subscriptionId,
+        stripe_price_id: priceId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existingAddon.id);
+    
+    console.log(`Addon ${addonName} already active for user ${userId}, updated subscription ID`);
+    return;
+  }
+
+  // Check if there's a canceled/expired addon to reactivate
+  const { data: inactiveAddon } = await supabase
+    .from('user_addons')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('addon_name', addonName)
+    .in('status', ['canceled', 'expired'])
+    .maybeSingle();
+
+  if (inactiveAddon) {
+    // Reactivate the existing addon
+    await supabase
+      .from('user_addons')
+      .update({
+        status: 'active',
+        stripe_subscription_id: subscriptionId,
+        stripe_price_id: priceId,
+        activated_at: new Date().toISOString(),
+        expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', inactiveAddon.id);
+    
+    console.log(`Reactivated addon ${addonName} for user ${userId}`);
+    return;
+  }
+
+  // Create new addon entitlement
+  const { error: insertError } = await supabase
+    .from('user_addons')
+    .insert({
+      user_id: userId,
+      addon_name: addonName,
+      addon_category: addonCategory || 'custom',
+      stripe_price_id: priceId,
+      stripe_subscription_id: subscriptionId,
+      status: 'active',
+      activated_at: new Date().toISOString(),
+      metadata: {
+        stripe_customer_id: customerId,
+        org_id: metadata.org_id || null,
+      },
+    });
+
+  if (insertError) {
+    console.error('Error inserting addon entitlement:', insertError);
+    throw insertError;
+  }
+
+  console.log(`Created addon entitlement: ${addonName} for user ${userId}`);
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
