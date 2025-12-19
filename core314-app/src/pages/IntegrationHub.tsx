@@ -7,14 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Loader2, Search, Plus, Filter, Zap, BarChart3, Lightbulb, CheckCircle, ArrowRight, Shield } from 'lucide-react';
+import { Loader2, Search, Plus, Filter, Zap, BarChart3, Lightbulb, CheckCircle, ArrowRight, Shield, Lock, RefreshCw } from 'lucide-react';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { addCustomIntegration } from '../services/addCustomIntegration';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
-import { OAuthConnect } from '../components/integrations/OAuthConnect';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+// Note: OAuthConnect import removed - all Connect buttons now use modal-based stub flow
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import { useToast } from '../hooks/use-toast';
 
 // Integration-specific copy for data analyzed and benefits
 const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }> = {
@@ -179,6 +181,94 @@ function TrustReassuranceNote() {
   );
 }
 
+// Integration Connect Modal - Reusable modal for integration connection flow
+interface IntegrationConnectModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  providerId: string;
+  providerName: string;
+  logoUrl?: string;
+  dataAnalyzed: string;
+  benefit: string;
+  onConnect: (providerId: string, providerName: string) => void;
+}
+
+function IntegrationConnectModal({
+  open,
+  onOpenChange,
+  providerId,
+  providerName,
+  logoUrl,
+  dataAnalyzed,
+  benefit,
+  onConnect,
+}: IntegrationConnectModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            {logoUrl && (
+              <img src={logoUrl} alt={providerName} className="w-8 h-8 object-contain" />
+            )}
+            Connect {providerName} to Core314
+          </DialogTitle>
+          <DialogDescription>
+            Once connected, Core314 will begin analyzing operational signals from {providerName} to power your dashboards, alerts, and AI insights.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* What Core314 will analyze */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-500" />
+              What Core314 will analyze
+            </h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 ml-6">
+              {dataAnalyzed}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 ml-6 mt-1">
+              <span className="font-medium">Benefit:</span> {benefit}
+            </p>
+          </div>
+
+          {/* Permissions required */}
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-500" />
+              Permissions required
+            </h4>
+            <div className="space-y-2 ml-6">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Lock className="h-3.5 w-3.5 text-gray-400" />
+                <span>Read-only access — Core314 never modifies your data</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Shield className="h-3.5 w-3.5 text-gray-400" />
+                <span>No data modification — we only observe operational signals</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <RefreshCw className="h-3.5 w-3.5 text-gray-400" />
+                <span>Disconnect anytime — you stay in full control</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="flex gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => onConnect(providerId, providerName)}>
+            Continue to Connect
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface RegistryIntegration {
   id: string;
   service_name: string;
@@ -218,6 +308,13 @@ export default function IntegrationHub() {
   // State for first connection success detection
   const [showFirstConnectionSuccess, setShowFirstConnectionSuccess] = useState(false);
   const prevEnabledCountRef = useRef<number | null>(null);
+  
+  // State for integration connect modal
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<RegistryIntegration | null>(null);
+  
+  // Toast hook for stub connection
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -298,32 +395,40 @@ export default function IntegrationHub() {
     }
   };
 
-  const handleToggleIntegration = async (integration: RegistryIntegration) => {
-    if (integration.is_connected) {
-      if (integration.user_integration_id) {
-        const { error } = await supabase
-          .from('user_integrations')
-          .delete()
-          .eq('id', integration.user_integration_id);
+  // Handle disconnect - keeps existing Supabase logic intact
+  const handleDisconnect = async (integration: RegistryIntegration) => {
+    if (integration.user_integration_id) {
+      const { error } = await supabase
+        .from('user_integrations')
+        .delete()
+        .eq('id', integration.user_integration_id);
 
-        if (!error) {
-          await fetchIntegrations();
-        }
+      if (!error) {
+        await fetchIntegrations();
       }
-    } else {
-      if (!canAddIntegration(enabledCount)) {
-        setUpgradeModalOpen(true);
-        return;
-      }
-
-      navigate('/integrations', { 
-        state: { 
-          selectedIntegration: integration.display_name,
-          integrationId: integration.id,
-          serviceName: integration.service_name
-        } 
-      });
     }
+  };
+
+  // Handle connect click - opens the modal instead of navigating
+  const handleConnectClick = (integration: RegistryIntegration) => {
+    if (!canAddIntegration(enabledCount)) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
+    setSelectedIntegration(integration);
+    setConnectModalOpen(true);
+  };
+
+  // Stub function for integration connection - will be wired to real OAuth later
+  const startIntegrationConnection = (providerId: string, providerName: string) => {
+    console.log('Integration connection stub:', providerId);
+    toast({
+      title: `${providerName} integration coming soon`,
+      description: 'Core314 will support direct connection in an upcoming release.',
+    });
+    setConnectModalOpen(false);
+    setSelectedIntegration(null);
   };
 
   const categories = useMemo(() => {
@@ -477,21 +582,17 @@ export default function IntegrationHub() {
               })()}
             </CardHeader>
             <CardContent>
-              {integration.auth_type === 'oauth2' ? (
-                <OAuthConnect
-                  serviceName={integration.service_name}
-                  displayName={integration.display_name}
-                  logoUrl={integration.logo_url}
-                />
-              ) : (
-                <Button
-                  onClick={() => handleToggleIntegration(integration)}
-                  variant={integration.is_connected ? 'outline' : 'default'}
-                  className="w-full"
-                >
-                  {integration.is_connected ? 'Disconnect' : 'Connect'}
-                </Button>
-              )}
+              <Button
+                onClick={() =>
+                  integration.is_connected
+                    ? handleDisconnect(integration)
+                    : handleConnectClick(integration)
+                }
+                variant={integration.is_connected ? 'outline' : 'default'}
+                className="w-full"
+              >
+                {integration.is_connected ? 'Disconnect' : 'Connect'}
+              </Button>
             </CardContent>
           </Card>
         ))}
@@ -522,6 +623,23 @@ export default function IntegrationHub() {
         currentCount={enabledCount}
         maxCount={subscription.maxIntegrations}
       />
+
+      {/* Integration Connect Modal */}
+      {selectedIntegration && (() => {
+        const copy = INTEGRATION_COPY[selectedIntegration.service_name.toLowerCase()] || DEFAULT_INTEGRATION_COPY;
+        return (
+          <IntegrationConnectModal
+            open={connectModalOpen}
+            onOpenChange={setConnectModalOpen}
+            providerId={selectedIntegration.service_name}
+            providerName={selectedIntegration.display_name}
+            logoUrl={selectedIntegration.logo_url}
+            dataAnalyzed={copy.dataAnalyzed}
+            benefit={copy.benefit}
+            onConnect={startIntegrationConnection}
+          />
+        );
+      })()}
 
       <AlertDialog open={addCustomModalOpen} onOpenChange={setAddCustomModalOpen}>
         <AlertDialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
