@@ -20,7 +20,7 @@ export function ResetPassword() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password/confirm`
+        redirectTo: `https://app.core314.com/reset-password/confirm`
       });
       if (error) throw error;
       setSuccess(true);

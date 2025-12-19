@@ -11,23 +11,66 @@ export default function ResetPasswordConfirmPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [sessionError, setSessionError] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkSession = async () => {
+    const hash = window.location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.substring(1));
+      const errorCode = params.get('error_code');
+      
+      if (errorCode === 'otp_expired' || params.get('error') === 'access_denied') {
+        setSessionError(true);
+        setInitializing(false);
+        return;
+      }
+    }
+
+    let subscription: { unsubscribe: () => void } | null = null;
+    let timeout: NodeJS.Timeout | null = null;
+
+    const initAuth = async () => {
       try {
         const supabase = await initSupabaseClient();
-        const { data: { session } } = await supabase.auth.getSession();
         
-        if (!session) {
-          setSessionError(true);
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+            setInitializing(false);
+          } else if (event === 'SIGNED_OUT') {
+            setSessionError(true);
+            setInitializing(false);
+          }
+        });
+        subscription = authListener.subscription;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setInitializing(false);
         }
       } catch (err) {
         setSessionError(true);
+        setInitializing(false);
       }
     };
 
-    checkSession();
+    initAuth();
+
+    timeout = setTimeout(() => {
+      if (initializing) {
+        setSessionError(true);
+        setInitializing(false);
+      }
+    }, 5000);
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +110,21 @@ export default function ResetPasswordConfirmPage() {
       setLoading(false);
     }
   };
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center px-4">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0A0F1A] via-[#001a33] to-[#0A0F1A]" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-md text-center">
+          <Loader2 className="h-16 w-16 text-[#00BFFF] mx-auto mb-4 animate-spin" />
+          <h2 className="text-xl text-gray-300">Verifying reset link...</h2>
+        </div>
+      </div>
+    );
+  }
 
   if (sessionError) {
     return (
