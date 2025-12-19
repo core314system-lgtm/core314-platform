@@ -4,8 +4,16 @@ import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Loader2, Plus, Bell, Mail, MessageSquare, Info, X, AlertCircle, TrendingUp, Clock, Activity, Eye, Lightbulb } from 'lucide-react';
+import { Loader2, Plus, Bell, Mail, MessageSquare, Info, X, AlertCircle, TrendingUp, Clock, Activity, Eye, Lightbulb, Zap, Shield } from 'lucide-react';
 import { AlertRule, NotificationChannel } from '../types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 
 // Storage key for first alert explanation dismissal
 const ALERT_EXPLAINED_KEY = 'core314_alert_explained';
@@ -125,11 +133,141 @@ function FirstAlertExplainer({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+// Alert Rule Info Modal - Educational scaffolding for future alert rule creation
+function AlertRuleInfoModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-amber-500" />
+            Creating Alert Rules
+          </DialogTitle>
+          <DialogDescription>
+            Alert rules let Core314 monitor your operations and notify you when something important changes.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+              Example alert rules you can create:
+            </h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <Activity className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Integration Health Check</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Alert when an integration stops reporting data for more than 15 minutes</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Performance Threshold</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Alert when response time exceeds 500ms or error rate rises above 2%</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Anomaly Detection</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Alert when Core314 detects unusual patterns in your operational data</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <Shield className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-blue-800 dark:text-blue-300">
+              Alert rule creation will be available once you have connected integrations. Core314 needs operational data to monitor before it can alert you to changes.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>
+            Got it
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Notification Channel Info Modal - Educational scaffolding for future channel creation
+function NotificationChannelInfoModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-blue-500" />
+            Setting Up Notification Channels
+          </DialogTitle>
+          <DialogDescription>
+            Notification channels define where Core314 sends alerts when your rules are triggered.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+              Supported notification channels:
+            </h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <Mail className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Email</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Send alerts to one or more email addresses with customizable subject lines</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <MessageSquare className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Slack</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Post alerts to a Slack channel via webhook for real-time team visibility</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <MessageSquare className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">Microsoft Teams</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Send alerts to a Teams channel for organizations using Microsoft 365</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <Shield className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-blue-800 dark:text-blue-300">
+              Channel configuration will be available after you create your first alert rule. You control exactly which alerts go to which channels.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>
+            Got it
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Notifications() {
   const { user } = useAuth();
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // State for modal visibility
+  const [alertRuleModalOpen, setAlertRuleModalOpen] = useState(false);
+  const [channelModalOpen, setChannelModalOpen] = useState(false);
   
   // State for first alert explainer visibility
   const [showExplainer, setShowExplainer] = useState(() => {
@@ -219,7 +357,7 @@ export default function Notifications() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Alert Rules</h2>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setAlertRuleModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Rule
             </Button>
@@ -245,7 +383,7 @@ export default function Notifications() {
                     <p>System efficiency drops below normal ranges</p>
                   </div>
                   <div className="text-center">
-                    <Button size="sm">
+                    <Button size="sm" onClick={() => setAlertRuleModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create Your First Alert Rule
                     </Button>
@@ -303,7 +441,7 @@ export default function Notifications() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Notification Channels</h2>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setChannelModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Channel
             </Button>
@@ -327,7 +465,7 @@ export default function Notifications() {
                     You stay in full control — Core314 will only notify you when rules you define are triggered.
                   </p>
                   <div className="text-center">
-                    <Button size="sm">
+                    <Button size="sm" onClick={() => setChannelModalOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Your First Notification Channel
                     </Button>
@@ -372,6 +510,10 @@ export default function Notifications() {
           Teams that configure alerts early catch performance issues faster, reduce manual monitoring, and gain more value from connected integrations.
         </p>
       </div>
+
+      {/* Educational Modals */}
+      <AlertRuleInfoModal open={alertRuleModalOpen} onOpenChange={setAlertRuleModalOpen} />
+      <NotificationChannelInfoModal open={channelModalOpen} onOpenChange={setChannelModalOpen} />
     </div>
   );
 }
