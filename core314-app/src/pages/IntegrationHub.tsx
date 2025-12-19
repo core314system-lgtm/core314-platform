@@ -82,49 +82,37 @@ const DEFAULT_INTEGRATION_COPY = {
   benefit: 'Improve visibility into how this tool impacts your workflows',
 };
 
-// First-time user intro component
-function FirstTimeIntro() {
+// Pre-connection context component (shown when zero integrations connected)
+function PreConnectionContext() {
   return (
     <Card className="mb-8 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
       <CardHeader>
-        <CardTitle className="text-2xl flex items-center gap-2">
-          <Zap className="h-6 w-6 text-blue-600" />
-          Connect Your Systems to Activate Insights
+        <CardTitle className="text-xl flex items-center gap-2">
+          <Zap className="h-5 w-5 text-blue-600" />
+          What happens when you connect an integration?
         </CardTitle>
         <CardDescription className="text-base">
-          Core314 uses your connected tools to generate Fusion Scores, AI Insights, and optimization recommendations. Connect your first integration to begin analysis.
+          After connecting an integration, Core314 begins securely analyzing operational signals to power dashboards, alerts, and AI insights.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
-            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">1</div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Connect your tools</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Link the apps your team uses daily</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
-            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">2</div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">We monitor signals</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Core314 analyzes operational patterns</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
-            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">3</div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Insights are generated</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Fusion Scores and AI analysis appear</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg">
-            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 font-semibold">4</div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Recommendations surface</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Actionable optimizations are suggested</p>
-            </div>
-          </div>
+        <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+          <p className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>Core314 reads operational signals only — it never modifies your data</span>
+          </p>
+          <p className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>Metrics and trends populate automatically</span>
+          </p>
+          <p className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>Alerts and insights become available as patterns emerge</span>
+          </p>
+          <p className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>Integrations can be disconnected at any time</span>
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -179,13 +167,13 @@ function FirstConnectionSuccess({ enabledCount, onViewDashboard, onConnectAnothe
   );
 }
 
-// Trust reassurance note component
+// Trust & control reassurance component
 function TrustReassuranceNote() {
   return (
     <div className="mb-4 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 flex items-center gap-3">
       <Shield className="h-5 w-5 text-blue-600 flex-shrink-0" />
       <p className="text-sm text-gray-700 dark:text-gray-300">
-        <span className="font-medium">Privacy first:</span> Core314 reads operational metadata only (such as usage patterns and performance signals). No messages or files are modified.
+        Your data remains yours. Core314 uses read-only access where possible and never makes changes without your permission.
       </p>
     </div>
   );
@@ -371,11 +359,11 @@ export default function IntegrationHub() {
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Integration Hub</h1>
+        <h1 className="text-3xl font-bold mb-2">Connect Your Systems to Unlock Operational Insight</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Connect your tools and services to Core314
+          Integrations allow Core314 to analyze real operational data across your tools. Once connected, Core314 can monitor performance, detect inefficiencies, and surface actionable insights automatically — without disrupting your existing workflows.
         </p>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <Badge variant="outline">
             {subscription.tier === 'none' ? 'No active subscription' : `${subscription.tier} Plan`}
           </Badge>
@@ -385,8 +373,8 @@ export default function IntegrationHub() {
         </div>
       </div>
 
-      {/* First-time user intro - only show if no integrations connected */}
-      {enabledCount === 0 && <FirstTimeIntro />}
+      {/* Pre-connection context - only show if no integrations connected */}
+      {enabledCount === 0 && <PreConnectionContext />}
 
       {/* First connection success state */}
       {showFirstConnectionSuccess && (
@@ -516,6 +504,16 @@ export default function IntegrationHub() {
           </p>
         </div>
       )}
+
+      {/* Bottom Informational Callout */}
+      <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-5">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+          Why integrations matter
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Integrations allow Core314 to correlate signals across systems, detect issues earlier, and recommend operational improvements that would otherwise remain hidden.
+        </p>
+      </div>
 
       <UpgradeModal
         open={upgradeModalOpen}
