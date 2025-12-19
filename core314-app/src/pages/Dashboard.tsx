@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
+import { useAddons } from '../hooks/useAddons';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
-import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle } from 'lucide-react';
+import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -25,6 +26,7 @@ import { betaTrackingService } from '../services/betaTracking';
 export function Dashboard() {
   const { profile, isAdmin } = useAuth();
   const { subscription } = useSubscription(profile?.id);
+  const { hasAddon, loading: addonsLoading } = useAddons();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
@@ -280,6 +282,27 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* Contextual Micro CTA - Prompt 4: Conditional Top-of-Page Micro CTA */}
+      {/* Trigger: active_integrations >= 1 AND user_has_logged_in_before === true */}
+      {/* Disappears when user owns all relevant add-ons */}
+      {!addonsLoading && 
+       hasConnectedIntegrations && 
+       sessionData?.last_login && 
+       sessionData.last_login !== 'Never' &&
+       (!hasAddon('premium_analytics') || !hasAddon('advanced_fusion_ai')) && (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          <Link 
+            to="/account/plan" 
+            className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            <span className="flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              Advanced features available for your setup
+            </span>
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -325,6 +348,25 @@ export function Dashboard() {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Max: {subscription.maxIntegrations === -1 ? 'Unlimited' : subscription.maxIntegrations}
             </p>
+            {/* Prompt 2a: Integration Limit Reached */}
+            {!addonsLoading &&
+             subscription.maxIntegrations !== -1 &&
+             activeIntegrationCount >= subscription.maxIntegrations &&
+             !hasAddon('additional_integration_pro') &&
+             !hasAddon('additional_integration_starter') && (
+              <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
+                <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>You've reached your plan limit.</span>
+                </div>
+                <Link 
+                  to="/account/plan" 
+                  className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Expand with Add-Ons
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -367,6 +409,37 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Prompt 1: First Integration - Unlock deeper insights */}
+      {/* Trigger: activeIntegrationCount === 1 */}
+      {/* Disappears when user owns premium_analytics add-on */}
+      {!addonsLoading &&
+       activeIntegrationCount === 1 &&
+       hasConnectedIntegrations &&
+       !hasAddon('premium_analytics') && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Unlock deeper insights
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Advanced Analytics can unlock deeper performance insights from your integration.
+                  </p>
+                </div>
+              </div>
+              <Link to="/account/plan">
+                <Button variant="outline" size="sm">
+                  View Advanced Analytics Add-On
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
       {hasConnectedIntegrations && <FusionOverviewWidget />}

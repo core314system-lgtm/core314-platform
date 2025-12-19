@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useSubscription } from '../hooks/useSubscription';
+import { useAddons } from '../hooks/useAddons';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -18,10 +20,10 @@ import {
   Area,
   AreaChart
 } from 'recharts';
-import { TrendingUp, RefreshCw, Calendar, Users, Activity } from 'lucide-react';
+import { TrendingUp, RefreshCw, Calendar, Users, Activity, Lock } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
-import { FeatureGuard } from '../components/FeatureGuard';
 import { ExportDataButton } from '../components/ExportDataButton';
+import { Link } from 'react-router-dom';
 
 interface AnalyticsData {
   userActivity: Array<{ date: string; active_users: number; sessions: number }>;
@@ -37,7 +39,14 @@ interface AnalyticsData {
 
 export function AdvancedAnalytics() {
   const { profile } = useAuth();
+  const { hasFeature } = useSubscription(profile?.id);
+  const { hasAddon, loading: addonsLoading } = useAddons();
   const { toast } = useToast();
+
+  // Check if user has access via plan feature OR premium_analytics add-on
+  const hasPlanAccess = hasFeature('advanced_analytics') || hasFeature('ai_insights');
+  const hasAddonAccess = hasAddon('premium_analytics');
+  const hasAccess = hasPlanAccess || hasAddonAccess;
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -182,8 +191,18 @@ export function AdvancedAnalytics() {
     }));
   };
 
-  return (
-    <FeatureGuard feature="ai_insights">
+  // Show loading state while checking add-on entitlements
+  if (addonsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Soft Feature Lock - Prompt 3: Show preview with unlock message
+  if (!hasAccess) {
+    return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -195,28 +214,63 @@ export function AdvancedAnalytics() {
               Deep insights into your operations and performance metrics
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Time Range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <ExportDataButton
-              data={getExportData()}
-              filename="analytics"
-              headers={['date', 'active_users', 'sessions', 'fusion_score', 'optimization_count']}
-            />
-          </div>
         </div>
+        <Card>
+          <CardContent className="py-16">
+            <div className="text-center">
+              <Lock className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Premium Analytics
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-lg mx-auto">
+                This feature is available with the Premium Analytics Add-On.
+              </p>
+              <Link to="/account/plan">
+                <Button>
+                  Unlock Feature
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <TrendingUp className="h-8 w-8" />
+            Advanced Analytics
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Deep insights into your operations and performance metrics
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Time Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <ExportDataButton
+            data={getExportData()}
+            filename="analytics"
+            headers={['date', 'active_users', 'sessions', 'fusion_score', 'optimization_count']}
+          />
+        </div>
+      </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -390,6 +444,5 @@ export function AdvancedAnalytics() {
           </>
         )}
       </div>
-    </FeatureGuard>
   );
 }
