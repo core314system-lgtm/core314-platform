@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useSubscription } from '../hooks/useSubscription';
+import { useAddons } from '../hooks/useAddons';
 import { useSupabaseClient } from '../contexts/SupabaseClientContext';
 import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -20,17 +22,24 @@ import {
   AreaChart,
   Legend
 } from 'recharts';
-import { RefreshCw, TrendingUp, AlertTriangle, Activity, BarChart3 } from 'lucide-react';
+import { RefreshCw, TrendingUp, AlertTriangle, Activity, BarChart3, Lock } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { VisualizationData } from '../types';
 import { format } from 'date-fns';
-import { FeatureGuard } from '../components/FeatureGuard';
 import { ExportDataButton } from '../components/ExportDataButton';
+import { Link } from 'react-router-dom';
 
 export function Visualizations() {
   const { profile } = useAuth();
+  const { hasFeature } = useSubscription(profile?.id);
+  const { hasAddon, loading: addonsLoading } = useAddons();
   const { toast } = useToast();
   const supabase = useSupabaseClient();
+
+  // Check if user has access via plan feature OR premium_analytics add-on
+  const hasPlanAccess = hasFeature('advanced_analytics') || hasFeature('ai_insights');
+  const hasAddonAccess = hasAddon('premium_analytics');
+  const hasAccess = hasPlanAccess || hasAddonAccess;
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -147,8 +156,18 @@ export function Visualizations() {
     { name: 'Failed', value: visualData.actions.filter(a => a.result === 'failed').length, color: '#ef4444' },
   ].filter(item => item.value > 0);
 
-  return (
-    <FeatureGuard feature="ai_insights">
+  // Show loading state while checking add-on entitlements
+  if (addonsLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Soft Feature Lock - Prompt 3: Show preview with unlock message
+  if (!hasAccess) {
+    return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -160,35 +179,70 @@ export function Visualizations() {
               Real-time visual analytics and predictive intelligence
             </p>
           </div>
-          <div className="flex items-center gap-3">
-          <Select value={selectedIntegration} onValueChange={setSelectedIntegration}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Integrations" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Integrations</SelectItem>
-              {integrations.map((int) => (
-                <SelectItem key={int} value={int}>
-                  {int}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
-          <ExportDataButton
-            data={visualData.timeline.map(t => ({
-              date: t.date,
-              fusion_score: t.fusion_score,
-              variance: t.variance,
-            }))}
-            filename="visualizations"
-            headers={['date', 'fusion_score', 'variance']}
-          />
-          </div>
         </div>
+        <Card>
+          <CardContent className="py-16">
+            <div className="text-center">
+              <Lock className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Premium Visualizations
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-lg mx-auto">
+                This feature is available with the Premium Analytics Add-On.
+              </p>
+              <Link to="/account/plan">
+                <Button>
+                  Unlock Feature
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <BarChart3 className="h-8 w-8" />
+            Predictive Visualization Suite
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Real-time visual analytics and predictive intelligence
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+        <Select value={selectedIntegration} onValueChange={setSelectedIntegration}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="All Integrations" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Integrations</SelectItem>
+            {integrations.map((int) => (
+              <SelectItem key={int} value={int}>
+                {int}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
+          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh Data
+        </Button>
+        <ExportDataButton
+          data={visualData.timeline.map(t => ({
+            date: t.date,
+            fusion_score: t.fusion_score,
+            variance: t.variance,
+          }))}
+          filename="visualizations"
+          headers={['date', 'fusion_score', 'variance']}
+        />
+        </div>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -384,6 +438,5 @@ export function Visualizations() {
         </>
       )}
       </div>
-    </FeatureGuard>
   );
 }
