@@ -203,7 +203,10 @@ export default function Notifications() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Notifications & Alerts</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Configure alert rules and notification channels for important events
+          Stay ahead of issues before they become problems.
+        </p>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
+          Notifications help Core314 proactively alert you when performance, integrations, or system behavior changes — so you can act early, not react late.
         </p>
       </div>
 
@@ -225,22 +228,32 @@ export default function Notifications() {
           {alertRules.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
-                <div className="text-center py-8">
+                <div className="py-6">
                   <Bell className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    No alert rules configured yet
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-3">
+                    What are Alert Rules?
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3 text-center">
+                    Alert Rules define when Core314 should notify you about changes in your system — such as performance drops, missed thresholds, unusual activity, or optimization opportunities.
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-                    Alerts help you stay aware of changes in your operations. They are signals, not errors.
+                  <p className="text-gray-600 dark:text-gray-400 mb-4 text-center">
+                    They allow you to monitor what matters most without constantly checking dashboards.
                   </p>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Rule
-                  </Button>
+                  <div className="text-sm text-gray-500 dark:text-gray-500 mb-6 space-y-1 text-center">
+                    <p>Integration stops reporting data</p>
+                    <p>KPI crosses a defined threshold</p>
+                    <p>System efficiency drops below normal ranges</p>
+                  </div>
+                  <div className="text-center">
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Your First Alert Rule
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ) : (
+          ): (
             <div className="space-y-4">
               {alertRules.map((rule) => {
                 const typeConfig = ALERT_TYPE_CONFIG[rule.rule_type] || {
@@ -299,19 +312,30 @@ export default function Notifications() {
           {channels.length === 0 ? (
             <Card>
               <CardContent className="pt-6">
-                <div className="text-center py-8">
+                <div className="py-6">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    No notification channels configured
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white text-center mb-3">
+                    How do you want to be notified?
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3 text-center">
+                    Notification Channels define where Core314 sends alerts — such as email, Slack, or other connected tools.
                   </p>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Channel
-                  </Button>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4 text-center">
+                    You can add multiple channels and assign different alerts to different destinations.
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-6 text-center italic">
+                    You stay in full control — Core314 will only notify you when rules you define are triggered.
+                  </p>
+                  <div className="text-center">
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Your First Notification Channel
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ) : (
+          ): (
             <div className="space-y-4">
               {channels.map((channel) => (
                 <Card key={channel.id}>
@@ -337,6 +361,16 @@ export default function Notifications() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Bottom Informational Callout */}
+      <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-5">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
+          Why this matters
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Teams that configure alerts early catch performance issues faster, reduce manual monitoring, and gain more value from connected integrations.
+        </p>
       </div>
     </div>
   );
