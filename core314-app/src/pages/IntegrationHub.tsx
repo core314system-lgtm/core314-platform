@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, getSupabaseFunctionUrl } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -13,7 +13,7 @@ import { addCustomIntegration } from '../services/addCustomIntegration';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-// Note: OAuthConnect import removed - all Connect buttons now use modal-based stub flow
+// Note: OAuthConnect component exists but modal-based flow is used for better UX with real OAuth
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { useToast } from '../hooks/use-toast';
@@ -420,15 +420,50 @@ export default function IntegrationHub() {
     setConnectModalOpen(true);
   };
 
-  // Stub function for integration connection - will be wired to real OAuth later
-  const startIntegrationConnection = (providerId: string, providerName: string) => {
-    console.log('Integration connection stub:', providerId);
-    toast({
-      title: `${providerName} integration coming soon`,
-      description: 'Core314 will support direct connection in an upcoming release.',
-    });
-    setConnectModalOpen(false);
-    setSelectedIntegration(null);
+  // Real OAuth connection - initiates OAuth flow for the selected integration
+  const startIntegrationConnection = async (providerId: string, providerName: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in to connect integrations',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const url = await getSupabaseFunctionUrl('oauth-initiate');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          service_name: providerId,
+          redirect_uri: `${window.location.origin}/oauth-callback`
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to initiate OAuth for ${providerName}`);
+      }
+
+      // Redirect to OAuth provider's authorization page
+      window.location.href = data.authorization_url;
+    } catch (error) {
+      console.error('OAuth connect error:', error);
+      toast({
+        title: `Failed to connect ${providerName}`,
+        description: error instanceof Error ? error.message : 'Connection failed',
+        variant: 'destructive'
+      });
+      setConnectModalOpen(false);
+      setSelectedIntegration(null);
+    }
   };
 
   const categories = useMemo(() => {
