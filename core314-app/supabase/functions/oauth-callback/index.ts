@@ -125,6 +125,8 @@ serve(withSentry(async (req) => {
       .upsert({
         user_id: stateData.user_id,
         integration_id: integrationMaster?.id,
+        provider_id: integration.id,
+        added_by_user: true,
         status: 'active',
         config: {
           oauth_connected: true,
