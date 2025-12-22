@@ -117,12 +117,6 @@ export function SlackConfigure() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              More Slack configuration options coming soon.
-            </p>
-          </div>
-
           <div className="border-t pt-6">
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
               Danger Zone
