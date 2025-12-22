@@ -441,8 +441,8 @@ export default function IntegrationHub() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          service_name: providerId,
-          redirect_uri: `${window.location.origin}/oauth-callback`
+          service_name: providerId
+          // redirect_uri omitted - Edge Function uses Supabase URL as default
         })
       });
 
