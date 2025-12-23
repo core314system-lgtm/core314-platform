@@ -391,6 +391,62 @@ Recent Conversation:
 ---
 © 2025 Core314 Intelligence System. All rights reserved.`;
 
+const ORGANIZATION_INVITE_HTML = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're Invited to Join {{organization}}</title>
+  </head>
+  <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f4f4f4; padding: 20px;">
+      <tr>
+        <td align="center">
+          <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <tr>
+              <td style="padding: 40px 40px 30px 40px;">
+                <h2 style="margin: 0 0 20px 0; color: #ff6b00; font-size: 28px; font-weight: bold;">You're Invited!</h2>
+                <p style="margin: 0 0 15px 0; color: #222; font-size: 16px; line-height: 1.6;">Hi {{name}},</p>
+                <p style="margin: 0 0 15px 0; color: #222; font-size: 16px; line-height: 1.6;"><strong>{{inviter_name}}</strong> has invited you to join <strong>{{organization}}</strong> on Core314 as a <strong>{{role}}</strong>.</p>
+                <p style="margin: 0 0 25px 0; color: #222; font-size: 16px; line-height: 1.6;">Core314 is an AI-powered intelligence platform that helps teams make better decisions with unified data insights.</p>
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="background-color: #ff6b00; border-radius: 6px; text-align: center;">
+                      <a href="{{invite_link}}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">Accept Invitation</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin: 25px 0 0 0; color: #666; font-size: 14px; line-height: 1.6;">This invitation expires in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2025 Core314. All rights reserved.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+const ORGANIZATION_INVITE_TEXT = `You're Invited to Join {{organization}}!
+
+Hi {{name}},
+
+{{inviter_name}} has invited you to join {{organization}} on Core314 as a {{role}}.
+
+Core314 is an AI-powered intelligence platform that helps teams make better decisions with unified data insights.
+
+Accept your invitation here: {{invite_link}}
+
+This invitation expires in 7 days. If you didn't expect this invitation, you can safely ignore this email.
+
+---
+Core314 Intelligence System
+© 2025 Core314. All rights reserved.`;
+
 const EMAIL_TEMPLATES: Record<string, { subject: string; html: string; text: string }> = {
   welcome: {
     subject: 'Welcome to Core314',
@@ -416,6 +472,11 @@ const EMAIL_TEMPLATES: Record<string, { subject: string; html: string; text: str
     subject: '🚨 Support Escalation - User Needs Help',
     html: SUPPORT_ESCALATION_HTML,
     text: SUPPORT_ESCALATION_TEXT,
+  },
+  organization_invite: {
+    subject: 'You\'re Invited to Join {{organization}} on Core314',
+    html: ORGANIZATION_INVITE_HTML,
+    text: ORGANIZATION_INVITE_TEXT,
   },
 };
 
