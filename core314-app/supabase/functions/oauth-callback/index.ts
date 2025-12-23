@@ -8,6 +8,17 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
+// Map service_name to env var prefix for OAuth credentials
+// This allows service names like "microsoft_teams" to use "TEAMS_" prefix
+const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
+  'microsoft_teams': 'TEAMS',
+  'slack': 'SLACK',
+};
+
+function getEnvVarPrefix(serviceName: string): string {
+  return SERVICE_ENV_PREFIX_MAP[serviceName] || serviceName.toUpperCase();
+}
+
 serve(withSentry(async (req) => {
   const testResponse = await handleSentryTest(req);
   if (testResponse) return testResponse;
@@ -68,11 +79,20 @@ serve(withSentry(async (req) => {
       });
     }
 
-    const clientId = Deno.env.get(`${integration.service_name.toUpperCase()}_CLIENT_ID`);
-    const clientSecret = Deno.env.get(`${integration.service_name.toUpperCase()}_CLIENT_SECRET`);
+    const envPrefix = getEnvVarPrefix(integration.service_name);
+    const clientIdKey = `${envPrefix}_CLIENT_ID`;
+    const clientSecretKey = `${envPrefix}_CLIENT_SECRET`;
+    const clientId = Deno.env.get(clientIdKey);
+    const clientSecret = Deno.env.get(clientSecretKey);
+
+    // Temporary logging for debugging env var resolution
+    console.log(`[oauth-callback] service_name=${integration.service_name}, envPrefix=${envPrefix}, clientIdKey=${clientIdKey}, clientIdFound=${!!clientId}, clientSecretFound=${!!clientSecret}`);
 
     if (!clientId || !clientSecret) {
-      return new Response(JSON.stringify({ error: 'OAuth client not configured' }), {
+      return new Response(JSON.stringify({ 
+        error: 'OAuth client not configured',
+        debug: { service_name: integration.service_name, envPrefix, clientIdKey, clientSecretKey }
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
