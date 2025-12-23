@@ -95,7 +95,10 @@ serve(withSentry(async (req) => {
 
     const authUrl = new URL(integration.oauth_authorize_url);
     authUrl.searchParams.set('client_id', clientId);
-    authUrl.searchParams.set('scope', integration.oauth_scopes.join(','));
+    authUrl.searchParams.set('response_type', 'code');
+    // Microsoft requires space-delimited scopes, Slack uses comma-delimited
+    const scopeDelimiter = service_name === 'microsoft_teams' ? ' ' : ',';
+    authUrl.searchParams.set('scope', integration.oauth_scopes.join(scopeDelimiter));
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('redirect_uri', redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`);
 
