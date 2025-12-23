@@ -85,7 +85,8 @@ serve(withSentry(async (req) => {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: stateData.redirect_uri
+        redirect_uri: stateData.redirect_uri,
+        grant_type: 'authorization_code'
       })
     });
 

@@ -227,7 +227,7 @@ export function Integrations() {
                   <Button variant="outline" size="sm" className="flex-1" asChild>
                     <Link to={`/integrations/${integration.registry?.service_name || integration.id}/configure`}>
                       <Settings className="h-4 w-4 mr-1" />
-                      {integration.registry?.service_name === 'slack' ? 'Manage' : 'Configure'}
+                      {integration.registry?.service_name === 'slack' || integration.registry?.service_name === 'microsoft_teams' ? 'Manage' : 'Configure'}
                     </Link>
                   </Button>
                   

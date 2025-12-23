@@ -15,6 +15,7 @@ import GoalCreate from './pages/GoalCreate';
 import Notifications from './pages/Notifications';
 import IntegrationHub from './pages/IntegrationHub';
 import { SlackConfigure } from './pages/integrations/SlackConfigure';
+import { TeamsConfigure } from './pages/integrations/TeamsConfigure';
 import { FusionWeights } from './pages/admin/FusionWeights';
 import { FusionIntelligence } from './pages/admin/FusionIntelligence';
 import { AutomationRules } from './pages/admin/AutomationRules';
@@ -120,6 +121,7 @@ function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="integration-hub" element={<IntegrationHub />} />
           <Route path="integrations/slack/configure" element={<SlackConfigure />} />
+          <Route path="integrations/microsoft_teams/configure" element={<TeamsConfigure />} />
           <Route path="predictive-insights" element={<PredictiveInsights />} />
           <Route path="decision-center" element={<DecisionCenter />} />
           <Route path="automation-center" element={<AutomationCenter />} />
