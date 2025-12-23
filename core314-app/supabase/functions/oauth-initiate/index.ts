@@ -15,8 +15,14 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
 };
 
+// Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
+function normalizeServiceName(serviceName: string): string {
+  return serviceName.toLowerCase().replace(/-/g, '_').trim();
+}
+
 function getEnvVarPrefix(serviceName: string): string {
-  return SERVICE_ENV_PREFIX_MAP[serviceName] || serviceName.toUpperCase();
+  const normalized = normalizeServiceName(serviceName);
+  return SERVICE_ENV_PREFIX_MAP[normalized] || normalized.toUpperCase();
 }
 
 serve(withSentry(async (req) => {
@@ -95,17 +101,45 @@ serve(withSentry(async (req) => {
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
     });
 
+    // Normalize service_name for consistent env var lookup
+    const normalizedServiceName = normalizeServiceName(service_name);
     const envPrefix = getEnvVarPrefix(service_name);
     const clientIdKey = `${envPrefix}_CLIENT_ID`;
     const clientId = Deno.env.get(clientIdKey);
     
-    // Temporary logging for debugging env var resolution
-    console.log(`[oauth-initiate] service_name=${service_name}, envPrefix=${envPrefix}, clientIdKey=${clientIdKey}, clientIdFound=${!!clientId}`);
+    // Get all env vars containing "TEAMS" for debugging
+    const allEnvKeys = Object.keys(Deno.env.toObject());
+    const teamsEnvKeys = allEnvKeys.filter(k => k.includes('TEAMS'));
     
-    if (!clientId) {
+    // Extract project ref from SUPABASE_URL for verification
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const projectRefMatch = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
+    const projectRef = projectRefMatch ? projectRefMatch[1] : 'unknown';
+    
+    // Comprehensive runtime diagnostics
+    const diagnostics = {
+      service_name_raw: service_name,
+      service_name_normalized: normalizedServiceName,
+      envPrefix,
+      envPrefixFromMap: SERVICE_ENV_PREFIX_MAP[normalizedServiceName] || 'NOT_IN_MAP',
+      clientIdKey,
+      clientIdFound: !!clientId,
+      clientIdLength: clientId ? clientId.length : 0,
+      teamsEnvKeys,
+      totalEnvKeys: allEnvKeys.length,
+      supabaseUrl,
+      projectRef,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Log comprehensive diagnostics
+    console.log('[oauth-initiate] RUNTIME DIAGNOSTICS:', JSON.stringify(diagnostics, null, 2));
+    
+    if (!envPrefix || !clientId) {
+      console.error('[oauth-initiate] OAuth client not configured - FULL DIAGNOSTICS:', JSON.stringify(diagnostics, null, 2));
       return new Response(JSON.stringify({ 
         error: 'OAuth client not configured',
-        debug: { service_name, envPrefix, clientIdKey }
+        diagnostics
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -116,7 +150,7 @@ serve(withSentry(async (req) => {
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
     // Microsoft requires space-delimited scopes, Slack uses comma-delimited
-    const scopeDelimiter = service_name === 'microsoft_teams' ? ' ' : ',';
+    const scopeDelimiter = normalizedServiceName === 'microsoft_teams' ? ' ' : ',';
     authUrl.searchParams.set('scope', integration.oauth_scopes.join(scopeDelimiter));
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('redirect_uri', redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`);
