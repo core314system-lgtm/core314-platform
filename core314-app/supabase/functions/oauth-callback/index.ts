@@ -15,8 +15,43 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
 };
 
-function getEnvVarPrefix(serviceName: string): string {
-  return SERVICE_ENV_PREFIX_MAP[serviceName] || serviceName.toUpperCase();
+// Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
+function normalizeServiceName(serviceName: string): string {
+  return serviceName.toLowerCase().replace(/-/g, '_').trim();
+}
+
+// Try multiple env var patterns to find OAuth credentials
+// Returns { clientId, clientSecret, usedPrefix } or null values if not found
+function resolveOAuthCredentials(serviceName: string): { 
+  clientId: string | undefined; 
+  clientSecret: string | undefined; 
+  usedPrefix: string;
+  triedPrefixes: string[];
+} {
+  const normalized = normalizeServiceName(serviceName);
+  const basePrefix = SERVICE_ENV_PREFIX_MAP[normalized] || normalized.toUpperCase();
+  
+  // Try these prefixes in order:
+  // 1. TEAMS_CLIENT_ID (standard)
+  // 2. CORE314_TEAMS_CLIENT_ID (namespaced fallback)
+  const prefixesToTry = [
+    basePrefix,                    // e.g., "TEAMS"
+    `CORE314_${basePrefix}`,       // e.g., "CORE314_TEAMS"
+  ];
+  
+  for (const prefix of prefixesToTry) {
+    const clientIdKey = `${prefix}_CLIENT_ID`;
+    const clientSecretKey = `${prefix}_CLIENT_SECRET`;
+    const clientId = Deno.env.get(clientIdKey);
+    const clientSecret = Deno.env.get(clientSecretKey);
+    
+    // Check if clientId exists and is not empty string
+    if (clientId !== undefined && clientId !== '') {
+      return { clientId, clientSecret, usedPrefix: prefix, triedPrefixes: prefixesToTry };
+    }
+  }
+  
+  return { clientId: undefined, clientSecret: undefined, usedPrefix: '', triedPrefixes: prefixesToTry };
 }
 
 serve(withSentry(async (req) => {
@@ -79,24 +114,31 @@ serve(withSentry(async (req) => {
       });
     }
 
-    const envPrefix = getEnvVarPrefix(integration.service_name);
-    const clientIdKey = `${envPrefix}_CLIENT_ID`;
-    const clientSecretKey = `${envPrefix}_CLIENT_SECRET`;
-    const clientId = Deno.env.get(clientIdKey);
-    const clientSecret = Deno.env.get(clientSecretKey);
+    // Resolve OAuth credentials with fallback logic (same as oauth-initiate)
+    const { clientId, clientSecret, usedPrefix, triedPrefixes } = resolveOAuthCredentials(integration.service_name);
 
-    // Temporary logging for debugging env var resolution
-    console.log(`[oauth-callback] service_name=${integration.service_name}, envPrefix=${envPrefix}, clientIdKey=${clientIdKey}, clientIdFound=${!!clientId}, clientSecretFound=${!!clientSecret}`);
+    // Log credential resolution for debugging
+    console.log('[oauth-callback] Credential resolution:', {
+      service_name: integration.service_name,
+      usedPrefix,
+      triedPrefixes,
+      clientIdFound: clientId !== undefined && clientId !== '',
+      clientSecretFound: clientSecret !== undefined && clientSecret !== ''
+    });
 
-    if (!clientId || !clientSecret) {
+    if (!clientId || clientId === '' || !clientSecret || clientSecret === '') {
+      console.error('[oauth-callback] HARD FAIL: OAuth credentials not configured');
       return new Response(JSON.stringify({ 
         error: 'OAuth client not configured',
-        debug: { service_name: integration.service_name, envPrefix, clientIdKey, clientSecretKey }
+        message: 'No OAuth credentials found in environment. Tried prefixes: ' + triedPrefixes.join(', '),
+        debug: { service_name: integration.service_name, usedPrefix, triedPrefixes }
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    
+    console.log('[oauth-callback] SUCCESS: Found credentials with prefix:', usedPrefix);
 
     const tokenResponse = await fetch(integration.oauth_token_url, {
       method: 'POST',
