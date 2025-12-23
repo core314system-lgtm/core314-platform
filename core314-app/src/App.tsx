@@ -50,8 +50,10 @@ import { SelfTestPanel } from './components/monitoring/SelfTestPanel';
 import Billing from './pages/Billing';
 import { AccountPlan } from './pages/AccountPlan';
 import { ContactSales } from './pages/ContactSales';
+import { Settings } from './pages/Settings';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
+import { InviteAccept } from './pages/InviteAccept';
 import { SentryTest } from './pages/SentryTest';
 import SentryVerify from './pages/SentryVerify';
 import { useAuth } from './hooks/useAuth';
@@ -88,6 +90,7 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/beta-invite" element={<BetaInvite />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
+        <Route path="/invite" element={<InviteAccept />} />
         <Route path="/sentry-test" element={<SentryTest />} />
         {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
           <Route path="/sentry-verify" element={<SentryVerify />} />
@@ -129,6 +132,7 @@ function App() {
           <Route path="anomaly-console" element={<AnomalyConsole />} />
           <Route path="recovery-manager" element={<RecoveryManager />} />
           <Route path="selftest-panel" element={<SelfTestPanel />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="settings/security" element={<Security />} />
           <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
           <Route path="optimization-engine" element={<OptimizationEngine />} />
