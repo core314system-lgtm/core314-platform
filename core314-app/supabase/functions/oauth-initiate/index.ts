@@ -26,10 +26,18 @@ function getEnvVarPrefix(serviceName: string): string {
 }
 
 serve(withSentry(async (req) => {
+  // VERY TOP: Log that request was received - this MUST appear if function is hit
+  console.log('[oauth-initiate] REQUEST RECEIVED', { 
+    method: req.method, 
+    url: req.url,
+    timestamp: new Date().toISOString()
+  });
+
   const testResponse = await handleSentryTest(req);
   if (testResponse) return testResponse;
 
   if (req.method === 'OPTIONS') {
+    console.log('[oauth-initiate] Handling OPTIONS preflight');
     return new Response(null, { headers: corsHeaders });
   }
 
