@@ -422,8 +422,13 @@ export default function IntegrationHub() {
 
   // Real OAuth connection - initiates OAuth flow for the selected integration
   const startIntegrationConnection = async (providerId: string, providerName: string) => {
+    // Debug logging for OAuth routing investigation
+    console.log('[OAuth Debug] startIntegrationConnection called:', { providerId, providerName });
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[OAuth Debug] Session retrieved:', { hasSession: !!session, hasAccessToken: !!session?.access_token });
+      
       if (!session) {
         toast({
           title: 'Authentication required',
@@ -434,28 +439,40 @@ export default function IntegrationHub() {
       }
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
+      console.log('[OAuth Debug] Edge Function URL:', url);
+      
+      const requestBody = { service_name: providerId };
+      console.log('[OAuth Debug] Request body:', requestBody);
+      console.log('[OAuth Debug] Making POST request to:', url);
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          service_name: providerId
-          // redirect_uri omitted - Edge Function uses Supabase URL as default
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('[OAuth Debug] Response status:', response.status, response.statusText);
       const data = await response.json();
+      console.log('[OAuth Debug] Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || `Failed to initiate OAuth for ${providerName}`);
       }
 
       // Redirect to OAuth provider's authorization page
+      console.log('[OAuth Debug] Redirecting to:', data.authorization_url);
       window.location.href = data.authorization_url;
     } catch (error) {
-      console.error('OAuth connect error:', error);
+      console.error('[OAuth Debug] ERROR in startIntegrationConnection:', error);
+      console.error('[OAuth Debug] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        providerId,
+        providerName
+      });
       toast({
         title: `Failed to connect ${providerName}`,
         description: error instanceof Error ? error.message : 'Connection failed',
