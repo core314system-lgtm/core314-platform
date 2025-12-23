@@ -243,4 +243,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "oauth-initiate" }));
+}, { name: "oauth-initiate" }));
