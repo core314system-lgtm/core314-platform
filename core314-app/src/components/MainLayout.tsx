@@ -23,8 +23,19 @@ import {
   TrendingUp,
   Code,
   FileCheck,
-  Headphones
+  Headphones,
+  User,
+  ChevronDown,
+  CreditCard
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
 interface NavItem {
@@ -35,6 +46,7 @@ interface NavItem {
 }
 
 const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionTier?: string): NavItem[] => {
+  // Sidebar contains ONLY product features - account items are in top-right menu
   const baseItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
@@ -44,8 +56,6 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
     { path: '/goals', label: 'Goals & KPIs', icon: Target },
     { path: '/notifications', label: 'Notifications', icon: Bell },
     { path: '/integration-hub', label: 'Integration Hub', icon: Layers },
-    { path: '/settings', label: 'Settings', icon: Settings },
-    { path: '/settings/security', label: 'Security', icon: Shield },
   ];
   
   if (subscriptionTier === 'professional' || subscriptionTier === 'enterprise') {
@@ -189,33 +199,64 @@ export function MainLayout() {
           </nav>
           
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
-            <div className="mb-3">
-              <OrganizationSwitcher />
-            </div>
-            <div className="flex items-center mb-3">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {profile?.full_name}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {profile?.email}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+            <OrganizationSwitcher />
           </div>
         </aside>
         
-        <main className="flex-1 overflow-auto">
-          <Outlet />
+        <main className="flex-1 flex flex-col overflow-auto">
+          {/* Top header with account menu */}
+          <header className="h-16 flex items-center justify-end px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
+                    {profile?.email || 'Account'}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{profile?.full_name || 'User'}</span>
+                    <span className="text-xs text-gray-500 font-normal">{profile?.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/billing" className="flex items-center cursor-pointer">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Billing & Plan
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings/security" className="flex items-center cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Security
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 dark:text-red-400">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </header>
+          
+          {/* Page content */}
+          <div className="flex-1 overflow-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
