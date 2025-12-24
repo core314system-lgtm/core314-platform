@@ -16,6 +16,7 @@ import { Layers } from 'lucide-react';
 export function IntegrationTracking() {
   const [integrations, setIntegrations] = useState<AdminIntegrationTracking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, error: 0 });
 
   useEffect(() => {
     fetchIntegrations();
@@ -23,75 +24,34 @@ export function IntegrationTracking() {
 
   const fetchIntegrations = async () => {
     try {
-      // Query user_integrations - the same source of truth as User Integration Hub
-      const { data: userIntegrations, error: userError } = await supabase
-        .from('user_integrations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (userError) throw userError;
-
-      if (!userIntegrations || userIntegrations.length === 0) {
-        setIntegrations([]);
+      // Get the current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No active session for admin integration tracking');
         setLoading(false);
         return;
       }
 
-      // Get provider IDs to fetch registry data
-      const providerIds = userIntegrations
-        .map(ui => ui.provider_id || ui.integration_id)
-        .filter(Boolean);
+      // Call the admin-list-integrations Netlify function
+      // This function uses service role key to bypass RLS and fetch ALL integrations
+      // INTENTIONAL: Beta integrations are included for admin observability
+      // This is a read-only global view for platform monitoring
+      const response = await fetch('/.netlify/functions/admin-list-integrations', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      // Fetch integration registry for display names
-      const { data: registryData, error: registryError } = await supabase
-        .from('integration_registry')
-        .select('id, service_name, display_name, category')
-        .in('id', providerIds);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch integrations');
+      }
 
-      if (registryError) throw registryError;
-
-      // Fetch user profiles for user reference
-      const userIds = [...new Set(userIntegrations.map(ui => ui.user_id))];
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Merge data with registry and user info
-      const merged: AdminIntegrationTracking[] = userIntegrations
-        .map(ui => {
-          const registry = registryData?.find(r => 
-            r.id === ui.provider_id || r.id === ui.integration_id
-          );
-          const user = profilesData?.find(p => p.id === ui.user_id);
-          
-          return {
-            id: ui.id,
-            user_id: ui.user_id,
-            provider_id: ui.provider_id || ui.integration_id,
-            status: ui.status || 'active',
-            created_at: ui.created_at,
-            last_verified_at: ui.last_verified_at,
-            error_message: ui.error_message,
-            environment: 'beta' as const, // All current integrations are beta
-            registry: registry ? {
-              id: registry.id,
-              service_name: registry.service_name,
-              display_name: registry.display_name,
-              category: registry.category,
-            } : undefined,
-            user: user ? {
-              id: user.id,
-              email: user.email,
-              full_name: user.full_name,
-            } : undefined,
-          };
-        })
-        .filter(integration => integration.registry !== undefined);
-
-      setIntegrations(merged);
+      const data = await response.json();
+      setIntegrations(data.integrations || []);
+      setStats(data.stats || { total: 0, active: 0, inactive: 0, error: 0 });
     } catch (error) {
       console.error('Error fetching integrations:', error);
     } finally {
@@ -130,12 +90,9 @@ export function IntegrationTracking() {
     );
   }
 
-  const integrationStats = {
-    total: integrations.length,
-    active: integrations.filter(i => i.status === 'active').length,
-    inactive: integrations.filter(i => i.status === 'inactive').length,
-    error: integrations.filter(i => i.status === 'error').length,
-  };
+  // Stats are computed server-side by the admin-list-integrations function
+  // to ensure consistency with the filtered integration list
+  const integrationStats = stats;
 
   return (
     <div className="p-6 space-y-6">
