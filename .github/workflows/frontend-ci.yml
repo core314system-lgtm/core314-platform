@@ -1,0 +1,44 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'core314-app/**'
+      - '.github/workflows/frontend-ci.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'core314-app/**'
+
+jobs:
+  lint-and-build-core314-app:
+    name: Lint & Build (core314-app)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            core314-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: core314-app
+        run: npm ci
+
+      - name: Lint
+        working-directory: core314-app
+        run: npm run lint
+
+      - name: Build
+        working-directory: core314-app
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+        run: npm run build
