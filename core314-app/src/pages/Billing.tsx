@@ -8,6 +8,7 @@ import { PlanCard } from '../components/billing/PlanCard';
 import { UsageProgressBar } from '../components/billing/UsageProgressBar';
 import { AddOnManager } from '../components/billing/AddOnManager';
 import { Loader2, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 interface SubscriptionSummary {
@@ -61,14 +62,6 @@ const AVAILABLE_ADDONS = [
 ];
 
 const PLAN_FEATURES = {
-  Free: [
-    { name: 'Basic Dashboard Access', included: true },
-    { name: 'Email Support', included: true },
-    { name: 'Integrations', included: false },
-    { name: 'Analytics', included: false },
-    { name: 'Advanced AI', included: false },
-    { name: 'API Access', included: false },
-  ],
   Starter: [
     { name: 'Basic Dashboard Access', included: true },
     { name: 'Email Support', included: true },
@@ -99,6 +92,7 @@ const PLAN_FEATURES = {
 
 export default function Billing() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [subscriptionSummary, setSubscriptionSummary] = useState<SubscriptionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingAction, setProcessingAction] = useState(false);
@@ -389,17 +383,15 @@ export default function Billing() {
 
       <div>
         <h2 className="text-2xl font-bold mb-4">Available Plans</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {['Free', 'Starter', 'Pro', 'Enterprise'].map((planName) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {['Starter', 'Pro', 'Enterprise'].map((planName) => (
             <PlanCard
               key={planName}
               planName={planName}
-              price={planName === 'Free' ? 0 : planName === 'Starter' ? 99 : planName === 'Pro' ? 999 : 2999}
+              price={planName === 'Starter' ? 99 : planName === 'Pro' ? 999 : null}
               billingPeriod="monthly"
               description={
-                planName === 'Free'
-                  ? 'Get started with basic features'
-                  : planName === 'Starter'
+                planName === 'Starter'
                   ? 'Perfect for small teams'
                   : planName === 'Pro'
                   ? 'Advanced features for growing businesses'
@@ -407,10 +399,11 @@ export default function Billing() {
               }
               features={PLAN_FEATURES[planName as keyof typeof PLAN_FEATURES]}
               integrationLimit={
-                planName === 'Free' ? 0 : planName === 'Starter' ? 3 : planName === 'Pro' ? 10 : -1
+                planName === 'Starter' ? 3 : planName === 'Pro' ? 10 : -1
               }
               currentPlan={subscription.plan_name === planName}
-              onSelectPlan={() => handleUpgradePlan(planName)}
+              onSelectPlan={planName !== 'Enterprise' ? () => handleUpgradePlan(planName) : undefined}
+              onContactSales={planName === 'Enterprise' ? () => navigate('/contact-sales') : undefined}
               loading={processingAction}
             />
           ))}

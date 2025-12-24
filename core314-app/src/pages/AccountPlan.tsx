@@ -73,7 +73,7 @@ const PLAN_CONFIG: Record<string, {
   enterprise: {
     label: 'Enterprise',
     price: 'Custom',
-    priceValue: 2999,
+    priceValue: 0, // Not used - Enterprise is Contact Sales only
     description: 'Full-featured for large operations',
     integrations: 'Unlimited integrations',
     users: 'Unlimited users',
