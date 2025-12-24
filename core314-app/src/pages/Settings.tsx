@@ -35,8 +35,7 @@ import {
   Crown,
   AlertTriangle,
   Loader2,
-  Check,
-  Copy
+  Check
 } from 'lucide-react';
 import { InviteUserModal } from '../components/modals/InviteUserModal';
 
@@ -394,46 +393,70 @@ export function Settings() {
               <CardDescription>View and manage your organization</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {currentOrganization ? (
-                <>
-                  <div className="space-y-2">
-                    <Label>Organization Name</Label>
-                    <Input 
-                      value={currentOrganization.name} 
-                      disabled 
-                      className="bg-gray-50 dark:bg-gray-800"
-                    />
+              <div className="space-y-2">
+                <Label>Organization Name</Label>
+                <Input 
+                  value={currentOrganization?.name || ''} 
+                  disabled 
+                  className="bg-gray-50 dark:bg-gray-800"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Plan</Label>
+                  <div className="mt-1">
+                    <Badge variant="secondary" className="capitalize">
+                      {currentOrganization?.plan || 'starter'}
+                    </Badge>
                   </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <Label>Plan</Label>
-                      <div className="mt-1">
-                        <Badge variant="secondary" className="capitalize">
-                          {currentOrganization.plan}
-                        </Badge>
-                      </div>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <div className="mt-1">
+                    <Badge variant={currentOrganization?.status === 'active' ? 'default' : 'secondary'}>
+                      {currentOrganization?.status || 'active'}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label>Your Role</Label>
+                  <div className="mt-1">
+                    <Badge variant={getRoleBadgeVariant(currentUserRole || 'member')} className="capitalize">
+                      {currentUserRole || 'member'}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label>Created</Label>
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    {currentOrganization?.created_at 
+                      ? new Date(currentOrganization.created_at).toLocaleDateString()
+                      : 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Owner Information */}
+              {teamMembers.length > 0 && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Label>Organization Owner</Label>
+                  <div className="mt-2 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center">
+                      <Crown className="h-5 w-5 text-yellow-500" />
                     </div>
                     <div>
-                      <Label>Status</Label>
-                      <div className="mt-1">
-                        <Badge variant={currentOrganization.status === 'active' ? 'default' : 'secondary'}>
-                          {currentOrganization.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Your Role</Label>
-                      <div className="mt-1">
-                        <Badge variant={getRoleBadgeVariant(currentUserRole || 'member')} className="capitalize">
-                          {currentUserRole || 'member'}
-                        </Badge>
-                      </div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {teamMembers.find(m => m.role === 'owner')?.profile?.full_name || 
+                         teamMembers.find(m => m.role === 'owner')?.profile?.email || 
+                         'Unknown'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {teamMembers.find(m => m.role === 'owner')?.profile?.email}
+                      </p>
                     </div>
                   </div>
-                </>
-              ) : (
-                <p className="text-gray-500">No organization selected</p>
+                </div>
               )}
             </CardContent>
           </Card>
