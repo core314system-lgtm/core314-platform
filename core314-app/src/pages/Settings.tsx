@@ -71,8 +71,11 @@ export function Settings() {
   
   // Profile state
   const [fullName, setFullName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [emailUpdateMessage, setEmailUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -142,6 +145,33 @@ export function Settings() {
       setTimeout(() => setProfileSaved(false), 2000);
     } catch (err) {
       console.error('Error saving profile:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleEmailUpdate = async () => {
+    if (!user || !newEmail || newEmail === user.email) return;
+    
+    setProfileLoading(true);
+    setEmailUpdateMessage(null);
+    
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      
+      if (error) throw error;
+      
+      setEmailUpdateMessage({
+        type: 'success',
+        text: 'Verification email sent to your new address. Please check your inbox and click the confirmation link to complete the change.',
+      });
+      setIsEditingEmail(false);
+    } catch (err) {
+      console.error('Error updating email:', err);
+      setEmailUpdateMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to update email. Please try again.',
+      });
     } finally {
       setProfileLoading(false);
     }
@@ -364,13 +394,64 @@ export function Settings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  value={user?.email || ''} 
-                  disabled 
-                  className="bg-gray-50 dark:bg-gray-800"
-                />
-                <p className="text-xs text-gray-500">Email cannot be changed</p>
+                {isEditingEmail ? (
+                  <div className="space-y-2">
+                    <Input 
+                      id="newEmail" 
+                      type="email"
+                      value={newEmail} 
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="Enter new email address"
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={handleEmailUpdate}
+                        disabled={profileLoading || !newEmail || newEmail === user?.email}
+                      >
+                        {profileLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Send Verification
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditingEmail(false);
+                          setNewEmail('');
+                          setEmailUpdateMessage(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input 
+                      id="email" 
+                      value={user?.email || ''} 
+                      disabled 
+                      className="bg-gray-50 dark:bg-gray-800 flex-1"
+                    />
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditingEmail(true);
+                        setNewEmail(user?.email || '');
+                      }}
+                    >
+                      Change
+                    </Button>
+                  </div>
+                )}
+                {emailUpdateMessage && (
+                  <p className={`text-xs ${emailUpdateMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {emailUpdateMessage.text}
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">

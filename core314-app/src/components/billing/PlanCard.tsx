@@ -11,13 +11,14 @@ interface PlanFeature {
 
 interface PlanCardProps {
   planName: string;
-  price: number;
+  price: number | null; // null for Enterprise (Custom pricing)
   billingPeriod: 'monthly' | 'annual';
   description: string;
   features: PlanFeature[];
   integrationLimit: number;
   currentPlan?: boolean;
   onSelectPlan?: () => void;
+  onContactSales?: () => void; // For Enterprise plan
   loading?: boolean;
 }
 
@@ -30,8 +31,10 @@ export const PlanCard: React.FC<PlanCardProps> = ({
   integrationLimit,
   currentPlan = false,
   onSelectPlan,
+  onContactSales,
   loading = false,
 }) => {
+  const isEnterprise = planName.toLowerCase() === 'enterprise';
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -73,10 +76,16 @@ export const PlanCard: React.FC<PlanCardProps> = ({
       <CardContent className="space-y-4">
         <div>
           <div className="flex items-baseline">
-            <span className="text-4xl font-bold">{formatPrice(price)}</span>
-            <span className="text-muted-foreground ml-2">
-              /{billingPeriod === 'monthly' ? 'mo' : 'yr'}
-            </span>
+            {price === null ? (
+              <span className="text-4xl font-bold">Custom</span>
+            ) : (
+              <>
+                <span className="text-4xl font-bold">{formatPrice(price)}</span>
+                <span className="text-muted-foreground ml-2">
+                  /{billingPeriod === 'monthly' ? 'mo' : 'yr'}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -101,16 +110,31 @@ export const PlanCard: React.FC<PlanCardProps> = ({
         </div>
       </CardContent>
       <CardFooter>
-        {onSelectPlan && (
+        {currentPlan ? (
+          <Button
+            className="w-full"
+            variant="outline"
+            disabled
+          >
+            Current Plan
+          </Button>
+        ) : isEnterprise && onContactSales ? (
+          <Button
+            className="w-full"
+            onClick={onContactSales}
+            disabled={loading}
+          >
+            {loading ? 'Processing...' : 'Contact Sales'}
+          </Button>
+        ) : onSelectPlan ? (
           <Button
             className="w-full"
             onClick={onSelectPlan}
-            disabled={currentPlan || loading}
-            variant={currentPlan ? 'outline' : 'default'}
+            disabled={loading}
           >
-            {loading ? 'Processing...' : currentPlan ? 'Current Plan' : `Upgrade to ${planName}`}
+            {loading ? 'Processing...' : `Upgrade to ${planName}`}
           </Button>
-        )}
+        ) : null}
       </CardFooter>
     </Card>
   );
