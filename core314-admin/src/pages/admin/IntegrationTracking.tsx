@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Integration } from '../../types';
+import { AdminIntegrationTracking } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import {
@@ -14,8 +14,9 @@ import {
 import { Layers } from 'lucide-react';
 
 export function IntegrationTracking() {
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [integrations, setIntegrations] = useState<AdminIntegrationTracking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0, error: 0 });
 
   useEffect(() => {
     fetchIntegrations();
@@ -23,13 +24,34 @@ export function IntegrationTracking() {
 
   const fetchIntegrations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Get the current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No active session for admin integration tracking');
+        setLoading(false);
+        return;
+      }
 
-      if (error) throw error;
-      setIntegrations(data || []);
+      // Call the admin-list-integrations Netlify function
+      // This function uses service role key to bypass RLS and fetch ALL integrations
+      // INTENTIONAL: Beta integrations are included for admin observability
+      // This is a read-only global view for platform monitoring
+      const response = await fetch('/.netlify/functions/admin-list-integrations', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch integrations');
+      }
+
+      const data = await response.json();
+      setIntegrations(data.integrations || []);
+      setStats(data.stats || { total: 0, active: 0, inactive: 0, error: 0 });
     } catch (error) {
       console.error('Error fetching integrations:', error);
     } finally {
@@ -68,12 +90,9 @@ export function IntegrationTracking() {
     );
   }
 
-  const integrationStats = {
-    total: integrations.length,
-    active: integrations.filter(i => i.status === 'active').length,
-    inactive: integrations.filter(i => i.status === 'inactive').length,
-    error: integrations.filter(i => i.status === 'error').length,
-  };
+  // Stats are computed server-side by the admin-list-integrations function
+  // to ensure consistency with the filtered integration list
+  const integrationStats = stats;
 
   return (
     <div className="p-6 space-y-6">
@@ -137,18 +156,20 @@ export function IntegrationTracking() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Tool Name</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Last Sync</TableHead>
-                  <TableHead>Error Message</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>Environment</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Last Verified</TableHead>
+                  <TableHead>Error</TableHead>
+                  <TableHead>Connected</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {integrations.map((integration) => (
                   <TableRow key={integration.id}>
                     <TableCell className="font-medium">
-                      {formatIntegrationType(integration.integration_type)}
+                      {integration.registry?.display_name || formatIntegrationType(integration.provider_id)}
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusBadgeColor(integration.status)}>
@@ -156,8 +177,16 @@ export function IntegrationTracking() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {integration.last_sync_at
-                        ? new Date(integration.last_sync_at).toLocaleString()
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                        {integration.environment}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {integration.user?.email || integration.user_id.slice(0, 8) + '...'}
+                    </TableCell>
+                    <TableCell>
+                      {integration.last_verified_at
+                        ? new Date(integration.last_verified_at).toLocaleString()
                         : 'Never'}
                     </TableCell>
                     <TableCell className="max-w-xs truncate">

@@ -10,6 +10,9 @@
 # Required variables:
 #   - VITE_SUPABASE_URL
 #   - VITE_SUPABASE_ANON_KEY
+#   - SUPABASE_URL (for Netlify functions)
+#   - SUPABASE_ANON_KEY (for Netlify functions)
+#   - SUPABASE_SERVICE_ROLE_KEY (for admin-list-integrations function - bypasses RLS)
 
 [[redirects]]
   from = "/*"

@@ -27,6 +27,28 @@ export interface Integration {
   updated_at: string;
 }
 
+export interface AdminIntegrationTracking {
+  id: string;
+  user_id: string;
+  provider_id: string;
+  status: 'active' | 'inactive' | 'error';
+  created_at: string;
+  last_verified_at?: string;
+  error_message?: string;
+  environment: 'beta' | 'production';
+  registry?: {
+    id: string;
+    service_name: string;
+    display_name: string;
+    category?: string;
+  };
+  user?: {
+    id: string;
+    email: string;
+    full_name?: string;
+  };
+}
+
 export interface AIAgent {
   id: string;
   name: string;
