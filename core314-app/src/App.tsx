@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { ResetPassword } from './pages/auth/ResetPassword';
@@ -7,6 +7,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Pricing } from './pages/Pricing';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MainLayout } from './components/MainLayout';
+import { AccountLayout } from './components/AccountLayout';
+import { OrganizationRouteGuard } from './components/OrganizationRouteGuard';
 import { Integrations } from './pages/Integrations';
 import DashboardBuilder from './pages/DashboardBuilder';
 import DashboardView from './pages/DashboardView';
@@ -68,6 +70,23 @@ import { SupportAssistant } from './components/assistants/SupportAssistant';
 // Disabled by default until backend Edge Functions are properly deployed
 const ENABLE_AI_SUPPORT_WIDGET = import.meta.env.VITE_ENABLE_AI_SUPPORT_WIDGET === 'true';
 
+/**
+ * AppShell - Root shell that provides providers and assistants
+ * 
+ * This is a neutral shell that sits under ProtectedRoute and providers.
+ * It renders Outlet + assistants but has NO sidebar and NO org logic.
+ * Both AccountLayout and MainLayout branches hang under this.
+ */
+function AppShell() {
+  return (
+    <>
+      <Outlet />
+      <OnboardingAssistant />
+      {ENABLE_AI_SUPPORT_WIDGET && <SupportAssistant />}
+    </>
+  );
+}
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -103,62 +122,75 @@ function App() {
             <ProtectedRoute>
               <OrganizationProvider>
                 <OnboardingProvider>
-                                    <SupportChatProvider>
-                                      <MainLayout />
-                                      <OnboardingAssistant />
-                                      {ENABLE_AI_SUPPORT_WIDGET && <SupportAssistant />}
-                                    </SupportChatProvider>
+                  <SupportChatProvider>
+                    <AppShell />
+                  </SupportChatProvider>
                 </OnboardingProvider>
               </OrganizationProvider>
             </ProtectedRoute>
           }
         >
+          {/* Default redirect - goes to dashboard which will redirect to settings/organization if no org */}
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="integrations" element={<Integrations />} />
-          <Route path="visualizations" element={<Visualizations />} />
-          <Route path="dashboard-builder" element={<DashboardBuilder />} />
-          <Route path="dashboards/:id" element={<DashboardView />} />
-          <Route path="goals" element={<Goals />} />
-          <Route path="goals/create" element={<GoalCreate />} />
-          <Route path="notifications" element={<Notifications />} />
-          <Route path="integration-hub" element={<IntegrationHub />} />
-          <Route path="integrations/slack/configure" element={<SlackConfigure />} />
-          <Route path="integrations/microsoft_teams/configure" element={<TeamsConfigure />} />
-          <Route path="predictive-insights" element={<PredictiveInsights />} />
-          <Route path="decision-center" element={<DecisionCenter />} />
-          <Route path="automation-center" element={<AutomationCenter />} />
-          <Route path="system-monitor" element={<SystemMonitor />} />
-          <Route path="anomaly-console" element={<AnomalyConsole />} />
-          <Route path="recovery-manager" element={<RecoveryManager />} />
-          <Route path="selftest-panel" element={<SelfTestPanel />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="settings/security" element={<Security />} />
-          <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
-          <Route path="optimization-engine" element={<OptimizationEngine />} />
-          <Route path="api-access" element={<ApiAccess />} />
-          <Route path="audit-trails" element={<AuditTrails />} />
-          <Route path="account-support" element={<AccountSupport />} />
-          <Route path="billing" element={<Billing />} />
-                    <Route path="account/plan" element={<AccountPlan />} />
-                    <Route path="contact-sales" element={<ContactSales />} />
-                    <Route path="fusion-details" element={<FusionDetails />} />
-          <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
-          <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
-          <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
-          <Route path="admin/automation-rules-manager" element={<ProtectedRoute requireAdmin><AutomationRulesManager /></ProtectedRoute>} />
-          <Route path="admin/automation-logs" element={<ProtectedRoute requireAdmin><AutomationLogsViewer /></ProtectedRoute>} />
-          <Route path="admin/ai-narratives" element={<ProtectedRoute requireAdmin><AINarrativesManager /></ProtectedRoute>} />
-          <Route path="admin/simulations" element={<ProtectedRoute requireAdmin><SimulationsManager /></ProtectedRoute>} />
-          <Route path="admin/optimizations" element={<ProtectedRoute requireAdmin><OptimizationsManager /></ProtectedRoute>} />
-          <Route path="admin/insight-hub" element={<ProtectedRoute requireAdmin><InsightHub /></ProtectedRoute>} />
-          <Route path="admin/governance" element={<ProtectedRoute requireAdmin><Governance /></ProtectedRoute>} />
-          <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
-          <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
-          <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
-          <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
-          <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
-          <Route path="feedback" element={<Feedback />} />
+          
+          {/* Account-only routes: NO org requirement, NO sidebar */}
+          {/* These use AccountLayout which has a simple header but no sidebar */}
+          <Route element={<AccountLayout />}>
+            <Route path="settings" element={<Settings />} />
+            <Route path="settings/organization" element={<Settings />} />
+            <Route path="settings/security" element={<Security />} />
+            <Route path="billing" element={<Billing />} />
+            <Route path="account/plan" element={<AccountPlan />} />
+            <Route path="contact-sales" element={<ContactSales />} />
+            <Route path="feedback" element={<Feedback />} />
+          </Route>
+          
+          {/* Organization-dependent routes: org guard -> main layout with sidebar -> page */}
+          {/* OrganizationRouteGuard redirects to /settings/organization if no org */}
+          {/* Only when org is resolved does MainLayout (with sidebar) render */}
+          <Route element={<OrganizationRouteGuard />}>
+            <Route element={<MainLayout />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="integrations" element={<Integrations />} />
+              <Route path="visualizations" element={<Visualizations />} />
+              <Route path="dashboard-builder" element={<DashboardBuilder />} />
+              <Route path="dashboards/:id" element={<DashboardView />} />
+              <Route path="goals" element={<Goals />} />
+              <Route path="goals/create" element={<GoalCreate />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="integration-hub" element={<IntegrationHub />} />
+              <Route path="integrations/slack/configure" element={<SlackConfigure />} />
+              <Route path="integrations/microsoft_teams/configure" element={<TeamsConfigure />} />
+              <Route path="predictive-insights" element={<PredictiveInsights />} />
+              <Route path="decision-center" element={<DecisionCenter />} />
+              <Route path="automation-center" element={<AutomationCenter />} />
+              <Route path="system-monitor" element={<SystemMonitor />} />
+              <Route path="anomaly-console" element={<AnomalyConsole />} />
+              <Route path="recovery-manager" element={<RecoveryManager />} />
+              <Route path="selftest-panel" element={<SelfTestPanel />} />
+              <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
+              <Route path="optimization-engine" element={<OptimizationEngine />} />
+              <Route path="api-access" element={<ApiAccess />} />
+              <Route path="audit-trails" element={<AuditTrails />} />
+              <Route path="account-support" element={<AccountSupport />} />
+              <Route path="fusion-details" element={<FusionDetails />} />
+              <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
+              <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
+              <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
+              <Route path="admin/automation-rules-manager" element={<ProtectedRoute requireAdmin><AutomationRulesManager /></ProtectedRoute>} />
+              <Route path="admin/automation-logs" element={<ProtectedRoute requireAdmin><AutomationLogsViewer /></ProtectedRoute>} />
+              <Route path="admin/ai-narratives" element={<ProtectedRoute requireAdmin><AINarrativesManager /></ProtectedRoute>} />
+              <Route path="admin/simulations" element={<ProtectedRoute requireAdmin><SimulationsManager /></ProtectedRoute>} />
+              <Route path="admin/optimizations" element={<ProtectedRoute requireAdmin><OptimizationsManager /></ProtectedRoute>} />
+              <Route path="admin/insight-hub" element={<ProtectedRoute requireAdmin><InsightHub /></ProtectedRoute>} />
+              <Route path="admin/governance" element={<ProtectedRoute requireAdmin><Governance /></ProtectedRoute>} />
+              <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
+              <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
+              <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
+              <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
+              <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
+            </Route>
+          </Route>
         </Route>
       </Routes>
       <Toaster />
