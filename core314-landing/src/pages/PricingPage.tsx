@@ -1,12 +1,11 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Check, Play, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 export default function PricingPage() {
-  const [showDemo, setShowDemo] = useState(false);
   const [expandedAddons, setExpandedAddons] = useState(false);
 
   const plans = [
@@ -159,25 +158,16 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <div className="space-y-3">
-                  <Link
-                    to={plan.link}
-                    className={`block w-full py-3 rounded-lg font-semibold text-center transition-all ${
-                      plan.popular
-                        ? 'bg-gradient-to-r from-[#00BFFF] to-[#007BFF] hover:shadow-[0_0_30px_rgba(0,191,255,0.6)]'
-                        : 'bg-[#00BFFF]/20 hover:bg-[#00BFFF]/30 border border-[#00BFFF]'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
-                  <button
-                    onClick={() => setShowDemo(true)}
-                    className="w-full py-3 rounded-lg font-semibold text-center border border-[#00BFFF]/50 hover:bg-[#00BFFF]/10 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Play className="h-4 w-4" />
-                    Watch Demo
-                  </button>
-                </div>
+                <Link
+                  to={plan.link}
+                  className={`block w-full py-3 rounded-lg font-semibold text-center transition-all ${
+                    plan.popular
+                      ? 'bg-gradient-to-r from-[#00BFFF] to-[#007BFF] hover:shadow-[0_0_30px_rgba(0,191,255,0.6)]'
+                      : 'bg-[#00BFFF]/20 hover:bg-[#00BFFF]/30 border border-[#00BFFF]'
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
               </motion.div>
             ))}
           </div>
@@ -292,34 +282,6 @@ export default function PricingPage() {
           </div>
         </div>
       </section>
-
-      {/* Demo Video Modal */}
-      {showDemo && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setShowDemo(false)}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#0A0F1A] border-2 border-[#00BFFF] rounded-xl p-8 max-w-4xl w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-[#66FCF1]">Core314 Demo</h3>
-              <button
-                onClick={() => setShowDemo(false)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="aspect-video bg-[#001a33] rounded-lg flex items-center justify-center">
-              <p className="text-gray-400">Demo video placeholder</p>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       <Footer />
     </div>
