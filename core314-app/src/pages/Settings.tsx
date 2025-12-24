@@ -404,18 +404,23 @@ export function Settings() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Show friendly empty state when user has no organization */}
+              {/* Organizations are OPTIONAL - user can use Core314 without one */}
               {!currentOrganization ? (
                 <div className="text-center py-8">
-                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <Building2 className="h-12 w-12 text-blue-500 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                    No Organization
+                    Organizations are Optional
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-4">
-                    You're not currently a member of any organization. To use Core314's full features, you need to join an organization.
+                    You can use Core314 as an individual account without an organization. Create one if you want to invite team members or manage permissions.
                   </p>
-                  <div className="space-y-2">
+                  <div className="space-y-4">
+                    <Button className="mx-auto">
+                      <Building2 className="mr-2 h-4 w-4" />
+                      Create Organization
+                    </Button>
                     <p className="text-sm text-gray-500">
-                      Check your email for an organization invite, or contact your administrator to get access.
+                      Or check your email for an organization invite if you're joining an existing team.
                     </p>
                   </div>
                 </div>
@@ -510,15 +515,20 @@ export function Settings() {
               </CardHeader>
               <CardContent>
                 {/* Show friendly empty state when user has no organization */}
+                {/* Organizations are OPTIONAL - team features require one */}
                 {!currentOrganization ? (
                   <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <Users className="h-12 w-12 text-blue-500 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      Team Management Requires an Organization
+                      Team Features Require an Organization
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-                      You're not currently a member of any organization. Once you join an organization, you'll be able to view and manage team members here.
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-4">
+                      Organizations are optional, but if you want to invite team members or manage permissions, you'll need to create one first.
                     </p>
+                    <Button className="mx-auto">
+                      <Building2 className="mr-2 h-4 w-4" />
+                      Create Organization
+                    </Button>
                   </div>
                 ) : teamLoading ? (
                   <div className="flex items-center justify-center py-8">
