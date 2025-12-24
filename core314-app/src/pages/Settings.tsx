@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useSupabaseClient } from '../contexts/SupabaseClientContext';
@@ -63,6 +64,10 @@ export function Settings() {
   const { user } = useAuth();
   const { currentOrganization, refreshOrganizations } = useOrganization();
   const supabase = useSupabaseClient();
+  const location = useLocation();
+  
+  // Detect if we're on /settings/organization path (redirect target for no-org users)
+  const isOrgRoute = location.pathname === '/settings/organization';
   
   // Profile state
   const [fullName, setFullName] = useState('');
@@ -99,6 +104,11 @@ export function Settings() {
     if (currentOrganization) {
       fetchTeamMembers();
       fetchPendingInvites();
+    } else {
+      // No organization - stop loading states to prevent infinite spinners
+      setTeamLoading(false);
+      setTeamMembers([]);
+      setPendingInvites([]);
     }
   }, [currentOrganization]);
 
@@ -328,7 +338,7 @@ export function Settings() {
         <p className="text-gray-600 dark:text-gray-400">Manage your profile and organization settings</p>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue={isOrgRoute ? "organization" : "profile"} className="space-y-6">
         <TabsList>
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -393,6 +403,24 @@ export function Settings() {
               <CardDescription>View and manage your organization</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Show friendly empty state when user has no organization */}
+              {!currentOrganization ? (
+                <div className="text-center py-8">
+                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    No Organization
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-4">
+                    You're not currently a member of any organization. To use Core314's full features, you need to join an organization.
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-500">
+                      Check your email for an organization invite, or contact your administrator to get access.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="space-y-2">
                 <Label>Organization Name</Label>
                 <Input 
@@ -458,6 +486,8 @@ export function Settings() {
                   </div>
                 </div>
               )}
+              </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -471,7 +501,7 @@ export function Settings() {
                   <CardTitle>Team Members</CardTitle>
                   <CardDescription>Manage your organization's team</CardDescription>
                 </div>
-                {isAdmin && (
+                {isAdmin && currentOrganization && (
                   <Button onClick={() => setShowInviteModal(true)}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Invite Member
@@ -479,7 +509,18 @@ export function Settings() {
                 )}
               </CardHeader>
               <CardContent>
-                {teamLoading ? (
+                {/* Show friendly empty state when user has no organization */}
+                {!currentOrganization ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      Team Management Requires an Organization
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                      You're not currently a member of any organization. Once you join an organization, you'll be able to view and manage team members here.
+                    </p>
+                  </div>
+                ) : teamLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                   </div>

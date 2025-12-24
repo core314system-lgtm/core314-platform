@@ -1,10 +1,8 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useOrganization } from '../contexts/OrganizationContext';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { supabase } from '../lib/supabase';
 import {
   Home,
@@ -25,10 +23,7 @@ import {
   TrendingUp,
   Code,
   FileCheck,
-  Headphones,
-  AlertCircle,
-  RefreshCw,
-  Loader2
+  Headphones
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 
@@ -84,112 +79,18 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
   return baseItems;
 };
 
-function OrganizationRequiredGuard({ children }: { children: React.ReactNode }) {
-  const { loading, error, hasNoOrganizations, currentOrganization, organizations, switchOrganization, refreshOrganizations } = useOrganization();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Loading your organizations...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px] p-6">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-              <CardTitle>Failed to Load Organizations</CardTitle>
-            </div>
-            <CardDescription>
-              We couldn't load your organization data. This might be a temporary issue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-            <Button onClick={refreshOrganizations} className="w-full">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (hasNoOrganizations) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px] p-6">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-500" />
-              <CardTitle>No Organization Found</CardTitle>
-            </div>
-            <CardDescription>
-              You're not a member of any organization yet.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              To use Core314, you need to be part of an organization. You can either create a new organization or ask an existing organization owner to invite you.
-            </p>
-            <div className="space-y-2">
-              <Button className="w-full" asChild>
-                <Link to="/create-organization">Create Organization</Link>
-              </Button>
-              <p className="text-xs text-center text-gray-500">
-                Or check your email for an organization invite
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!currentOrganization && organizations.length > 1) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px] p-6">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-500" />
-              <CardTitle>Select an Organization</CardTitle>
-            </div>
-            <CardDescription>
-              You belong to multiple organizations. Please select one to continue.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {organizations.map((org) => (
-                <Button
-                  key={org.id}
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => switchOrganization(org.id)}
-                >
-                  <Building2 className="mr-2 h-4 w-4" />
-                  {org.name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-}
-
+/**
+ * MainLayout - Layout for organization-dependent routes
+ * 
+ * This layout has the sidebar and assumes an organization is already resolved.
+ * It is ONLY rendered inside OrganizationRouteGuard, which ensures:
+ * - User is authenticated (handled by ProtectedRoute)
+ * - Organization is resolved (no-org users are redirected to /settings/organization)
+ * 
+ * This layout should NEVER render for:
+ * - Users without an organization
+ * - Account-only pages (settings, billing, etc.)
+ */
 export function MainLayout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
@@ -314,9 +215,7 @@ export function MainLayout() {
         </aside>
         
         <main className="flex-1 overflow-auto">
-          <OrganizationRequiredGuard>
-            <Outlet />
-          </OrganizationRequiredGuard>
+          <Outlet />
         </main>
       </div>
     </div>
