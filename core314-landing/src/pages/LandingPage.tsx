@@ -82,7 +82,7 @@ export default function LandingPage() {
             className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto"
             style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
           >
-            Core314 continuously monitors how your business actually operates across all your systems, proactively fixes inefficiencies before they become problems, and governs automation so actions happen safely and intentionally.
+            Core314 is an AI-powered operations platform that connects your systems, monitors performance in real time, and catches operational issues before they impact customers or revenue.
           </motion.p>
 
           <motion.p
@@ -122,8 +122,200 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How Core314 Works Section */}
+      {/* Before vs After Core314 Section */}
+      <section className="py-24 px-4 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-5xl font-bold text-center mb-16 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
+          >
+            Before vs After Core314
+          </motion.h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {/* Before Core314 */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                <XCircle className="h-8 w-8 text-red-500" />
+                Before Core314
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "Constantly reacting to incidents after they happen",
+                  "Manually checking dashboards across multiple tools",
+                  "No visibility into cross-system dependencies",
+                  "Automation runs without guardrails or oversight",
+                  "Teams firefighting instead of improving"
+                ].map((item, index) => (
+                  <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* After Core314 */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="bg-white border border-[#00BFFF]/30 rounded-xl p-8 shadow-sm"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                <CheckCircle className="h-8 w-8 text-[#00BFFF]" />
+                After Core314
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "Catch issues before they impact customers",
+                  "Unified operational view across all systems",
+                  "Real-time visibility into how work actually flows",
+                  "Automation with built-in governance and approval",
+                  "Teams focused on growth, not firefighting"
+                ].map((item, index) => (
+                  <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Concrete Use Case Section */}
+      <section className="py-24 px-4 bg-slate-100">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-white border border-gray-200 rounded-xl p-10 shadow-sm"
+          >
+            <h3 className="text-2xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Real Example: Operations Team Managing 8+ Systems
+            </h3>
+            <p className="text-slate-600 mb-6 text-lg" style={{ fontFamily: 'Inter, sans-serif' }}>
+              A growing operations team juggles CRM, support tickets, billing, inventory, and fulfillment across multiple platforms. Before Core314:
+            </p>
+            <ul className="space-y-3 mb-6">
+              {[
+                "They discover SLA breaches hours after they happen",
+                "No one knows when a fulfillment delay will cascade into support tickets",
+                "Automation scripts run without anyone reviewing their impact"
+              ].map((item, index) => (
+                <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <span className="text-red-400 font-bold">-</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="text-slate-600 mb-6 text-lg" style={{ fontFamily: 'Inter, sans-serif' }}>
+              With Core314:
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Early signals surface before SLAs are breached",
+                "Cross-system dependencies are visible in real time",
+                "Automation actions require approval when risk is high"
+              ].map((item, index) => (
+                <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Who Core314 Is For Section */}
       <section className="py-24 px-4 bg-gradient-to-b from-[#0A0F1A] to-[#001a33]">
+        <div className="max-w-7xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-5xl font-bold text-center mb-16"
+            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
+          >
+            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
+              Who Core314 Is For
+            </span>
+          </motion.h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+            {/* Is For */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-[#66FCF1] flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                <CheckCircle className="h-8 w-8 text-[#00BFFF]" />
+                Core314 Is For
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "Scaling businesses using multiple tools",
+                  "Founders, operators, and operations leaders",
+                  "Teams experiencing reactive firefighting",
+                  "Organizations that want automation without losing control"
+                ].map((item, index) => (
+                  <li key={index} className="flex items-start gap-3 text-gray-300" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Is Not For */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-gray-700 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold mb-6 text-gray-400 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                <XCircle className="h-8 w-8 text-gray-500" />
+                Core314 Is Not For
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  "Very early-stage teams with minimal tooling",
+                  "Dashboard-only reporting use cases",
+                  "One-off automation scripts",
+                  "Experiment-only AI tools"
+                ].map((item, index) => (
+                  <li key={index} className="flex items-start gap-3 text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <XCircle className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* How Core314 Works Section */}
+      <section className="py-24 px-4 bg-[#0A0F1A]">
         <div className="max-w-7xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -265,79 +457,6 @@ export default function LandingPage() {
                 )}
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Who Core314 Is For Section */}
-      <section className="py-24 px-4 bg-gradient-to-b from-[#0A0F1A] to-[#001a33]">
-        <div className="max-w-7xl mx-auto">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold text-center mb-16"
-            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
-          >
-            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-              Who Core314 Is For
-            </span>
-          </motion.h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-            {/* Is For */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8"
-            >
-              <h3 className="text-2xl font-bold mb-6 text-[#66FCF1] flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                <CheckCircle className="h-8 w-8 text-[#00BFFF]" />
-                Core314 Is For
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  "Scaling businesses using multiple tools",
-                  "Founders, operators, and operations leaders",
-                  "Teams experiencing reactive firefighting",
-                  "Organizations that want automation without losing control"
-                ].map((item, index) => (
-                  <li key={index} className="flex items-start gap-3 text-gray-300" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* Is Not For */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-gray-700 rounded-xl p-8"
-            >
-              <h3 className="text-2xl font-bold mb-6 text-gray-400 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                <XCircle className="h-8 w-8 text-gray-500" />
-                Core314 Is Not For
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  "Very early-stage teams with minimal tooling",
-                  "Dashboard-only reporting use cases",
-                  "One-off automation scripts",
-                  "Experiment-only AI tools"
-                ].map((item, index) => (
-                  <li key={index} className="flex items-start gap-3 text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    <XCircle className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
           </div>
         </div>
       </section>
