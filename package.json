@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "dev": "cd core314-app && npm run dev",
+    "build": "cd core314-app && npm run build",
+    "preview": "cd core314-app && npm run preview"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0"
   }
