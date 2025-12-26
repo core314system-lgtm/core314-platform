@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { useAddons } from '../hooks/useAddons';
+import { useIntelligenceDashboard } from '../hooks/useIntelligenceDashboard';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -15,6 +16,7 @@ import { IntegrationCard } from '../components/dashboard/IntegrationCard';
 import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
+import { IntelligenceDashboard } from '../components/intelligence/IntelligenceDashboard';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
@@ -27,6 +29,7 @@ export function Dashboard() {
   const { profile, isAdmin } = useAuth();
   const { subscription } = useSubscription(profile?.id);
   const { hasAddon, loading: addonsLoading } = useAddons();
+  const { isIntelligenceDashboardEnabled } = useIntelligenceDashboard();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
@@ -444,11 +447,14 @@ export function Dashboard() {
       {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
       {hasConnectedIntegrations && <FusionOverviewWidget />}
 
+      {/* Intelligence Dashboard Modules - only show when feature flag is enabled */}
+      {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
+
       {/* Analytics sections - only show when user has connected integrations */}
       {hasConnectedIntegrations ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
-            <FusionGauge score={globalScore} trend={globalTrend} />
+            <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
           </div>
           <div className="lg:col-span-2 space-y-6">
             <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
