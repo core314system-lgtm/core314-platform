@@ -47,6 +47,9 @@ export function ADPIntelligenceModule() {
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Human resources analytics from ADP workforce data
         </p>
+        <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-md">
+          This is a modeled example of how HR intelligence will appear once an HR system is connected.
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <PlaceholderKPI
@@ -67,11 +70,6 @@ export function ADPIntelligenceModule() {
           value="--"
           subtext="Placeholder - data coming soon"
         />
-        <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-          <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
-            This is a modeled example showing future ADP integration capabilities
-          </p>
-        </div>
       </CardContent>
     </Card>
   );

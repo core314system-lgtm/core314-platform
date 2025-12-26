@@ -23,7 +23,7 @@ export function IntelligenceDashboard() {
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: 'slack', label: 'Slack', icon: <MessageSquare className="h-4 w-4" />, requiresIntegration: 'slack' },
     { id: 'teams', label: 'Teams', icon: <Users className="h-4 w-4" />, requiresIntegration: 'teams' },
-    { id: 'adp', label: 'ADP', icon: <Briefcase className="h-4 w-4" /> },
+    { id: 'adp', label: 'HR (Example)', icon: <Briefcase className="h-4 w-4" /> },
   ];
 
   // Filter tabs based on connected integrations
