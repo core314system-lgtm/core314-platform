@@ -4,9 +4,10 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 interface FusionGaugeProps {
   score: number;
   trend: 'up' | 'down' | 'stable';
+  showIntelligenceLabel?: boolean;
 }
 
-export function FusionGauge({ score, trend }: FusionGaugeProps) {
+export function FusionGauge({ score, trend, showIntelligenceLabel = false }: FusionGaugeProps) {
   const getTrendIcon = () => {
     switch (trend) {
       case 'up':
@@ -28,7 +29,14 @@ export function FusionGauge({ score, trend }: FusionGaugeProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          Global Fusion Score
+          <div className="flex flex-col">
+            <span>Global Fusion Score</span>
+            {showIntelligenceLabel && (
+              <span className="text-xs font-normal text-purple-600 dark:text-purple-400">
+                Intelligence Expansion in Beta
+              </span>
+            )}
+          </div>
           {getTrendIcon()}
         </CardTitle>
       </CardHeader>
