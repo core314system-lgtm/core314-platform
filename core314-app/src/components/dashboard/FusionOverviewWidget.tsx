@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { TrendingUp, TrendingDown, Activity, Gauge, Zap, Shield, Info, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useCommunicationHealthScore } from '../../hooks/useCommunicationHealthScore';
+import { FusionScoreInfluencersLink } from './FusionScoreInfluencers';
 
 // Storage key for first Fusion Score explanation dismissal
 const FUSION_SCORE_EXPLAINED_KEY = 'core314_fusion_score_explained';
@@ -93,6 +95,10 @@ export function FusionOverviewWidget() {
   const { profile } = useAuth();
   const [metrics, setMetrics] = useState<FusionMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Communication Health score integration (Phase 3)
+  // Only active when feature flag VITE_ENABLE_INTELLIGENCE_DASHBOARD is ON
+  const { score: communicationHealthScore, isEnabled: isIntelligenceEnabled } = useCommunicationHealthScore();
   
   // State for first Fusion Score explainer visibility
   const [showExplainer, setShowExplainer] = useState(() => {
@@ -230,21 +236,53 @@ export function FusionOverviewWidget() {
         {showExplainer && <FirstFusionScoreExplainer onDismiss={handleDismissExplainer} />}
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Fusion Score */}
-          <div className={`p-4 rounded-lg ${getScoreBgColor(metrics.fusion_score)}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Fusion Score
-              </span>
-              <Gauge className={`w-4 h-4 ${getScoreColor(metrics.fusion_score)}`} />
-            </div>
-            <div className={`text-2xl font-bold ${getScoreColor(metrics.fusion_score)}`}>
-              {metrics.fusion_score.toFixed(1)}
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-              0-100 scale
-            </p>
-          </div>
+          {/* Fusion Score - Enhanced with Communication Health when feature flag is ON */}
+          {(() => {
+            /**
+             * FUSION SCORE INTEGRATION (Phase 3)
+             * 
+             * When feature flag is ON:
+             * - Communication Health contributes up to 20 points (out of 100)
+             * - The contribution is ADDED to the base fusion_score
+             * - Missing data has NEUTRAL impact (0 contribution, not penalty)
+             * - Score is capped at 100 to prevent overflow
+             * 
+             * When feature flag is OFF:
+             * - Fusion Score remains EXACTLY as before (no change)
+             * 
+             * DAILY AGGREGATION:
+             * - Communication Health metrics are pre-computed/cached
+             * - No real-time recalculation on page load
+             * - Updates happen daily via background jobs
+             */
+            const baseScore = metrics.fusion_score;
+            const communicationContribution = isIntelligenceEnabled ? communicationHealthScore.totalContribution : 0;
+            // Cap the enhanced score at 100 to prevent overflow
+            const enhancedScore = Math.min(baseScore + communicationContribution, 100);
+            // Use enhanced score when flag is ON, otherwise use base score unchanged
+            const displayScore = isIntelligenceEnabled ? enhancedScore : baseScore;
+            
+            return (
+              <div className={`p-4 rounded-lg ${getScoreBgColor(displayScore)} relative`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Fusion Score
+                  </span>
+                  <Gauge className={`w-4 h-4 ${getScoreColor(displayScore)}`} />
+                </div>
+                <div className={`text-2xl font-bold ${getScoreColor(displayScore)}`}>
+                  {displayScore.toFixed(1)}
+                </div>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  0-100 scale
+                </p>
+                {/* "What's influencing this score?" link - only visible when flag is ON */}
+                <div className="mt-2">
+                  <FusionScoreInfluencersLink />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Efficiency Index */}
           <div className={`p-4 rounded-lg ${getScoreBgColor(metrics.efficiency_index)}`}>
