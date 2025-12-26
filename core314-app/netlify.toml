@@ -1,7 +1,10 @@
 [build]
+  base = "core314-app"
   command = "npm run build"
   publish = "dist"
-  functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
