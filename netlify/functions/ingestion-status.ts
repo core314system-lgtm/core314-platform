@@ -12,103 +12,57 @@ export const handler = async (event: any) => {
   }
 
   try {
-    const authHeader = event.headers['authorization'] || event.headers['Authorization'];
-    if (!authHeader) {
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ error: 'Missing authorization header' }),
-      };
-    }
-
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
-        body: JSON.stringify({ error: 'Server configuration error' }),
+        body: JSON.stringify({
+          slack_event_count: 0,
+          teams_event_count: 0,
+          last_slack_event_at: null,
+          last_teams_event_at: null,
+          error: 'Server configuration incomplete',
+        }),
       };
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ error: 'Unauthorized' }),
-      };
-    }
-
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const adminSupabase = createClient(supabaseUrl, serviceRoleKey || supabaseAnonKey);
-
-    const { data: slackEvents, error: slackError } = await adminSupabase
-      .from('integration_events')
-      .select('id, event_type, occurred_at, ingested_at, metadata')
-      .eq('user_id', user.id)
-      .eq('service_name', 'slack')
-      .order('ingested_at', { ascending: false })
-      .limit(10);
-
-    const { data: teamsEvents, error: teamsError } = await adminSupabase
-      .from('integration_events')
-      .select('id, event_type, occurred_at, ingested_at, metadata')
-      .eq('user_id', user.id)
-      .eq('service_name', 'microsoft_teams')
-      .order('ingested_at', { ascending: false })
-      .limit(10);
-
-    const { count: slackCount } = await adminSupabase
+    const { count: slackCount } = await supabase
       .from('integration_events')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
       .eq('service_name', 'slack');
 
-    const { count: teamsCount } = await adminSupabase
+    const { count: teamsCount } = await supabase
       .from('integration_events')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
       .eq('service_name', 'microsoft_teams');
 
-    const { data: slackState } = await adminSupabase
-      .from('integration_ingestion_state')
-      .select('*')
-      .eq('user_id', user.id)
+    const { data: lastSlackEvent } = await supabase
+      .from('integration_events')
+      .select('occurred_at')
       .eq('service_name', 'slack')
+      .order('occurred_at', { ascending: false })
+      .limit(1)
       .single();
 
-    const { data: teamsState } = await adminSupabase
-      .from('integration_ingestion_state')
-      .select('*')
-      .eq('user_id', user.id)
+    const { data: lastTeamsEvent } = await supabase
+      .from('integration_events')
+      .select('occurred_at')
       .eq('service_name', 'microsoft_teams')
+      .order('occurred_at', { ascending: false })
+      .limit(1)
       .single();
 
     const response = {
-      user_id: user.id,
+      slack_event_count: slackCount || 0,
+      teams_event_count: teamsCount || 0,
+      last_slack_event_at: lastSlackEvent?.occurred_at || null,
+      last_teams_event_at: lastTeamsEvent?.occurred_at || null,
       timestamp: new Date().toISOString(),
-      slack: {
-        total_events: slackCount || 0,
-        last_event_timestamp: slackEvents?.[0]?.occurred_at || null,
-        last_ingested_at: slackEvents?.[0]?.ingested_at || null,
-        recent_events: slackEvents || [],
-        ingestion_state: slackState || null,
-        error: slackError?.message || null,
-      },
-      teams: {
-        total_events: teamsCount || 0,
-        last_event_timestamp: teamsEvents?.[0]?.occurred_at || null,
-        last_ingested_at: teamsEvents?.[0]?.ingested_at || null,
-        recent_events: teamsEvents || [],
-        ingestion_state: teamsState || null,
-        error: teamsError?.message || null,
-      },
     };
 
     return {
@@ -119,9 +73,15 @@ export const handler = async (event: any) => {
   } catch (error: any) {
     console.error('[ingestion-status] Error:', error);
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({
+        slack_event_count: 0,
+        teams_event_count: 0,
+        last_slack_event_at: null,
+        last_teams_event_at: null,
+        error: error.message,
+      }),
     };
   }
 };
