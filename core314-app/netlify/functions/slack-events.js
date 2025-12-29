@@ -1,4 +1,9 @@
 exports.handler = async (event) => {
+  console.log("slack-events invoked");
+  console.log("method:", event.httpMethod);
+  console.log("raw body:", event.body);
+  console.log("headers:", JSON.stringify(event.headers));
+
   try {
     const body = JSON.parse(event.body || "{}");
 
