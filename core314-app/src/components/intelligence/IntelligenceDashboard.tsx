@@ -4,7 +4,6 @@ import { useAllIntegrationIntelligence } from '../../hooks/useIntegrationIntelli
 import { SlackIntelligenceModule } from './SlackIntelligenceModule';
 import { TeamsIntelligenceModule } from './TeamsIntelligenceModule';
 import { ADPIntelligenceModule } from './ADPIntelligenceModule';
-import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { LayoutDashboard, MessageSquare, Users, Briefcase, Brain } from 'lucide-react';
 
@@ -79,17 +78,14 @@ export function IntelligenceDashboard() {
 
   return (
     <div className="space-y-4">
-      {/* Intelligence Dashboard Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Intelligence Modules
-          </h2>
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-            Beta
-          </Badge>
-        </div>
-      </div>
+            {/* Intelligence Dashboard Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Intelligence Modules
+                </h2>
+              </div>
+            </div>
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg w-fit">

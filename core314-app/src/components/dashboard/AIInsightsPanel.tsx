@@ -10,6 +10,13 @@ import { FusionInsight } from '../../types';
 import { useToast } from '../../hooks/use-toast';
 import { RefreshCw, TrendingUp, AlertTriangle, TrendingDown, BarChart3, Info, X, Shield } from 'lucide-react';
 import { format } from 'date-fns';
+import { INTELLIGENCE_TOOLTIP_COPY } from '../../hooks/useIntegrationIntelligence';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 
 // Storage key for first AI Insight explanation dismissal
 const AI_INSIGHT_EXPLAINED_KEY = 'core314_ai_insight_explained';
@@ -266,29 +273,40 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
             {/* First AI Insight explainer - shows only once per user when insights are available */}
             {showExplainer && <FirstAIInsightExplainer onDismiss={handleDismissExplainer} />}
             
-            {insights.map((insight) => (
-              <div key={insight.id} className="border-b pb-3 last:border-0 last:pb-0">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5">
-                    {getInsightIcon(insight.insight_type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium text-sm">{insight.integration_name}</p>
-                      <Badge variant="secondary" className="text-xs">
-                        {(insight.confidence * 100).toFixed(0)}% confidence
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {insight.message}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {format(new Date(insight.created_at), 'MMM dd, h:mm a')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+                        {insights.map((insight) => (
+                          <div key={insight.id} className="border-b pb-3 last:border-0 last:pb-0">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5">
+                                {getInsightIcon(insight.insight_type)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="font-medium text-sm">{insight.integration_name}</p>
+                                  {/* Phase 9.3: Data basis qualifier with tooltip */}
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-xs text-gray-400 dark:text-gray-500 cursor-help flex items-center gap-1">
+                                          <Info className="h-3 w-3" />
+                                          {INTELLIGENCE_TOOLTIP_COPY.dataBasis}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="left" className="max-w-xs">
+                                        <p className="text-xs">{INTELLIGENCE_TOOLTIP_COPY.aggregatedSignals}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {insight.message}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {format(new Date(insight.created_at), 'MMM dd, h:mm a')}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
           </div>
         )}
       </CardContent>

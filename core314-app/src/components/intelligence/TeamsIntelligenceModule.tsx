@@ -1,7 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Video, Clock, MessageSquare, Moon, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
+import { Video, Clock, MessageSquare, Moon, TrendingUp, TrendingDown, Minus, AlertCircle, Info } from 'lucide-react';
 import { useTeamsMetrics } from '../../hooks/useTeamsMetrics';
+import { TREND_FRAMING, INTELLIGENCE_TOOLTIP_COPY } from '../../hooks/useIntegrationIntelligence';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 
 /**
  * Microsoft Teams Intelligence Module - Phase 2
@@ -46,6 +52,19 @@ function MetricKPI({ icon, label, value, unit, subtext, trend, trendPositive = t
     return <Minus className="h-3 w-3 text-gray-400" />;
   };
 
+  // Phase 9.3: Get trend label and framing text
+  const getTrendLabel = () => {
+    if (!trend) return 'Stable';
+    if (trend === 'up') return 'Rising';
+    if (trend === 'down') return 'Declining';
+    return 'Stable';
+  };
+
+  const getTrendFraming = () => {
+    if (!trend || trend === 'stable') return TREND_FRAMING.stable;
+    return TREND_FRAMING[trend] || TREND_FRAMING.stable;
+  };
+
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
       <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
@@ -57,7 +76,23 @@ function MetricKPI({ icon, label, value, unit, subtext, trend, trendPositive = t
           <p className={`text-lg font-semibold ${isPlaceholder ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>
             {displayValue}
           </p>
-          {getTrendIcon()}
+          {/* Phase 9.3: Trend with framing tooltip */}
+          {trend && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 cursor-help">
+                    {getTrendIcon()}
+                    <span className="text-xs text-gray-400">{getTrendLabel()}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="text-xs">{getTrendFraming()}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {!trend && getTrendIcon()}
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500">{subtext}</p>
       </div>
@@ -126,24 +161,35 @@ export function TeamsIntelligenceModule() {
 
   return (
     <Card className="border-blue-200 dark:border-blue-800">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <img 
-              src="https://cdn.worldvectorlogo.com/logos/microsoft-teams-1.svg" 
-              alt="Microsoft Teams" 
-              className="h-5 w-5"
-            />
-            Microsoft Teams Intelligence
-          </CardTitle>
-          <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-            Beta
-          </Badge>
-        </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Collaboration analytics from your Teams workspace
-        </p>
-      </CardHeader>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <img 
+                    src="https://cdn.worldvectorlogo.com/logos/microsoft-teams-1.svg" 
+                    alt="Microsoft Teams" 
+                    className="h-5 w-5"
+                  />
+                  Microsoft Teams Intelligence
+                </CardTitle>
+                {/* Phase 9.3: Data basis qualifier tooltip */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 cursor-help">
+                        <Info className="h-3 w-3" />
+                        <span>{INTELLIGENCE_TOOLTIP_COPY.dataBasis}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p className="text-xs">{INTELLIGENCE_TOOLTIP_COPY.aggregatedSignals}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Collaboration patterns from your Teams workspace
+              </p>
+            </CardHeader>
       <CardContent>
         {loading ? (
           <LoadingSkeleton />

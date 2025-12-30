@@ -322,6 +322,8 @@ export function getInsightSeverityIcon(severity: IntegrationInsight['severity'])
 /**
  * Reusable tooltip copy for intelligence clarification
  * Use this wherever clarification about intelligence data maturity is helpful
+ * 
+ * Phase 9.3: Updated for launch-grade UX - trustworthy, explainable, grounded
  */
 export const INTELLIGENCE_TOOLTIP_COPY = {
   /** Standard tooltip for explaining intelligence data maturity */
@@ -330,9 +332,33 @@ export const INTELLIGENCE_TOOLTIP_COPY = {
   /** Tooltip for explaining what signals are */
   signals: 'Signals are data points Core314 observes from your connected integrations to generate insights.',
   
-  /** Tooltip for explaining Fusion Score contribution */
-  fusionContribution: 'This percentage represents how much this integration contributes to your overall Fusion Score.',
+  /** Tooltip for explaining Fusion Score contribution - Phase 9.3 updated */
+  fusionContribution: 'Fusion contribution reflects how much this integration influences your overall operational signal based on observed activity.',
+  
+  /** Data basis qualifier for insights */
+  dataBasis: 'Based on recent observed activity',
+  
+  /** Aggregated signals qualifier */
+  aggregatedSignals: 'Derived from aggregated signals',
 } as const;
+
+/**
+ * Phase 9.3: Trend framing explanatory subtext
+ * Provides clear, grounded explanations for trend directions
+ */
+export const TREND_FRAMING = {
+  stable: 'Activity levels have not meaningfully changed over the last observed period.',
+  up: 'Activity has increased compared to the previous observed period.',
+  down: 'Activity has decreased compared to the previous observed period.',
+} as const;
+
+/**
+ * Get trend framing text for a given trend direction
+ */
+export function getTrendFramingText(trend: 'up' | 'down' | 'stable' | null | undefined): string {
+  if (!trend) return TREND_FRAMING.stable;
+  return TREND_FRAMING[trend] || TREND_FRAMING.stable;
+}
 
 /**
  * Static integration value data for Phase 9.2 - Integration Hub Value Clarity

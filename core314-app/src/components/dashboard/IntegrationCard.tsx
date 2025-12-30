@@ -12,6 +12,8 @@ import {
   getIntegrationValueSummary,
   getIntegrationValueData,
   formatSignals,
+  getTrendFramingText,
+  INTELLIGENCE_TOOLTIP_COPY,
 } from '../../hooks/useIntegrationIntelligence';
 import {
   Tooltip,
@@ -75,6 +77,18 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
     }
   };
 
+  // Phase 9.3: Get trend label for display
+  const getTrendLabel = () => {
+    switch (integration.trend_direction) {
+      case 'up':
+        return 'Rising';
+      case 'down':
+        return 'Declining';
+      default:
+        return 'Stable';
+    }
+  };
+
   const getScoreColor = (score?: number) => {
     if (!score) return 'text-gray-600';
     if (score >= 80) return 'text-green-600';
@@ -106,26 +120,41 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600">Fusion Score</div>
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <div className={`text-3xl font-bold cursor-pointer ${getScoreColor(integration.fusion_score)}`}>
-                    {integration.fusion_score ? integration.fusion_score.toFixed(0) : '--'}
-                  </div>
-                </HoverCardTrigger>
-                {lastAdjusted && (
-                  <HoverCardContent className="w-auto">
-                    <p className="text-sm">
-                      Last adjusted: {format(new Date(lastAdjusted), 'MMM dd, yyyy h:mm a')}
-                    </p>
-                  </HoverCardContent>
-                )}
-              </HoverCard>
-            </div>
-            {getTrendIcon()}
-          </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-gray-600">Fusion Score</div>
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <div className={`text-3xl font-bold cursor-pointer ${getScoreColor(integration.fusion_score)}`}>
+                              {integration.fusion_score ? integration.fusion_score.toFixed(0) : '--'}
+                            </div>
+                          </HoverCardTrigger>
+                          {lastAdjusted && (
+                            <HoverCardContent className="w-auto">
+                              <p className="text-sm">
+                                Last adjusted: {format(new Date(lastAdjusted), 'MMM dd, yyyy h:mm a')}
+                              </p>
+                            </HoverCardContent>
+                          )}
+                        </HoverCard>
+                      </div>
+                      {/* Phase 9.3: Trend with framing subtext */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex flex-col items-end cursor-help">
+                              <div className="flex items-center gap-1">
+                                {getTrendIcon()}
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{getTrendLabel()}</span>
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs">
+                            <p className="text-xs">{getTrendFramingText(integration.trend_direction)}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
           
                   <ScoreSparkline history={history} />
                 </div>
@@ -184,11 +213,19 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
                       </TooltipContent>
                     </Tooltip>
                     
-                    {intelligence.fusion_contribution > 0 && (
-                      <span className="text-gray-400 dark:text-gray-500">
-                        {Math.round(intelligence.fusion_contribution)}% Fusion
-                      </span>
-                    )}
+                                        {/* Phase 9.3: Fusion Contribution with explanation tooltip */}
+                                        {intelligence.fusion_contribution > 0 && (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="text-gray-400 dark:text-gray-500 cursor-help">
+                                                {Math.round(intelligence.fusion_contribution)}% Fusion
+                                              </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="max-w-xs">
+                                              <p className="text-xs">{INTELLIGENCE_TOOLTIP_COPY.fusionContribution}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        )}
                   </div>
                 </TooltipProvider>
               )}
