@@ -33,6 +33,7 @@ import { Security } from './pages/settings/Security';
 import { Organizations } from './pages/admin/Organizations';
 import { PredictiveModels } from './pages/admin/PredictiveModels';
 import { MemoryEngine } from './pages/admin/MemoryEngine';
+import { IntegrationHealth } from './pages/admin/IntegrationHealth';
 import { AdvancedAnalytics } from './pages/AdvancedAnalytics';
 import { OptimizationEngine } from './pages/OptimizationEngine';
 import { ApiAccess } from './pages/ApiAccess';
@@ -187,6 +188,7 @@ function App() {
             <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
             <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
             <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
+            <Route path="admin/integration-health" element={<ProtectedRoute requireAdmin><IntegrationHealth /></ProtectedRoute>} />
           </Route>
         </Route>
       </Routes>
