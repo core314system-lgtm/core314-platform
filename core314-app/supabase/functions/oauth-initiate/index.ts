@@ -128,11 +128,59 @@ serve(withSentry(async (req) => {
       });
     }
 
-    if (integration.auth_type !== 'oauth2') {
-      return new Response(JSON.stringify({ error: 'Integration does not support OAuth2' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Phase 16B: Check connection_type for UI-level connection flow control
+    // connection_type determines how users connect in the UI, separate from auth_type
+    // If connection_type is missing, default to 'manual' unless auth_type is 'oauth2'
+    const rawConnectionType = (integration as any).connection_type as string | null | undefined;
+    const effectiveConnectionType: 'oauth2' | 'api_key' | 'manual' | 'observational' =
+      rawConnectionType === 'oauth2' ||
+      rawConnectionType === 'api_key' ||
+      rawConnectionType === 'manual' ||
+      rawConnectionType === 'observational'
+        ? rawConnectionType
+        : (integration.auth_type === 'oauth2' ? 'oauth2' : 'manual');
+
+    // Phase 16B: Block OAuth initiation for non-oauth2 connection types
+    // Return 200 OK with skipped=true for silent no-op (no red error in UI)
+    if (effectiveConnectionType !== 'oauth2') {
+      console.log('[oauth-initiate] Non-oauth2 connection_type, returning silent no-op', {
+        service_name,
+        connection_type: rawConnectionType,
+        effective_connection_type: effectiveConnectionType,
+        auth_type: integration.auth_type,
       });
+
+      return new Response(
+        JSON.stringify({
+          skipped: true,
+          reason: 'integration_not_oauth2',
+          connection_type: effectiveConnectionType,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Legacy guard: also check auth_type for backwards compatibility
+    // This should rarely trigger now that connection_type is checked first
+    if (integration.auth_type !== 'oauth2') {
+      console.log('[oauth-initiate] auth_type mismatch, returning silent no-op', {
+        service_name,
+        auth_type: integration.auth_type,
+      });
+
+      return new Response(
+        JSON.stringify({
+          skipped: true,
+          reason: 'auth_type_not_oauth2',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const state = crypto.randomUUID();

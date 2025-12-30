@@ -80,12 +80,17 @@ serve(withSentry(async (req) => {
 
     if (existing) {
       if (existing.created_by === user.id) {
+        // Phase 16B: Set connection_type based on provider_type
+        // oauth2 -> oauth2 (user OAuth flow), others -> manual (admin setup)
+        const connectionType = body.provider_type === 'oauth2' ? 'oauth2' : 'manual';
+
         const { data: updated, error: updateError } = await supabaseAdmin
           .from('integration_registry')
           .update({
             display_name: body.display_name,
             provider_type: body.provider_type,
             auth_type: body.provider_type === 'oauth2' ? 'oauth2' : 'api_key',
+            connection_type: connectionType,
             base_url: body.base_url,
             validation_endpoint: body.validation_endpoint,
             validation_method: body.validation_method || 'GET',
@@ -123,6 +128,10 @@ serve(withSentry(async (req) => {
       }
     }
 
+    // Phase 16B: Set connection_type based on provider_type for new integrations
+    // oauth2 -> oauth2 (user OAuth flow), others -> manual (admin setup)
+    const newConnectionType = body.provider_type === 'oauth2' ? 'oauth2' : 'manual';
+
     const { data: created, error: createError } = await supabaseAdmin
       .from('integration_registry')
       .insert({
@@ -130,6 +139,7 @@ serve(withSentry(async (req) => {
         display_name: body.display_name,
         provider_type: body.provider_type,
         auth_type: body.provider_type === 'oauth2' ? 'oauth2' : 'api_key',
+        connection_type: newConnectionType,
         base_url: body.base_url,
         validation_endpoint: body.validation_endpoint,
         validation_method: body.validation_method || 'GET',
