@@ -31,11 +31,11 @@ export function FusionGauge({ score, trend, showIntelligenceLabel = false }: Fus
         <CardTitle className="flex items-center justify-between">
           <div className="flex flex-col">
             <span>Global Fusion Score</span>
-            {showIntelligenceLabel && (
-              <span className="text-xs font-normal text-purple-600 dark:text-purple-400">
-                Intelligence Expansion in Beta
-              </span>
-            )}
+                        {showIntelligenceLabel && (
+                          <span className="text-xs font-normal text-purple-600 dark:text-purple-400">
+                            Powered by Cross-Integration Intelligence
+                          </span>
+                        )}
           </div>
           {getTrendIcon()}
         </CardTitle>
