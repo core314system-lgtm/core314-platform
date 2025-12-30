@@ -12,14 +12,21 @@ import { useState } from 'react';
 // All integrations remain visible and functional on all plans
 // ============================================================================
 
+// ============================================================================
+// PHASE 14: PRICING ALIGNMENT & TRUST CONSISTENCY
+// Starter: $199/month - serious operational visibility for small teams
+// Pro: $999/month - organizational-scale intelligence and depth
+// Enterprise: Custom - full operational command
+// ============================================================================
+
 const tiers = [
   {
     name: 'Starter',
-    price: '$99',
-    annualPrice: '$990',
+    price: '$199',
+    annualPrice: '$1,990',
     priceId: import.meta.env.VITE_STRIPE_PRICE_STARTER,
     annualPriceId: import.meta.env.VITE_STRIPE_PRICE_STARTER_ANNUAL,
-    description: 'Perfect for small teams getting started',
+    description: 'Serious operational visibility for small teams',
     scaleDetails: {
       integrations: 3,
       fusionContributors: 3,
@@ -40,7 +47,7 @@ const tiers = [
     annualPrice: '$9,990',
     priceId: import.meta.env.VITE_STRIPE_PRICE_PRO,
     annualPriceId: import.meta.env.VITE_STRIPE_PRICE_PRO_ANNUAL,
-    description: 'Advanced operations for growing businesses',
+    description: 'Organizational-scale intelligence and operational depth',
     popular: true,
     scaleDetails: {
       integrations: 10,
@@ -63,7 +70,7 @@ const tiers = [
     annualPrice: 'Custom',
     priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE,
     annualPriceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE_ANNUAL,
-    description: 'Full-featured for large operations',
+    description: 'Full operational command for large organizations',
     isCustom: true,
     scaleDetails: {
       integrations: -1,
