@@ -355,7 +355,7 @@ export const TREND_FRAMING = {
 /**
  * Get trend framing text for a given trend direction
  */
-export function getTrendFramingText(trend: 'up' | 'down' | 'stable' | null): string {
+export function getTrendFramingText(trend: 'up' | 'down' | 'stable' | null | undefined): string {
   if (!trend) return TREND_FRAMING.stable;
   return TREND_FRAMING[trend] || TREND_FRAMING.stable;
 }
