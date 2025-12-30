@@ -333,3 +333,297 @@ export const INTELLIGENCE_TOOLTIP_COPY = {
   /** Tooltip for explaining Fusion Score contribution */
   fusionContribution: 'This percentage represents how much this integration contributes to your overall Fusion Score.',
 } as const;
+
+/**
+ * Static integration value data for Phase 9.2 - Integration Hub Value Clarity
+ * 
+ * Each integration has:
+ * - valueSummary: 1-2 sentences explaining why this integration is useful in Core314
+ * - signalsObserved: List of actual signals Core314 ingests from this integration
+ */
+export interface IntegrationValueData {
+  valueSummary: string;
+  signalsObserved: string[];
+}
+
+export const INTEGRATION_VALUE_DATA: Record<string, IntegrationValueData> = {
+  // Communication Integrations
+  slack: {
+    valueSummary: 'Reveals communication patterns and team responsiveness. Helps Core314 understand how information flows and where coordination may slow down.',
+    signalsObserved: [
+      'Messages sent and received',
+      'Channel activity volume',
+      'Response times',
+      'Active participation patterns',
+    ],
+  },
+  microsoft_teams: {
+    valueSummary: 'Tracks team collaboration across chats, channels, and meetings. Helps Core314 identify communication bottlenecks and engagement trends.',
+    signalsObserved: [
+      'Chat message activity',
+      'Channel message volume',
+      'Meeting frequency',
+      'Last activity timestamps',
+    ],
+  },
+  discord: {
+    valueSummary: 'Monitors community and team communication patterns. Helps Core314 understand engagement levels and response dynamics.',
+    signalsObserved: [
+      'Message activity',
+      'Channel participation',
+      'Server engagement metrics',
+    ],
+  },
+
+  // Meeting & Calendar Integrations
+  zoom: {
+    valueSummary: 'Measures meeting load and collaboration time. Helps Core314 assess whether meeting patterns support or hinder productivity.',
+    signalsObserved: [
+      'Meeting count',
+      'Total meeting duration',
+      'Participant counts',
+      'Meeting frequency trends',
+    ],
+  },
+  google_calendar: {
+    valueSummary: 'Tracks scheduled events and meeting patterns. Helps Core314 understand time allocation and identify scheduling conflicts.',
+    signalsObserved: [
+      'Calendar events',
+      'Meeting invitations',
+      'Event duration',
+      'Attendee counts',
+    ],
+  },
+  gmeet: {
+    valueSummary: 'Monitors Google Meet usage and participation. Helps Core314 track virtual collaboration patterns.',
+    signalsObserved: [
+      'Meeting occurrences',
+      'Participant activity',
+      'Meeting duration',
+    ],
+  },
+
+  // Project Management Integrations
+  jira: {
+    valueSummary: 'Tracks issue lifecycle and project velocity. Helps Core314 identify workflow bottlenecks and team throughput.',
+    signalsObserved: [
+      'Issue counts by status',
+      'Open vs in-progress vs done',
+      'Project activity',
+      'Last updated timestamps',
+    ],
+  },
+  asana: {
+    valueSummary: 'Monitors task completion and project progress. Helps Core314 understand workload distribution and delivery patterns.',
+    signalsObserved: [
+      'Task counts',
+      'Completed vs incomplete tasks',
+      'Project activity',
+      'Task modifications',
+    ],
+  },
+  trello: {
+    valueSummary: 'Tracks board and card activity across projects. Helps Core314 visualize work-in-progress and completion rates.',
+    signalsObserved: [
+      'Board activity',
+      'Card counts',
+      'Open vs closed cards',
+      'Last activity timestamps',
+    ],
+  },
+  notion: {
+    valueSummary: 'Monitors workspace activity and documentation updates. Helps Core314 track knowledge management and content creation.',
+    signalsObserved: [
+      'Page edits',
+      'Database updates',
+      'Workspace activity',
+      'Last edited timestamps',
+    ],
+  },
+  monday: {
+    valueSummary: 'Tracks work items and board activity. Helps Core314 understand project flow and team workload.',
+    signalsObserved: [
+      'Item updates',
+      'Board activity',
+      'Status changes',
+      'Assignment patterns',
+    ],
+  },
+  clickup: {
+    valueSummary: 'Monitors task and project activity. Helps Core314 assess team productivity and delivery cadence.',
+    signalsObserved: [
+      'Task updates',
+      'Status transitions',
+      'Project activity',
+      'Time tracking data',
+    ],
+  },
+  linear: {
+    valueSummary: 'Tracks issue progress and sprint velocity. Helps Core314 understand engineering workflow efficiency.',
+    signalsObserved: [
+      'Issue counts',
+      'Cycle progress',
+      'Status changes',
+      'Priority distributions',
+    ],
+  },
+  basecamp: {
+    valueSummary: 'Monitors project discussions and to-do progress. Helps Core314 track team coordination and deliverables.',
+    signalsObserved: [
+      'To-do completions',
+      'Message activity',
+      'Project updates',
+      'Schedule events',
+    ],
+  },
+  planner: {
+    valueSummary: 'Tracks Microsoft Planner tasks and plans. Helps Core314 understand task distribution and completion rates.',
+    signalsObserved: [
+      'Task counts',
+      'Plan activity',
+      'Assignment changes',
+      'Due date tracking',
+    ],
+  },
+  smartsheet: {
+    valueSummary: 'Monitors sheet updates and project tracking. Helps Core314 assess collaborative planning and execution.',
+    signalsObserved: [
+      'Sheet modifications',
+      'Row updates',
+      'Attachment activity',
+      'Comment threads',
+    ],
+  },
+
+  // Development Integrations
+  github: {
+    valueSummary: 'Tracks repository activity and code collaboration. Helps Core314 measure development velocity and code review patterns.',
+    signalsObserved: [
+      'Repository count',
+      'Open issues',
+      'Pull request activity',
+      'Last commit timestamps',
+    ],
+  },
+  gitlab: {
+    valueSummary: 'Monitors repository and pipeline activity. Helps Core314 understand development workflow and CI/CD patterns.',
+    signalsObserved: [
+      'Project activity',
+      'Merge request status',
+      'Pipeline runs',
+      'Issue tracking',
+    ],
+  },
+  bitbucket: {
+    valueSummary: 'Tracks repository and pull request activity. Helps Core314 assess code collaboration and review cycles.',
+    signalsObserved: [
+      'Repository updates',
+      'Pull request activity',
+      'Branch changes',
+      'Commit patterns',
+    ],
+  },
+
+  // Support & Customer Service Integrations
+  zendesk: {
+    valueSummary: 'Tracks support ticket lifecycle and resolution. Helps Core314 identify support load and response efficiency.',
+    signalsObserved: [
+      'Ticket counts',
+      'Open vs pending vs solved',
+      'Resolution times',
+      'Ticket updates',
+    ],
+  },
+  freshdesk: {
+    valueSummary: 'Monitors support ticket activity and agent performance. Helps Core314 assess customer service efficiency.',
+    signalsObserved: [
+      'Ticket volume',
+      'Status distributions',
+      'Response metrics',
+      'Agent activity',
+    ],
+  },
+  intercom: {
+    valueSummary: 'Tracks customer conversations and engagement. Helps Core314 understand support patterns and customer interaction.',
+    signalsObserved: [
+      'Conversation counts',
+      'Response times',
+      'User engagement',
+      'Message activity',
+    ],
+  },
+  servicenow: {
+    valueSummary: 'Monitors IT service requests and incident management. Helps Core314 track operational efficiency and issue resolution.',
+    signalsObserved: [
+      'Incident counts',
+      'Request status',
+      'Resolution metrics',
+      'Service activity',
+    ],
+  },
+
+  // Design & Collaboration Integrations
+  figma: {
+    valueSummary: 'Tracks design file activity and collaboration. Helps Core314 understand design workflow and iteration patterns.',
+    signalsObserved: [
+      'File updates',
+      'Comment activity',
+      'Version history',
+      'Collaboration events',
+    ],
+  },
+  miro: {
+    valueSummary: 'Monitors whiteboard activity and team brainstorming. Helps Core314 track visual collaboration and ideation.',
+    signalsObserved: [
+      'Board updates',
+      'Widget activity',
+      'Collaboration sessions',
+      'Comment threads',
+    ],
+  },
+
+  // Data & Documentation Integrations
+  confluence: {
+    valueSummary: 'Tracks documentation updates and knowledge sharing. Helps Core314 assess information flow and content creation.',
+    signalsObserved: [
+      'Page edits',
+      'Space activity',
+      'Comment threads',
+      'Content creation',
+    ],
+  },
+  airtable: {
+    valueSummary: 'Monitors base and record activity. Helps Core314 track data management and collaborative workflows.',
+    signalsObserved: [
+      'Record updates',
+      'Base activity',
+      'View modifications',
+      'Automation triggers',
+    ],
+  },
+} as const;
+
+/**
+ * Get static value data for an integration by service name
+ * Returns default values if integration is not in the mapping
+ */
+export function getIntegrationValueData(serviceName: string): IntegrationValueData {
+  // Normalize service name (handle variations like "Slack" vs "slack")
+  const normalizedName = serviceName.toLowerCase().replace(/\s+/g, '_');
+  
+  const data = INTEGRATION_VALUE_DATA[normalizedName];
+  
+  if (data) {
+    return data;
+  }
+  
+  // Default fallback for integrations not yet mapped
+  return {
+    valueSummary: 'Provides operational signals that contribute to your overall intelligence. Core314 analyzes activity patterns to generate insights.',
+    signalsObserved: [
+      'Activity events',
+      'Usage patterns',
+      'Engagement metrics',
+    ],
+  };
+}

@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { 
   useIntegrationIntelligence, 
   getIntegrationValueSummary,
+  getIntegrationValueData,
   formatSignals,
 } from '../../hooks/useIntegrationIntelligence';
 import {
@@ -33,6 +34,9 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
   // Fetch intelligence data for this integration
   const { intelligence, insights } = useIntegrationIntelligence(serviceName);
   const valueSummary = getIntegrationValueSummary(intelligence, insights);
+  
+  // Get static value data for this integration type (Phase 9.2)
+  const integrationValueData = getIntegrationValueData(serviceName);
 
   useEffect(() => {
     fetchHistory();
@@ -123,10 +127,35 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
             {getTrendIcon()}
           </div>
           
-          <ScoreSparkline history={history} />
-        </div>
+                  <ScoreSparkline history={history} />
+                </div>
         
-        {/* UIIC: Integration Intelligence Section */}
+                {/* Phase 9.2: Value Summary Section */}
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Why This Integration Matters
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    {integrationValueData.valueSummary}
+                  </p>
+                </div>
+        
+                {/* Phase 9.2: Signals Observed Section */}
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Signals Observed
+                  </p>
+                  <ul className="space-y-1">
+                    {integrationValueData.signalsObserved.slice(0, 5).map((signal, index) => (
+                      <li key={index} className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                        <span className="w-1 h-1 bg-gray-400 dark:bg-gray-500 rounded-full flex-shrink-0" />
+                        {signal}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+        
+                {/* UIIC: Integration Intelligence Section */}
         <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3 space-y-2">
           {/* Case 1: Has insights - show the latest insight */}
           {insights.length > 0 ? (
