@@ -24,6 +24,7 @@ import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
 import { format } from 'date-fns';
 import { betaTrackingService } from '../services/betaTracking';
+import { CoreInsightsSection } from '../components/dashboard/CoreInsightsSection';
 
 export function Dashboard() {
   const { profile, isAdmin } = useAuth();
@@ -447,10 +448,14 @@ export function Dashboard() {
       {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
       {hasConnectedIntegrations && <FusionOverviewWidget />}
 
-      {/* Intelligence Dashboard Modules - only show when feature flag is enabled */}
-      {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
+            {/* Intelligence Dashboard Modules - only show when feature flag is enabled */}
+            {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
 
-      {/* Analytics sections - only show when user has connected integrations */}
+            {/* Core Beta Insights - Phase 9.1 */}
+            {/* Shows "What Core314 is noticing" section when insights meet confidence threshold */}
+            {hasConnectedIntegrations && <CoreInsightsSection />}
+
+            {/* Analytics sections - only show when user has connected integrations */}
       {hasConnectedIntegrations ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
