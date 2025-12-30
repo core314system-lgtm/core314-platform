@@ -127,45 +127,71 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
         </div>
         
         {/* UIIC: Integration Intelligence Section */}
-        {(intelligence || insights.length > 0) && (
-          <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3 space-y-2">
-            {/* Latest Insight */}
-            {insights.length > 0 && (
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3 space-y-2">
+          {/* Case 1: Has insights - show the latest insight */}
+          {insights.length > 0 ? (
+            <>
               <div className="flex items-start gap-2">
                 <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
                   {insights[0].insight_text}
                 </p>
               </div>
-            )}
-            
-            {/* Signals & Value Summary */}
-            {intelligence && (
-              <TooltipProvider>
-                <div className="flex items-center justify-between text-xs">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-gray-500 dark:text-gray-400 cursor-help flex items-center gap-1">
-                        <Info className="h-3 w-3" />
-                        {formatSignals(intelligence.signals_used)}
+              
+              {/* Signals & Value Summary */}
+              {intelligence && (
+                <TooltipProvider>
+                  <div className="flex items-center justify-between text-xs">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-gray-500 dark:text-gray-400 cursor-help flex items-center gap-1">
+                          <Info className="h-3 w-3" />
+                          {formatSignals(intelligence.signals_used)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs">
+                        <p className="text-xs font-medium mb-1">Why this integration matters:</p>
+                        <p className="text-xs">{valueSummary.whyItMatters}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    {intelligence.fusion_contribution > 0 && (
+                      <span className="text-gray-400 dark:text-gray-500">
+                        {Math.round(intelligence.fusion_contribution)}% Fusion
                       </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                      <p className="text-xs font-medium mb-1">Why this integration matters:</p>
-                      <p className="text-xs">{valueSummary.whyItMatters}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  
-                  {intelligence.fusion_contribution > 0 && (
-                    <span className="text-gray-400 dark:text-gray-500">
-                      {Math.round(intelligence.fusion_contribution)}% Fusion
-                    </span>
-                  )}
-                </div>
-              </TooltipProvider>
-            )}
-          </div>
-        )}
+                    )}
+                  </div>
+                </TooltipProvider>
+              )}
+            </>
+          ) : intelligence?.activity_volume === 0 ? (
+            /* Case 2: Zero Activity Override */
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                Intelligence Status
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                No recent activity has been detected for this integration.
+                Intelligence appears automatically as activity occurs.
+              </p>
+            </div>
+          ) : (
+            /* Case 3: No Insights State (but integration is connected) */
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                Intelligence Status
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                Core314 is actively analyzing signals from this integration.
+                Insights appear once meaningful activity is detected.
+                This integration is fully connected and operating normally.
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                Insights are generated from real usage patterns such as messages, updates, meetings, or activity changes.
+              </p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useConnectedIntegrations } from '../../hooks/useConnectedIntegrations';
+import { useAllIntegrationIntelligence } from '../../hooks/useIntegrationIntelligence';
 import { SlackIntelligenceModule } from './SlackIntelligenceModule';
 import { TeamsIntelligenceModule } from './TeamsIntelligenceModule';
 import { ADPIntelligenceModule } from './ADPIntelligenceModule';
 import { Badge } from '../ui/badge';
-import { LayoutDashboard, MessageSquare, Users, Briefcase } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
+import { LayoutDashboard, MessageSquare, Users, Briefcase, Brain } from 'lucide-react';
 
 type TabId = 'overview' | 'slack' | 'teams' | 'adp';
 
@@ -18,6 +20,10 @@ interface Tab {
 export function IntelligenceDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const { hasSlack, hasTeams, loading } = useConnectedIntegrations();
+  const { insightsMap, loading: insightsLoading } = useAllIntegrationIntelligence();
+  
+  // Check if any integration has insights
+  const hasAnyInsights = Object.values(insightsMap).some(insights => insights.length > 0);
 
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -38,12 +44,35 @@ export function IntelligenceDashboard() {
     setActiveTab('overview');
   }
 
-  if (loading) {
+  if (loading || insightsLoading) {
     return null;
   }
 
   // Don't render if only overview tab is available (no integrations, no ADP demo)
   const hasIntelligenceModules = hasSlack || hasTeams || availableTabs.some((t) => t.id === 'adp');
+  
+  // Show Global Empty State when integrations exist but no insights yet
+  if (hasIntelligenceModules && !hasAnyInsights) {
+    return (
+      <Card className="border-gray-200 dark:border-gray-700">
+        <CardContent className="py-8">
+          <div className="flex flex-col items-center text-center max-w-md mx-auto space-y-4">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+              <Brain className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Intelligence Builds from Real Activity
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              Core314 generates intelligence by observing how your tools are actually used.
+              As your team communicates, collaborates, and works, insights emerge automatically — no configuration required.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   if (!hasIntelligenceModules) {
     return null;
   }
