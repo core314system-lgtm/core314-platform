@@ -724,6 +724,9 @@ export default function IntegrationHub() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
+              type="search"
+              name="integration-search"
+              autoComplete="off"
               placeholder="Search integrations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -854,23 +857,24 @@ export default function IntegrationHub() {
         ))}
       </div>
 
-      {/* Empty state guard: Only show when there's an active filter OR when registry is truly empty */}
-      {/* This prevents UI state corruption from showing empty state when integrations exist */}
-      {filteredIntegrations.length === 0 && (
-        (searchQuery.trim() !== '' || selectedCategory !== 'all') ? (
+      {(() => {
+        const hasSearch = searchQuery.trim().length > 0;
+        const registryEmpty = integrations.length === 0;
+        const noMatchesWithSearch = hasSearch && filteredIntegrations.length === 0;
+        const showEmptyState = registryEmpty || noMatchesWithSearch;
+        
+        if (!showEmptyState) return null;
+        
+        return (
           <div className="text-center py-12">
             <p className="text-gray-600 dark:text-gray-400">
-              No integrations found matching "{searchQuery}"
+              {registryEmpty && !hasSearch
+                ? 'No integrations available yet.'
+                : `No integrations found matching "${searchQuery}"`}
             </p>
           </div>
-        ) : integrations.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400">
-              No integrations available yet.
-            </p>
-          </div>
-        ) : null
-      )}
+        );
+      })()}
 
       {/* Bottom Informational Callout */}
       <div className="mt-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-5">
