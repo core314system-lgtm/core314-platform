@@ -36,22 +36,22 @@ ON CONFLICT (service_name) DO UPDATE SET is_enabled = true, category = 'project_
 
 -- 7. Add GitHub (Engineering category)
 INSERT INTO public.integration_registry (service_name, display_name, auth_type, category, is_enabled, created_at, updated_at)
-VALUES ('github', 'GitHub', 'api_token', 'engineering', true, NOW(), NOW())
+VALUES ('github', 'GitHub', 'api_key', 'engineering', true, NOW(), NOW())
 ON CONFLICT (service_name) DO UPDATE SET is_enabled = true, category = 'engineering', updated_at = NOW();
 
 -- 8. Add GitLab (Engineering category)
 INSERT INTO public.integration_registry (service_name, display_name, auth_type, category, is_enabled, created_at, updated_at)
-VALUES ('gitlab', 'GitLab', 'api_token', 'engineering', true, NOW(), NOW())
+VALUES ('gitlab', 'GitLab', 'api_key', 'engineering', true, NOW(), NOW())
 ON CONFLICT (service_name) DO UPDATE SET is_enabled = true, category = 'engineering', updated_at = NOW();
 
 -- 9. Add Bitbucket (Engineering category)
 INSERT INTO public.integration_registry (service_name, display_name, auth_type, category, is_enabled, created_at, updated_at)
-VALUES ('bitbucket', 'Bitbucket', 'api_token', 'engineering', true, NOW(), NOW())
+VALUES ('bitbucket', 'Bitbucket', 'api_key', 'engineering', true, NOW(), NOW())
 ON CONFLICT (service_name) DO UPDATE SET is_enabled = true, category = 'engineering', updated_at = NOW();
 
 -- 10. Add Confluence (Knowledge Base category)
 INSERT INTO public.integration_registry (service_name, display_name, auth_type, category, is_enabled, created_at, updated_at)
-VALUES ('confluence', 'Confluence', 'api_token', 'knowledge_base', true, NOW(), NOW())
+VALUES ('confluence', 'Confluence', 'api_key', 'knowledge_base', true, NOW(), NOW())
 ON CONFLICT (service_name) DO UPDATE SET is_enabled = true, category = 'knowledge_base', updated_at = NOW();
 
 -- Add entries to integrations_master for legacy FK support
