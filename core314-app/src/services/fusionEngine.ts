@@ -47,8 +47,31 @@ export async function normalizeMetric(
 export async function calculateFusionScore(
   userId: string,
   integrationId: string
-): Promise<{ score: number; breakdown: Record<string, number>; trend: 'up' | 'down' | 'stable' }> {
+): Promise<{ score: number; breakdown: Record<string, number>; trend: 'up' | 'down' | 'stable'; excluded?: boolean }> {
   const supabase = await initSupabaseClient();
+
+  // Phase 10A: Check if integration has a failure state
+  // Integrations with failure_reason are excluded from Fusion Score calculation
+  const { data: intelligenceState } = await supabase
+    .from('integration_intelligence')
+    .select('failure_reason, last_successful_run_at, last_failed_run_at')
+    .eq('user_id', userId)
+    .eq('integration_id', integrationId)
+    .single();
+
+  // Phase 10A: Exclude failed integrations from Fusion Score
+  // A failed integration has failure_reason set and last_failed_run_at >= last_successful_run_at
+  if (intelligenceState?.failure_reason) {
+    const lastSuccess = intelligenceState.last_successful_run_at ? new Date(intelligenceState.last_successful_run_at) : null;
+    const lastFailed = intelligenceState.last_failed_run_at ? new Date(intelligenceState.last_failed_run_at) : null;
+    
+    // If failure is more recent than success (or no success), exclude from calculation
+    if (!lastSuccess || (lastFailed && lastFailed >= lastSuccess)) {
+      console.log(`[FusionScore] Excluding integration ${integrationId} due to failure: ${intelligenceState.failure_reason}`);
+      return { score: 0, breakdown: {}, trend: 'stable', excluded: true };
+    }
+  }
+
   const { data: metrics, error } = await supabase
     .from('fusion_metrics')
     .select('*')

@@ -28,6 +28,10 @@ export interface IntegrationIntelligence {
   raw_metrics: Record<string, number>;
   signals_used: string[];
   computed_at: string;
+  // Phase 10A: Failure state tracking (internal use only - never expose to users)
+  last_successful_run_at?: string | null;
+  last_failed_run_at?: string | null;
+  failure_reason?: string | null;
 }
 
 export interface IntegrationInsight {
@@ -652,4 +656,64 @@ export function getIntegrationValueData(serviceName: string): IntegrationValueDa
       'Engagement metrics',
     ],
   };
+}
+
+/**
+ * Phase 10A: Check if an integration is in a failed state
+ * 
+ * UI Safety Contract: This function is for INTERNAL use only.
+ * When an integration is failed, UI should:
+ * - Show last known good data (preserved metrics)
+ * - NOT show error messages, stack traces, or failure reasons
+ * - NOT show partial or corrupted intelligence
+ * 
+ * @returns true if the integration has a recent failure (failure more recent than success)
+ */
+export function isIntegrationFailed(intelligence: IntegrationIntelligence | null): boolean {
+  if (!intelligence) return false;
+  if (!intelligence.failure_reason) return false;
+  
+  const lastSuccess = intelligence.last_successful_run_at 
+    ? new Date(intelligence.last_successful_run_at) 
+    : null;
+  const lastFailed = intelligence.last_failed_run_at 
+    ? new Date(intelligence.last_failed_run_at) 
+    : null;
+  
+  // If failure is more recent than success (or no success), integration is failed
+  if (!lastSuccess) return true;
+  if (lastFailed && lastFailed >= lastSuccess) return true;
+  
+  return false;
+}
+
+/**
+ * Phase 10A: Get safe display status for an integration
+ * 
+ * UI Safety Contract: This function returns user-friendly status text
+ * that NEVER exposes technical error details.
+ * 
+ * @returns A safe status string for UI display
+ */
+export function getIntegrationDisplayStatus(
+  intelligence: IntegrationIntelligence | null
+): 'active' | 'analyzing' | 'observing' {
+  if (!intelligence) return 'observing';
+  
+  // If failed, show last known good state (don't indicate failure to user)
+  if (isIntegrationFailed(intelligence)) {
+    // Return 'analyzing' to indicate we're working on it without alarming user
+    return 'analyzing';
+  }
+  
+  // Check if we have meaningful data
+  const hasActivity = intelligence.activity_volume > 0 || 
+    intelligence.participation_level > 0 ||
+    intelligence.responsiveness > 0 ||
+    intelligence.throughput > 0;
+  
+  if (hasActivity) return 'active';
+  
+  // Zero data but not failed = still observing/analyzing
+  return 'analyzing';
 }
