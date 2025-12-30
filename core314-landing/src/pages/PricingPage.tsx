@@ -4,19 +4,26 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { PRICING, ADDONS, formatPrice } from '../config/pricing';
+
+// ============================================================================
+// PHASE 14.1: PRICING PAGE SOURCE-OF-TRUTH FIX
+// All pricing values are imported from shared/pricing.ts
+// NO inline price literals ($99, $199, etc.) are allowed in this file
+// ============================================================================
 
 export default function PricingPage() {
   const [expandedAddons, setExpandedAddons] = useState(false);
 
   const plans = [
     {
-      name: 'Starter',
-      price: '$99',
+      name: PRICING.starter.name,
+      price: formatPrice(PRICING.starter.monthly),
       period: '/mo',
-      description: 'Perfect for small teams getting started',
+      description: PRICING.starter.description,
       features: [
         'Unified dashboards',
-        '3 integrations included',
+        `${PRICING.starter.integrations} integrations included`,
         'Basic AI recommendations',
         'Email support',
         '14-day free trial'
@@ -26,12 +33,12 @@ export default function PricingPage() {
       popular: false
     },
     {
-      name: 'Pro',
-      price: '$999',
+      name: PRICING.pro.name,
+      price: formatPrice(PRICING.pro.monthly),
       period: '/mo',
-      description: 'For growing businesses that need more power',
+      description: PRICING.pro.description,
       features: [
-        '10 integrations included',
+        `${PRICING.pro.integrations} integrations included`,
         'Proactive Optimization Engine™',
         'Real-time KPI alerts',
         'Advanced analytics',
@@ -43,10 +50,10 @@ export default function PricingPage() {
       popular: true
     },
     {
-      name: 'Enterprise',
+      name: PRICING.enterprise.name,
       price: 'Custom',
       period: '',
-      description: 'For large organizations with complex needs',
+      description: PRICING.enterprise.description,
       features: [
         'Unlimited integrations',
         'Admin Analytics dashboard',
@@ -65,23 +72,23 @@ export default function PricingPage() {
     {
       category: 'Integrations',
       items: [
-        { name: 'Additional Integration (Starter)', price: '$75/mo each', description: 'Connect more business apps on Starter plan' },
-        { name: 'Additional Integration (Pro)', price: '$50/mo each', description: 'Connect more business apps on Pro plan' },
-        { name: 'Custom Integration', price: '$500 setup', description: 'Build a custom connector' }
+        { name: ADDONS.integrations.starter.description, price: `${formatPrice(ADDONS.integrations.starter.monthly)}/mo each`, description: 'Connect more business apps on Starter plan' },
+        { name: ADDONS.integrations.pro.description, price: `${formatPrice(ADDONS.integrations.pro.monthly)}/mo each`, description: 'Connect more business apps on Pro plan' },
+        { name: ADDONS.integrations.custom.description, price: `${formatPrice(ADDONS.integrations.custom.setup)} setup`, description: 'Build a custom connector' }
       ]
     },
     {
       category: 'Analytics',
       items: [
-        { name: 'Premium Analytics', price: '$199/mo', description: 'Advanced reporting and insights' },
-        { name: 'Data Export', price: '$99/mo', description: 'Export all your data anytime' }
+        { name: ADDONS.analytics.premium.description, price: `${formatPrice(ADDONS.analytics.premium.monthly)}/mo`, description: 'Advanced reporting and insights' },
+        { name: ADDONS.analytics.dataExport.description, price: `${formatPrice(ADDONS.analytics.dataExport.monthly)}/mo`, description: 'Export all your data anytime' }
       ]
     },
     {
       category: 'AI Modules',
       items: [
-        { name: 'Advanced Fusion AI', price: '$299/mo', description: 'Enhanced AI capabilities' },
-        { name: 'Predictive Analytics', price: '$399/mo', description: 'Forecast future trends' }
+        { name: ADDONS.ai.advancedFusion.description, price: `${formatPrice(ADDONS.ai.advancedFusion.monthly)}/mo`, description: 'Enhanced AI capabilities' },
+        { name: ADDONS.ai.predictive.description, price: `${formatPrice(ADDONS.ai.predictive.monthly)}/mo`, description: 'Forecast future trends' }
       ]
     }
   ];
