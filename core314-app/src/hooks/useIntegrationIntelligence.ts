@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
+import { useEntitlements, filterByHistoricalDepth } from './useEntitlements';
 
 /**
  * ============================================================================
@@ -169,9 +170,12 @@ export function useIntegrationIntelligence(serviceName: string): UseIntegrationI
 /**
  * Hook to get intelligence data for ALL integrations at once
  * Useful for dashboard views that need to show all integration insights
+ * 
+ * Phase 12: Respects historical_depth_days entitlement for insights filtering
  */
 export function useAllIntegrationIntelligence(): UseAllIntegrationIntelligenceResult {
   const { profile } = useAuth();
+  const { entitlements } = useEntitlements();
   const [intelligenceMap, setIntelligenceMap] = useState<Record<string, IntegrationIntelligence>>({});
   const [insightsMap, setInsightsMap] = useState<Record<string, IntegrationInsight[]>>({});
   const [loading, setLoading] = useState(true);
@@ -223,7 +227,13 @@ export function useAllIntegrationIntelligence(): UseAllIntegrationIntelligenceRe
       }
 
       if (insightsData) {
-        for (const item of insightsData as IntegrationInsight[]) {
+        // Phase 12: Filter insights by historical depth entitlement (silent, graceful)
+        const filteredInsights = filterByHistoricalDepth(
+          insightsData as IntegrationInsight[],
+          entitlements.historical_depth_days
+        );
+        
+        for (const item of filteredInsights) {
           if (!insMap[item.service_name]) {
             insMap[item.service_name] = [];
           }
@@ -239,7 +249,7 @@ export function useAllIntegrationIntelligence(): UseAllIntegrationIntelligenceRe
     } finally {
       setLoading(false);
     }
-  }, [profile?.id]);
+  }, [profile?.id, entitlements.historical_depth_days]);
 
   useEffect(() => {
     fetchData();

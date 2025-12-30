@@ -1,8 +1,10 @@
 import { initSupabaseClient, getSupabaseFunctionUrl } from '../lib/supabase';
+import { getTenantEntitlements, selectFusionContributors } from '../hooks/useEntitlements';
 
 /**
  * ============================================================================
  * PHASE 11C: INTELLIGENCE CONTRACT FREEZE - FUSION ENGINE
+ * PHASE 12: ENTITLEMENT-AWARE FUSION SCORE CALCULATION
  * ============================================================================
  * 
  * IMMUTABLE CONTRACT: Fusion Score Calculation
@@ -246,4 +248,163 @@ async function generateAISummary(userId: string, integrationId: string): Promise
     console.error('AI summary generation error:', error);
     return 'AI insights temporarily unavailable';
   }
+}
+
+/**
+ * ============================================================================
+ * PHASE 12: ENTITLEMENT-AWARE AGGREGATE FUSION SCORE
+ * ============================================================================
+ * 
+ * Calculates the aggregate Fusion Score across all integrations while
+ * respecting the max_fusion_contributors entitlement limit.
+ * 
+ * ENTITLEMENT ENFORCEMENT:
+ * 1. Fetches user's entitlements via getTenantEntitlements
+ * 2. Selects top N integrations by signal strength (deterministic)
+ * 3. Only selected integrations contribute to the aggregate score
+ * 4. Degradation is graceful and silent - no errors, no partial data
+ * 
+ * SELECTION CRITERIA (in order):
+ * 1. Highest activity_volume
+ * 2. Most recent last_successful_run_at
+ * 3. Alphabetical by service_name (for determinism)
+ * ============================================================================
+ */
+
+export interface AggregateFusionResult {
+  /** The aggregate Fusion Score (0-100) */
+  aggregateScore: number;
+  
+  /** Number of integrations contributing to the score */
+  contributorCount: number;
+  
+  /** Maximum contributors allowed by entitlements (-1 = unlimited) */
+  maxContributors: number;
+  
+  /** Whether the score is limited by entitlements */
+  isLimited: boolean;
+  
+  /** Integration IDs that are contributing to the score */
+  contributingIntegrations: string[];
+  
+  /** Integration IDs that are excluded due to limits */
+  excludedIntegrations: string[];
+  
+  /** Per-integration scores for contributors */
+  breakdown: Record<string, { score: number; serviceName: string }>;
+  
+  /** Overall trend direction */
+  trend: 'up' | 'down' | 'stable';
+}
+
+export async function calculateAggregateFusionScore(
+  userId: string
+): Promise<AggregateFusionResult> {
+  const supabase = await initSupabaseClient();
+  
+  // Phase 12: Get user's entitlements
+  const entitlements = await getTenantEntitlements(userId);
+  const maxContributors = entitlements.max_fusion_contributors;
+  
+  // Fetch all integration intelligence for this user
+  const { data: allIntelligence, error: intError } = await supabase
+    .from('integration_intelligence')
+    .select('integration_id, service_name, activity_volume, last_successful_run_at, failure_reason, last_failed_run_at')
+    .eq('user_id', userId);
+  
+  if (intError || !allIntelligence || allIntelligence.length === 0) {
+    return {
+      aggregateScore: 0,
+      contributorCount: 0,
+      maxContributors,
+      isLimited: false,
+      contributingIntegrations: [],
+      excludedIntegrations: [],
+      breakdown: {},
+      trend: 'stable',
+    };
+  }
+  
+  // Filter out failed integrations (Phase 10A)
+  const healthyIntegrations = allIntelligence.filter(int => {
+    if (!int.failure_reason) return true;
+    
+    const lastSuccess = int.last_successful_run_at ? new Date(int.last_successful_run_at) : null;
+    const lastFailed = int.last_failed_run_at ? new Date(int.last_failed_run_at) : null;
+    
+    // Include if success is more recent than failure
+    return lastSuccess && (!lastFailed || lastSuccess > lastFailed);
+  });
+  
+  // Phase 12: Select top N contributors based on entitlements
+  const selectedIntegrations = selectFusionContributors(
+    healthyIntegrations,
+    maxContributors
+  );
+  
+  const contributingIds = selectedIntegrations.map(i => i.integration_id);
+  const excludedIds = healthyIntegrations
+    .filter(i => !contributingIds.includes(i.integration_id))
+    .map(i => i.integration_id);
+  
+  // Calculate individual scores for selected integrations
+  const breakdown: Record<string, { score: number; serviceName: string }> = {};
+  let totalScore = 0;
+  let scoreCount = 0;
+  
+  for (const integration of selectedIntegrations) {
+    const { score } = await calculateFusionScore(userId, integration.integration_id);
+    if (score > 0) {
+      breakdown[integration.integration_id] = {
+        score,
+        serviceName: integration.service_name,
+      };
+      totalScore += score;
+      scoreCount++;
+    }
+  }
+  
+  // Calculate aggregate score (weighted average)
+  const aggregateScore = scoreCount > 0 ? totalScore / scoreCount : 0;
+  
+  // Determine trend based on previous aggregate
+  const { data: previousAggregate } = await supabase
+    .from('fusion_aggregate_history')
+    .select('aggregate_score')
+    .eq('user_id', userId)
+    .order('recorded_at', { ascending: false })
+    .limit(1)
+    .single();
+  
+  let trend: 'up' | 'down' | 'stable' = 'stable';
+  if (previousAggregate) {
+    const diff = aggregateScore - previousAggregate.aggregate_score;
+    if (diff > 3) trend = 'up';
+    else if (diff < -3) trend = 'down';
+  }
+  
+  return {
+    aggregateScore,
+    contributorCount: scoreCount,
+    maxContributors,
+    isLimited: maxContributors !== -1 && healthyIntegrations.length > maxContributors,
+    contributingIntegrations: contributingIds,
+    excludedIntegrations: excludedIds,
+    breakdown,
+    trend,
+  };
+}
+
+/**
+ * Check if an integration is currently contributing to the Fusion Score
+ * based on entitlement limits and signal strength.
+ * 
+ * This is useful for UI to show which integrations are "active" contributors.
+ */
+export async function isIntegrationContributing(
+  userId: string,
+  integrationId: string
+): Promise<boolean> {
+  const result = await calculateAggregateFusionScore(userId);
+  return result.contributingIntegrations.includes(integrationId);
 }
