@@ -1,12 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, Lightbulb } from 'lucide-react';
 import { IntegrationWithScore, FusionScoreHistory } from '../../types';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card';
 import { ScoreSparkline } from './ScoreSparkline';
 import { supabase } from '../../lib/supabase';
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
+import { 
+  useIntegrationIntelligence, 
+  getIntegrationValueSummary,
+  formatSignals,
+} from '../../hooks/useIntegrationIntelligence';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 
 interface IntegrationCardProps {
   integration: IntegrationWithScore;
@@ -15,6 +26,13 @@ interface IntegrationCardProps {
 export function IntegrationCard({ integration }: IntegrationCardProps) {
   const [history, setHistory] = useState<FusionScoreHistory[]>([]);
   const [lastAdjusted, setLastAdjusted] = useState<string | null>(null);
+  
+  // Get service_name from integration (normalize to match database format)
+  const serviceName = integration.integration_name?.toLowerCase().replace(/\s+/g, '_') || '';
+  
+  // Fetch intelligence data for this integration
+  const { intelligence, insights } = useIntegrationIntelligence(serviceName);
+  const valueSummary = getIntegrationValueSummary(intelligence, insights);
 
   useEffect(() => {
     fetchHistory();
@@ -107,6 +125,47 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
           
           <ScoreSparkline history={history} />
         </div>
+        
+        {/* UIIC: Integration Intelligence Section */}
+        {(intelligence || insights.length > 0) && (
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3 space-y-2">
+            {/* Latest Insight */}
+            {insights.length > 0 && (
+              <div className="flex items-start gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                  {insights[0].insight_text}
+                </p>
+              </div>
+            )}
+            
+            {/* Signals & Value Summary */}
+            {intelligence && (
+              <TooltipProvider>
+                <div className="flex items-center justify-between text-xs">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-gray-500 dark:text-gray-400 cursor-help flex items-center gap-1">
+                        <Info className="h-3 w-3" />
+                        {formatSignals(intelligence.signals_used)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p className="text-xs font-medium mb-1">Why this integration matters:</p>
+                      <p className="text-xs">{valueSummary.whyItMatters}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  
+                  {intelligence.fusion_contribution > 0 && (
+                    <span className="text-gray-400 dark:text-gray-500">
+                      {Math.round(intelligence.fusion_contribution)}% Fusion
+                    </span>
+                  )}
+                </div>
+              </TooltipProvider>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
