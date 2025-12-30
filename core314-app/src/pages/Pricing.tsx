@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { createCheckoutSession } from '../services/stripe';
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
+import { PRICING, ADDONS, formatPrice } from '../config/pricing';
 
 // ============================================================================
 // PHASE 13.4: BILLING UX (TRUST-FIRST)
@@ -13,28 +14,27 @@ import { useState } from 'react';
 // ============================================================================
 
 // ============================================================================
-// PHASE 14: PRICING ALIGNMENT & TRUST CONSISTENCY
-// Starter: $199/month - serious operational visibility for small teams
-// Pro: $999/month - organizational-scale intelligence and depth
-// Enterprise: Custom - full operational command
+// PHASE 14.1: PRICING PAGE SOURCE-OF-TRUTH FIX
+// All pricing values are imported from shared/pricing.ts
+// NO inline price literals ($99, $199, etc.) are allowed in this file
 // ============================================================================
 
 const tiers = [
   {
-    name: 'Starter',
-    price: '$199',
-    annualPrice: '$1,990',
+    name: PRICING.starter.name,
+    price: formatPrice(PRICING.starter.monthly),
+    annualPrice: formatPrice(PRICING.starter.annual),
     priceId: import.meta.env.VITE_STRIPE_PRICE_STARTER,
     annualPriceId: import.meta.env.VITE_STRIPE_PRICE_STARTER_ANNUAL,
-    description: 'Serious operational visibility for small teams',
+    description: PRICING.starter.description,
     scaleDetails: {
-      integrations: 3,
-      fusionContributors: 3,
-      historyDays: 30,
-      refreshMinutes: 60,
+      integrations: PRICING.starter.integrations,
+      fusionContributors: PRICING.starter.fusionContributors,
+      historyDays: PRICING.starter.historyDays,
+      refreshMinutes: PRICING.starter.refreshMinutes,
     },
     features: [
-      '3 integrations included',
+      `${PRICING.starter.integrations} integrations included`,
       'Unified dashboards',
       'Basic AI recommendations',
       'Email support',
@@ -42,21 +42,21 @@ const tiers = [
     ],
   },
   {
-    name: 'Pro',
-    price: '$999',
-    annualPrice: '$9,990',
+    name: PRICING.pro.name,
+    price: formatPrice(PRICING.pro.monthly),
+    annualPrice: formatPrice(PRICING.pro.annual),
     priceId: import.meta.env.VITE_STRIPE_PRICE_PRO,
     annualPriceId: import.meta.env.VITE_STRIPE_PRICE_PRO_ANNUAL,
-    description: 'Organizational-scale intelligence and operational depth',
+    description: PRICING.pro.description,
     popular: true,
     scaleDetails: {
-      integrations: 10,
-      fusionContributors: 7,
-      historyDays: 90,
-      refreshMinutes: 15,
+      integrations: PRICING.pro.integrations,
+      fusionContributors: PRICING.pro.fusionContributors,
+      historyDays: PRICING.pro.historyDays,
+      refreshMinutes: PRICING.pro.refreshMinutes,
     },
     features: [
-      '10 integrations included',
+      `${PRICING.pro.integrations} integrations included`,
       'Proactive Optimization Engine™',
       'Real-time KPI alerts',
       'Advanced analytics',
@@ -65,18 +65,18 @@ const tiers = [
     ],
   },
   {
-    name: 'Enterprise',
+    name: PRICING.enterprise.name,
     price: 'Custom',
     annualPrice: 'Custom',
     priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE,
     annualPriceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE_ANNUAL,
-    description: 'Full operational command for large organizations',
+    description: PRICING.enterprise.description,
     isCustom: true,
     scaleDetails: {
-      integrations: -1,
-      fusionContributors: -1,
-      historyDays: -1,
-      refreshMinutes: 5,
+      integrations: PRICING.enterprise.integrations,
+      fusionContributors: PRICING.enterprise.fusionContributors,
+      historyDays: PRICING.enterprise.historyDays,
+      refreshMinutes: PRICING.enterprise.refreshMinutes,
     },
     features: [
       'Unlimited integrations',
@@ -95,22 +95,24 @@ const addons = [
     category: 'Integrations',
     items: [
       {
-        name: 'Additional Integration (Starter)',
-        price: '$75',
+        name: ADDONS.integrations.starter.description,
+        price: formatPrice(ADDONS.integrations.starter.monthly),
         priceId: import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_STARTER_ADDON,
         description: 'Add more business apps to your Starter plan',
         perMonth: true,
+        setupFee: false,
       },
       {
-        name: 'Additional Integration (Pro)',
-        price: '$50',
+        name: ADDONS.integrations.pro.description,
+        price: formatPrice(ADDONS.integrations.pro.monthly),
         priceId: import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_PRO_ADDON,
         description: 'Add more business apps to your Pro plan',
         perMonth: true,
+        setupFee: false,
       },
       {
-        name: 'Custom Integration',
-        price: '$500',
+        name: ADDONS.integrations.custom.description,
+        price: formatPrice(ADDONS.integrations.custom.setup),
         priceId: import.meta.env.VITE_STRIPE_PRICE_CUSTOM_INTEGRATION,
         description: 'Build a custom connector for your unique system',
         perMonth: false,
@@ -122,18 +124,20 @@ const addons = [
     category: 'Analytics',
     items: [
       {
-        name: 'Premium Analytics',
-        price: '$199',
+        name: ADDONS.analytics.premium.description,
+        price: formatPrice(ADDONS.analytics.premium.monthly),
         priceId: import.meta.env.VITE_STRIPE_PRICE_PREMIUM_ANALYTICS,
         description: 'Advanced reporting and insights with custom dashboards',
         perMonth: true,
+        setupFee: false,
       },
       {
-        name: 'Data Export',
-        price: '$99',
+        name: ADDONS.analytics.dataExport.description,
+        price: formatPrice(ADDONS.analytics.dataExport.monthly),
         priceId: import.meta.env.VITE_STRIPE_PRICE_DATA_EXPORT,
         description: 'Export all your data anytime in multiple formats',
         perMonth: true,
+        setupFee: false,
       },
     ],
   },
@@ -141,18 +145,20 @@ const addons = [
     category: 'AI Modules',
     items: [
       {
-        name: 'Advanced Fusion AI',
-        price: '$299',
+        name: ADDONS.ai.advancedFusion.description,
+        price: formatPrice(ADDONS.ai.advancedFusion.monthly),
         priceId: import.meta.env.VITE_STRIPE_PRICE_ADVANCED_FUSION_AI,
         description: 'Enhanced AI capabilities with predictive optimization',
         perMonth: true,
+        setupFee: false,
       },
       {
-        name: 'Predictive Analytics',
-        price: '$399',
+        name: ADDONS.ai.predictive.description,
+        price: formatPrice(ADDONS.ai.predictive.monthly),
         priceId: import.meta.env.VITE_STRIPE_PRICE_PREDICTIVE_ANALYTICS,
         description: 'Forecast future trends with machine learning models',
         perMonth: true,
+        setupFee: false,
       },
     ],
   },
