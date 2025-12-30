@@ -7,6 +7,13 @@ import { TrendingUp, TrendingDown, Activity, Gauge, Zap, Shield, Info, X } from 
 import { useAuth } from '../../hooks/useAuth';
 import { useCommunicationHealthScore } from '../../hooks/useCommunicationHealthScore';
 import { FusionScoreInfluencersLink } from './FusionScoreInfluencers';
+import { INTELLIGENCE_TOOLTIP_COPY } from '../../hooks/useIntegrationIntelligence';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 
 // Storage key for first Fusion Score explanation dismissal
 const FUSION_SCORE_EXPLAINED_KEY = 'core314_fusion_score_explained';
@@ -265,16 +272,28 @@ export function FusionOverviewWidget() {
             return (
               <div className={`p-4 rounded-lg ${getScoreBgColor(displayScore)} relative`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Fusion Score
-                  </span>
+                  {/* Phase 11A: Fusion Score with confidence framing tooltip */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-help flex items-center gap-1">
+                          Fusion Score
+                          <Info className="h-3 w-3 text-gray-400" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="text-xs">{INTELLIGENCE_TOOLTIP_COPY.fusionScoreConfidence}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Gauge className={`w-4 h-4 ${getScoreColor(displayScore)}`} />
                 </div>
                 <div className={`text-2xl font-bold ${getScoreColor(displayScore)}`}>
                   {displayScore.toFixed(1)}
                 </div>
+                {/* Phase 11A: Confidence subtext instead of just "0-100 scale" */}
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  0-100 scale
+                  {INTELLIGENCE_TOOLTIP_COPY.fusionScoreSubtext}
                 </p>
                 {/* "What's influencing this score?" link - only visible when flag is ON */}
                 <div className="mt-2">

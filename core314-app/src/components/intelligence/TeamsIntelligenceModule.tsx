@@ -1,7 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Video, Clock, MessageSquare, Moon, TrendingUp, TrendingDown, Minus, AlertCircle, Info } from 'lucide-react';
+import { Video, Clock, MessageSquare, Moon, TrendingUp, TrendingDown, Minus, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { useTeamsMetrics } from '../../hooks/useTeamsMetrics';
-import { TREND_FRAMING, INTELLIGENCE_TOOLTIP_COPY } from '../../hooks/useIntegrationIntelligence';
+import { 
+  TREND_FRAMING, 
+  INTELLIGENCE_TOOLTIP_COPY,
+  useIntegrationIntelligence,
+  getIntelligenceFreshnessLabel,
+  FRESHNESS_DISPLAY_TEXT,
+} from '../../hooks/useIntegrationIntelligence';
 import {
   Tooltip,
   TooltipContent,
@@ -131,6 +137,11 @@ function InsufficientDataState() {
 
 export function TeamsIntelligenceModule() {
   const { metrics, loading, hasData } = useTeamsMetrics();
+  const { intelligence } = useIntegrationIntelligence('microsoft_teams');
+  
+  // Phase 11A: Get freshness label for subtle indicator
+  const freshnessLabel = getIntelligenceFreshnessLabel(intelligence);
+  const freshnessText = FRESHNESS_DISPLAY_TEXT[freshnessLabel];
 
   // Format meetings per user for display
   const formatMeetingsPerUser = (value: number | null): string | null => {
@@ -232,13 +243,13 @@ export function TeamsIntelligenceModule() {
               trend={metrics.afterHoursRateTrend}
               trendPositive={false} // Less after-hours work is better
             />
-            {metrics.lastUpdated && (
-              <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                  Last updated: {metrics.lastUpdated.toLocaleString()}
-                </p>
+            {/* Phase 11A: Subtle freshness indicator - no timestamps exposed */}
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                <RefreshCw className="h-3 w-3" />
+                <span>{freshnessText}</span>
               </div>
-            )}
+            </div>
           </div>
         )}
       </CardContent>

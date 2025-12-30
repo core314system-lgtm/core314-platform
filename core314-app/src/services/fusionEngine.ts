@@ -1,5 +1,37 @@
 import { initSupabaseClient, getSupabaseFunctionUrl } from '../lib/supabase';
 
+/**
+ * ============================================================================
+ * PHASE 11C: INTELLIGENCE CONTRACT FREEZE - FUSION ENGINE
+ * ============================================================================
+ * 
+ * IMMUTABLE CONTRACT: Fusion Score Calculation
+ * 
+ * The Fusion Engine is a core component of Tier 0 Observational Intelligence.
+ * This contract defines the calculation rules that MUST remain stable.
+ * 
+ * TIER 0 GUARANTEES (Fusion Engine):
+ * 1. Fusion Score is derived from observed metrics only - no inferred data
+ * 2. Failed integrations are EXCLUDED from score calculation (Phase 10A)
+ * 3. Score changes are gradual and explainable
+ * 4. User-facing score displays NEVER show technical calculation details
+ * 
+ * PROTECTED CALCULATIONS:
+ * - calculateFusionScore: Core scoring algorithm (immutable logic)
+ * - normalizeMetric: Metric normalization (immutable formula)
+ * - DEFAULT_WEIGHTS: Base weight distribution (stable defaults)
+ * 
+ * MODIFICATION RESTRICTIONS:
+ * - DO NOT change scoring formula without explicit approval
+ * - DO NOT include failed integrations in score calculation
+ * - DO NOT expose calculation internals to regular users
+ * - DO NOT remove Phase 10A failure exclusion logic
+ * 
+ * This contract was established in Phase 11 (Launch Readiness & Trust Hardening)
+ * and represents the trust foundation of Core314's Fusion Score system.
+ * ============================================================================
+ */
+
 interface MetricWeights {
   count: number;
   sum: number;

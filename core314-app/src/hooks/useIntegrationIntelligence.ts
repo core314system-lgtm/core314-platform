@@ -3,6 +3,42 @@ import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
 
 /**
+ * ============================================================================
+ * PHASE 11C: INTELLIGENCE CONTRACT FREEZE
+ * ============================================================================
+ * 
+ * IMMUTABLE CONTRACT: Tier 0 Observational Intelligence
+ * 
+ * This contract defines the foundational intelligence layer that MUST remain
+ * stable and immutable. Any changes to this contract require explicit approval
+ * and careful consideration of downstream impacts.
+ * 
+ * TIER 0 GUARANTEES:
+ * 1. Observational data is read-only - Core314 NEVER modifies source systems
+ * 2. Intelligence is derived from observed signals, not inferred behavior
+ * 3. User-facing displays NEVER expose technical errors or failure states
+ * 4. Admin-only views provide full technical transparency
+ * 5. Freshness indicators use safe, non-alarming language only
+ * 
+ * PROTECTED INTERFACES:
+ * - IntegrationIntelligence: Core metrics structure (immutable schema)
+ * - IntegrationInsight: Insight delivery format (immutable schema)
+ * - INTELLIGENCE_TOOLTIP_COPY: User-facing copy (trust-reinforcing only)
+ * - FRESHNESS_DISPLAY_TEXT: Freshness labels (non-alarming only)
+ * - TREND_FRAMING: Trend explanations (grounded, factual only)
+ * 
+ * MODIFICATION RESTRICTIONS:
+ * - DO NOT add error/failure language to user-facing copy
+ * - DO NOT expose timestamps or technical details to regular users
+ * - DO NOT change the core metric normalization logic
+ * - DO NOT remove or weaken admin visibility features
+ * 
+ * This contract was established in Phase 11 (Launch Readiness & Trust Hardening)
+ * and represents the trust foundation of Core314's intelligence layer.
+ * ============================================================================
+ */
+
+/**
  * Universal Integration Intelligence Hook - Phase 8 UIIC
  * 
  * Provides access to normalized intelligence metrics and insights for any integration.
@@ -344,6 +380,57 @@ export const INTELLIGENCE_TOOLTIP_COPY = {
   
   /** Aggregated signals qualifier */
   aggregatedSignals: 'Derived from aggregated signals',
+  
+  /** Phase 11A: Fusion Score confidence framing - reinforces trust, not uncertainty */
+  fusionScoreConfidence: 'Your Fusion Score reflects available operational signals from connected systems. It updates automatically as your tools generate activity.',
+  
+  /** Phase 11A: Fusion Score confidence subtext for display */
+  fusionScoreSubtext: 'Reflects operational signals from connected systems',
+} as const;
+
+/**
+ * Phase 11A: Intelligence Freshness Indicator
+ * 
+ * Returns a user-friendly freshness label based on last_successful_run_at.
+ * NEVER shows "failed", "error", "outdated", or timestamps to users.
+ * 
+ * Labels:
+ * - "Updated recently" - last success within 1 hour
+ * - "Analyzing new activity" - last success within 24 hours or no data yet
+ * 
+ * @returns A safe, non-alarming freshness label for UI display
+ */
+export function getIntelligenceFreshnessLabel(
+  intelligence: IntegrationIntelligence | null
+): 'updated_recently' | 'analyzing' {
+  if (!intelligence) return 'analyzing';
+  
+  const lastSuccess = intelligence.last_successful_run_at 
+    ? new Date(intelligence.last_successful_run_at) 
+    : null;
+  
+  if (!lastSuccess) return 'analyzing';
+  
+  const now = new Date();
+  const diffMs = now.getTime() - lastSuccess.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  // Within 1 hour = "Updated recently"
+  if (diffHours <= 1) return 'updated_recently';
+  
+  // Otherwise = "Analyzing new activity" (safe, non-alarming)
+  return 'analyzing';
+}
+
+/**
+ * Phase 11A: Get display text for freshness label
+ * 
+ * Maps freshness labels to user-friendly display text.
+ * NEVER exposes technical details or timestamps.
+ */
+export const FRESHNESS_DISPLAY_TEXT = {
+  updated_recently: 'Updated recently',
+  analyzing: 'Analyzing new activity',
 } as const;
 
 /**
