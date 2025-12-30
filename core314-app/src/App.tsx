@@ -35,6 +35,8 @@ import { PredictiveModels } from './pages/admin/PredictiveModels';
 import { MemoryEngine } from './pages/admin/MemoryEngine';
 import { IntegrationHealth } from './pages/admin/IntegrationHealth';
 import AdminEntitlements from './pages/admin/Entitlements';
+import AdminKillSwitches from './pages/admin/KillSwitches';
+import AdminLaunchReadiness from './pages/admin/LaunchReadiness';
 import { AdvancedAnalytics } from './pages/AdvancedAnalytics';
 import { OptimizationEngine } from './pages/OptimizationEngine';
 import { ApiAccess } from './pages/ApiAccess';
@@ -182,17 +184,19 @@ function App() {
             <Route path="admin/ai-narratives" element={<ProtectedRoute requireAdmin><AINarrativesManager /></ProtectedRoute>} />
             <Route path="admin/simulations" element={<ProtectedRoute requireAdmin><SimulationsManager /></ProtectedRoute>} />
             <Route path="admin/optimizations" element={<ProtectedRoute requireAdmin><OptimizationsManager /></ProtectedRoute>} />
-            <Route path="admin/insight-hub" element={<ProtectedRoute requireAdmin><InsightHub /></ProtectedRoute>} />
-            <Route path="admin/governance" element={<ProtectedRoute requireAdmin><Governance /></ProtectedRoute>} />
-              <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
-              <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
-              <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
-              <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
-              <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
-              <Route path="admin/integration-health" element={<ProtectedRoute requireAdmin><IntegrationHealth /></ProtectedRoute>} />
-              <Route path="admin/entitlements" element={<ProtectedRoute requireAdmin><AdminEntitlements /></ProtectedRoute>} />
-            </Route>
-          </Route>
+                        <Route path="admin/insight-hub" element={<ProtectedRoute requireAdmin><InsightHub /></ProtectedRoute>} />
+                        <Route path="admin/governance" element={<ProtectedRoute requireAdmin><Governance /></ProtectedRoute>} />
+                        <Route path="admin/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
+                        <Route path="admin/organizations" element={<ProtectedRoute requireAdmin><Organizations /></ProtectedRoute>} />
+                        <Route path="admin/predictive-models" element={<ProtectedRoute requireAdmin><PredictiveModels /></ProtectedRoute>} />
+                        <Route path="admin/memory-engine" element={<ProtectedRoute requireAdmin><MemoryEngine /></ProtectedRoute>} />
+                        <Route path="admin/decision-audit" element={<ProtectedRoute requireAdmin><DecisionAudit /></ProtectedRoute>} />
+                        <Route path="admin/integration-health" element={<ProtectedRoute requireAdmin><IntegrationHealth /></ProtectedRoute>} />
+                        <Route path="admin/entitlements" element={<ProtectedRoute requireAdmin><AdminEntitlements /></ProtectedRoute>} />
+                        <Route path="admin/kill-switches" element={<ProtectedRoute requireAdmin><AdminKillSwitches /></ProtectedRoute>} />
+                        <Route path="admin/launch-readiness" element={<ProtectedRoute requireAdmin><AdminLaunchReadiness /></ProtectedRoute>} />
+                      </Route>
+                    </Route>
         </Routes>
         <Toaster />
       </Router>

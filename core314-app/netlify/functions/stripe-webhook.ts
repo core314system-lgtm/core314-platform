@@ -50,6 +50,51 @@ const BASE_PLAN_TIER_MAP: Record<string, 'starter' | 'professional' | 'enterpris
 };
 
 // =============================================================================
+// KILL SWITCH CHECK
+// Phase 15.2: Check if Stripe billing is enabled before processing webhooks
+// =============================================================================
+
+async function isStripeBillingEnabled(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('system_control_flags')
+      .select('enabled')
+      .eq('key', 'stripe_billing_enabled')
+      .single();
+    
+    if (error) {
+      // If table doesn't exist or flag not found, default to enabled
+      console.log('[KILL_SWITCH] Could not check stripe_billing_enabled flag, defaulting to enabled');
+      return true;
+    }
+    
+    return data?.enabled ?? true;
+  } catch (err) {
+    console.error('[KILL_SWITCH] Error checking stripe_billing_enabled:', err);
+    return true; // Default to enabled on error
+  }
+}
+
+// =============================================================================
+// LAUNCH EVENT LOGGING
+// Phase 15.3: Log conversion funnel events
+// =============================================================================
+
+async function logLaunchEvent(userId: string, eventType: string, metadata: Record<string, unknown> = {}): Promise<void> {
+  try {
+    await supabase.rpc('log_launch_event', {
+      p_user_id: userId,
+      p_event_type: eventType,
+      p_metadata: metadata,
+    });
+    console.log(`[LAUNCH_EVENT] Logged ${eventType} for user ${userId}`);
+  } catch (err) {
+    // Non-fatal: log but don't fail the webhook
+    console.error(`[LAUNCH_EVENT] Failed to log ${eventType}:`, err);
+  }
+}
+
+// =============================================================================
 // WEBHOOK HANDLER
 // =============================================================================
 
@@ -64,6 +109,16 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // Phase 15.2: Check kill switch before processing
+    const billingEnabled = await isStripeBillingEnabled();
+    if (!billingEnabled) {
+      console.log('[KILL_SWITCH] Stripe billing is disabled, acknowledging webhook but not processing');
+      return { 
+        statusCode: 200, 
+        body: JSON.stringify({ received: true, skipped: true, reason: 'billing_disabled' }) 
+      };
+    }
+
     const stripeEvent = stripe.webhooks.constructEvent(
       event.body!,
       sig,
@@ -157,6 +212,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     new_tier: tier,
     new_status: subscription.status,
   });
+
+  // Phase 15.3: Log upgrade_completed launch event
+  if (existingProfile?.id) {
+    await logLaunchEvent(existingProfile.id, 'upgrade_completed', {
+      tier,
+      price_id: priceId,
+      subscription_id: subscriptionId,
+    });
+  }
 }
 
 // Handle addon purchase checkout completion
@@ -370,6 +434,23 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     new_tier: newTier,
     new_status: subscription.status,
   });
+
+  // Phase 15.3: Log upgrade/downgrade launch events
+  if (profile?.id && lifecycleEvent) {
+    if (lifecycleEvent === 'upgrade') {
+      await logLaunchEvent(profile.id, 'upgrade_completed', {
+        previous_tier: oldTier,
+        new_tier: newTier,
+        subscription_id: subscription.id,
+      });
+    } else if (lifecycleEvent === 'downgrade') {
+      await logLaunchEvent(profile.id, 'downgrade_completed', {
+        previous_tier: oldTier,
+        new_tier: newTier,
+        subscription_id: subscription.id,
+      });
+    }
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -455,6 +536,17 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       ? new Date(subscription.current_period_end * 1000).toISOString()
       : null,
   });
+
+  // Phase 15.3: Log cancellation launch event
+  if (profile?.id) {
+    await logLaunchEvent(profile.id, 'cancellation', {
+      previous_tier: profile.subscription_tier,
+      subscription_id: subscription.id,
+      period_end: subscription.current_period_end 
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null,
+    });
+  }
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
