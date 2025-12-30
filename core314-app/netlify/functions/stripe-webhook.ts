@@ -254,6 +254,14 @@ async function handleAddonCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`Created addon entitlement: ${addonName} for user ${userId}`);
 }
 
+// Tier ranking for upgrade/downgrade detection
+const TIER_RANK: Record<string, number> = {
+  none: 0,
+  starter: 1,
+  professional: 2,
+  enterprise: 3,
+};
+
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
   const priceId = subscription.items.data[0]?.price?.id;
@@ -289,31 +297,77 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   // ==========================================================================
   // BASE PLAN HANDLING: Only base plan prices reach this point
+  // Phase 13.2: Detect upgrade/downgrade and handle gracefully
   // ==========================================================================
-  const tier = BASE_PLAN_TIER_MAP[priceId!];
-  console.log(`[SUB_UPDATED] Base plan subscription updated: tier=${tier}, status=${subscription.status}`);
+  const newTier = BASE_PLAN_TIER_MAP[priceId!];
+  
+  // Get current profile to detect upgrade/downgrade
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, subscription_tier, subscription_status')
+    .eq('stripe_customer_id', customerId)
+    .single();
 
+  const oldTier = profile?.subscription_tier || 'none';
+  const oldRank = TIER_RANK[oldTier] || 0;
+  const newRank = TIER_RANK[newTier] || 0;
+
+  // Determine lifecycle event type
+  let lifecycleEvent: string | null = null;
+  if (newRank > oldRank) {
+    lifecycleEvent = 'upgrade';
+    console.log(`[SUB_UPDATED] UPGRADE detected: ${oldTier} -> ${newTier}`);
+  } else if (newRank < oldRank) {
+    lifecycleEvent = 'downgrade';
+    console.log(`[SUB_UPDATED] DOWNGRADE detected: ${oldTier} -> ${newTier}`);
+    
+    // Phase 13.2: Use graceful downgrade handler
+    // No data loss, no intelligence corruption, no Fusion Score reset
+    if (profile?.id) {
+      const periodEnd = subscription.current_period_end 
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null;
+      
+      await supabase.rpc('handle_subscription_downgrade', {
+        p_user_id: profile.id,
+        p_old_tier: oldTier,
+        p_new_tier: newTier,
+        p_period_end_at: periodEnd,
+      });
+    }
+  } else {
+    console.log(`[SUB_UPDATED] Base plan subscription updated (same tier): tier=${newTier}, status=${subscription.status}`);
+  }
+
+  // Update profile with new tier and status
   await supabase
     .from('profiles')
     .update({
-      subscription_tier: tier,
+      subscription_tier: newTier,
       subscription_status: subscription.status,
+      stripe_price_id: priceId,
       updated_at: new Date().toISOString(),
     })
     .eq('stripe_customer_id', customerId);
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('stripe_customer_id', customerId)
-    .single();
+  // Sync to entitlements (Phase 13.1)
+  if (profile?.id) {
+    await supabase.rpc('sync_stripe_to_entitlements', {
+      p_user_id: profile.id,
+      p_subscription_tier: newTier,
+      p_subscription_status: subscription.status,
+    });
+  }
 
+  // Log subscription history with lifecycle event
   await supabase.from('subscription_history').insert({
     user_id: profile?.id,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscription.id,
     event_type: 'subscription_updated',
-    new_tier: tier,
+    lifecycle_event: lifecycleEvent,
+    previous_tier: oldTier,
+    new_tier: newTier,
     new_status: subscription.status,
   });
 }
@@ -351,29 +405,55 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   // ==========================================================================
   // BASE PLAN HANDLING: Only base plan prices reach this point
+  // Phase 13.2: Use graceful cancellation handler
+  // Freeze entitlements at current state until period end
   // ==========================================================================
-  console.log(`[SUB_DELETED] Base plan subscription deleted: priceId=${priceId}`);
+  const currentTier = BASE_PLAN_TIER_MAP[priceId!] || 'starter';
+  console.log(`[SUB_DELETED] Base plan subscription deleted: tier=${currentTier}, priceId=${priceId}`);
 
-  await supabase
-    .from('profiles')
-    .update({
-      subscription_status: 'canceled',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('stripe_customer_id', customerId);
-
+  // Get profile for cancellation handling
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, subscription_tier')
     .eq('stripe_customer_id', customerId)
     .single();
 
+  if (profile?.id) {
+    // Calculate period end (subscription already deleted, use current time + grace period)
+    const periodEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : new Date().toISOString();
+
+    // Phase 13.2: Use graceful cancellation handler
+    // This freezes entitlements at current state until period end
+    await supabase.rpc('handle_subscription_cancellation', {
+      p_user_id: profile.id,
+      p_current_tier: profile.subscription_tier || currentTier,
+      p_period_end_at: periodEnd,
+    });
+  } else {
+    // Fallback: just update status if profile not found
+    await supabase
+      .from('profiles')
+      .update({
+        subscription_status: 'canceled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('stripe_customer_id', customerId);
+  }
+
+  // Log subscription history with lifecycle event
   await supabase.from('subscription_history').insert({
     user_id: profile?.id,
     stripe_customer_id: customerId,
     stripe_subscription_id: subscription.id,
     event_type: 'subscription_deleted',
+    lifecycle_event: 'cancel',
+    previous_tier: profile?.subscription_tier,
     new_status: 'canceled',
+    period_end_at: subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null,
   });
 }
 

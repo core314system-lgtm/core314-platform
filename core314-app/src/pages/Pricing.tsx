@@ -1,16 +1,31 @@
-import { Check, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Info, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import { createCheckoutSession } from '../services/stripe';
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
+
+// ============================================================================
+// PHASE 13.4: BILLING UX (TRUST-FIRST)
+// NON-NEGOTIABLE: Plans affect scale & depth only, never feature availability
+// All integrations remain visible and functional on all plans
+// ============================================================================
 
 const tiers = [
   {
     name: 'Starter',
     price: '$99',
+    annualPrice: '$990',
     priceId: import.meta.env.VITE_STRIPE_PRICE_STARTER,
+    annualPriceId: import.meta.env.VITE_STRIPE_PRICE_STARTER_ANNUAL,
     description: 'Perfect for small teams getting started',
+    scaleDetails: {
+      integrations: 3,
+      fusionContributors: 3,
+      historyDays: 30,
+      refreshMinutes: 60,
+    },
     features: [
       '3 integrations included',
       'Unified dashboards',
@@ -22,9 +37,17 @@ const tiers = [
   {
     name: 'Pro',
     price: '$999',
+    annualPrice: '$9,990',
     priceId: import.meta.env.VITE_STRIPE_PRICE_PRO,
+    annualPriceId: import.meta.env.VITE_STRIPE_PRICE_PRO_ANNUAL,
     description: 'Advanced operations for growing businesses',
     popular: true,
+    scaleDetails: {
+      integrations: 10,
+      fusionContributors: 7,
+      historyDays: 90,
+      refreshMinutes: 15,
+    },
     features: [
       '10 integrations included',
       'Proactive Optimization Engine™',
@@ -37,9 +60,17 @@ const tiers = [
   {
     name: 'Enterprise',
     price: 'Custom',
+    annualPrice: 'Custom',
     priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE,
+    annualPriceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE_ANNUAL,
     description: 'Full-featured for large operations',
     isCustom: true,
+    scaleDetails: {
+      integrations: -1,
+      fusionContributors: -1,
+      historyDays: -1,
+      refreshMinutes: 5,
+    },
     features: [
       'Unlimited integrations',
       'Admin Analytics dashboard',
@@ -124,6 +155,7 @@ export function Pricing() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [showAddons, setShowAddons] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
 
   const handleSubscribe = async (priceId: string, tierName: string) => {
     if (!priceId) {
@@ -136,12 +168,22 @@ export function Pricing() {
       await createCheckoutSession({
         priceId,
         email: user?.email,
-        metadata: { tier: tierName.toLowerCase() },
+        metadata: { tier: tierName.toLowerCase(), billing_interval: billingInterval },
       });
     } catch (error) {
       console.error('Checkout error:', error);
       setLoading(null);
     }
+  };
+
+  const getActivePriceId = (tier: typeof tiers[0]) => {
+    return billingInterval === 'annual' && tier.annualPriceId 
+      ? tier.annualPriceId 
+      : tier.priceId;
+  };
+
+  const getActivePrice = (tier: typeof tiers[0]) => {
+    return billingInterval === 'annual' ? tier.annualPrice : tier.price;
   };
 
   const handleAddonPurchase = async (priceId: string, addonName: string, category: string) => {
@@ -167,13 +209,52 @@ export function Pricing() {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Choose Your Plan
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-400">
             Select the perfect plan for your organization
           </p>
+        </div>
+
+        {/* Phase 13.4: Trust-First Messaging */}
+        <Alert className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <span className="font-medium">All features are available on every plan.</span>{' '}
+            Plans differ only in scale (number of integrations), depth (historical data), and AI refresh frequency. 
+            You'll never lose access to any integration or intelligence feature.
+          </AlertDescription>
+        </Alert>
+
+        {/* Billing Interval Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-700 p-1 bg-gray-50 dark:bg-gray-800">
+            <button
+              onClick={() => setBillingInterval('monthly')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                billingInterval === 'monthly'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingInterval('annual')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${
+                billingInterval === 'annual'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Annual
+              <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
+                Save 17%
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
@@ -192,16 +273,33 @@ export function Pricing() {
                 <CardDescription>{tier.description}</CardDescription>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                    {tier.price}
+                    {getActivePrice(tier)}
                   </span>
-                  <span className="text-gray-600 dark:text-gray-400">/month</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    /{billingInterval === 'annual' ? 'year' : 'month'}
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Scale Details - Phase 13.4 Trust-First */}
+                {tier.scaleDetails && (
+                  <div className="mb-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-sm">
+                    <div className="flex items-center gap-1 mb-2 text-gray-700 dark:text-gray-300 font-medium">
+                      <Sparkles className="h-4 w-4 text-blue-500" />
+                      Scale & Depth
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-gray-600 dark:text-gray-400">
+                      <div>{tier.scaleDetails.integrations === -1 ? 'Unlimited' : tier.scaleDetails.integrations} integrations</div>
+                      <div>{tier.scaleDetails.historyDays === -1 ? 'Unlimited' : `${tier.scaleDetails.historyDays} days`} history</div>
+                      <div>{tier.scaleDetails.fusionContributors === -1 ? 'All' : tier.scaleDetails.fusionContributors} Fusion sources</div>
+                      <div>{tier.scaleDetails.refreshMinutes}min AI refresh</div>
+                    </div>
+                  </div>
+                )}
                 <ul className="space-y-3 mb-6">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-center">
-                      <Check className="h-5 w-5 text-green-500 mr-2" />
+                      <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
                       <span className="text-gray-700 dark:text-gray-300">{feature}</span>
                     </li>
                   ))}
@@ -210,18 +308,10 @@ export function Pricing() {
                   <Button
                     className="w-full"
                     variant={tier.popular ? 'default' : 'outline'}
-                    onClick={() => handleSubscribe(tier.priceId, tier.name)}
-                    disabled={loading === tier.priceId || tier.isCustom}
+                    onClick={() => handleSubscribe(getActivePriceId(tier), tier.name)}
+                    disabled={loading === getActivePriceId(tier) || tier.isCustom}
                   >
-                    {tier.isCustom ? 'Contact Sales' : loading === tier.priceId ? 'Processing...' : 'Start Free Trial'}
-                  </Button>
-                  <Button
-                    className="w-full"
-                    variant="ghost"
-                    size="sm"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Watch Demo
+                    {tier.isCustom ? 'Contact Sales' : loading === getActivePriceId(tier) ? 'Processing...' : 'Start Free Trial'}
                   </Button>
                 </div>
               </CardContent>
