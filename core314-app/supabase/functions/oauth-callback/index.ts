@@ -13,6 +13,8 @@ const corsHeaders = {
 const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'microsoft_teams': 'TEAMS',
   'slack': 'SLACK',
+  'zoom': 'ZOOM',
+  'google_calendar': 'GOOGLE',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace

@@ -13,6 +13,8 @@ const corsHeaders = {
 const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'microsoft_teams': 'TEAMS',
   'slack': 'SLACK',
+  'zoom': 'ZOOM',
+  'google_calendar': 'GOOGLE',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -224,11 +226,23 @@ serve(withSentry(async (req) => {
     const authUrl = new URL(integration.oauth_authorize_url);
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
-    // Microsoft requires space-delimited scopes, Slack uses comma-delimited
-    const scopeDelimiter = normalizedServiceName === 'microsoft_teams' ? ' ' : ',';
+    
+    // Provider-specific scope delimiter and parameters
+    // Microsoft Teams: space-delimited scopes
+    // Google: space-delimited scopes + access_type=offline for refresh tokens
+    // Slack: comma-delimited scopes
+    // Zoom: space-delimited scopes
+    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'zoom'].includes(normalizedServiceName);
+    const scopeDelimiter = useSpaceDelimiter ? ' ' : ',';
     authUrl.searchParams.set('scope', integration.oauth_scopes.join(scopeDelimiter));
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('redirect_uri', redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`);
+    
+    // Google-specific: request offline access for refresh tokens
+    if (normalizedServiceName === 'google_calendar') {
+      authUrl.searchParams.set('access_type', 'offline');
+      authUrl.searchParams.set('prompt', 'consent');
+    }
 
     return new Response(JSON.stringify({
       authorization_url: authUrl.toString(),
