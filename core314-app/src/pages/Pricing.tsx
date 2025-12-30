@@ -100,6 +100,7 @@ const addons = [
         priceId: import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_STARTER_ADDON,
         description: 'Add more business apps to your Starter plan',
         perMonth: true,
+        setupFee: false,
       },
       {
         name: ADDONS.integrations.pro.description,
@@ -107,6 +108,7 @@ const addons = [
         priceId: import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_PRO_ADDON,
         description: 'Add more business apps to your Pro plan',
         perMonth: true,
+        setupFee: false,
       },
       {
         name: ADDONS.integrations.custom.description,
@@ -127,6 +129,7 @@ const addons = [
         priceId: import.meta.env.VITE_STRIPE_PRICE_PREMIUM_ANALYTICS,
         description: 'Advanced reporting and insights with custom dashboards',
         perMonth: true,
+        setupFee: false,
       },
       {
         name: ADDONS.analytics.dataExport.description,
@@ -134,6 +137,7 @@ const addons = [
         priceId: import.meta.env.VITE_STRIPE_PRICE_DATA_EXPORT,
         description: 'Export all your data anytime in multiple formats',
         perMonth: true,
+        setupFee: false,
       },
     ],
   },
@@ -146,6 +150,7 @@ const addons = [
         priceId: import.meta.env.VITE_STRIPE_PRICE_ADVANCED_FUSION_AI,
         description: 'Enhanced AI capabilities with predictive optimization',
         perMonth: true,
+        setupFee: false,
       },
       {
         name: ADDONS.ai.predictive.description,
@@ -153,6 +158,7 @@ const addons = [
         priceId: import.meta.env.VITE_STRIPE_PRICE_PREDICTIVE_ANALYTICS,
         description: 'Forecast future trends with machine learning models',
         perMonth: true,
+        setupFee: false,
       },
     ],
   },
