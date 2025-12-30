@@ -269,11 +269,15 @@ function IntegrationConnectModal({
   );
 }
 
+// Connection type determines how users connect integrations in the UI
+type ConnectionType = 'oauth2' | 'api_key' | 'manual' | 'observational';
+
 interface RegistryIntegration {
   id: string;
   service_name: string;
   display_name: string;
   auth_type: string;
+  connection_type?: string;
   base_url?: string;
   logo_url?: string;
   category?: string;
@@ -283,6 +287,38 @@ interface RegistryIntegration {
   provider_type?: string;
   user_integration_id?: string;
   is_connected?: boolean;
+}
+
+// Get effective connection type with fallback safety
+// If connection_type is missing, default to 'manual' (NOT oauth2) unless auth_type is oauth2
+function getEffectiveConnectionType(integration: RegistryIntegration): ConnectionType {
+  const raw = integration.connection_type;
+  
+  if (raw === 'oauth2' || raw === 'api_key' || raw === 'manual' || raw === 'observational') {
+    return raw;
+  }
+  
+  // Fallback: if auth_type is oauth2, treat as oauth2 for backwards compatibility
+  // Otherwise default to 'manual' (safe default - no OAuth flow)
+  if (integration.auth_type === 'oauth2') {
+    return 'oauth2';
+  }
+  
+  return 'manual';
+}
+
+// Get display text for non-OAuth connection types
+function getConnectionTypeDisplayText(connectionType: ConnectionType): string {
+  switch (connectionType) {
+    case 'observational':
+      return 'No authentication required';
+    case 'api_key':
+      return 'Admin configured';
+    case 'manual':
+      return 'Manual setup';
+    default:
+      return 'Manual setup';
+  }
 }
 
 export default function IntegrationHub() {
@@ -457,6 +493,16 @@ export default function IntegrationHub() {
       console.log('[OAuth Debug] Response status:', response.status, response.statusText);
       const data = await response.json();
       console.log('[OAuth Debug] Response data:', data);
+
+      // Phase 16B: Handle silent no-op for non-OAuth integrations
+      // Backend returns { skipped: true } for integrations that don't support OAuth
+      if (data.skipped) {
+        console.log('[OAuth Debug] OAuth initiation skipped by backend:', data.reason);
+        // Silent no-op: close modal and clear selection, no error toast
+        setConnectModalOpen(false);
+        setSelectedIntegration(null);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `Failed to initiate OAuth for ${providerName}`);
@@ -634,17 +680,41 @@ export default function IntegrationHub() {
               })()}
             </CardHeader>
             <CardContent>
-              <Button
-                onClick={() =>
-                  integration.is_connected
-                    ? handleDisconnect(integration)
-                    : handleConnectClick(integration)
+              {(() => {
+                const connectionType = getEffectiveConnectionType(integration);
+                const showConnectButton = !integration.is_connected && connectionType === 'oauth2';
+                
+                if (integration.is_connected) {
+                  return (
+                    <Button
+                      onClick={() => handleDisconnect(integration)}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Disconnect
+                    </Button>
+                  );
+                } else if (showConnectButton) {
+                  return (
+                    <Button
+                      onClick={() => handleConnectClick(integration)}
+                      variant="default"
+                      className="w-full"
+                    >
+                      Connect
+                    </Button>
+                  );
+                } else {
+                  // Non-OAuth integration: show informative state instead of Connect button
+                  return (
+                    <div className="text-center py-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {getConnectionTypeDisplayText(connectionType)}
+                      </p>
+                    </div>
+                  );
                 }
-                variant={integration.is_connected ? 'outline' : 'default'}
-                className="w-full"
-              >
-                {integration.is_connected ? 'Disconnect' : 'Connect'}
-              </Button>
+              })()}
             </CardContent>
           </Card>
         ))}
