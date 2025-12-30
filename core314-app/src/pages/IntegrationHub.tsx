@@ -272,12 +272,16 @@ function IntegrationConnectModal({
 // Connection type determines how users connect integrations in the UI
 type ConnectionType = 'oauth2' | 'api_key' | 'manual' | 'observational';
 
+// Credential entry mode determines who can configure the integration
+type CredentialEntryMode = 'user_supplied' | 'admin_supplied';
+
 interface RegistryIntegration {
   id: string;
   service_name: string;
   display_name: string;
   auth_type: string;
   connection_type?: string;
+  credential_entry_mode?: string;
   base_url?: string;
   logo_url?: string;
   category?: string;
@@ -307,7 +311,21 @@ function getEffectiveConnectionType(integration: RegistryIntegration): Connectio
   return 'manual';
 }
 
-// Get display text for non-OAuth connection types
+// Get effective credential entry mode with fallback safety
+// If credential_entry_mode is missing, default to 'user_supplied' (self-service)
+function getEffectiveCredentialEntryMode(integration: RegistryIntegration): CredentialEntryMode {
+  const raw = integration.credential_entry_mode;
+  
+  if (raw === 'user_supplied' || raw === 'admin_supplied') {
+    return raw;
+  }
+  
+  // Default to user_supplied - all marketplace integrations should be self-service
+  return 'user_supplied';
+}
+
+// Get display text for admin-supplied integrations only
+// User-supplied integrations should show "Connect" button, not text
 function getConnectionTypeDisplayText(connectionType: ConnectionType): string {
   switch (connectionType) {
     case 'observational':
@@ -348,6 +366,11 @@ export default function IntegrationHub() {
   // State for integration connect modal
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<RegistryIntegration | null>(null);
+  
+  // State for API key connect modal
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [apiKeyValue, setApiKeyValue] = useState('');
+  const [apiKeySubmitting, setApiKeySubmitting] = useState(false);
   
   // Toast hook for stub connection
   const { toast } = useToast();
@@ -445,15 +468,122 @@ export default function IntegrationHub() {
     }
   };
 
-  // Handle connect click - opens the modal instead of navigating
+  // Handle connect click - routes to correct flow based on connection_type
   const handleConnectClick = (integration: RegistryIntegration) => {
     if (!canAddIntegration(enabledCount)) {
       setUpgradeModalOpen(true);
       return;
     }
 
+    const connectionType = getEffectiveConnectionType(integration);
     setSelectedIntegration(integration);
-    setConnectModalOpen(true);
+    
+    // Route to correct modal based on connection_type
+    if (connectionType === 'oauth2') {
+      setConnectModalOpen(true);
+    } else if (connectionType === 'api_key') {
+      setApiKeyModalOpen(true);
+    } else if (connectionType === 'manual') {
+      // Manual setup: show informative toast and close
+      toast({
+        title: `Manual Setup Required`,
+        description: `${integration.display_name} requires manual configuration. Please refer to the integration documentation.`,
+      });
+    } else if (connectionType === 'observational') {
+      // Observational: auto-connect without credentials
+      handleObservationalConnect(integration);
+    }
+  };
+  
+  // Handle observational integration connection (no credentials needed)
+  const handleObservationalConnect = async (integration: RegistryIntegration) => {
+    try {
+      const { error } = await supabase
+        .from('user_integrations')
+        .insert({
+          user_id: user?.id,
+          integration_registry_id: integration.id,
+          provider_id: integration.service_name,
+          provider_type: 'observational',
+          status: 'active',
+          added_by_user: true,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: `${integration.display_name} Connected`,
+        description: 'Integration is now active and will begin collecting data.',
+      });
+      await fetchIntegrations();
+    } catch (error) {
+      console.error('Error connecting observational integration:', error);
+      toast({
+        title: 'Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect integration',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Handle API key integration connection
+  const handleApiKeyConnect = async () => {
+    if (!selectedIntegration || !apiKeyValue.trim()) return;
+    
+    setApiKeySubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in to connect integrations',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const url = await getSupabaseFunctionUrl('connect-api-key-integration');
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          service_name: selectedIntegration.service_name,
+          secrets: {
+            api_key: apiKeyValue.trim()
+          }
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to connect ${selectedIntegration.display_name}`);
+      }
+
+      toast({
+        title: `${selectedIntegration.display_name} Connected`,
+        description: 'Your API key has been securely stored and the integration is now active.',
+      });
+      
+      setApiKeyModalOpen(false);
+      setApiKeyValue('');
+      setSelectedIntegration(null);
+      await fetchIntegrations();
+    } catch (error) {
+      console.error('Error connecting API key integration:', error);
+      toast({
+        title: 'Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect integration',
+        variant: 'destructive',
+      });
+    } finally {
+      setApiKeySubmitting(false);
+    }
   };
 
   // Real OAuth connection - initiates OAuth flow for the selected integration
@@ -682,7 +812,11 @@ export default function IntegrationHub() {
             <CardContent>
               {(() => {
                 const connectionType = getEffectiveConnectionType(integration);
-                const showConnectButton = !integration.is_connected && connectionType === 'oauth2';
+                const credentialEntryMode = getEffectiveCredentialEntryMode(integration);
+                // Show Connect button for ALL user_supplied integrations (regardless of connection_type)
+                // Only admin_supplied integrations should show informative text
+                const isUserConnectable = credentialEntryMode === 'user_supplied';
+                const showConnectButton = !integration.is_connected && isUserConnectable;
                 
                 if (integration.is_connected) {
                   return (
@@ -705,11 +839,11 @@ export default function IntegrationHub() {
                     </Button>
                   );
                 } else {
-                  // Non-OAuth integration: show informative state instead of Connect button
+                  // Admin-supplied integration: show informative state instead of Connect button
                   return (
                     <div className="text-center py-2">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {getConnectionTypeDisplayText(connectionType)}
+                        {connectionType === 'observational' ? 'No authentication required' : 'Admin configured'}
                       </p>
                     </div>
                   );
@@ -746,7 +880,7 @@ export default function IntegrationHub() {
         maxCount={subscription.maxIntegrations}
       />
 
-      {/* Integration Connect Modal */}
+      {/* Integration Connect Modal (OAuth2) */}
       {selectedIntegration && (() => {
         const copy = INTEGRATION_COPY[selectedIntegration.service_name.toLowerCase()] || DEFAULT_INTEGRATION_COPY;
         return (
@@ -762,6 +896,114 @@ export default function IntegrationHub() {
           />
         );
       })()}
+
+      {/* API Key Connect Modal */}
+      <Dialog open={apiKeyModalOpen} onOpenChange={(open) => {
+        setApiKeyModalOpen(open);
+        if (!open) {
+          setApiKeyValue('');
+          setSelectedIntegration(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {selectedIntegration?.logo_url && (
+                <img src={selectedIntegration.logo_url} alt={selectedIntegration?.display_name} className="w-8 h-8 object-contain" />
+              )}
+              Connect {selectedIntegration?.display_name} to Core314
+            </DialogTitle>
+            <DialogDescription>
+              Enter your API key to connect {selectedIntegration?.display_name}. Your credentials are encrypted and stored securely.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* What Core314 will analyze */}
+            {selectedIntegration && (() => {
+              const copy = INTEGRATION_COPY[selectedIntegration.service_name.toLowerCase()] || DEFAULT_INTEGRATION_COPY;
+              return (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-blue-500" />
+                    What Core314 will analyze
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 ml-6">
+                    {copy.dataAnalyzed}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 ml-6 mt-1">
+                    <span className="font-medium">Benefit:</span> {copy.benefit}
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* API Key Input */}
+            <div>
+              <Label htmlFor="apiKey" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Lock className="h-4 w-4 text-green-500" />
+                API Key
+              </Label>
+              <Input
+                id="apiKey"
+                type="password"
+                placeholder="Enter your API key"
+                value={apiKeyValue}
+                onChange={(e) => setApiKeyValue(e.target.value)}
+                className="mt-2"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Your API key is encrypted and stored securely in our vault. Core314 never shares your credentials.
+              </p>
+            </div>
+
+            {/* Security assurances */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-green-500" />
+                Security
+              </h4>
+              <div className="space-y-2 ml-6">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Lock className="h-3.5 w-3.5 text-gray-400" />
+                  <span>Encrypted at rest using industry-standard encryption</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Shield className="h-3.5 w-3.5 text-gray-400" />
+                  <span>Read-only access — Core314 never modifies your data</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <RefreshCw className="h-3.5 w-3.5 text-gray-400" />
+                  <span>Disconnect anytime — you stay in full control</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => {
+              setApiKeyModalOpen(false);
+              setApiKeyValue('');
+              setSelectedIntegration(null);
+            }} disabled={apiKeySubmitting}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleApiKeyConnect} 
+              disabled={!apiKeyValue.trim() || apiKeySubmitting}
+            >
+              {apiKeySubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Connect'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={addCustomModalOpen} onOpenChange={setAddCustomModalOpen}>
         <AlertDialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
