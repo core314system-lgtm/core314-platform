@@ -67,6 +67,54 @@ interface ComputedInsight {
   metadata: Record<string, unknown>;
 }
 
+/**
+ * Phase 10A: Structured failure logging
+ * Provides consistent error format for monitoring and debugging
+ */
+interface StructuredFailure {
+  integration_key: string;
+  integration_id: string;
+  tenant_id: string;
+  failure_type: 'timeout' | 'query_error' | 'processing_error' | 'rate_limit' | 'unknown';
+  message: string;
+  timestamp: string;
+}
+
+function logStructuredFailure(failure: StructuredFailure): void {
+  console.error('[universal-intelligence] FAILURE', JSON.stringify(failure));
+}
+
+/**
+ * Phase 10A: Per-integration timeout constant
+ * If an integration exceeds this runtime, it will be aborted and marked as timeout failure
+ */
+const INTEGRATION_TIMEOUT_MS = 8000; // 8 seconds per integration
+
+/**
+ * Phase 10A: Timeout wrapper for per-integration processing
+ * Returns a promise that rejects with 'IntegrationTimeout' if processing exceeds limit
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('IntegrationTimeout')), timeoutMs)
+    ),
+  ]);
+}
+
+/**
+ * Phase 10A: Determine failure type from error
+ */
+function classifyFailure(error: unknown): StructuredFailure['failure_type'] {
+  if (error instanceof Error) {
+    if (error.message === 'IntegrationTimeout') return 'timeout';
+    if (error.message.includes('rate limit') || error.message.includes('429')) return 'rate_limit';
+    if (error.message.includes('query') || error.message.includes('database')) return 'query_error';
+  }
+  return 'processing_error';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -115,144 +163,93 @@ serve(async (req) => {
     }
 
     let processedCount = 0;
+    let failedCount = 0;
     let insightsGenerated = 0;
     const errors: string[] = [];
     const results: Record<string, unknown>[] = [];
 
     for (const integration of activeIntegrations) {
+      const registryData = integration.integration_registry;
+      const registry = Array.isArray(registryData) ? registryData[0] : registryData;
+      const serviceName = registry?.service_name;
+      const displayName = registry?.display_name || serviceName;
+
+      if (!serviceName) {
+        continue;
+      }
+
       try {
-        const registryData = integration.integration_registry;
-        const registry = Array.isArray(registryData) ? registryData[0] : registryData;
-        const serviceName = registry?.service_name;
-        const displayName = registry?.display_name || serviceName;
-
-        if (!serviceName) {
-          continue;
-        }
-
-        // Fetch recent events for this integration
-        const { data: currentWeekEvents } = await supabase
-          .from('integration_events')
-          .select('event_type, occurred_at, metadata')
-          .eq('user_id', integration.user_id)
-          .eq('service_name', serviceName)
-          .gte('occurred_at', weekAgo.toISOString())
-          .order('occurred_at', { ascending: false });
-
-        const { data: previousWeekEvents } = await supabase
-          .from('integration_events')
-          .select('event_type, occurred_at, metadata')
-          .eq('user_id', integration.user_id)
-          .eq('service_name', serviceName)
-          .gte('occurred_at', twoWeeksAgo.toISOString())
-          .lt('occurred_at', weekAgo.toISOString());
-
-        // Compute normalized metrics based on integration category
-        const category = INTEGRATION_CATEGORIES[serviceName] || 'general';
-                const metrics = computeMetrics(
-                  serviceName,
-                  category,
-                  currentWeekEvents || []
-                );
-
-        // Compute week-over-week change
-        const weekOverWeekChange = computeWeekOverWeekChange(
-          currentWeekEvents || [],
-          previousWeekEvents || []
+        // Phase 10A: Wrap entire integration processing in timeout
+        await withTimeout(
+          processIntegration(
+            supabase,
+            integration,
+            serviceName,
+            displayName,
+            now,
+            weekAgo,
+            twoWeeksAgo,
+            (count) => { insightsGenerated += count; }
+          ),
+          INTEGRATION_TIMEOUT_MS
         );
 
-        const trendDirection = weekOverWeekChange > 5 ? 'up' : weekOverWeekChange < -5 ? 'down' : 'stable';
-
-        // Compute anomaly score (simple z-score based)
-        const anomalyScore = computeAnomalyScore(metrics);
-        const anomalyDetected = anomalyScore > 2.0;
-
-        // Compute Fusion contribution
-        const fusionContribution = computeFusionContribution(metrics, category);
-
-        // Store intelligence data
+        // Phase 10A: Mark success - clear any previous failure state
         await supabase.from('integration_intelligence').upsert({
           user_id: integration.user_id,
           integration_id: integration.integration_id,
           service_name: serviceName,
-          activity_volume: metrics.activity_volume,
-          participation_level: metrics.participation_level,
-          responsiveness: metrics.responsiveness,
-          throughput: metrics.throughput,
-          week_over_week_change: weekOverWeekChange,
-          trend_direction: trendDirection,
-          anomaly_score: anomalyScore,
-          anomaly_detected: anomalyDetected,
-          fusion_contribution: fusionContribution,
-          fusion_weight: getCategoryWeight(category),
-          raw_metrics: metrics.raw_metrics,
-          signals_used: metrics.signals_used,
-          computed_at: now.toISOString(),
+          last_successful_run_at: now.toISOString(),
+          failure_reason: null,
         }, { onConflict: 'user_id,integration_id,service_name' });
-
-        // Generate human-readable insights
-                const insights = generateInsights(
-                  serviceName,
-                  displayName,
-                  category,
-                  metrics,
-                  weekOverWeekChange,
-                  trendDirection,
-                  currentWeekEvents || []
-                );
-
-        // Store insights (delete old ones first, keep only latest)
-        if (insights.length > 0) {
-          await supabase
-            .from('integration_insights')
-            .delete()
-            .eq('user_id', integration.user_id)
-            .eq('service_name', serviceName);
-
-          for (const insight of insights) {
-            await supabase.from('integration_insights').insert({
-              user_id: integration.user_id,
-              integration_id: integration.integration_id,
-              service_name: serviceName,
-              insight_key: insight.insight_key,
-              insight_text: insight.insight_text,
-              severity: insight.severity,
-              confidence: insight.confidence,
-              metadata: insight.metadata,
-              computed_at: now.toISOString(),
-            });
-            insightsGenerated++;
-          }
-        }
-
-        // Also update fusion_metrics for Fusion Score calculation
-        await updateFusionMetrics(supabase, integration, serviceName, metrics, now);
 
         processedCount++;
         results.push({
           service_name: serviceName,
-          metrics: {
-            activity_volume: metrics.activity_volume,
-            participation_level: metrics.participation_level,
-            responsiveness: metrics.responsiveness,
-            throughput: metrics.throughput,
-          },
-          trend: trendDirection,
-          insights_count: insights.length,
-          fusion_contribution: fusionContribution,
+          status: 'success',
         });
 
         console.log('[universal-intelligence] Processed:', serviceName, 'for user:', integration.user_id);
-      } catch (userError: unknown) {
-        const errorMessage = userError instanceof Error ? userError.message : 'Unknown error';
-        console.error('[universal-intelligence] Error processing integration:', integration.id, userError);
-        errors.push(`Error for integration ${integration.id}: ${errorMessage}`);
+      } catch (error: unknown) {
+        // Phase 10A: Handle failure - preserve prior state, mark failure metadata only
+        const failureType = classifyFailure(error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        const failure: StructuredFailure = {
+          integration_key: serviceName,
+          integration_id: integration.integration_id,
+          tenant_id: integration.user_id,
+          failure_type: failureType,
+          message: errorMessage,
+          timestamp: now.toISOString(),
+        };
+        
+        logStructuredFailure(failure);
+        
+        // Phase 10A: Update ONLY failure metadata - DO NOT overwrite metrics
+        // This preserves last known good intelligence data
+        await supabase.from('integration_intelligence').upsert({
+          user_id: integration.user_id,
+          integration_id: integration.integration_id,
+          service_name: serviceName,
+          last_failed_run_at: now.toISOString(),
+          failure_reason: `${failureType}: ${errorMessage.substring(0, 200)}`,
+        }, { onConflict: 'user_id,integration_id,service_name' });
+        
+        failedCount++;
+        errors.push(`${serviceName}: ${failureType}`);
+        results.push({
+          service_name: serviceName,
+          status: 'failed',
+          failure_type: failureType,
+        });
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
       processed: processedCount,
+      failed: failedCount,
       insights_generated: insightsGenerated,
       total: activeIntegrations.length,
       results,
@@ -269,6 +266,145 @@ serve(async (req) => {
     });
   }
 });
+
+/**
+ * Phase 10A: Process a single integration with full isolation
+ * All Supabase errors are thrown to trigger failure handling
+ * Zero-data is handled as success (not failure) with stable trend
+ */
+async function processIntegration(
+  supabase: ReturnType<typeof createClient>,
+  integration: { user_id: string; integration_id: string },
+  serviceName: string,
+  displayName: string,
+  now: Date,
+  weekAgo: Date,
+  twoWeeksAgo: Date,
+  onInsightsGenerated: (count: number) => void
+): Promise<void> {
+  // Phase 10A: Fetch events with explicit error handling
+  // Query errors are failures, not zero-data
+  const { data: currentWeekEvents, error: currentError } = await supabase
+    .from('integration_events')
+    .select('event_type, occurred_at, metadata')
+    .eq('user_id', integration.user_id)
+    .eq('service_name', serviceName)
+    .gte('occurred_at', weekAgo.toISOString())
+    .order('occurred_at', { ascending: false });
+
+  if (currentError) {
+    throw new Error(`query_error: Failed to fetch current week events - ${currentError.message}`);
+  }
+
+  const { data: previousWeekEvents, error: previousError } = await supabase
+    .from('integration_events')
+    .select('event_type, occurred_at, metadata')
+    .eq('user_id', integration.user_id)
+    .eq('service_name', serviceName)
+    .gte('occurred_at', twoWeeksAgo.toISOString())
+    .lt('occurred_at', weekAgo.toISOString());
+
+  if (previousError) {
+    throw new Error(`query_error: Failed to fetch previous week events - ${previousError.message}`);
+  }
+
+  // Phase 10A: Zero-data is NOT a failure
+  // Zero events = stable trend, no anomaly, low fusion contribution
+  // This is valid intelligence, not an error state
+  const events = currentWeekEvents || [];
+  const prevEvents = previousWeekEvents || [];
+
+  // Compute normalized metrics based on integration category
+  const category = INTEGRATION_CATEGORIES[serviceName] || 'general';
+  const metrics = computeMetrics(serviceName, category, events);
+
+  // Compute week-over-week change
+  const weekOverWeekChange = computeWeekOverWeekChange(events, prevEvents);
+
+  // Phase 10A: Zero-data results in stable trend (not failure)
+  const trendDirection = weekOverWeekChange > 5 ? 'up' : weekOverWeekChange < -5 ? 'down' : 'stable';
+
+  // Compute anomaly score (simple z-score based)
+  const anomalyScore = computeAnomalyScore(metrics);
+  // Phase 10A: Zero-data = no anomaly detected
+  const anomalyDetected = events.length > 0 && anomalyScore > 2.0;
+
+  // Compute Fusion contribution
+  const fusionContribution = computeFusionContribution(metrics, category);
+
+  // Store intelligence data with success timestamp
+  const { error: upsertError } = await supabase.from('integration_intelligence').upsert({
+    user_id: integration.user_id,
+    integration_id: integration.integration_id,
+    service_name: serviceName,
+    activity_volume: metrics.activity_volume,
+    participation_level: metrics.participation_level,
+    responsiveness: metrics.responsiveness,
+    throughput: metrics.throughput,
+    week_over_week_change: weekOverWeekChange,
+    trend_direction: trendDirection,
+    anomaly_score: anomalyScore,
+    anomaly_detected: anomalyDetected,
+    fusion_contribution: fusionContribution,
+    fusion_weight: getCategoryWeight(category),
+    raw_metrics: metrics.raw_metrics,
+    signals_used: metrics.signals_used,
+    computed_at: now.toISOString(),
+    last_successful_run_at: now.toISOString(),
+    failure_reason: null, // Clear any previous failure
+  }, { onConflict: 'user_id,integration_id,service_name' });
+
+  if (upsertError) {
+    throw new Error(`query_error: Failed to store intelligence - ${upsertError.message}`);
+  }
+
+  // Generate human-readable insights
+  const insights = generateInsights(
+    serviceName,
+    displayName,
+    category,
+    metrics,
+    weekOverWeekChange,
+    trendDirection,
+    events
+  );
+
+  // Store insights (delete old ones first, keep only latest)
+  if (insights.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('integration_insights')
+      .delete()
+      .eq('user_id', integration.user_id)
+      .eq('service_name', serviceName);
+
+    if (deleteError) {
+      throw new Error(`query_error: Failed to delete old insights - ${deleteError.message}`);
+    }
+
+    for (const insight of insights) {
+      const { error: insertError } = await supabase.from('integration_insights').insert({
+        user_id: integration.user_id,
+        integration_id: integration.integration_id,
+        service_name: serviceName,
+        insight_key: insight.insight_key,
+        insight_text: insight.insight_text,
+        severity: insight.severity,
+        confidence: insight.confidence,
+        metadata: insight.metadata,
+        computed_at: now.toISOString(),
+      });
+
+      if (insertError) {
+        throw new Error(`query_error: Failed to insert insight - ${insertError.message}`);
+      }
+    }
+    onInsightsGenerated(insights.length);
+  }
+
+  // Phase 10A: Only update fusion_metrics on success
+  // Failed integrations don't update fusion_metrics, preserving last known good values
+  await updateFusionMetrics(supabase, integration, serviceName, metrics, now);
+}
 
 /**
  * Compute normalized metrics based on integration category
