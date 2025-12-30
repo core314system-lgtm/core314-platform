@@ -854,12 +854,22 @@ export default function IntegrationHub() {
         ))}
       </div>
 
+      {/* Empty state guard: Only show when there's an active filter OR when registry is truly empty */}
+      {/* This prevents UI state corruption from showing empty state when integrations exist */}
       {filteredIntegrations.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-600 dark:text-gray-400">
-            No integrations found matching "{searchQuery}"
-          </p>
-        </div>
+        (searchQuery.trim() !== '' || selectedCategory !== 'all') ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-400">
+              No integrations found matching "{searchQuery}"
+            </p>
+          </div>
+        ) : integrations.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-400">
+              No integrations available yet.
+            </p>
+          </div>
+        ) : null
       )}
 
       {/* Bottom Informational Callout */}
@@ -981,11 +991,12 @@ export default function IntegrationHub() {
           </div>
 
           <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => {
-              setApiKeyModalOpen(false);
-              setApiKeyValue('');
-              setSelectedIntegration(null);
-            }} disabled={apiKeySubmitting}>
+            <Button 
+              variant="outline" 
+              type="button"
+              onClick={() => setApiKeyModalOpen(false)}
+              disabled={apiKeySubmitting}
+            >
               Cancel
             </Button>
             <Button 
