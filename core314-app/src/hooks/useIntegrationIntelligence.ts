@@ -318,3 +318,18 @@ export function getInsightSeverityIcon(severity: IntegrationInsight['severity'])
       return 'Info';
   }
 }
+
+/**
+ * Reusable tooltip copy for intelligence clarification
+ * Use this wherever clarification about intelligence data maturity is helpful
+ */
+export const INTELLIGENCE_TOOLTIP_COPY = {
+  /** Standard tooltip for explaining intelligence data maturity */
+  dataMaturity: 'Intelligence reflects real operational behavior. If activity is low or new, insights will appear as patterns form.',
+  
+  /** Tooltip for explaining what signals are */
+  signals: 'Signals are data points Core314 observes from your connected integrations to generate insights.',
+  
+  /** Tooltip for explaining Fusion Score contribution */
+  fusionContribution: 'This percentage represents how much this integration contributes to your overall Fusion Score.',
+} as const;
