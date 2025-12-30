@@ -402,6 +402,40 @@ export default function IntegrationHub() {
     prevEnabledCountRef.current = enabledCount;
   }, [enabledCount, showFirstConnectionSuccess]);
 
+  // GUARD: Reset searchQuery if it ever equals user.email (defensive against external mutations)
+  useEffect(() => {
+    const email = user?.email;
+    if (!email) return;
+
+    if (searchQuery === email) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          '[IntegrationHub] searchQuery matched user.email; resetting to empty for safety.',
+          { searchQuery, email }
+        );
+      }
+      setSearchQuery('');
+    }
+  }, [searchQuery, user?.email]);
+
+  // Handler for API key modal open/close - forcibly resets searchQuery on close
+  const handleApiKeyModalOpenChange = (open: boolean) => {
+    setApiKeyModalOpen(open);
+    if (!open) {
+      setApiKeyValue('');
+      setSelectedIntegration(null);
+      setSearchQuery(''); // Forcible reset on ANY modal close path
+    }
+  };
+
+  // Handler for OAuth connect modal open/close - forcibly resets searchQuery on close
+  const handleConnectModalOpenChange = (open: boolean) => {
+    setConnectModalOpen(open);
+    if (!open) {
+      setSearchQuery(''); // Forcible reset on ANY modal close path
+    }
+  };
+
   const handleDismissSuccess = () => {
     setShowFirstConnectionSuccess(false);
   };
@@ -570,9 +604,9 @@ export default function IntegrationHub() {
         description: 'Your API key has been securely stored and the integration is now active.',
       });
       
-      setApiKeyModalOpen(false);
-      setApiKeyValue('');
-      setSelectedIntegration(null);
+      // Use handler for consistent state cleanup including searchQuery reset
+      handleApiKeyModalOpenChange(false);
+      setSearchQuery(''); // Explicit reset for defense in depth
       await fetchIntegrations();
     } catch (error) {
       console.error('Error connecting API key integration:', error);
@@ -629,8 +663,9 @@ export default function IntegrationHub() {
       if (data.skipped) {
         console.log('[OAuth Debug] OAuth initiation skipped by backend:', data.reason);
         // Silent no-op: close modal and clear selection, no error toast
-        setConnectModalOpen(false);
+        handleConnectModalOpenChange(false);
         setSelectedIntegration(null);
+        setSearchQuery(''); // Explicit reset for defense in depth
         return;
       }
 
@@ -654,8 +689,9 @@ export default function IntegrationHub() {
         description: error instanceof Error ? error.message : 'Connection failed',
         variant: 'destructive'
       });
-      setConnectModalOpen(false);
+      handleConnectModalOpenChange(false);
       setSelectedIntegration(null);
+      setSearchQuery(''); // Explicit reset for defense in depth
     }
   };
 
@@ -900,7 +936,7 @@ export default function IntegrationHub() {
         return (
           <IntegrationConnectModal
             open={connectModalOpen}
-            onOpenChange={setConnectModalOpen}
+            onOpenChange={handleConnectModalOpenChange}
             providerId={selectedIntegration.service_name}
             providerName={selectedIntegration.display_name}
             logoUrl={selectedIntegration.logo_url}
@@ -912,13 +948,7 @@ export default function IntegrationHub() {
       })()}
 
       {/* API Key Connect Modal */}
-      <Dialog open={apiKeyModalOpen} onOpenChange={(open) => {
-        setApiKeyModalOpen(open);
-        if (!open) {
-          setApiKeyValue('');
-          setSelectedIntegration(null);
-        }
-      }}>
+      <Dialog open={apiKeyModalOpen} onOpenChange={handleApiKeyModalOpenChange}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
@@ -998,7 +1028,7 @@ export default function IntegrationHub() {
             <Button 
               variant="outline" 
               type="button"
-              onClick={() => setApiKeyModalOpen(false)}
+              onClick={() => handleApiKeyModalOpenChange(false)}
               disabled={apiKeySubmitting}
             >
               Cancel
