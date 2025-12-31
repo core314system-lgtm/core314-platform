@@ -136,20 +136,41 @@ function getSizeFromHeaders(data: Request | Response): number {
   }
 }
 
+// Default CORS headers for error responses
+const DEFAULT_CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 export function withSentry<T>(
   handler: (req: Request) => Promise<Response> | Response,
-  options: { name: string }
+  options?: { name?: string }
 ): (req: Request) => Promise<Response> {
+  const functionName = options?.name || 'unknown';
+  
   return async (req: Request): Promise<Response> => {
     if (!SENTRY_DSN) {
-      return await handler(req);
+      try {
+        return await handler(req);
+      } catch (error) {
+        // Even without Sentry, return a CORS-safe error response
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return new Response(
+          JSON.stringify({ error: errorMessage, success: false }),
+          {
+            status: 500,
+            headers: { ...DEFAULT_CORS_HEADERS, 'Content-Type': 'application/json' },
+          }
+        );
+      }
     }
 
     const requestId = crypto.randomUUID();
     const startTime = performance.now();
     
     try {
-      Sentry.setTag('function_name', options.name);
+      Sentry.setTag('function_name', functionName);
       Sentry.setTag('request_id', requestId);
       Sentry.setTag('environment', SENTRY_ENVIRONMENT);
       
@@ -204,7 +225,7 @@ export function withSentry<T>(
       
       Sentry.captureException(error, {
         tags: {
-          function_name: options.name,
+          function_name: functionName,
           request_id: requestId,
           environment: SENTRY_ENVIRONMENT,
           duration_ms: Math.round(duration).toString(),
@@ -215,11 +236,20 @@ export function withSentry<T>(
           headers: Object.fromEntries(req.headers.entries()),
           normalized_message: normalizedMessage,
         },
-        fingerprint: ['edge', options.name, normalizedMessage],
+        fingerprint: ['edge', functionName, normalizedMessage],
       });
 
       await Sentry.flush(2000);
-      throw error;
+      
+      // Return a CORS-safe error response instead of re-throwing
+      // This prevents "Failed to fetch" errors in the browser
+      return new Response(
+        JSON.stringify({ error: errorMessage, success: false }),
+        {
+          status: 500,
+          headers: { ...DEFAULT_CORS_HEADERS, 'Content-Type': 'application/json' },
+        }
+      );
     }
   };
 }
