@@ -88,4 +88,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "optimize-recommendations" }));
+}, { name: "optimize-recommendations" }));

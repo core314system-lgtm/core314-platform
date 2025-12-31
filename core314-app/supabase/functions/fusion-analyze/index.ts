@@ -136,7 +136,7 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: "fusion-analyze" }));
 
 async function analyzeIntegration(
   supabase: ReturnType<typeof createClient>,

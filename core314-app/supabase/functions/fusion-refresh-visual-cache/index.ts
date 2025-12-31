@@ -86,4 +86,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "fusion-refresh-visual-cache" }));
+}, { name: "fusion-refresh-visual-cache" }));

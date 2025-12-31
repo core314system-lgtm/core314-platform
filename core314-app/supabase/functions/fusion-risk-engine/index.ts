@@ -267,4 +267,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "fusion-risk-engine" }));
+}, { name: "fusion-risk-engine" }));

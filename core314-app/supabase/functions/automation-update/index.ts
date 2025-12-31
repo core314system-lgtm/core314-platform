@@ -107,4 +107,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "automation-update" }));
+}, { name: "automation-update" }));

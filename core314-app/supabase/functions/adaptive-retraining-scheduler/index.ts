@@ -240,4 +240,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "adaptive-retraining-scheduler" }));
+}, { name: "adaptive-retraining-scheduler" }));

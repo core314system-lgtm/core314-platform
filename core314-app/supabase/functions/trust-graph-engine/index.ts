@@ -128,4 +128,4 @@ Deno.serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "trust-graph-engine" }));
+}, { name: "trust-graph-engine" }));

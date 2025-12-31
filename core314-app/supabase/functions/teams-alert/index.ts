@@ -110,4 +110,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "teams-alert" }));
+}, { name: "teams-alert" }));

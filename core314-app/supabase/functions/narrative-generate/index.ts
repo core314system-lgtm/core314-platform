@@ -210,4 +210,4 @@ Return as JSON with these exact fields.`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "narrative-generate" }));
+}, { name: "narrative-generate" }));

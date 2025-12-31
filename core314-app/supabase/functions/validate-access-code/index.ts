@@ -34,4 +34,4 @@ serve(withSentry(async (req) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 });
   }
-}), { name: "validate-access-code" }));
+}, { name: "validate-access-code" }));

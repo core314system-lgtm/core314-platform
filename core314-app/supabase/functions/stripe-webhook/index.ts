@@ -401,4 +401,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "stripe-webhook" }));
+}, { name: "stripe-webhook" }));

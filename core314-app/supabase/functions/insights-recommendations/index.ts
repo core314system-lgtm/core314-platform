@@ -191,4 +191,4 @@ Return JSON with:
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "insights-recommendations" }));
+}, { name: "insights-recommendations" }));

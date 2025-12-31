@@ -125,4 +125,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "admin-update-user" }));
+}, { name: "admin-update-user" }));

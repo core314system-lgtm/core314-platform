@@ -447,4 +447,4 @@ serve(withSentry(async (req) => {
       { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
     );
   }
-}), { name: "monitor-system-health" }));
+}, { name: "monitor-system-health" }));

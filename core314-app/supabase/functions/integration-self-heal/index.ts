@@ -709,4 +709,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "integration-self-heal" }));
+}, { name: "integration-self-heal" }));

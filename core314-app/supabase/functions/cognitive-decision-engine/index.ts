@@ -416,4 +416,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "cognitive-decision-engine" }));
+}, { name: "cognitive-decision-engine" }));

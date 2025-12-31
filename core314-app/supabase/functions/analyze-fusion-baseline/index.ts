@@ -199,4 +199,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "analyze-fusion-baseline" }));
+}, { name: "analyze-fusion-baseline" }));

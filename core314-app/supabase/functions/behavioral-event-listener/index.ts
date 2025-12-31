@@ -199,4 +199,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "behavioral-event-listener" }));
+}, { name: "behavioral-event-listener" }));

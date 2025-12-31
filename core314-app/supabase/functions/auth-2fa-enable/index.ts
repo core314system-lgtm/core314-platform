@@ -102,4 +102,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "auth-2fa-enable" }));
+}, { name: "auth-2fa-enable" }));

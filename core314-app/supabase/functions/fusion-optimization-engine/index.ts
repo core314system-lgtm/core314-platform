@@ -360,4 +360,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "fusion-optimization-engine" }));
+}, { name: "fusion-optimization-engine" }));

@@ -263,4 +263,4 @@ Return JSON with:
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "insights-aggregate" }));
+}, { name: "insights-aggregate" }));

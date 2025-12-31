@@ -187,4 +187,4 @@ Deno.serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "simulation-engine" }));
+}, { name: "simulation-engine" }));

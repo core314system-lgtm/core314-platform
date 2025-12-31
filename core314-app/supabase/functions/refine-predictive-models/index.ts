@@ -125,7 +125,7 @@ serve(withSentry(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}, { name: "refine-predictive-models" }));
 
 async function refineModel(
   supabaseClient: any,

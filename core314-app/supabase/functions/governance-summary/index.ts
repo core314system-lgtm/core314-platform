@@ -170,7 +170,7 @@ Return only the narrative summary, no JSON.`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: "governance-summary" }));
 
 function generateTimeSeriesData(audits: any[], days: number) {
   const timeSeriesMap: Record<string, { flagged: number; halted: number; approved: number }> = {};

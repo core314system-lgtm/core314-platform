@@ -193,7 +193,7 @@ serve(withSentry(async (req) => {
       }
     );
   }
-});
+}, { name: "send-alerts" }));
 
 async function sendEmailAlert(params: {
   to: string;

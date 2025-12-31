@@ -157,4 +157,4 @@ serve(withSentry(async (req) => {
     console.error("Unexpected error:", error);
     return jsonError(500, "internal_server_error", "Internal server error", corsHeaders);
   }
-}), { name: "ai-generate" }));
+}, { name: "ai-generate" }));

@@ -286,4 +286,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "predictive-stability-forecast" }));
+}, { name: "predictive-stability-forecast" }));

@@ -140,4 +140,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "stripe-customer-portal-handler" }));
+}, { name: "stripe-customer-portal-handler" }));

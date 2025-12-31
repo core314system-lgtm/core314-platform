@@ -258,4 +258,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "connect-integration" }));
+}, { name: "connect-integration" }));

@@ -172,4 +172,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "adaptive-policy-engine" }));
+}, { name: "adaptive-policy-engine" }));

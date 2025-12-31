@@ -352,7 +352,7 @@ serve(withSentry(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}, { name: "evaluate-alerts" }));
 
 
 async function sendNotifications(alerts: Alert[]) {

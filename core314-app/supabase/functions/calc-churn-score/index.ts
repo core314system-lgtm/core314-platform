@@ -214,4 +214,4 @@ serve(withSentry(async (req) => {
       headers: { 'Content-Type': 'application/json' }
     });
   }
-}), { name: "calc-churn-score" }));
+}, { name: "calc-churn-score" }));

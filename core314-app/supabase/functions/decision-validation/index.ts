@@ -272,4 +272,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "decision-validation" }));
+}, { name: "decision-validation" }));
