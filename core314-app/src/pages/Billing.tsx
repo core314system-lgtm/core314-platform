@@ -10,6 +10,7 @@ import { AddOnManager } from '../components/billing/AddOnManager';
 import { Loader2, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { PRICING } from '../../../shared/pricing';
 
 interface SubscriptionSummary {
   subscription: {
@@ -388,7 +389,7 @@ export default function Billing() {
             <PlanCard
               key={planName}
               planName={planName}
-              price={planName === 'Starter' ? 199 : planName === 'Pro' ? 999 : null}
+              price={planName === 'Starter' ? PRICING.starter.monthly : planName === 'Pro' ? PRICING.pro.monthly : null}
               billingPeriod="monthly"
               description={
                 planName === 'Starter'
@@ -398,9 +399,9 @@ export default function Billing() {
                   : 'Enterprise-grade solutions'
               }
               features={PLAN_FEATURES[planName as keyof typeof PLAN_FEATURES]}
-              integrationLimit={
-                planName === 'Starter' ? 3 : planName === 'Pro' ? 10 : -1
-              }
+                            integrationLimit={
+                              planName === 'Starter' ? PRICING.starter.integrations : planName === 'Pro' ? PRICING.pro.integrations : PRICING.enterprise.integrations
+                            }
               currentPlan={subscription.plan_name === planName}
               onSelectPlan={planName !== 'Enterprise' ? () => handleUpgradePlan(planName) : undefined}
               onContactSales={planName === 'Enterprise' ? () => navigate('/contact-sales') : undefined}
