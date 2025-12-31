@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabase';
 import {
   Home,
   Layers, 
-  LayoutDashboard,
   Target,
   Bell,
   Settings,
@@ -52,7 +51,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
     { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
     { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
     { path: '/fusion-details', label: 'Fusion Overview', icon: Zap },
-    { path: '/dashboard-builder', label: 'Dashboard Builder', icon: LayoutDashboard },
+    // Dashboard Builder hidden from nav for launch - route preserved at /dashboard-builder
     { path: '/goals', label: 'Goals & KPIs', icon: Target },
     { path: '/notifications', label: 'Notifications', icon: Bell },
     { path: '/integration-hub', label: 'Integration Hub', icon: Layers },

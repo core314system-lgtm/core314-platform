@@ -21,11 +21,11 @@ const ONBOARDING_STEPS = [
   },
   {
     step: 3,
-    title: 'Create Your First Dashboard',
+    title: 'Explore Your Dashboard',
     description: 'Visualize your metrics',
-    content: 'Build custom dashboards to track the metrics that matter most to your team. Our AI can suggest relevant KPIs based on your integrations.',
-    action: 'Open Dashboard Builder',
-    actionLink: '/dashboard-builder',
+    content: 'Your dashboard automatically generates insights as integrations ingest data. Core314 surfaces the metrics that matter most to your team with AI-powered recommendations.',
+    action: 'View Dashboard',
+    actionLink: '/dashboard',
   },
   {
     step: 4,
