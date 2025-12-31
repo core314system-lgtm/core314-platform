@@ -160,4 +160,4 @@ serve(withSentry(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-}), { name: "neural-policy-engine" }));
+}, { name: "neural-policy-engine" }));

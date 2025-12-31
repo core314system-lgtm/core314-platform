@@ -83,4 +83,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "governance-auto-review" }));
+}, { name: "governance-auto-review" }));

@@ -302,4 +302,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "fusion-alert-engine" }));
+}, { name: "fusion-alert-engine" }));

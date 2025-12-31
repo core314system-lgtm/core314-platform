@@ -174,4 +174,4 @@ Deno.serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "governance-engine" }));
+}, { name: "governance-engine" }));

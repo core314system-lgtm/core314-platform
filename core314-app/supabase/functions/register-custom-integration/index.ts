@@ -187,4 +187,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "register-custom-integration" }));
+}, { name: "register-custom-integration" }));

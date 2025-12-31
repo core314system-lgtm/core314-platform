@@ -271,4 +271,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "behavioral-correlation-engine" }));
+}, { name: "behavioral-correlation-engine" }));

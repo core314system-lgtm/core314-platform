@@ -168,4 +168,4 @@ serve(withSentry(async (req) => {
       }
     )
   }
-}), { name: "generate-beta-invite" }));
+}, { name: "generate-beta-invite" }));

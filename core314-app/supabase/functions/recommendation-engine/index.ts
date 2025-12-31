@@ -173,4 +173,4 @@ serve(withSentry(async (req) => {
       status: 500,
     });
   }
-}), { name: "recommendation-engine" }));
+}, { name: "recommendation-engine" }));

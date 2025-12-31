@@ -413,4 +413,4 @@ Deno.serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "e2e-campaign-engine" }));
+}, { name: "e2e-campaign-engine" }));

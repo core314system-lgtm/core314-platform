@@ -232,4 +232,4 @@ Keep responses concise (2-3 sentences). If the user is frustrated or explicitly 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "support-chat-handler" }));
+}, { name: "support-chat-handler" }));

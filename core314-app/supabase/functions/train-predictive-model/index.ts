@@ -326,4 +326,4 @@ Respond in JSON format:
       }
     );
   }
-}), { name: "train-predictive-model" }));
+}, { name: "train-predictive-model" }));

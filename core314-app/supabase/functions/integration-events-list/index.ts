@@ -137,4 +137,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "integration-events-list" }));
+}, { name: "integration-events-list" }));

@@ -98,7 +98,7 @@ serve(withSentry(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: "fusion-recalibrate" }));
 
 async function recalibrateIntegration(
   supabase: ReturnType<typeof createClient>,

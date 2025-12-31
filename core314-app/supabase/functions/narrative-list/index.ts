@@ -87,4 +87,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "narrative-list" }));
+}, { name: "narrative-list" }));

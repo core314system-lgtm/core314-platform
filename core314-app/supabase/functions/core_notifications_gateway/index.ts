@@ -521,4 +521,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "core_notifications_gateway" }));
+}, { name: "core_notifications_gateway" }));

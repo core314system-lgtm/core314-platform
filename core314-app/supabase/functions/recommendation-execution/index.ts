@@ -403,4 +403,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "recommendation-execution" }));
+}, { name: "recommendation-execution" }));

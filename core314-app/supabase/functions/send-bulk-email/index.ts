@@ -182,4 +182,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "send-bulk-email" }));
+}, { name: "send-bulk-email" }));

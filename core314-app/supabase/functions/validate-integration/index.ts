@@ -356,4 +356,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "validate-integration" }));
+}, { name: "validate-integration" }));

@@ -294,4 +294,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "fusion_live_optimizer" }));
+}, { name: "fusion_live_optimizer" }));

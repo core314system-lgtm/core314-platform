@@ -191,4 +191,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "cffe-reinforcement-sync" }));
+}, { name: "cffe-reinforcement-sync" }));

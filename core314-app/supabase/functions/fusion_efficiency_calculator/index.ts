@@ -249,4 +249,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "fusion_efficiency_calculator" }));
+}, { name: "fusion_efficiency_calculator" }));

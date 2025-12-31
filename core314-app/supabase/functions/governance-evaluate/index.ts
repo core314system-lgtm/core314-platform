@@ -212,7 +212,7 @@ Return only the explanation text, no JSON.`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: "governance-evaluate" }));
 
 function calculateEthicalRisk(context: any): number {
   let risk = 0.0;

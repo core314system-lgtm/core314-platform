@@ -247,4 +247,4 @@ Focus on actionable, data-driven scenarios that align with the user's goal. Incl
       }
     );
   }
-}), { name: "ai_scenario_generator" }));
+}, { name: "ai_scenario_generator" }));

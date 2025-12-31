@@ -84,4 +84,4 @@ Provide a brief, actionable insight in one sentence.`;
       headers: { 'Content-Type': 'application/json' },
     });
   }
-}), { name: "generate-ai-insights" }));
+}, { name: "generate-ai-insights" }));

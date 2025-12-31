@@ -281,4 +281,4 @@ Return JSON with:
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "optimize-analyze" }));
+}, { name: "optimize-analyze" }));

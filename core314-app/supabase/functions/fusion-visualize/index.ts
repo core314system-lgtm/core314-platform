@@ -160,4 +160,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "fusion-visualize" }));
+}, { name: "fusion-visualize" }));

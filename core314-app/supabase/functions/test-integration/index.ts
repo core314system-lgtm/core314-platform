@@ -251,4 +251,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "test-integration" }));
+}, { name: "test-integration" }));

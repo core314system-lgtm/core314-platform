@@ -140,4 +140,4 @@ serve(withSentry(async (req) => {
       }
     )
   }
-}), { name: "activate-beta-invite" }));
+}, { name: "activate-beta-invite" }));

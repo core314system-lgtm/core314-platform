@@ -128,7 +128,7 @@ serve(withSentry(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: "fusion-auto-decide" }));
 
 function evaluateCondition(
   message: string,

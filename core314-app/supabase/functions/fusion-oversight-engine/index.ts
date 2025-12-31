@@ -156,4 +156,4 @@ serve(withSentry(async (req) => {
       status: 500,
     });
   }
-}), { name: "fusion-oversight-engine" }));
+}, { name: "fusion-oversight-engine" }));

@@ -91,4 +91,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "organizations-update" }));
+}, { name: "organizations-update" }));

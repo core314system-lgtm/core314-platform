@@ -222,4 +222,4 @@ Feedback: "${feedback.message}"`;
       headers: { 'Content-Type': 'application/json' }
     });
   }
-}), { name: "categorize-feedback" }));
+}, { name: "categorize-feedback" }));

@@ -218,7 +218,7 @@ serve(withSentry(async (req) => {
       }
     );
   }
-});
+}, { name: "verify-rls" }));
 
 function formatAlertMessage(result: AuditResult): string {
   const lines = [

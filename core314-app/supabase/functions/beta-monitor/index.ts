@@ -125,7 +125,7 @@ serve(withSentry(async (req) => {
       }
     )
   }
-})
+}, { name: "beta-monitor" }));
 
 async function checkErrorThreshold(supabase: any, userId?: string) {
   const { data: recentEvents } = await supabase

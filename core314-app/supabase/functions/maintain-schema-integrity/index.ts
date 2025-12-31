@@ -150,4 +150,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "maintain-schema-integrity" }));
+}, { name: "maintain-schema-integrity" }));

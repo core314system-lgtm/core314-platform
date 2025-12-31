@@ -69,4 +69,4 @@ serve(withSentry(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-}), { name: "recalibrate-weights" }));
+}, { name: "recalibrate-weights" }));

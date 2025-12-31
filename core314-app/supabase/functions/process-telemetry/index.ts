@@ -168,4 +168,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "process-telemetry" }));
+}, { name: "process-telemetry" }));

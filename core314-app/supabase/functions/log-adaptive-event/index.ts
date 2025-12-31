@@ -208,4 +208,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "log-adaptive-event" }));
+}, { name: "log-adaptive-event" }));

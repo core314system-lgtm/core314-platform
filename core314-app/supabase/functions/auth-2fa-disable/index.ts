@@ -68,4 +68,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-}), { name: "auth-2fa-disable" }));
+}, { name: "auth-2fa-disable" }));

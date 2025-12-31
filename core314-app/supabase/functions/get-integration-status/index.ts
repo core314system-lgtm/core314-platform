@@ -132,4 +132,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "get-integration-status" }));
+}, { name: "get-integration-status" }));

@@ -218,4 +218,4 @@ serve(withSentry(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
-}), { name: "beta-notify" }));
+}, { name: "beta-notify" }));

@@ -127,7 +127,7 @@ serve(withSentry(async (req) => {
       }
     );
   }
-});
+}, { name: "monitor-ai-generate" }));
 
 /**
  * Send alert to Slack webhook

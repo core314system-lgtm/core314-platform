@@ -257,4 +257,4 @@ Format your response as JSON:
       }
     );
   }
-}), { name: "generate-insights" }));
+}, { name: "generate-insights" }));

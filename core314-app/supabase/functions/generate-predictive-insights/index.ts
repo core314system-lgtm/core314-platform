@@ -300,4 +300,4 @@ Respond in JSON format:
       }
     );
   }
-}), { name: "generate-predictive-insights" }));
+}, { name: "generate-predictive-insights" }));

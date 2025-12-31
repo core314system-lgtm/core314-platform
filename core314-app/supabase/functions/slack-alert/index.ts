@@ -176,4 +176,4 @@ serve(withSentry(async (req) => {
       }
     );
   }
-}), { name: "slack-alert" }));
+}, { name: "slack-alert" }));
