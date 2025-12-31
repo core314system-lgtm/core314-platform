@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { DollarSign, Users, TrendingUp, AlertCircle } from 'lucide-react';
+import { PRICING } from '../../../../shared/pricing';
 
 interface BillingMetrics {
   mrr: number;
@@ -27,27 +28,31 @@ export function BillingOverview() {
     fetchBillingMetrics();
   }, []);
 
-  const fetchBillingMetrics = async () => {
-    try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('subscription_tier, subscription_status, is_platform_admin')
-        .eq('subscription_status', 'active')
-        .or('is_platform_admin.is.null,is_platform_admin.eq.false');
+    const fetchBillingMetrics = async () => {
+      try {
+        // Query user_subscriptions table for accurate billing data
+        // Only count subscriptions with real Stripe IDs (not test data)
+        const { data: subscriptions, error: subscriptionsError } = await supabase
+          .from('user_subscriptions')
+          .select('plan_name, status, stripe_subscription_id')
+          .in('status', ['active', 'trialing'])
+          .not('stripe_subscription_id', 'is', null)
+          .not('stripe_subscription_id', 'like', 'test_%');
 
-      if (profilesError) throw profilesError;
+        if (subscriptionsError) throw subscriptionsError;
 
-      const activeSubscriptions = {
-        starter: profiles?.filter(p => p.subscription_tier === 'starter').length || 0,
-        professional: profiles?.filter(p => p.subscription_tier === 'professional').length || 0,
-        enterprise: profiles?.filter(p => p.subscription_tier === 'enterprise').length || 0,
-      };
+        const activeSubscriptions = {
+          starter: subscriptions?.filter(s => s.plan_name === 'Starter').length || 0,
+          professional: subscriptions?.filter(s => s.plan_name === 'Pro').length || 0,
+          enterprise: subscriptions?.filter(s => s.plan_name === 'Enterprise').length || 0,
+        };
 
-      const mrr = (
-        (activeSubscriptions.starter * 99) +
-        (activeSubscriptions.professional * 299) +
-        (activeSubscriptions.enterprise * 999)
-      );
+        // Use shared pricing config - single source of truth
+        const mrr = (
+          (activeSubscriptions.starter * PRICING.starter.monthly) +
+          (activeSubscriptions.professional * PRICING.pro.monthly) +
+          (activeSubscriptions.enterprise * 0) // Enterprise is custom pricing
+        );
 
       const { data: trialHistory, error: trialError } = await supabase
         .from('subscription_history')
@@ -181,9 +186,9 @@ export function BillingOverview() {
           <CardContent>
             <div className="text-3xl font-bold">{metrics.activeSubscriptions.starter}</div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              ${(metrics.activeSubscriptions.starter * 99).toLocaleString()} MRR
-            </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          ${(metrics.activeSubscriptions.starter * PRICING.starter.monthly).toLocaleString()} MRR
+                        </p>
           </CardContent>
         </Card>
 
@@ -194,9 +199,9 @@ export function BillingOverview() {
           <CardContent>
             <div className="text-3xl font-bold">{metrics.activeSubscriptions.professional}</div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              ${(metrics.activeSubscriptions.professional * 299).toLocaleString()} MRR
-            </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          ${(metrics.activeSubscriptions.professional * PRICING.pro.monthly).toLocaleString()} MRR
+                        </p>
           </CardContent>
         </Card>
 
@@ -207,9 +212,9 @@ export function BillingOverview() {
           <CardContent>
             <div className="text-3xl font-bold">{metrics.activeSubscriptions.enterprise}</div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              ${(metrics.activeSubscriptions.enterprise * 999).toLocaleString()} MRR
-            </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                          $0 MRR (custom pricing)
+                        </p>
           </CardContent>
         </Card>
       </div>
