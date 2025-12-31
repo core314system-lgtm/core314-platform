@@ -388,7 +388,7 @@ export default function Billing() {
             <PlanCard
               key={planName}
               planName={planName}
-              price={planName === 'Starter' ? 99 : planName === 'Pro' ? 999 : null}
+              price={planName === 'Starter' ? 199 : planName === 'Pro' ? 999 : null}
               billingPeriod="monthly"
               description={
                 planName === 'Starter'
