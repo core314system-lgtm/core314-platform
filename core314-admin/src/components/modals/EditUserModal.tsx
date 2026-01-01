@@ -101,8 +101,7 @@ export function EditUserModal({
           throw new Error('No active session');
         }
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const response = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+        const response = await fetch('/.netlify/functions/admin-delete-user', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
