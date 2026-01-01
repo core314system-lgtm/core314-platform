@@ -10,6 +10,8 @@ export interface User {
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
   is_platform_admin?: boolean;
+  deleted_at?: string | null;
+  account_status?: 'active' | 'inactive' | 'suspended';
   created_at: string;
   updated_at: string;
 }
