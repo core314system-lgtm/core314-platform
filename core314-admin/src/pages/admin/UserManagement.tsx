@@ -24,10 +24,31 @@ export function UserManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [replyToSettingsOpen, setReplyToSettingsOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; is_platform_admin: boolean } | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchCurrentUser();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, is_platform_admin')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setCurrentUser({ id: profile.id, is_platform_admin: profile.is_platform_admin || false });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -50,10 +71,20 @@ export function UserManagement() {
     setEditModalOpen(true);
   };
 
-  const handleUserUpdated = (updatedUser: User) => {
-    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
-    setEditModalOpen(false);
-  };
+    const handleUserUpdated = (updatedUser: User) => {
+      setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+      setEditModalOpen(false);
+    };
+
+    const handleUserDeleted = (userId: string) => {
+      setUsers(users.filter(u => u.id !== userId));
+      setEditModalOpen(false);
+      setSelectedUser(null);
+    };
+
+    const filteredUsers = showDeleted 
+      ? users 
+      : users.filter(u => !u.deleted_at);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -123,9 +154,21 @@ export function UserManagement() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>All Users ({users.length})</CardTitle>
-        </CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>All Users ({filteredUsers.length})</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="show-deleted" className="text-sm text-gray-600 dark:text-gray-400">
+                      Show deleted
+                    </label>
+                    <input
+                      type="checkbox"
+                      id="show-deleted"
+                      checked={showDeleted}
+                      onChange={(e) => setShowDeleted(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                  </div>
+                </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -138,58 +181,69 @@ export function UserManagement() {
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.full_name || 'N/A'}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge className={getRoleBadgeColor(user.role)}>
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.role === 'admin' ? (
-                      <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                        Global Access: Enabled
-                      </Badge>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="text-sm capitalize">{user.subscription_tier}</div>
-                        <Badge className={getStatusBadgeColor(user.subscription_status)}>
-                          {user.subscription_status}
-                        </Badge>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleEdit(user)}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+                        <TableBody>
+                          {filteredUsers.map((user) => (
+                            <TableRow key={user.id} className={user.deleted_at ? 'opacity-50' : ''}>
+                              <TableCell className="font-medium">
+                                {user.full_name || 'N/A'}
+                                {user.deleted_at && (
+                                  <Badge className="ml-2 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                    Deleted
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell>
+                                <Badge className={getRoleBadgeColor(user.role)}>
+                                  {user.role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {user.role === 'admin' ? (
+                                  <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                    Global Access: Enabled
+                                  </Badge>
+                                ) : (
+                                  <div className="space-y-1">
+                                    <div className="text-sm capitalize">{user.subscription_tier}</div>
+                                    <Badge className={getStatusBadgeColor(user.subscription_status)}>
+                                      {user.subscription_status}
+                                    </Badge>
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {new Date(user.created_at).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleEdit(user)}
+                                  disabled={!!user.deleted_at}
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {selectedUser && (
-        <EditUserModal
-          user={selectedUser}
-          open={editModalOpen}
-          onOpenChange={setEditModalOpen}
-          onUserUpdated={handleUserUpdated}
-        />
-      )}
+            {selectedUser && (
+              <EditUserModal
+                user={selectedUser}
+                open={editModalOpen}
+                onOpenChange={setEditModalOpen}
+                onUserUpdated={handleUserUpdated}
+                onUserDeleted={handleUserDeleted}
+                currentUserId={currentUser?.id}
+                isPlatformAdmin={currentUser?.is_platform_admin}
+              />
+            )}
 
       <EmailUsersModal
         users={users}
