@@ -102,6 +102,9 @@ export function Settings() {
   const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
   const isOwner = currentUserRole === 'owner';
   const isAdmin = currentUserRole === 'admin' || isOwner;
+  const isViewer = currentUserRole === 'viewer';
+  // Viewers have read-only access - they cannot manage team members
+  const canManageTeam = isAdmin && !isViewer;
 
   useEffect(() => {
     if (user) {
@@ -742,7 +745,7 @@ export function Settings() {
                   <CardTitle>Team Members</CardTitle>
                   <CardDescription>Manage your organization's team</CardDescription>
                 </div>
-                {isAdmin && currentOrganization && (
+                {canManageTeam && currentOrganization && (
                   <Button onClick={() => setShowInviteModal(true)}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Invite Member
@@ -834,7 +837,7 @@ export function Settings() {
                               </Button>
                             </div>
                           )}
-                          {isAdmin && !isOwner && member.user_id !== user?.id && 
+                          {canManageTeam && !isOwner && member.user_id !== user?.id && 
                            member.role !== 'owner' && member.role !== 'admin' && (
                             <Button
                               size="sm"
@@ -856,7 +859,7 @@ export function Settings() {
             </Card>
 
             {/* Pending Invitations */}
-            {isAdmin && pendingInvites.length > 0 && (
+            {canManageTeam && pendingInvites.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Pending Invitations</CardTitle>
