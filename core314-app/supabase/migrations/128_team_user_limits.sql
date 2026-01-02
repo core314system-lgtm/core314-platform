@@ -129,6 +129,9 @@ GRANT EXECUTE ON FUNCTION check_organization_user_limit TO service_role;
 -- Update get_user_current_plan to include user_limit
 -- ============================================================================
 
+-- Drop existing function first since return type is changing
+DROP FUNCTION IF EXISTS get_user_current_plan(UUID);
+
 CREATE OR REPLACE FUNCTION get_user_current_plan(p_user_id UUID)
 RETURNS TABLE (
     plan_name TEXT,
