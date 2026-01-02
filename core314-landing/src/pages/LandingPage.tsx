@@ -6,80 +6,54 @@ import Footer from '../components/Footer';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white overflow-hidden">
+    <div className="min-h-screen bg-white text-slate-900 overflow-hidden">
       <Header />
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+      {/* Hero Section - Light gradient with subtle accent */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
         {/* Background */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0A0F1A] via-[#001a33] to-[#0A0F1A]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-sky-50/50 to-white" />
+          {/* Subtle decorative elements */}
           <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#00BFFF]/20 via-transparent to-transparent animate-pulse" />
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-200 rounded-full blur-3xl" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-100 rounded-full blur-3xl" />
           </div>
-          {/* Animated particles */}
-          <div className="absolute inset-0">
-            {[...Array(20)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-[#66FCF1] rounded-full"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                }}
-                animate={{
-                  y: [0, -30, 0],
-                  opacity: [0.2, 0.8, 0.2],
-                }}
-                transition={{
-                  duration: 3 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2,
-                }}
-              />
-            ))}
-          </div>
-          {/* Dark overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[rgba(10,15,26,0.8)] to-[#0A0F1A]" />
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-20 text-center px-4 max-w-6xl mx-auto">
+        <div className="relative z-20 text-center px-4 max-w-6xl mx-auto py-20">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-            className="mb-12"
+            transition={{ duration: 1, ease: "easeOut" }}
+            className="mb-8"
           >
             <img 
               src="/logo.png" 
               alt="Core314" 
-              className="h-40 mx-auto mb-8"
-              style={{
-                filter: 'drop-shadow(0 0 30px rgba(0, 191, 255, 0.6))',
-                animation: 'pulse-glow 3s ease-in-out infinite'
-              }}
+              className="h-32 mx-auto mb-6"
             />
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.5 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6"
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] via-[#66FCF1] to-[#00BFFF] bg-clip-text text-transparent">
+            <span className="text-sky-600">
               Operational Control
             </span>
             <br />
-            <span className="text-white">for Scaling Businesses</span>
+            <span className="text-slate-800">for Scaling Businesses</span>
           </motion.h1>
           
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto"
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="text-xl md:text-2xl text-slate-600 mb-8 max-w-4xl mx-auto leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
           >
             Core314 is an AI-powered operations platform that connects your systems, monitors performance in real time, and catches operational issues before they impact customers or revenue.
@@ -88,8 +62,8 @@ export default function LandingPage() {
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.9 }}
-            className="text-lg text-gray-400 mb-12"
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="text-lg text-slate-500 mb-10"
             style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
           >
             Connect your tools. Core314 handles the rest.
@@ -98,13 +72,13 @@ export default function LandingPage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1.1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
             className="flex justify-center mb-16"
           >
             <Link
               to="/pricing"
-              className="px-10 py-5 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg font-semibold text-lg hover:shadow-[0_0_30px_rgba(0,191,255,0.6)] transition-all duration-300 transform hover:scale-105"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700 }}
+              className="px-10 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
             >
               Start Free Trial
             </Link>
@@ -113,8 +87,8 @@ export default function LandingPage() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 1.5 }}
-            className="flex flex-col items-center gap-2 text-gray-400"
+            transition={{ duration: 0.8, delay: 1 }}
+            className="flex flex-col items-center gap-2 text-slate-400"
           >
             <span className="text-sm">Scroll to Discover</span>
             <ChevronDown className="h-6 w-6 animate-bounce" />
@@ -123,7 +97,7 @@ export default function LandingPage() {
       </section>
 
       {/* Before vs After Core314 Section */}
-      <section className="py-24 px-4 bg-gray-50">
+      <section className="py-24 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -135,14 +109,14 @@ export default function LandingPage() {
             Before vs After Core314
           </motion.h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Before Core314 */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm"
+              className="bg-slate-50 border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
             >
               <h3 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
                 <XCircle className="h-8 w-8 text-red-500" />
@@ -156,7 +130,7 @@ export default function LandingPage() {
                   "Automation runs without guardrails or oversight",
                   "Teams firefighting instead of improving"
                 ].map((item, index) => (
-                  <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <li key={index} className="flex items-start gap-3 text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
                     <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
                     {item}
                   </li>
@@ -170,10 +144,10 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="bg-white border border-[#00BFFF]/30 rounded-xl p-8 shadow-sm"
+              className="bg-sky-50 border border-sky-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
             >
               <h3 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                <CheckCircle className="h-8 w-8 text-[#00BFFF]" />
+                <CheckCircle className="h-8 w-8 text-sky-500" />
                 After Core314
               </h3>
               <ul className="space-y-4">
@@ -184,8 +158,8 @@ export default function LandingPage() {
                   "Automation with built-in governance and approval",
                   "Teams focused on growth, not firefighting"
                 ].map((item, index) => (
-                  <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
+                  <li key={index} className="flex items-start gap-3 text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <CheckCircle className="h-5 w-5 text-sky-500 mt-0.5 flex-shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -196,18 +170,18 @@ export default function LandingPage() {
       </section>
 
       {/* Concrete Use Case Section */}
-      <section className="py-24 px-4 bg-slate-100">
+      <section className="py-24 px-4 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white border border-gray-200 rounded-xl p-10 shadow-sm"
+            className="bg-white border border-slate-200 rounded-2xl p-10 shadow-sm hover:shadow-lg transition-shadow duration-300"
           >
             <h3 className="text-2xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
               Real Example: Operations Team Managing 8+ Systems
             </h3>
-            <p className="text-slate-600 mb-6 text-lg" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <p className="text-slate-600 mb-6 text-lg leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
               A growing operations team juggles CRM, support tickets, billing, inventory, and fulfillment across multiple platforms. Before Core314:
             </p>
             <ul className="space-y-3 mb-6">
@@ -216,13 +190,13 @@ export default function LandingPage() {
                 "No one knows when a fulfillment delay will cascade into support tickets",
                 "Automation scripts run without anyone reviewing their impact"
               ].map((item, index) => (
-                <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <li key={index} className="flex items-start gap-3 text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
                   <span className="text-red-400 font-bold">-</span>
                   {item}
                 </li>
               ))}
             </ul>
-            <p className="text-slate-600 mb-6 text-lg" style={{ fontFamily: 'Inter, sans-serif' }}>
+            <p className="text-slate-600 mb-6 text-lg leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
               With Core314:
             </p>
             <ul className="space-y-3">
@@ -231,8 +205,8 @@ export default function LandingPage() {
                 "Cross-system dependencies are visible in real time",
                 "Automation actions require approval when risk is high"
               ].map((item, index) => (
-                <li key={index} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
+                <li key={index} className="flex items-start gap-3 text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <CheckCircle className="h-5 w-5 text-sky-500 mt-0.5 flex-shrink-0" />
                   {item}
                 </li>
               ))}
@@ -242,31 +216,29 @@ export default function LandingPage() {
       </section>
 
       {/* Who Core314 Is For Section */}
-      <section className="py-24 px-4 bg-gradient-to-b from-[#0A0F1A] to-[#001a33]">
+      <section className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold text-center mb-16"
+            className="text-4xl md:text-5xl font-bold text-center mb-16 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-              Who Core314 Is For
-            </span>
+            Who Core314 Is For
           </motion.h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {/* Is For */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8"
+              className="bg-sky-50 border border-sky-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
             >
-              <h3 className="text-2xl font-bold mb-6 text-[#66FCF1] flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                <CheckCircle className="h-8 w-8 text-[#00BFFF]" />
+              <h3 className="text-2xl font-bold mb-6 text-sky-700 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                <CheckCircle className="h-8 w-8 text-sky-500" />
                 Core314 Is For
               </h3>
               <ul className="space-y-4">
@@ -276,8 +248,8 @@ export default function LandingPage() {
                   "Teams experiencing reactive firefighting",
                   "Organizations that want automation without losing control"
                 ].map((item, index) => (
-                  <li key={index} className="flex items-start gap-3 text-gray-300" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    <CheckCircle className="h-5 w-5 text-[#00BFFF] mt-0.5 flex-shrink-0" />
+                  <li key={index} className="flex items-start gap-3 text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <CheckCircle className="h-5 w-5 text-sky-500 mt-0.5 flex-shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -290,10 +262,10 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-gray-700 rounded-xl p-8"
+              className="bg-slate-50 border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
             >
-              <h3 className="text-2xl font-bold mb-6 text-gray-400 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                <XCircle className="h-8 w-8 text-gray-500" />
+              <h3 className="text-2xl font-bold mb-6 text-slate-500 flex items-center gap-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                <XCircle className="h-8 w-8 text-slate-400" />
                 Core314 Is Not For
               </h3>
               <ul className="space-y-4">
@@ -303,8 +275,8 @@ export default function LandingPage() {
                   "One-off automation scripts",
                   "Experiment-only AI tools"
                 ].map((item, index) => (
-                  <li key={index} className="flex items-start gap-3 text-gray-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    <XCircle className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                  <li key={index} className="flex items-start gap-3 text-slate-500 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    <XCircle className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -315,18 +287,16 @@ export default function LandingPage() {
       </section>
 
       {/* How Core314 Works Section */}
-      <section className="py-24 px-4 bg-[#0A0F1A]">
+      <section className="py-24 px-4 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold text-center mb-6"
+            className="text-4xl md:text-5xl font-bold text-center mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-              How Core314 Works
-            </span>
+            How Core314 Works
           </motion.h2>
 
           <motion.p
@@ -334,7 +304,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="text-xl text-gray-300 text-center mb-16 max-w-3xl mx-auto"
+            className="text-xl text-slate-600 text-center mb-16 max-w-3xl mx-auto leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
             A simple control loop for complex operations. Core314 does not replace your tools — it brings them under control.
@@ -364,21 +334,17 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2, duration: 0.6 }}
-                whileHover={{ scale: 1.02 }}
-                className="group relative bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/20 rounded-xl p-8 hover:border-[#00BFFF] transition-all duration-300 cursor-pointer overflow-hidden"
+                className="group relative bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-xl hover:border-sky-200 transition-all duration-300"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#00BFFF]/5 to-[#007BFF]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative z-10">
-                  <div className="bg-gradient-to-br from-[#00BFFF]/20 to-[#007BFF]/20 rounded-full w-20 h-20 flex items-center justify-center mb-6 group-hover:shadow-[0_0_30px_rgba(0,191,255,0.6)] transition-all">
-                    <pillar.icon className="h-10 w-10 text-[#00BFFF]" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-4 text-[#66FCF1]" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    {pillar.title}
-                  </h3>
-                  <p className="text-gray-400 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {pillar.desc}
-                  </p>
+                <div className="bg-sky-100 rounded-xl w-16 h-16 flex items-center justify-center mb-6 group-hover:bg-sky-200 transition-colors">
+                  <pillar.icon className="h-8 w-8 text-sky-600" />
                 </div>
+                <h3 className="text-xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  {pillar.title}
+                </h3>
+                <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {pillar.desc}
+                </p>
               </motion.div>
             ))}
           </div>
@@ -386,21 +352,19 @@ export default function LandingPage() {
       </section>
 
       {/* What to Expect Section */}
-      <section className="py-24 px-4 bg-[#0A0F1A]">
+      <section className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold text-center mb-16"
+            className="text-4xl md:text-5xl font-bold text-center mb-16 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-              What to Expect After You Connect Your Systems
-            </span>
+            What to Expect After You Connect Your Systems
           </motion.h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               {
                 icon: Database,
@@ -435,23 +399,23 @@ export default function LandingPage() {
                 transition={{ delay: index * 0.15, duration: 0.6 }}
                 className="relative group"
               >
-                <div className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8 hover:border-[#00BFFF] transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,191,255,0.3)] h-full">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="bg-gradient-to-br from-[#00BFFF]/20 to-[#007BFF]/20 rounded-full w-16 h-16 flex items-center justify-center group-hover:shadow-[0_0_20px_rgba(0,191,255,0.5)] transition-all">
-                      <span className="text-2xl font-bold text-[#00BFFF]">{step.step}</span>
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-sky-200 transition-all duration-300 h-full">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="bg-sky-500 rounded-full w-12 h-12 flex items-center justify-center shadow-md">
+                      <span className="text-xl font-bold text-white">{step.step}</span>
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-[#66FCF1]" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  <h3 className="text-lg font-bold mb-3 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
                     {step.title}
                   </h3>
-                  <p className="text-gray-400 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {step.desc}
                   </p>
                 </div>
                 {index < 3 && (
-                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 text-[#00BFFF] z-10">
-                    <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-                      <path d="M5 15 L25 15 M25 15 L18 8 M25 15 L18 22" stroke="currentColor" strokeWidth="2" />
+                  <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-sky-400 z-10">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 12 L19 12 M19 12 L14 7 M19 12 L14 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                 )}
@@ -462,25 +426,22 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="relative py-32 px-4 overflow-hidden">
-        {/* Glowing grid background */}
-        <div className="absolute inset-0 bg-[#0A0F1A]" />
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#00BFFF_1px,transparent_1px),linear-gradient(to_bottom,#00BFFF_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
+      <section className="relative py-24 px-4 overflow-hidden bg-gradient-to-br from-sky-50 via-white to-blue-50">
+        {/* Subtle decorative background */}
+        <div className="absolute inset-0 opacity-50">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-sky-100 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-100 rounded-full blur-3xl" />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0F1A] via-transparent to-[#0A0F1A]" />
 
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-5xl md:text-7xl font-bold mb-8"
+            className="text-4xl md:text-6xl font-bold mb-8 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] via-[#66FCF1] to-[#00BFFF] bg-clip-text text-transparent">
-              Take Control of Your Operations
-            </span>
+            Take Control of Your Operations
           </motion.h2>
 
           <motion.div
@@ -488,13 +449,13 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto space-y-4"
+            className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto space-y-4 leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
             <p>
               Core314 gives you operational control across your business by continuously monitoring, optimizing, and governing how work actually gets done.
             </p>
-            <p className="text-gray-400">
+            <p className="text-slate-500">
               You don't need to change your stack. You don't need to rebuild workflows. You connect your systems — Core314 handles the rest.
             </p>
           </motion.div>
@@ -504,19 +465,19 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-6 justify-center mb-8"
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
           >
             <Link
               to="/pricing"
-              className="px-12 py-6 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg font-semibold text-xl hover:shadow-[0_0_40px_rgba(0,191,255,0.8)] transition-all duration-300 transform hover:scale-105"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700 }}
+              className="px-10 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
             >
               Start Free Trial
             </Link>
             <Link
               to="/contact"
-              className="px-12 py-6 bg-transparent border-2 border-[#00BFFF] rounded-lg font-semibold text-xl hover:bg-[#00BFFF]/10 transition-all duration-300"
-              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700 }}
+              className="px-10 py-4 bg-white border-2 border-sky-500 text-sky-600 rounded-lg font-semibold text-lg hover:bg-sky-50 transition-all duration-300"
+              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
             >
               Contact Us
             </Link>
@@ -527,7 +488,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.5 }}
-            className="text-gray-400 text-sm"
+            className="text-slate-500 text-sm"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
             No disruption. No forced automation. Full control from day one.
