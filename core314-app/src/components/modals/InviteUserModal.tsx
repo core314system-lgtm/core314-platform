@@ -7,7 +7,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Alert, AlertDescription } from '../ui/alert';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface InviteUserModalProps {
   open: boolean;
@@ -112,7 +112,10 @@ export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess 
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="text-sm text-red-600">{error}</div>
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             <div>
               <Label htmlFor="email">Email Address</Label>
@@ -132,11 +135,18 @@ export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="viewer">Viewer (read-only access)</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
                   <SelectItem value="analyst">Analyst</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                {role === 'viewer' && 'Can view dashboards and reports only'}
+                {role === 'member' && 'Can view and interact with integrations'}
+                {role === 'analyst' && 'Can view, analyze, and export data'}
+                {role === 'admin' && 'Full access except ownership transfer'}
+              </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={handleClose}>

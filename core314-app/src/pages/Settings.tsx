@@ -36,14 +36,16 @@ import {
   Crown,
   AlertTriangle,
   Loader2,
-  Check
+  Check,
+  Camera,
+  Key
 } from 'lucide-react';
 import { InviteUserModal } from '../components/modals/InviteUserModal';
 
 interface TeamMember {
   id: string;
   user_id: string;
-  role: 'owner' | 'admin' | 'analyst' | 'member';
+  role: 'owner' | 'admin' | 'analyst' | 'member' | 'viewer';
   joined_at: string;
   profile: {
     full_name: string | null;
@@ -71,11 +73,15 @@ export function Settings() {
   
   // Profile state
   const [fullName, setFullName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [emailUpdateMessage, setEmailUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+  const [passwordResetMessage, setPasswordResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -96,6 +102,9 @@ export function Settings() {
   const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
   const isOwner = currentUserRole === 'owner';
   const isAdmin = currentUserRole === 'admin' || isOwner;
+  const isViewer = currentUserRole === 'viewer';
+  // Viewers have read-only access - they cannot manage team members
+  const canManageTeam = isAdmin && !isViewer;
 
   useEffect(() => {
     if (user) {
@@ -120,12 +129,79 @@ export function Settings() {
     
     const { data } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, avatar_url')
       .eq('id', user.id)
       .single();
     
     if (data) {
       setFullName(data.full_name || '');
+      setAvatarUrl(data.avatar_url || null);
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+    
+    setAvatarUploading(true);
+    try {
+      // Upload the file to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      // Update the profile with the new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      setAvatarUrl(publicUrl);
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    
+    setPasswordResetLoading(true);
+    setPasswordResetMessage(null);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) throw error;
+      
+      setPasswordResetMessage({
+        type: 'success',
+        text: 'Password reset email sent! Check your inbox for instructions to reset your password.',
+      });
+    } catch (err) {
+      console.error('Error sending password reset:', err);
+      setPasswordResetMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to send password reset email. Please try again.',
+      });
+    } finally {
+      setPasswordResetLoading(false);
     }
   };
 
@@ -212,10 +288,10 @@ export function Settings() {
         };
       });
       
-      // Sort: owner first, then admins, then members
+      // Sort: owner first, then admins, then members, then viewers
       members.sort((a, b) => {
-        const roleOrder = { owner: 0, admin: 1, analyst: 2, member: 3 };
-        return roleOrder[a.role] - roleOrder[b.role];
+        const roleOrder: Record<string, number> = { owner: 0, admin: 1, analyst: 2, member: 3, viewer: 4 };
+        return (roleOrder[a.role] ?? 5) - (roleOrder[b.role] ?? 5);
       });
       
       setTeamMembers(members);
@@ -386,14 +462,89 @@ export function Settings() {
 
         {/* Profile Tab */}
         <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Settings</CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+          <div className="space-y-6">
+            {/* Avatar Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Photo</CardTitle>
+                <CardDescription>Upload a profile picture</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-6">
+                  <div className="relative">
+                    <div className="h-24 w-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-12 w-12 text-gray-400" />
+                      )}
+                    </div>
+                    {avatarUploading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="avatar-upload" className="cursor-pointer">
+                      <Button variant="outline" size="sm" asChild disabled={avatarUploading}>
+                        <span>
+                          <Camera className="mr-2 h-4 w-4" />
+                          {avatarUploading ? 'Uploading...' : 'Upload Photo'}
+                        </span>
+                      </Button>
+                    </Label>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                      disabled={avatarUploading}
+                    />
+                    <p className="text-xs text-gray-500">JPG, PNG, GIF or WebP. Max 5MB.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Profile Info Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Information</CardTitle>
+                <CardDescription>Update your personal information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input 
+                    id="fullName" 
+                    value={fullName} 
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                
+                <Button onClick={saveProfile} disabled={profileLoading}>
+                  {profileLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : profileSaved ? (
+                    <Check className="mr-2 h-4 w-4" />
+                  ) : null}
+                  {profileSaved ? 'Saved!' : 'Save Changes'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Email & Password Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Email & Password</CardTitle>
+                <CardDescription>Manage your account credentials</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
                 {isEditingEmail ? (
                   <div className="space-y-2">
                     <Input 
@@ -454,26 +605,33 @@ export function Settings() {
                 )}
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input 
-                  id="fullName" 
-                  value={fullName} 
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Enter your full name"
-                />
-              </div>
-              
-              <Button onClick={saveProfile} disabled={profileLoading}>
-                {profileLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : profileSaved ? (
-                  <Check className="mr-2 h-4 w-4" />
-                ) : null}
-                {profileSaved ? 'Saved!' : 'Save Changes'}
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Password Reset Section */}
+                <div className="pt-4 border-t space-y-2">
+                  <Label>Password</Label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Send a password reset link to your email address
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePasswordReset}
+                    disabled={passwordResetLoading}
+                  >
+                    {passwordResetLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Key className="mr-2 h-4 w-4" />
+                    )}
+                    {passwordResetLoading ? 'Sending...' : 'Reset Password'}
+                  </Button>
+                  {passwordResetMessage && (
+                    <p className={`text-xs ${passwordResetMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                      {passwordResetMessage.text}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Organization Tab */}
@@ -587,7 +745,7 @@ export function Settings() {
                   <CardTitle>Team Members</CardTitle>
                   <CardDescription>Manage your organization's team</CardDescription>
                 </div>
-                {isAdmin && currentOrganization && (
+                {canManageTeam && currentOrganization && (
                   <Button onClick={() => setShowInviteModal(true)}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Invite Member
@@ -679,7 +837,7 @@ export function Settings() {
                               </Button>
                             </div>
                           )}
-                          {isAdmin && !isOwner && member.user_id !== user?.id && 
+                          {canManageTeam && !isOwner && member.user_id !== user?.id && 
                            member.role !== 'owner' && member.role !== 'admin' && (
                             <Button
                               size="sm"
@@ -701,7 +859,7 @@ export function Settings() {
             </Card>
 
             {/* Pending Invitations */}
-            {isAdmin && pendingInvites.length > 0 && (
+            {canManageTeam && pendingInvites.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Pending Invitations</CardTitle>
@@ -793,6 +951,7 @@ export function Settings() {
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="analyst">Analyst</SelectItem>
                 <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="viewer">Viewer (read-only)</SelectItem>
               </SelectContent>
             </Select>
           </div>
