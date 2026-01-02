@@ -34,29 +34,11 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white flex items-center justify-center px-4">
-      {/* Animated background */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50 text-slate-900 flex items-center justify-center px-4">
+      {/* Subtle decorative background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0A0F1A] via-[#001a33] to-[#0A0F1A]" />
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-[#66FCF1] rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -30, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
-          />
-        ))}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-100 rounded-full blur-3xl opacity-50" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-100 rounded-full blur-3xl opacity-50" />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
@@ -69,12 +51,10 @@ export default function ResetPasswordPage() {
           <Link to="/" className="inline-flex items-center gap-3 mb-6">
             <img src="/logo-icon.png" alt="Core314" className="h-16 w-16" />
           </Link>
-          <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
-            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-              Reset Password
-            </span>
+          <h1 className="text-4xl font-bold mb-2 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+            Reset Password
           </h1>
-          <p className="text-gray-300">
+          <p className="text-slate-600">
             {success ? 'Check your email for reset instructions' : 'Enter your email to receive a reset link'}
           </p>
         </motion.div>
@@ -84,20 +64,20 @@ export default function ResetPasswordPage() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8 text-center"
+            className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm"
           >
-            <CheckCircle className="h-16 w-16 text-[#00BFFF] mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-4 text-[#66FCF1]">Email Sent!</h2>
-            <p className="text-gray-300 mb-6">
-              We've sent a password reset link to <strong className="text-white">{email}</strong>
+            <CheckCircle className="h-16 w-16 text-sky-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-4 text-slate-900">Email Sent!</h2>
+            <p className="text-slate-600 mb-6">
+              We've sent a password reset link to <strong className="text-slate-900">{email}</strong>
             </p>
-            <p className="text-sm text-gray-400 mb-8">
+            <p className="text-sm text-slate-500 mb-8">
               Please check your inbox and follow the instructions to reset your password. 
               The link will expire in 1 hour.
             </p>
             <Link
               to="/login"
-              className="inline-block px-8 py-3 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg font-semibold hover:shadow-[0_0_30px_rgba(0,191,255,0.6)] transition-all"
+              className="inline-block px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all"
             >
               Back to Login
             </Link>
@@ -108,16 +88,16 @@ export default function ResetPasswordPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             onSubmit={handleSubmit}
-            className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8"
+            className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm"
           >
             {error && (
-              <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200">
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
                 {error}
               </div>
             )}
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
+              <label className="block text-sm font-semibold mb-2 text-slate-700">
                 Email Address
               </label>
               <input
@@ -125,7 +105,7 @@ export default function ResetPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-[#0A0F1A] border border-[#00BFFF]/30 rounded-lg focus:border-[#00BFFF] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors text-slate-900"
                 placeholder="your@email.com"
               />
             </div>
@@ -133,7 +113,7 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg font-semibold text-lg hover:shadow-[0_0_30px_rgba(0,191,255,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -146,9 +126,9 @@ export default function ResetPasswordPage() {
             </button>
 
             <div className="mt-6 text-center">
-              <p className="text-gray-400">
+              <p className="text-slate-500">
                 Remember your password?{' '}
-                <Link to="/login" className="text-[#00BFFF] hover:text-[#66FCF1] font-semibold transition-colors">
+                <Link to="/login" className="text-sky-600 hover:text-sky-700 font-semibold transition-colors">
                   Log in
                 </Link>
               </p>
@@ -162,7 +142,7 @@ export default function ResetPasswordPage() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="mt-8 text-center"
         >
-          <Link to="/" className="text-sm text-gray-400 hover:text-[#00BFFF] transition-colors">
+          <Link to="/" className="text-sm text-slate-500 hover:text-sky-600 transition-colors">
             ← Back to home
           </Link>
         </motion.div>

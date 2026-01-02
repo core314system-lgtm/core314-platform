@@ -6,27 +6,27 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#0A0F1A]/80 backdrop-blur-md border-b border-[#00BFFF]/20">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <img src="/logo-icon.png" alt="Core314" className="h-8 w-8 md:h-10 md:w-10" />
-          <span className="hidden sm:inline-block text-xl font-bold" style={{ fontFamily: 'Poppins, sans-serif' }}>Core314</span>
+          <span className="hidden sm:inline-block text-xl font-bold text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>Core314</span>
         </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
-          <Link to="/pricing" className="text-gray-300 hover:text-[#00BFFF] transition-colors">
+          <Link to="/pricing" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
             Pricing
           </Link>
-          <Link to="/contact" className="text-gray-300 hover:text-[#00BFFF] transition-colors">
+          <Link to="/contact" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
             Contact
           </Link>
-          <Link to="/login" className="px-6 py-2 text-[#00BFFF] hover:text-[#66FCF1] transition-colors">
+          <Link to="/login" className="px-6 py-2 text-sky-600 hover:text-sky-700 transition-colors font-medium">
             Login
           </Link>
           <Link 
             to="/pricing" 
-            className="px-6 py-2 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg hover:shadow-[0_0_20px_rgba(0,191,255,0.5)] transition-all"
+            className="px-6 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all font-semibold"
           >
             Start Free Trial
           </Link>
@@ -35,7 +35,7 @@ export default function Header() {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-[#00BFFF] hover:text-[#66FCF1] transition-colors"
+          className="md:hidden p-2 text-slate-600 hover:text-sky-600 transition-colors"
           aria-label="Toggle menu"
           aria-expanded={mobileMenuOpen}
         >
@@ -45,32 +45,32 @@ export default function Header() {
 
       {/* Mobile Navigation Panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-[#0A0F1A]/95 backdrop-blur-md border-b border-[#00BFFF]/20">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white/98 backdrop-blur-md border-b border-gray-200 shadow-lg">
           <nav className="flex flex-col px-4 py-4 space-y-4">
             <Link 
               to="/pricing" 
-              className="text-gray-300 hover:text-[#00BFFF] transition-colors py-2"
+              className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
               Pricing
             </Link>
             <Link 
               to="/contact" 
-              className="text-gray-300 hover:text-[#00BFFF] transition-colors py-2"
+              className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
               Contact
             </Link>
             <Link 
               to="/login" 
-              className="text-[#00BFFF] hover:text-[#66FCF1] transition-colors py-2"
+              className="text-sky-600 hover:text-sky-700 transition-colors py-2 font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
               Login
             </Link>
             <Link 
               to="/pricing" 
-              className="w-full py-3 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg hover:shadow-[0_0_20px_rgba(0,191,255,0.5)] transition-all text-center"
+              className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all text-center font-semibold"
               onClick={() => setMobileMenuOpen(false)}
             >
               Start Free Trial

@@ -116,7 +116,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white">
+    <div className="min-h-screen bg-white text-slate-900">
       <Header />
 
       <div className="pt-32 pb-20 px-4">
@@ -127,17 +127,15 @@ export default function SignupPage() {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-                Start Your Free Trial
-              </span>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Start Your Free Trial
             </h1>
-            <p className="text-xl text-gray-300">
-              Selected Plan: <span className="text-[#00BFFF] font-semibold">
+            <p className="text-xl text-slate-600">
+              Selected Plan: <span className="text-sky-600 font-semibold">
                 {plans[formData.plan as keyof typeof plans]?.name} - {plans[formData.plan as keyof typeof plans]?.price}
               </span>
             </p>
-            <Link to="/pricing" className="text-sm text-[#00BFFF] hover:text-[#66FCF1] transition-colors">
+            <Link to="/pricing" className="text-sm text-sky-500 hover:text-sky-600 transition-colors">
               Change plan
             </Link>
           </motion.div>
@@ -147,15 +145,15 @@ export default function SignupPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             onSubmit={handleSubmit}
-            className="bg-gradient-to-br from-[#001a33] to-[#0A0F1A] border border-[#00BFFF]/30 rounded-xl p-8"
+            className="bg-slate-50 border border-slate-200 rounded-2xl p-8 shadow-sm"
           >
             {error && (
-              <div className="mb-6 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-200">
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
                 {error}
                 {error.includes('log in') && (
                   <Link 
                     to={`/login?email=${encodeURIComponent(formData.email)}`}
-                    className="block mt-2 text-[#00BFFF] hover:text-[#66FCF1] font-semibold transition-colors"
+                    className="block mt-2 text-sky-600 hover:text-sky-700 font-semibold transition-colors"
                   >
                     Go to Login →
                   </Link>
@@ -165,7 +163,7 @@ export default function SignupPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-300">
+                <label className="block text-sm font-semibold mb-2 text-slate-700">
                   Full Name *
                 </label>
                 <input
@@ -173,13 +171,13 @@ export default function SignupPage() {
                   required
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#0A0F1A] border border-[#00BFFF]/30 rounded-lg focus:border-[#00BFFF] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors text-slate-900"
                   placeholder="John Doe"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-300">
+                <label className="block text-sm font-semibold mb-2 text-slate-700">
                   Company Name *
                 </label>
                 <input
@@ -187,14 +185,14 @@ export default function SignupPage() {
                   required
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#0A0F1A] border border-[#00BFFF]/30 rounded-lg focus:border-[#00BFFF] focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors text-slate-900"
                   placeholder="Acme Corp"
                 />
               </div>
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
+              <label className="block text-sm font-semibold mb-2 text-slate-700">
                 Email *
               </label>
               <input
@@ -202,26 +200,26 @@ export default function SignupPage() {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0A0F1A] border border-[#00BFFF]/30 rounded-lg focus:border-[#00BFFF] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors text-slate-900"
                 placeholder="john@acme.com"
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
+              <label className="block text-sm font-semibold mb-2 text-slate-700">
                 Phone (optional)
               </label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0A0F1A] border border-[#00BFFF]/30 rounded-lg focus:border-[#00BFFF] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors text-slate-900"
                 placeholder="+1 (555) 123-4567"
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold mb-2 text-gray-300">
+              <label className="block text-sm font-semibold mb-2 text-slate-700">
                 Password *
               </label>
               <input
@@ -230,25 +228,25 @@ export default function SignupPage() {
                 minLength={8}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 bg-[#0A0F1A] border border-[#00BFFF]/30 rounded-lg focus:border-[#00BFFF] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:border-sky-500 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors text-slate-900"
                 placeholder="Minimum 8 characters"
               />
-              <p className="text-xs text-gray-400 mt-1">Must be at least 8 characters long</p>
+              <p className="text-xs text-slate-500 mt-1">Must be at least 8 characters long</p>
             </div>
 
             <div className="mb-8">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-slate-500">
                 By signing up, you agree to our{' '}
-                <Link to="/terms" className="text-[#00BFFF] hover:text-[#66FCF1]">Terms of Service</Link>
+                <Link to="/terms" className="text-sky-600 hover:text-sky-700">Terms of Service</Link>
                 {' '}and{' '}
-                <Link to="/privacy" className="text-[#00BFFF] hover:text-[#66FCF1]">Privacy Policy</Link>
+                <Link to="/privacy" className="text-sky-600 hover:text-sky-700">Privacy Policy</Link>
               </p>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] rounded-lg font-semibold text-lg hover:shadow-[0_0_30px_rgba(0,191,255,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -260,7 +258,7 @@ export default function SignupPage() {
               )}
             </button>
 
-            <p className="text-center text-sm text-gray-400 mt-6">
+            <p className="text-center text-sm text-slate-500 mt-6">
               14-day free trial • Cancel anytime
             </p>
           </motion.form>
