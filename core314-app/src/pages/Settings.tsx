@@ -624,9 +624,17 @@ export function Settings() {
                     {passwordResetLoading ? 'Sending...' : 'Reset Password'}
                   </Button>
                   {passwordResetMessage && (
-                    <p className={`text-xs ${passwordResetMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                      {passwordResetMessage.text}
-                    </p>
+                    <div className="space-y-1">
+                      <p className={`text-xs ${passwordResetMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                        {passwordResetMessage.text}
+                      </p>
+                      {passwordResetMessage.type === 'success' && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-start gap-1">
+                          <span className="shrink-0">ℹ️</span>
+                          <span>If you don't see the email within 1–3 minutes, please check your spam folder or wait a moment while delivery completes.</span>
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </CardContent>
