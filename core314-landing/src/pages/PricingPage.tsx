@@ -94,28 +94,26 @@ export default function PricingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0A0F1A] text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Header />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-32 pb-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-7xl font-bold mb-6"
+            className="text-5xl md:text-7xl font-bold mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] via-[#66FCF1] to-[#00BFFF] bg-clip-text text-transparent">
-              Choose Your Core
-            </span>
+            Choose Your Core
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto"
+            className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto"
           >
             Start with a 14-day free trial. Cancel anytime.
           </motion.p>
@@ -123,7 +121,7 @@ export default function PricingPage() {
       </section>
 
       {/* Pricing Cards */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {plans.map((plan, index) => (
@@ -132,35 +130,35 @@ export default function PricingPage() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.2, duration: 0.6 }}
-                whileHover={{ scale: 1.05, y: -10 }}
-                className={`relative bg-gradient-to-br from-[#001a33] to-[#0A0F1A] rounded-xl p-8 ${
+                whileHover={{ scale: 1.02, y: -5 }}
+                className={`relative bg-white rounded-xl p-8 shadow-sm ${
                   plan.popular 
-                    ? 'border-2 border-[#00BFFF] shadow-[0_0_40px_rgba(0,191,255,0.3)]' 
-                    : 'border border-[#00BFFF]/30'
-                } hover:border-[#00BFFF] transition-all duration-300`}
+                    ? 'border-2 border-sky-500 shadow-lg' 
+                    : 'border border-slate-200'
+                } hover:border-sky-400 transition-all duration-300`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-[#00BFFF] to-[#007BFF] px-4 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-sky-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
                     Most Popular
                   </div>
                 )}
                 
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold mb-2 text-[#66FCF1]" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  <h3 className="text-2xl font-bold mb-2 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
                     {plan.name}
                   </h3>
-                  <p className="text-gray-400 text-sm mb-4">{plan.description}</p>
+                  <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-5xl font-bold">{plan.price}</span>
-                    <span className="text-gray-400">{plan.period}</span>
+                    <span className="text-5xl font-bold text-slate-900">{plan.price}</span>
+                    <span className="text-slate-500">{plan.period}</span>
                   </div>
                 </div>
 
                 <ul className="space-y-4 mb-8">
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <Check className="h-5 w-5 text-[#00BFFF] flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-300">{feature}</span>
+                      <Check className="h-5 w-5 text-sky-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-600">{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -169,8 +167,8 @@ export default function PricingPage() {
                   to={plan.link}
                   className={`block w-full py-3 rounded-lg font-semibold text-center transition-all ${
                     plan.popular
-                      ? 'bg-gradient-to-r from-[#00BFFF] to-[#007BFF] hover:shadow-[0_0_30px_rgba(0,191,255,0.6)]'
-                      : 'bg-[#00BFFF]/20 hover:bg-[#00BFFF]/30 border border-[#00BFFF]'
+                      ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-md hover:shadow-lg'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300'
                   }`}
                 >
                   {plan.cta}
@@ -182,7 +180,7 @@ export default function PricingPage() {
       </section>
 
       {/* Add-ons Section */}
-      <section className="py-20 px-4 bg-gradient-to-b from-[#0A0F1A] to-[#001a33]">
+      <section className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -190,20 +188,18 @@ export default function PricingPage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-                Customize Your Core
-              </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Customize Your Core
             </h2>
-            <p className="text-xl text-gray-300">Expand your capabilities with powerful add-ons</p>
+            <p className="text-xl text-slate-600">Expand your capabilities with powerful add-ons</p>
           </motion.div>
 
           <button
             onClick={() => setExpandedAddons(!expandedAddons)}
-            className="w-full max-w-2xl mx-auto mb-8 px-6 py-4 bg-[#001a33] border border-[#00BFFF]/30 rounded-lg hover:border-[#00BFFF] transition-all flex items-center justify-between"
+            className="w-full max-w-2xl mx-auto mb-8 px-6 py-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-sky-400 transition-all flex items-center justify-between"
           >
-            <span className="text-lg font-semibold">View Available Add-ons</span>
-            <ChevronDown className={`h-6 w-6 transition-transform ${expandedAddons ? 'rotate-180' : ''}`} />
+            <span className="text-lg font-semibold text-slate-900">View Available Add-ons</span>
+            <ChevronDown className={`h-6 w-6 text-slate-600 transition-transform ${expandedAddons ? 'rotate-180' : ''}`} />
           </button>
 
           {expandedAddons && (
@@ -219,17 +215,17 @@ export default function PricingPage() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-[#001a33] border border-[#00BFFF]/30 rounded-xl p-6"
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-6"
                 >
-                  <h3 className="text-xl font-bold mb-4 text-[#66FCF1]">{category.category}</h3>
+                  <h3 className="text-xl font-bold mb-4 text-slate-900">{category.category}</h3>
                   <div className="space-y-4">
                     {category.items.map((item, i) => (
-                      <div key={i} className="border-t border-[#00BFFF]/20 pt-4">
+                      <div key={i} className="border-t border-slate-200 pt-4">
                         <div className="flex items-start justify-between mb-2">
-                          <span className="font-semibold">{item.name}</span>
-                          <span className="text-[#00BFFF] text-sm">{item.price}</span>
+                          <span className="font-semibold text-slate-900">{item.name}</span>
+                          <span className="text-sky-600 text-sm">{item.price}</span>
                         </div>
-                        <p className="text-sm text-gray-400">{item.description}</p>
+                        <p className="text-sm text-slate-500">{item.description}</p>
                       </div>
                     ))}
                   </div>
@@ -241,18 +237,16 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl font-bold text-center mb-12"
+            className="text-4xl font-bold text-center mb-12 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
-            <span className="bg-gradient-to-r from-[#00BFFF] to-[#66FCF1] bg-clip-text text-transparent">
-              Frequently Asked Questions
-            </span>
+            Frequently Asked Questions
           </motion.h2>
           
           <div className="space-y-6">
@@ -280,10 +274,10 @@ export default function PricingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-[#001a33] border border-[#00BFFF]/30 rounded-lg p-6 hover:border-[#00BFFF] transition-all"
+                className="bg-white border border-slate-200 rounded-lg p-6 hover:border-sky-400 transition-all shadow-sm"
               >
-                <h3 className="text-lg font-semibold mb-2 text-[#66FCF1]">{faq.q}</h3>
-                <p className="text-gray-300">{faq.a}</p>
+                <h3 className="text-lg font-semibold mb-2 text-slate-900">{faq.q}</h3>
+                <p className="text-slate-600">{faq.a}</p>
               </motion.div>
             ))}
           </div>

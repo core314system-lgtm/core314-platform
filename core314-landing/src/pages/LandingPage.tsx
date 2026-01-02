@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, Database, Zap, BarChart3, TrendingUp, Shield, CheckCircle, XCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { HeroIllustration } from '../components/illustrations';
 
 export default function LandingPage() {
   return (
@@ -73,7 +74,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.8 }}
-            className="flex justify-center mb-16"
+            className="flex justify-center mb-12"
           >
             <Link
               to="/pricing"
@@ -84,10 +85,20 @@ export default function LandingPage() {
             </Link>
           </motion.div>
 
+          {/* Hero Illustration */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1 }}
+            className="mb-12"
+          >
+            <HeroIllustration />
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 1 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
             className="flex flex-col items-center gap-2 text-slate-400"
           >
             <span className="text-sm">Scroll to Discover</span>
