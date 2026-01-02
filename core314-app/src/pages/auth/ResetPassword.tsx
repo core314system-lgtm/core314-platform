@@ -20,7 +20,7 @@ export function ResetPassword() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `https://app.core314.com/reset-password/confirm`
+        redirectTo: `${window.location.origin}/reset-password/confirm`
       });
       if (error) throw error;
       setSuccess(true);
@@ -45,6 +45,10 @@ export function ResetPassword() {
             </p>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
               The link will expire in 1 hour.
+            </p>
+            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 flex items-start justify-center gap-1">
+              <span className="shrink-0">ℹ️</span>
+              <span>If you don't see the email within 1–3 minutes, please check your spam folder or wait a moment while delivery completes.</span>
             </p>
           </div>
           <div className="text-center">
