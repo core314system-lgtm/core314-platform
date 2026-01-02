@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { Linkedin, Twitter, Youtube } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -22,21 +21,6 @@ export default function Footer() {
               Data Processing Addendum
             </Link>
           </nav>
-
-          <div className="flex gap-6">
-            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" 
-               className="text-slate-400 hover:text-sky-600 transition-colors">
-              <Linkedin className="h-5 w-5" />
-            </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"
-               className="text-slate-400 hover:text-sky-600 transition-colors">
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a href="https://youtube.com" target="_blank" rel="noopener noreferrer"
-               className="text-slate-400 hover:text-sky-600 transition-colors">
-              <Youtube className="h-5 w-5" />
-            </a>
-          </div>
 
           <p className="text-slate-400 text-sm">
             © 2025 Core314. All Rights Reserved.
