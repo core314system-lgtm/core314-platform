@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
@@ -10,7 +11,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     persistSession: false,
   },
 });
-const supabaseAnon = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || '');
+const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
 
 interface AdminIntegrationRecord {
   id: string;
@@ -27,6 +28,16 @@ interface AdminIntegrationRecord {
 }
 
 export const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
+  // Diagnostic logging - entry point
+  console.log(JSON.stringify({
+    op: 'admin-list-integrations',
+    stage: 'start',
+    method: event.httpMethod,
+    hasSupabaseUrl: !!supabaseUrl,
+    hasServiceRoleKey: !!supabaseServiceRoleKey,
+    hasAnonKey: !!supabaseAnonKey,
+  }));
+
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
@@ -36,6 +47,12 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
 
   try {
     const authHeader = event.headers.authorization || event.headers.Authorization;
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'auth_header',
+      hasAuthHeader: !!authHeader,
+    }));
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
         statusCode: 401,
@@ -46,6 +63,13 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     const token = authHeader.replace('Bearer ', '');
 
     const { data: { user: caller }, error: authError } = await supabaseAnon.auth.getUser(token);
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'auth_result',
+      hasCaller: !!caller,
+      authError: authError?.message ?? null,
+    }));
+
     if (authError || !caller) {
       return {
         statusCode: 401,
@@ -59,6 +83,13 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       .eq('id', caller.id)
       .single();
 
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'admin_check',
+      isPlatformAdmin: !!callerProfile?.is_platform_admin,
+      profileError: profileError?.message ?? null,
+    }));
+
     if (profileError || !callerProfile?.is_platform_admin) {
       return {
         statusCode: 403,
@@ -66,8 +97,14 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       };
     }
 
-    // Query user_integrations with joins to integration_registry and profiles
-    // Filter by added_by_user = true to only show user-connected integrations (not seeded data)
+    // Query user_integrations with join to integration_registry only
+    // NOTE: We cannot join profiles directly because user_integrations.user_id -> auth.users.id,
+    // not profiles.id. We'll fetch profiles separately.
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'query_user_integrations_start',
+    }));
+
     const { data: integrations, error: queryError } = await supabaseAdmin
       .from('user_integrations')
       .select(`
@@ -78,11 +115,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         date_added,
         last_verified_at,
         error_message,
-        profiles!user_integrations_user_id_fkey (
-          email,
-          full_name
-        ),
-        integration_registry!user_integrations_provider_id_fkey (
+        integration_registry (
           service_name,
           display_name
         )
@@ -90,18 +123,60 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       .eq('added_by_user', true)
       .order('date_added', { ascending: false });
 
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'query_user_integrations_result',
+      rowCount: integrations?.length ?? 0,
+      queryError: queryError?.message ?? null,
+    }));
+
     if (queryError) {
-      console.error('Error querying integrations:', queryError);
-      throw queryError;
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: `user_integrations query failed: ${queryError.message}` }),
+      };
+    }
+
+    // Fetch profiles separately for all unique user_ids
+    const userIds = Array.from(new Set((integrations || []).map(r => r.user_id)));
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'query_profiles_start',
+      userIdCount: userIds.length,
+    }));
+
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'query_profiles_result',
+      profileCount: profiles?.length ?? 0,
+      profilesError: profilesError?.message ?? null,
+    }));
+
+    if (profilesError) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: `profiles query failed: ${profilesError.message}` }),
+      };
+    }
+
+    // Build a map of user_id -> profile for quick lookup
+    const profileMap = new Map<string, { email: string; full_name: string | null }>();
+    for (const p of profiles || []) {
+      profileMap.set(p.id, { email: p.email, full_name: p.full_name });
     }
 
     // Transform the data to a flat structure for the frontend
     const transformedIntegrations: AdminIntegrationRecord[] = (integrations || [])
-      .filter((item) => item.integration_registry && item.profiles)
+      .filter((item) => item.integration_registry)
       .map((item) => {
         // Handle both single object and array responses from Supabase join
-        const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
         const registry = Array.isArray(item.integration_registry) ? item.integration_registry[0] : item.integration_registry;
+        const profile = profileMap.get(item.user_id);
         
         return {
           id: item.id,
@@ -127,6 +202,13 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       pending: transformedIntegrations.filter(i => i.status === 'pending').length,
     };
 
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'build_response',
+      total: stats.total,
+      active: stats.active,
+    }));
+
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -136,6 +218,12 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     };
   } catch (error) {
     console.error('Error in admin-list-integrations:', error);
+    console.log(JSON.stringify({
+      op: 'admin-list-integrations',
+      stage: 'catch',
+      errorMessage: (error as Error)?.message ?? String(error),
+    }));
+
     return {
       statusCode: 500,
       body: JSON.stringify({
