@@ -66,6 +66,28 @@ serve(withSentry(async (req) => {
       });
     }
 
+    // Check plan limits before creating invitation
+    const { data: limitCheck, error: limitError } = await supabase
+      .rpc('check_organization_user_limit', { p_organization_id: organization_id });
+    
+    if (limitError) {
+      console.error('Error checking user limit:', limitError);
+      // Continue if function doesn't exist yet (migration not applied)
+    } else if (limitCheck && limitCheck.length > 0) {
+      const limit = limitCheck[0];
+      if (!limit.can_add_member) {
+        return new Response(JSON.stringify({ 
+          error: limit.message,
+          current_count: limit.current_count,
+          user_limit: limit.user_limit,
+          plan_name: limit.plan_name,
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const token = generateInviteToken();
 
     const { data: invitation, error: inviteError } = await supabase
