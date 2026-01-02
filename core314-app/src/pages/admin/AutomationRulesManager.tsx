@@ -21,6 +21,10 @@ export function AutomationRulesManager() {
   useEffect(() => {
     if (currentOrganization) {
       fetchRules();
+    } else {
+      // No organization - stop loading and show empty state
+      setLoading(false);
+      setRules([]);
     }
   }, [currentOrganization?.id]);
 
@@ -126,6 +130,30 @@ export function AutomationRulesManager() {
 
   if (loading) {
     return <div className="p-6">Loading rules...</div>;
+  }
+
+  // Show organization required message if no organization is selected
+  if (!currentOrganization) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Automation Rules</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Configure automated actions triggered by system events
+          </p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Automation rules require an organization context.
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-500">
+              Create or select an organization to configure automation rules.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const activeRules = rules.filter(r => r.status !== 'archived');
