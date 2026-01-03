@@ -147,8 +147,13 @@ export function MainLayout() {
       <div className="flex">
         <aside className="w-64 h-screen flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <div className="p-6 flex-shrink-0">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Core314</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Operations Control</p>
+            <div className="flex items-center gap-3 mb-1">
+              <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8" />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Core<span className="text-sky-500">314</span>
+              </h1>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 ml-11">Operations Control</p>
           </div>
           
           <nav className="flex-1 overflow-y-auto pb-4 px-3 py-4 space-y-1">

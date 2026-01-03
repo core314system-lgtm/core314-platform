@@ -30,9 +30,9 @@ export default function LandingPage() {
             className="mb-8"
           >
             <img 
-              src="/logo.png" 
+              src="/logo-icon.svg" 
               alt="Core314" 
-              className="h-32 mx-auto mb-6"
+              className="h-16 w-16 mx-auto"
             />
           </motion.div>
 
