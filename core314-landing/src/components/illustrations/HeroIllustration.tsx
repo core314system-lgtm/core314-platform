@@ -166,9 +166,9 @@ export default function HeroIllustration() {
                 x={pos.x}
                 y={pos.y + 4}
                 textAnchor="middle"
-                fill="#334155"
+                fill="#0F172A"
                 fontSize="9"
-                fontWeight="500"
+                fontWeight="600"
                 fontFamily="Inter, system-ui, sans-serif"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -232,9 +232,9 @@ export default function HeroIllustration() {
                 x={pos.x}
                 y={pos.y + 4}
                 textAnchor="middle"
-                fill="#64748B"
+                fill="#1E293B"
                 fontSize="8"
-                fontWeight="500"
+                fontWeight="600"
                 fontFamily="Inter, system-ui, sans-serif"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
