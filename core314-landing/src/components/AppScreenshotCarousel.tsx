@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, LayoutDashboard, Network, BarChart3, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Screenshot {
   id: number;
   title: string;
   description: string;
-  icon: React.ElementType;
+  image: string;
 }
 
 const screenshots: Screenshot[] = [
@@ -14,25 +14,19 @@ const screenshots: Screenshot[] = [
     id: 1,
     title: "Operations Dashboard",
     description: "Unified view of operational health across all connected systems",
-    icon: LayoutDashboard
+    image: "/screenshots/dashboard.png"
   },
   {
     id: 2,
     title: "Integration Hub",
     description: "Connect and manage your business tools from one place",
-    icon: Network
+    image: "/screenshots/integration-hub.png"
   },
   {
     id: 3,
-    title: "Analytics & Insights",
-    description: "Real-time metrics and operational scores",
-    icon: BarChart3
-  },
-  {
-    id: 4,
-    title: "System Configuration",
-    description: "Configure workflows, alerts, and automation rules",
-    icon: Settings
+    title: "Settings & Profile",
+    description: "Manage your account and organization settings",
+    image: "/screenshots/settings.png"
   }
 ];
 
@@ -87,25 +81,13 @@ export default function AppScreenshotCarousel() {
                   key={screenshot.id}
                   className="min-w-full"
                 >
-                  {/* Screenshot Placeholder - Professional Preview Card */}
-                  <div className="aspect-[16/9] bg-gradient-to-br from-slate-100 via-slate-50 to-sky-50 flex items-center justify-center p-8">
-                    <div className="text-center max-w-lg">
-                      <div className="bg-sky-100 rounded-2xl w-20 h-20 flex items-center justify-center mx-auto mb-6">
-                        <screenshot.icon className="h-10 w-10 text-sky-600" />
-                      </div>
-                      <h3 
-                        className="text-2xl font-bold text-slate-800 mb-3"
-                        style={{ fontFamily: 'Poppins, sans-serif' }}
-                      >
-                        {screenshot.title}
-                      </h3>
-                      <p 
-                        className="text-slate-600"
-                        style={{ fontFamily: 'Inter, sans-serif' }}
-                      >
-                        {screenshot.description}
-                      </p>
-                    </div>
+                  {/* Real Screenshot Image */}
+                  <div className="aspect-[16/9] bg-slate-100 overflow-hidden">
+                    <img 
+                      src={screenshot.image}
+                      alt={screenshot.title}
+                      className="w-full h-full object-cover object-top"
+                    />
                   </div>
                 </div>
               ))}
@@ -146,12 +128,20 @@ export default function AppScreenshotCarousel() {
         </div>
 
         {/* Caption */}
-        <p 
-          className="text-center text-sm text-slate-500 mt-6"
-          style={{ fontFamily: 'Inter, sans-serif' }}
-        >
-          {screenshots[currentIndex].title}
-        </p>
+        <div className="text-center mt-6">
+          <p 
+            className="text-lg font-semibold text-slate-800"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            {screenshots[currentIndex].title}
+          </p>
+          <p 
+            className="text-sm text-slate-500 mt-1"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            {screenshots[currentIndex].description}
+          </p>
+        </div>
       </div>
     </section>
   );
