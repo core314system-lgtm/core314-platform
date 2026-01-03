@@ -82,8 +82,8 @@ export default function AppScreenshotCarousel() {
                       alt={screenshot.title}
                       className="w-full absolute"
                       style={{ 
-                        top: '-18%',
-                        height: '136%',
+                        top: '-25%',
+                        height: '150%',
                         objectFit: 'cover',
                         objectPosition: 'top'
                       }}
