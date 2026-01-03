@@ -21,12 +21,6 @@ const screenshots: Screenshot[] = [
     title: "Integration Hub",
     description: "Connect and manage your business tools from one place",
     image: "/screenshots/integration-hub.png"
-  },
-  {
-    id: 3,
-    title: "Settings & Profile",
-    description: "Manage your account and organization settings",
-    image: "/screenshots/settings.png"
   }
 ];
 
@@ -81,12 +75,18 @@ export default function AppScreenshotCarousel() {
                   key={screenshot.id}
                   className="min-w-full"
                 >
-                  {/* Real Screenshot Image */}
-                  <div className="aspect-[16/9] bg-slate-100 overflow-hidden">
+                  {/* Real Screenshot Image - cropped to hide header with username/email */}
+                  <div className="aspect-[16/9] bg-slate-100 overflow-hidden relative">
                     <img 
                       src={screenshot.image}
                       alt={screenshot.title}
-                      className="w-full h-full object-cover object-top"
+                      className="w-full absolute"
+                      style={{ 
+                        top: '-18%',
+                        height: '136%',
+                        objectFit: 'cover',
+                        objectPosition: 'top'
+                      }}
                     />
                   </div>
                 </div>
