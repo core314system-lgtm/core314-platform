@@ -16,19 +16,28 @@ export default function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden lg:flex items-center gap-5">
+          <Link to="/product" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
+            Product
+          </Link>
+          <Link to="/solutions" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
+            Solutions
+          </Link>
+          <Link to="/integrations" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
+            Integrations
+          </Link>
           <Link to="/pricing" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
             Pricing
           </Link>
           <Link to="/contact" className="text-slate-600 hover:text-sky-600 transition-colors font-medium">
             Contact
           </Link>
-          <Link to="/login" className="px-6 py-2 text-sky-600 hover:text-sky-700 transition-colors font-medium">
+          <Link to="/login" className="px-5 py-2 text-sky-600 hover:text-sky-700 transition-colors font-medium">
             Login
           </Link>
           <Link 
             to="/pricing" 
-            className="px-6 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all font-semibold"
+            className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg shadow-sm hover:shadow-md transition-all font-semibold"
           >
             Start Free Trial
           </Link>
@@ -37,7 +46,7 @@ export default function Header() {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-slate-600 hover:text-sky-600 transition-colors"
+          className="lg:hidden p-2 text-slate-600 hover:text-sky-600 transition-colors"
           aria-label="Toggle menu"
           aria-expanded={mobileMenuOpen}
         >
@@ -47,8 +56,29 @@ export default function Header() {
 
       {/* Mobile Navigation Panel */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white/98 backdrop-blur-md border-b border-gray-200 shadow-lg">
-          <nav className="flex flex-col px-4 py-4 space-y-4">
+        <div className="lg:hidden absolute top-full left-0 right-0 bg-white/98 backdrop-blur-md border-b border-gray-200 shadow-lg">
+          <nav className="flex flex-col px-4 py-4 space-y-3">
+            <Link 
+              to="/product" 
+              className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Product
+            </Link>
+            <Link 
+              to="/solutions" 
+              className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Solutions
+            </Link>
+            <Link 
+              to="/integrations" 
+              className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Integrations
+            </Link>
             <Link 
               to="/pricing" 
               className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"

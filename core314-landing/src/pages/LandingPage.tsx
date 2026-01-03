@@ -4,6 +4,7 @@ import { ChevronDown, Database, Zap, BarChart3, TrendingUp, Shield, CheckCircle,
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { HeroIllustration } from '../components/illustrations';
+import AppScreenshotCarousel from '../components/AppScreenshotCarousel';
 
 export default function LandingPage() {
   return (
@@ -106,6 +107,9 @@ export default function LandingPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* App Screenshot Carousel */}
+      <AppScreenshotCarousel />
 
       {/* Before vs After Core314 Section */}
       <section className="py-24 px-4 bg-white">
