@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Network, Code, Plug, ArrowRight, CheckCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { integrationLogos } from '../components/IntegrationLogos';
 
 export default function IntegrationsPage() {
   // Integration categories with examples
@@ -157,13 +158,20 @@ export default function IntegrationsPage() {
                 <h3 className="text-lg font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
                   {category.category}
                 </h3>
-                <ul className="space-y-2">
-                  {category.integrations.map((integration, i) => (
-                    <li key={i} className="flex items-center gap-2 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      <div className="w-2 h-2 bg-sky-500 rounded-full flex-shrink-0" />
-                      {integration}
-                    </li>
-                  ))}
+                <ul className="space-y-3">
+                  {category.integrations.map((integration, i) => {
+                    const LogoComponent = integrationLogos[integration];
+                    return (
+                      <li key={i} className="flex items-center gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        {LogoComponent ? (
+                          <LogoComponent className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                        ) : (
+                          <div className="w-5 h-5 bg-slate-200 rounded flex-shrink-0" />
+                        )}
+                        <span className="text-sm">{integration}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </motion.div>
             ))}
