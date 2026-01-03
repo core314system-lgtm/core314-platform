@@ -142,8 +142,13 @@ export function AdminLayout() {
       <div className="flex">
         <aside className="w-64 min-h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
           <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Core314</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Admin Dashboard</p>
+            <div className="flex items-center gap-3 mb-1">
+              <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8" />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Core<span className="text-sky-500">314</span>
+              </h1>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 ml-11">Admin Dashboard</p>
             <div className="mt-3 px-3 py-2 bg-purple-100 dark:bg-purple-900 rounded-md">
               <p className="text-xs font-semibold text-purple-800 dark:text-purple-200">
                 🛡 Platform Administrator

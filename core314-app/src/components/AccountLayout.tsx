@@ -30,7 +30,10 @@ export function AccountLayout() {
         <div className="flex items-center justify-between px-6 py-4">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Core314</h1>
+            <img src="/logo-icon.svg" alt="Core314" className="h-7 w-7" />
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              Core<span className="text-sky-500">314</span>
+            </h1>
           </Link>
 
           {/* Account controls - Settings and Sign Out as standalone items */}

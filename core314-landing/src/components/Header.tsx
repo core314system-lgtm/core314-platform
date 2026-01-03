@@ -8,9 +8,11 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3">
-          <img src="/logo-icon.png" alt="Core314" className="h-8 w-8 md:h-10 md:w-10" />
-          <span className="hidden sm:inline-block text-xl font-bold text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>Core314</span>
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8 md:h-9 md:w-9" />
+          <span className="hidden sm:inline-block text-xl font-bold text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+            Core<span className="text-sky-500">314</span>
+          </span>
         </Link>
 
         {/* Desktop Navigation */}

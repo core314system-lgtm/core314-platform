@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="bg-slate-50 border-t border-gray-200 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center space-y-6">
-          <img src="/logo-icon.png" alt="Core314" className="h-12 w-12" />
+          <img src="/logo-icon.svg" alt="Core314" className="h-10 w-10" />
           
           <nav className="flex flex-wrap justify-center gap-6 text-sm">
             <Link to="/privacy" className="text-slate-500 hover:text-sky-600 transition-colors">

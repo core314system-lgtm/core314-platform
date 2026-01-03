@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Core314 Favicon - Simplified for 16x16/32x32 display -->
+  <!-- Optimized for small size rendering -->
+  
+  <g transform="translate(16, 16)">
+    <!-- Connection lines - simplified for small size -->
+    <line x1="0" y1="0" x2="0" y2="-10" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="8.66" y2="-5" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="8.66" y2="5" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="0" y2="10" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-8.66" y2="5" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="-8.66" y2="-5" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+    
+    <!-- Outer nodes - slightly larger for visibility at small sizes -->
+    <circle cx="0" cy="-10" r="2.5" fill="#1e293b"/>
+    <circle cx="8.66" cy="-5" r="2.5" fill="#1e293b"/>
+    <circle cx="8.66" cy="5" r="2.5" fill="#1e293b"/>
+    <circle cx="0" cy="10" r="2.5" fill="#1e293b"/>
+    <circle cx="-8.66" cy="5" r="2.5" fill="#1e293b"/>
+    <circle cx="-8.66" cy="-5" r="2.5" fill="#1e293b"/>
+    
+    <!-- Central hub - emphasized -->
+    <circle cx="0" cy="0" r="5" fill="#0ea5e9"/>
+    <circle cx="0" cy="0" r="2.5" fill="#1e293b"/>
+  </g>
+</svg>
