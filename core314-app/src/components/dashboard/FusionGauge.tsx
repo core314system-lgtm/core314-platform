@@ -5,9 +5,21 @@ interface FusionGaugeProps {
   score: number;
   trend: 'up' | 'down' | 'stable';
   showIntelligenceLabel?: boolean;
+  // Optional props for integration-scoped view
+  integrationName?: string;
+  globalScore?: number;
+  fusionContribution?: number;
 }
 
-export function FusionGauge({ score, trend, showIntelligenceLabel = false }: FusionGaugeProps) {
+export function FusionGauge({ 
+  score, 
+  trend, 
+  showIntelligenceLabel = false,
+  integrationName,
+  globalScore,
+  fusionContribution,
+}: FusionGaugeProps) {
+  const isIntegrationScoped = !!integrationName;
   const getTrendIcon = () => {
     switch (trend) {
       case 'up':
@@ -30,12 +42,17 @@ export function FusionGauge({ score, trend, showIntelligenceLabel = false }: Fus
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span>Global Fusion Score</span>
-                        {showIntelligenceLabel && (
-                          <span className="text-xs font-normal text-purple-600 dark:text-purple-400">
-                            Powered by Cross-Integration Intelligence
-                          </span>
-                        )}
+            <span>{isIntegrationScoped ? `${integrationName} Fusion Score` : 'Global Fusion Score'}</span>
+            {showIntelligenceLabel && !isIntegrationScoped && (
+              <span className="text-xs font-normal text-purple-600 dark:text-purple-400">
+                Powered by Cross-Integration Intelligence
+              </span>
+            )}
+            {isIntegrationScoped && fusionContribution !== undefined && (
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                Contributes {fusionContribution.toFixed(0)}% to Global Score ({globalScore?.toFixed(0) || '--'})
+              </span>
+            )}
           </div>
           {getTrendIcon()}
         </CardTitle>

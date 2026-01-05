@@ -96,9 +96,11 @@ function FirstAIInsightExplainer({ onDismiss }: { onDismiss: () => void }) {
 
 interface AIInsightsPanelProps {
   hasAccess: boolean;
+  integrationId?: string;
+  integrationName?: string;
 }
 
-export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
+export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: AIInsightsPanelProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const supabase = useSupabaseClient();
@@ -117,7 +119,7 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
     if (hasAccess && profile?.id) {
       fetchInsights();
     }
-  }, [hasAccess, profile?.id, filter]);
+  }, [hasAccess, profile?.id, filter, integrationId]);
 
   const handleDismissExplainer = () => {
     localStorage.setItem(AI_INSIGHT_EXPLAINED_KEY, 'true');
@@ -138,6 +140,11 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
 
       if (filter !== 'all') {
         query = query.eq('insight_type', filter);
+      }
+
+      // Filter by integration_id when viewing a specific integration
+      if (integrationId) {
+        query = query.eq('integration_id', integrationId);
       }
 
       const { data, error } = await query;
@@ -236,7 +243,7 @@ export function AIInsightsPanel({ hasAccess }: AIInsightsPanelProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>AI Insights</CardTitle>
+          <CardTitle>{integrationName ? `${integrationName} Insights` : 'AI Insights'}</CardTitle>
           <div className="flex items-center gap-2">
             <Select value={filter} onValueChange={(value) => setFilter(value as 'all' | 'trend' | 'prediction' | 'anomaly' | 'summary')}>
               <SelectTrigger className="w-[140px]">
