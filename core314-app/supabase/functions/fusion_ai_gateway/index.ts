@@ -8,6 +8,24 @@ interface ChatMessage {
   content: string;
 }
 
+// SystemTruthSnapshot - SINGLE SOURCE OF TRUTH (matches client-side definition)
+// Metrics State: observing (no metrics) | stabilizing (some metrics) | active (recent metrics)
+type MetricsState = 'observing' | 'stabilizing' | 'active';
+
+interface ConnectedIntegration {
+  name: string;
+  connection_status: 'connected' | 'disconnected';
+}
+
+interface SystemTruthSnapshot {
+  connected_integrations: ConnectedIntegration[];
+  ui_global_fusion_score: number;
+  has_efficiency_metrics: boolean;
+  metrics_state: MetricsState;
+  contributes_to_score: boolean;
+  last_updated_at: string;
+}
+
 interface ChatRequest {
   messages: ChatMessage[];
   context?: {
@@ -16,6 +34,7 @@ interface ChatRequest {
     user_goal?: string;
   };
   data_context?: Record<string, unknown>; // Live metrics from ai_data_context
+  system_truth_snapshot?: SystemTruthSnapshot; // UI-LOCKED truth from /api/system/integrations
 }
 
 interface ChatResponse {
@@ -267,51 +286,79 @@ Deno.serve(withSentry(async (req) => {
     // ============================================================
     // INTELLIGENCE CONTRACT v1.1 - QUERY ROUTER (CONTROL PLANE)
     // CRITICAL: System fact queries NEVER invoke the LLM
+    // Uses SystemTruthSnapshot for UI-LOCKED truth enforcement
     // ============================================================
     if (isSystemFactQuery) {
       console.log('Intelligence Contract v1.1: System fact query detected, bypassing LLM');
       
-      // Generate deterministic response from SystemIntelligenceSnapshot
+      // Use SystemTruthSnapshot if available (preferred), otherwise fall back to legacy data_context
+      const truthSnapshot = body.system_truth_snapshot;
+      
+      // Generate deterministic response using EXACT template (NO VARIATION ALLOWED)
       let deterministicResponse = '';
       
-      if (connectedIntegrations.length === 0) {
-        // No integrations connected - this is a FACT
+      if (truthSnapshot) {
+        // USE SystemTruthSnapshot (UI-LOCKED TRUTH)
+        const integrations = truthSnapshot.connected_integrations;
+        
+        if (integrations.length === 0) {
+          deterministicResponse = 'You currently have no integrations connected to your Core314 account.\n\n';
+          deterministicResponse += 'To get started, visit the Integration Hub to connect your first integration.\n\n';
+          deterministicResponse += '[Based on Core314 system data]';
+        } else {
+          // 1. ACKNOWLEDGE FACTS - List integrations
+          deterministicResponse = 'I see the following integrations connected to your Core314 account:\n';
+          integrations.forEach(int => {
+            deterministicResponse += `- ${int.name}\n`;
+          });
+          deterministicResponse += '\n';
+          
+          // 2. STATE CURRENT SYSTEM STATE - Verbatim from snapshot
+          deterministicResponse += `Your current Global Fusion Score is ${truthSnapshot.ui_global_fusion_score}. `;
+          
+          // STATE-GATING: Use EXACT phrasing based on metrics_state
+          if (truthSnapshot.metrics_state === 'observing') {
+            // HARD GATED: No metrics = observing state
+            deterministicResponse += `This is a baseline score while Core314 is observing activity.\n`;
+            deterministicResponse += `These integrations are connected and being observed. Efficiency metrics are not yet contributing.\n`;
+          } else if (truthSnapshot.metrics_state === 'stabilizing') {
+            // Has some metrics but not fully active
+            deterministicResponse += `This score is based on early efficiency signals that are still stabilizing.\n`;
+            deterministicResponse += `These integrations are connected and metrics are being collected. Full scoring will begin as more data is observed.\n`;
+          } else if (truthSnapshot.metrics_state === 'active') {
+            // Fully active and contributing
+            deterministicResponse += `This score reflects active efficiency signals from your connected integrations.\n`;
+            deterministicResponse += `All connected integrations are actively contributing to your fusion score.\n`;
+          }
+          
+          // 3. EXPLAIN WHAT CORE314 IS DOING NEXT - Never user blame
+          deterministicResponse += `Core314 will automatically begin scoring as activity data is collected.\n\n`;
+          
+          deterministicResponse += `[Based on Core314 system data]`;
+        }
+      } else if (connectedIntegrations.length === 0) {
+        // Legacy fallback: No integrations connected
         deterministicResponse = 'You currently have no integrations connected to your Core314 account.\n\n';
-        deterministicResponse += 'To get started, visit the Integration Hub to connect your first integration. ';
-        deterministicResponse += 'Core314 supports Slack, Microsoft Teams, and other business tools.\n\n';
+        deterministicResponse += 'To get started, visit the Integration Hub to connect your first integration.\n\n';
         deterministicResponse += '[Based on Core314 system data]';
       } else {
-        // Integrations ARE connected - enumerate them as FACTS
+        // Legacy fallback: Use data_context integrations
         deterministicResponse = 'I see the following integrations connected to your Core314 account:\n';
         connectedIntegrations.forEach(int => {
           deterministicResponse += `- ${int.name}\n`;
         });
         deterministicResponse += '\n';
         
-        // Describe metric availability STATE (separate from existence FACT)
+        // Legacy: Describe metric availability STATE
         const hasAnyScores = connectedIntegrations.some(i => i.fusion_score !== null);
-        const allStabilizing = connectedIntegrations.every(i => 
-          (i.metrics_state || i.data_status) === 'stabilizing' || 
-          (i.metrics_state || i.data_status) === 'emerging'
-        );
         
         if (hasAnyScores) {
-          const scoredIntegrations = connectedIntegrations.filter(i => i.fusion_score !== null);
-          const unscoredIntegrations = connectedIntegrations.filter(i => i.fusion_score === null);
-          
-          if (unscoredIntegrations.length > 0) {
-            deterministicResponse += `${scoredIntegrations.map(i => i.name).join(' and ')} ${scoredIntegrations.length > 1 ? 'are' : 'is'} actively contributing efficiency signals. `;
-            deterministicResponse += `${unscoredIntegrations.map(i => i.name).join(' and ')} ${unscoredIntegrations.length > 1 ? 'are' : 'is'} still stabilizing and will begin contributing as activity data is observed.\n\n`;
-          } else {
-            deterministicResponse += 'All connected integrations are actively contributing efficiency signals to your Core314 dashboard.\n\n';
-          }
-        } else if (allStabilizing) {
-          deterministicResponse += 'At this time, efficiency metrics are still stabilizing, so these integrations are not yet contributing scored efficiency signals. ';
-          deterministicResponse += 'Core314 will automatically begin evaluating them as activity data is observed.\n\n';
+          deterministicResponse += 'These integrations are actively contributing efficiency signals to your Core314 dashboard.\n';
         } else {
-          deterministicResponse += 'Core314 is monitoring these integrations. Efficiency metrics will be computed as activity data accumulates.\n\n';
+          deterministicResponse += 'These integrations are connected and being observed. Efficiency metrics are not yet contributing.\n';
         }
         
+        deterministicResponse += 'Core314 will automatically begin scoring as activity data is collected.\n\n';
         deterministicResponse += `[Based on Core314 system data for: ${connectedIntegrations.map(i => i.name).join(', ')}]`;
       }
       

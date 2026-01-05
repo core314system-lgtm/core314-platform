@@ -52,27 +52,46 @@ export interface ChatResponse {
 }
 
 // ============================================================
-// AUTHORITATIVE SYSTEM FACT TYPES
-// These types represent the SINGLE SOURCE OF TRUTH for integration facts
+// SYSTEM TRUTH SNAPSHOT - SINGLE SOURCE OF TRUTH
+// This MUST match the response from /api/system/integrations
+// BOTH UI and AI consume this snapshot - they MUST NEVER contradict
 // ============================================================
 
-export type MetricsState = 'active' | 'stabilizing' | 'dormant';
+// Metrics State (UI-LOCKED terminology)
+// observing: No efficiency metrics exist yet (HARD GATED)
+// stabilizing: Has some metrics but still collecting data
+// active: Has recent metrics AND contributing to score
+export type MetricsState = 'observing' | 'stabilizing' | 'active';
 
-export interface SystemIntegration {
+// Per-integration facts
+export interface ConnectedIntegration {
   name: string;
   connection_status: 'connected' | 'disconnected';
+}
+
+// SystemTruthSnapshot - SINGLE SOURCE OF TRUTH for UI and AI
+export interface SystemTruthSnapshot {
+  connected_integrations: ConnectedIntegration[];
+  ui_global_fusion_score: number;
+  has_efficiency_metrics: boolean;
   metrics_state: MetricsState;
-  last_activity_timestamp: string | null;
-  // STATE-GATING: Additional flags for contribution determination
-  has_efficiency_metrics: boolean; // True ONLY if fusion_metrics rows exist for this integration
-  contributes_to_score: boolean; // True ONLY if has_efficiency_metrics AND metrics are recent
+  contributes_to_score: boolean;
+  last_updated_at: string;
 }
 
 export interface SystemIntegrationsResponse {
   success: boolean;
-  integrations: SystemIntegration[];
+  snapshot: SystemTruthSnapshot;
   error?: string;
 }
+
+// FORBIDDEN WORDS - AI must NEVER use these
+const FORBIDDEN_WORDS = [
+  'critical',
+  'misconfigured',
+  'no integrations',
+  'score is actually',
+];
 
 // ============================================================
 // SYSTEM FACT QUERY PATTERNS
@@ -119,23 +138,21 @@ export function isSystemFactQuery(query: string): boolean {
 
 /**
  * Generate a deterministic response for system fact queries
- * This function NEVER calls AI - it builds responses purely from system data
+ * This function NEVER calls AI - it builds responses purely from SystemTruthSnapshot
  * 
- * STATE-GATING FIX: An integration may ONLY be described as "contributing" IF:
- * - contributes_to_score === true
- * - has_efficiency_metrics === true
+ * MANDATORY RESPONSE TEMPLATE (NO VARIATION ALLOWED):
+ * 1. ACKNOWLEDGE FACTS (list integrations)
+ * 2. STATE CURRENT SYSTEM STATE (verbatim from snapshot)
+ * 3. EXPLAIN WHAT CORE314 IS DOING NEXT (never user blame)
  * 
- * FORBIDDEN PHRASES (when metrics are not ready):
- * - "actively contributing"
- * - "currently contributing signals"
- * - "feeding efficiency data"
- * - any implication of scoring before metrics exist
+ * FORBIDDEN WORDS: 'critical', 'misconfigured', 'no integrations', 'score is actually'
  */
 export function generateDeterministicFactResponse(
   query: string,
-  integrations: SystemIntegration[]
+  snapshot: SystemTruthSnapshot
 ): string {
   const normalizedQuery = query.toLowerCase();
+  const integrations = snapshot.connected_integrations;
   
   // Check if asking about a specific integration
   const specificIntegrationMatch = normalizedQuery.match(/(?:do i have |is |am i connected to |have i connected? )(\w+)/i);
@@ -144,16 +161,10 @@ export function generateDeterministicFactResponse(
     const found = integrations.find(i => i.name.toLowerCase().includes(requestedIntegration));
     
     if (found) {
-      // STATE-GATING: Only say "contributing" if contributes_to_score is true
-      if (found.contributes_to_score) {
-        return `Yes, ${found.name} is connected to your Core314 account and is actively contributing efficiency signals to your fusion score.\n\n[Based on Core314 system data]`;
-      } else {
-        return `Yes, ${found.name} is connected to your Core314 account. ` +
-          `This integration is currently being observed. Efficiency metrics are still stabilizing and are not yet contributing to your fusion score. ` +
-          `Core314 will automatically begin evaluating efficiency signals as activity data is detected.\n\n[Based on Core314 system data]`;
-      }
+      // Use EXACT template format even for specific integration queries
+      return generateFullResponseFromSnapshot(snapshot, `Yes, ${found.name} is connected to your Core314 account.`);
     } else {
-      return `No, ${specificIntegrationMatch[1]} is not currently connected to your Core314 account. ` +
+      return `No, ${specificIntegrationMatch[1]} is not currently connected to your Core314 account.\n\n` +
         `To connect it, visit the Integration Hub.\n\n[Based on Core314 system data]`;
     }
   }
@@ -161,49 +172,71 @@ export function generateDeterministicFactResponse(
   // Check if asking about count
   if (/how many/i.test(normalizedQuery)) {
     if (integrations.length === 0) {
-      return `You currently have 0 integrations connected to your Core314 account. ` +
+      return `You currently have 0 integrations connected to your Core314 account.\n\n` +
         `To get started, visit the Integration Hub to connect your first integration.\n\n[Based on Core314 system data]`;
     }
-    return `You have ${integrations.length} integration${integrations.length > 1 ? 's' : ''} connected to your Core314 account: ` +
-      `${integrations.map(i => i.name).join(', ')}.\n\n[Based on Core314 system data]`;
+    return generateFullResponseFromSnapshot(snapshot);
   }
   
-  // Default: list all integrations
+  // Check if asking about fusion score
+  if (/fusion score|global score|my score/i.test(normalizedQuery)) {
+    return generateFullResponseFromSnapshot(snapshot);
+  }
+  
+  // Check if asking about contribution status
+  if (/contribut|reporting|sending data/i.test(normalizedQuery)) {
+    return generateFullResponseFromSnapshot(snapshot);
+  }
+  
+  // Default: use full template for all fact queries
   if (integrations.length === 0) {
     return `You currently have no integrations connected to your Core314 account.\n\n` +
-      `To get started, visit the Integration Hub to connect your first integration. ` +
-      `Core314 supports Slack, Microsoft Teams, and other business tools.\n\n[Based on Core314 system data]`;
+      `To get started, visit the Integration Hub to connect your first integration.\n\n[Based on Core314 system data]`;
   }
   
-  // STATE-GATING: Separate integrations by ACTUAL contribution status
-  const contributingIntegrations = integrations.filter(i => i.contributes_to_score);
-  const observingIntegrations = integrations.filter(i => !i.contributes_to_score);
+  return generateFullResponseFromSnapshot(snapshot);
+}
+
+/**
+ * Generate the EXACT response template from SystemTruthSnapshot
+ * This is the MANDATORY format - NO VARIATION ALLOWED
+ */
+function generateFullResponseFromSnapshot(
+  snapshot: SystemTruthSnapshot,
+  prefix?: string
+): string {
+  const integrations = snapshot.connected_integrations;
   
-  let response = `I see the following integrations connected to your Core314 account:\n`;
+  // 1. ACKNOWLEDGE FACTS - List integrations
+  let response = prefix ? `${prefix}\n\n` : '';
+  response += `I see the following integrations connected to your Core314 account:\n`;
   integrations.forEach(int => {
     response += `- ${int.name}\n`;
   });
   response += '\n';
   
-  // STATE-GATING: Use EXACT phrasing based on contribution status
-  if (contributingIntegrations.length === integrations.length) {
-    // ALL integrations are contributing
-    response += `All connected integrations are actively contributing efficiency signals to your fusion score.\n\n`;
-  } else if (contributingIntegrations.length > 0 && observingIntegrations.length > 0) {
-    // MIXED: some contributing, some observing
-    response += `${contributingIntegrations.map(i => i.name).join(' and ')} ${contributingIntegrations.length > 1 ? 'are' : 'is'} actively contributing efficiency signals. `;
-    response += `${observingIntegrations.map(i => i.name).join(' and ')} ${observingIntegrations.length > 1 ? 'are' : 'is'} currently connected and being observed. `;
-    response += `Efficiency metrics are still stabilizing for ${observingIntegrations.length > 1 ? 'these integrations' : 'this integration'} and ${observingIntegrations.length > 1 ? 'are' : 'is'} not yet contributing to your fusion score. `;
-    response += `Core314 will automatically begin evaluating efficiency signals as activity data is detected.\n\n`;
-  } else {
-    // NONE contributing - all observing/stabilizing
-    // This is the REQUIRED phrasing from the user directive
-    response += `These integrations are currently connected and being observed. `;
-    response += `Efficiency metrics are still stabilizing and are not yet contributing to your fusion score. `;
-    response += `Core314 will automatically begin evaluating efficiency signals as activity data is detected.\n\n`;
+  // 2. STATE CURRENT SYSTEM STATE - Verbatim from snapshot
+  response += `Your current Global Fusion Score is ${snapshot.ui_global_fusion_score}. `;
+  
+  // STATE-GATING: Use EXACT phrasing based on metrics_state
+  if (snapshot.metrics_state === 'observing') {
+    // HARD GATED: No metrics = observing state
+    response += `This is a baseline score while Core314 is observing activity.\n`;
+    response += `These integrations are connected and being observed. Efficiency metrics are not yet contributing.\n`;
+  } else if (snapshot.metrics_state === 'stabilizing') {
+    // Has some metrics but not fully active
+    response += `This score is based on early efficiency signals that are still stabilizing.\n`;
+    response += `These integrations are connected and metrics are being collected. Full scoring will begin as more data is observed.\n`;
+  } else if (snapshot.metrics_state === 'active') {
+    // Fully active and contributing
+    response += `This score reflects active efficiency signals from your connected integrations.\n`;
+    response += `All connected integrations are actively contributing to your fusion score.\n`;
   }
   
-  response += `[Based on Core314 system data for: ${integrations.map(i => i.name).join(', ')}]`;
+  // 3. EXPLAIN WHAT CORE314 IS DOING NEXT - Never user blame
+  response += `Core314 will automatically begin scoring as activity data is collected.\n\n`;
+  
+  response += `[Based on Core314 system data]`;
   
   return response;
 }
@@ -238,12 +271,22 @@ export interface ScenarioResponse {
  * This is the SINGLE SOURCE OF TRUTH for integration facts
  * This endpoint NEVER invokes any LLM
  */
+// Default empty snapshot for error cases
+const EMPTY_SNAPSHOT: SystemTruthSnapshot = {
+  connected_integrations: [],
+  ui_global_fusion_score: 50,
+  has_efficiency_metrics: false,
+  metrics_state: 'observing',
+  contributes_to_score: false,
+  last_updated_at: new Date().toISOString(),
+};
+
 export async function fetchSystemIntegrations(): Promise<SystemIntegrationsResponse> {
   try {
     const supabase = await initSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      return { success: false, integrations: [], error: 'Not authenticated' };
+      return { success: false, snapshot: EMPTY_SNAPSHOT, error: 'Not authenticated' };
     }
 
     // Call the authoritative system fact endpoint
@@ -257,7 +300,7 @@ export async function fetchSystemIntegrations(): Promise<SystemIntegrationsRespo
 
     if (!response.ok) {
       console.error('Failed to fetch system integrations:', response.statusText);
-      return { success: false, integrations: [], error: `HTTP ${response.status}: ${response.statusText}` };
+      return { success: false, snapshot: EMPTY_SNAPSHOT, error: `HTTP ${response.status}: ${response.statusText}` };
     }
 
     const result: SystemIntegrationsResponse = await response.json();
@@ -266,7 +309,7 @@ export async function fetchSystemIntegrations(): Promise<SystemIntegrationsRespo
     console.error('System integrations fetch error:', error);
     return { 
       success: false, 
-      integrations: [], 
+      snapshot: EMPTY_SNAPSHOT, 
       error: error instanceof Error ? error.message : 'Unknown error' 
     };
   }
@@ -353,10 +396,10 @@ export async function chatWithCore314(
         };
       }
       
-      // Generate deterministic response from system data (NO AI)
+      // Generate deterministic response from SystemTruthSnapshot (NO AI)
       const deterministicResponse = generateDeterministicFactResponse(
         latestUserQuery,
-        systemIntegrations.integrations
+        systemIntegrations.snapshot
       );
       
       // Return with 0 AI tokens - this is a deterministic response
@@ -386,8 +429,8 @@ export async function chatWithCore314(
           messages, 
           context,
           data_context: dataContext,
-          // Inject system facts so AI is always fact-aware
-          system_integrations: systemIntegrations.success ? systemIntegrations.integrations : [],
+          // Inject SystemTruthSnapshot so AI is always fact-aware
+          system_truth_snapshot: systemIntegrations.success ? systemIntegrations.snapshot : EMPTY_SNAPSHOT,
         }),
       }
     );
