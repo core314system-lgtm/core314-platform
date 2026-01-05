@@ -138,7 +138,42 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    // Intelligence Contract v1.0 - Server-side query routing
+    // Intelligence Contract v1.1 - Server-side Query Router
+    // CRITICAL: Route system fact queries to deterministic responses WITHOUT calling LLM
+    
+    // Extract the latest user message for classification
+    const userMessages = body.messages.filter(m => m.role === 'user');
+    const latestUserQuery = userMessages[userMessages.length - 1]?.content || '';
+    const normalizedQuery = latestUserQuery.toLowerCase().replace(/[?!.,]/g, '').trim();
+    
+    // SYSTEM_FACT_QUERY patterns - whitelist approach (broad to maximize recall)
+    // These queries ask about integration existence, count, or names
+    const SYSTEM_FACT_PATTERNS = [
+      // Integration existence queries
+      /what integrations? (?:are |is )?connected/i,
+      /which integrations? (?:are |is |do i have )?connected/i,
+      /what integrations? do i have/i,
+      /which integrations? do i have/i,
+      /list (?:my |the )?(?:connected )?integrations?/i,
+      /show (?:me )?(?:my |the )?(?:connected )?integrations?/i,
+      /(?:tell me |what are )(?:my |the )?(?:connected )?integrations?/i,
+      // Specific integration existence queries
+      /do i have (\w+) connected/i,
+      /is (\w+) connected/i,
+      /(?:am i |are we )connected to (\w+)/i,
+      /(?:have i |did i )connect(?:ed)? (\w+)/i,
+      // Count queries
+      /how many integrations? (?:are |do i have )?connected/i,
+      /how many integrations? do i have/i,
+      /(?:what is |what's )the (?:number|count) of (?:my )?integrations?/i,
+      // General existence queries
+      /(?:what|which) (?:apps?|tools?|services?) (?:are |is )?connected/i,
+      /(?:what|which) (?:apps?|tools?|services?) do i have/i,
+    ];
+    
+    // Check if query matches any SYSTEM_FACT_PATTERN
+    const isSystemFactQuery = SYSTEM_FACT_PATTERNS.some(pattern => pattern.test(latestUserQuery));
+    
     // Determine if this is a global (all integrations) or scoped query
     const isGlobalScope = !body.context?.integration_name;
     const scopedIntegrationName = body.context?.integration_name;
@@ -228,6 +263,73 @@ Deno.serve(withSentry(async (req) => {
     // Intelligence Contract v1.1 - Extract scoring_confidence and system_reasoning
     const scoringConfidence = snapshot?.scoring_confidence || 'low';
     const systemReasoning = snapshot?.system_reasoning || 'No system reasoning available';
+
+    // ============================================================
+    // INTELLIGENCE CONTRACT v1.1 - QUERY ROUTER (CONTROL PLANE)
+    // CRITICAL: System fact queries NEVER invoke the LLM
+    // ============================================================
+    if (isSystemFactQuery) {
+      console.log('Intelligence Contract v1.1: System fact query detected, bypassing LLM');
+      
+      // Generate deterministic response from SystemIntelligenceSnapshot
+      let deterministicResponse = '';
+      
+      if (connectedIntegrations.length === 0) {
+        // No integrations connected - this is a FACT
+        deterministicResponse = 'You currently have no integrations connected to your Core314 account.\n\n';
+        deterministicResponse += 'To get started, visit the Integration Hub to connect your first integration. ';
+        deterministicResponse += 'Core314 supports Slack, Microsoft Teams, and other business tools.\n\n';
+        deterministicResponse += '[Based on Core314 system data]';
+      } else {
+        // Integrations ARE connected - enumerate them as FACTS
+        deterministicResponse = 'I see the following integrations connected to your Core314 account:\n';
+        connectedIntegrations.forEach(int => {
+          deterministicResponse += `- ${int.name}\n`;
+        });
+        deterministicResponse += '\n';
+        
+        // Describe metric availability STATE (separate from existence FACT)
+        const hasAnyScores = connectedIntegrations.some(i => i.fusion_score !== null);
+        const allStabilizing = connectedIntegrations.every(i => 
+          (i.metrics_state || i.data_status) === 'stabilizing' || 
+          (i.metrics_state || i.data_status) === 'emerging'
+        );
+        
+        if (hasAnyScores) {
+          const scoredIntegrations = connectedIntegrations.filter(i => i.fusion_score !== null);
+          const unscoredIntegrations = connectedIntegrations.filter(i => i.fusion_score === null);
+          
+          if (unscoredIntegrations.length > 0) {
+            deterministicResponse += `${scoredIntegrations.map(i => i.name).join(' and ')} ${scoredIntegrations.length > 1 ? 'are' : 'is'} actively contributing efficiency signals. `;
+            deterministicResponse += `${unscoredIntegrations.map(i => i.name).join(' and ')} ${unscoredIntegrations.length > 1 ? 'are' : 'is'} still stabilizing and will begin contributing as activity data is observed.\n\n`;
+          } else {
+            deterministicResponse += 'All connected integrations are actively contributing efficiency signals to your Core314 dashboard.\n\n';
+          }
+        } else if (allStabilizing) {
+          deterministicResponse += 'At this time, efficiency metrics are still stabilizing, so these integrations are not yet contributing scored efficiency signals. ';
+          deterministicResponse += 'Core314 will automatically begin evaluating them as activity data is observed.\n\n';
+        } else {
+          deterministicResponse += 'Core314 is monitoring these integrations. Efficiency metrics will be computed as activity data accumulates.\n\n';
+        }
+        
+        deterministicResponse += `[Based on Core314 system data for: ${connectedIntegrations.map(i => i.name).join(', ')}]`;
+      }
+      
+      // Return deterministic response WITHOUT calling LLM
+      const deterministicChatResponse: ChatResponse = {
+        success: true,
+        reply: deterministicResponse,
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, // No LLM tokens used
+      };
+      
+      return new Response(JSON.stringify(deterministicChatResponse), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // ============================================================
+    // END QUERY ROUTER - Non-fact queries proceed to LLM below
+    // ============================================================
 
     // Build strict grounding system prompt - Intelligence Contract v1.1
     let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform.
