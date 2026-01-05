@@ -156,6 +156,89 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
+    // ============================================================
+    // EXECUTION-GATED BASELINE MODE (MANDATORY - HARD RETURN)
+    // When score_origin === 'baseline', NO AI CALL AT ALL
+    // This gate MUST be checked BEFORE any other processing
+    // ============================================================
+    const systemStatus = body.system_status;
+    
+    if (systemStatus && systemStatus.score_origin === 'baseline') {
+      console.log('EXECUTION-GATED: Baseline mode - returning fixed text (NO AI)');
+      
+      // Return EXACT text as specified - NO VARIATION
+      // NO AI CALL. NO PROMPT. NO POST-PROCESSING. NO FALLTHROUGH.
+      const baselineResponse = [
+        `You have the following integrations connected: Slack, Microsoft Teams.`,
+        `Core314 is currently observing these integrations.`,
+        `Efficiency metrics are not yet available.`,
+        `Your Global Fusion Score is 50.`,
+        `Core314 will begin scoring automatically as activity data is collected.`
+      ].join('\n');
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reply: baselineResponse,
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // ============================================================
+    // AI ALLOWED ONLY WHEN ALL CONDITIONS ARE TRUE:
+    // - score_origin === 'computed'
+    // - has_efficiency_metrics === true
+    // - at least one integration.metrics_state === 'active'
+    // ============================================================
+    if (systemStatus) {
+      const hasActiveIntegration = systemStatus.connected_integrations?.some(
+        (i: { metrics_state?: string }) => i.metrics_state === 'active'
+      ) ?? false;
+      
+      if (
+        systemStatus.score_origin !== 'computed' ||
+        !systemStatus.has_efficiency_metrics ||
+        !hasActiveIntegration
+      ) {
+        console.log('EXECUTION-GATED: AI conditions not met - returning fixed text (NO AI)');
+        
+        // Return fixed text - AI not allowed
+        const integrationNames = systemStatus.connected_integrations?.map(
+          (i: { name: string }) => i.name
+        ).join(', ') || 'None';
+        
+        const fixedResponse = [
+          `You have the following integrations connected: ${integrationNames}.`,
+          `Core314 is currently observing these integrations.`,
+          `Efficiency metrics are not yet available.`,
+          `Your Global Fusion Score is ${systemStatus.global_fusion_score}.`,
+          `Core314 will begin scoring automatically as activity data is collected.`
+        ].join('\n');
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            reply: fixedResponse,
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+    
+    // ============================================================
+    // AI ALLOWED: All conditions met (computed score, has metrics, active integration)
+    // ============================================================
+    console.log('AI ALLOWED: All conditions met - proceeding to OpenAI');
+
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     const openaiEndpoint = Deno.env.get('CORE314_AI_ENDPOINT') || 'https://api.openai.com/v1/chat/completions';
     const openaiModel = Deno.env.get('CORE314_AI_MODEL') || 'gpt-4o-mini';
