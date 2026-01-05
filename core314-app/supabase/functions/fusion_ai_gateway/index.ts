@@ -138,47 +138,112 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
+    // Determine if this is a global (all integrations) or scoped query
+    const isGlobalScope = !body.context?.integration_name;
+    
+    // Extract connected integrations for analysis
+    const connectedIntegrations: Array<{ name: string; fusion_score: number | null; trend: string; metrics_tracked: string[]; data_status: string }> = 
+      (body.data_context?.connected_integrations as Array<{ name: string; fusion_score: number | null; trend: string; metrics_tracked: string[]; data_status: string }>) || [];
+    
+    // Pre-compute integration ranking for comparative queries (sorted by fusion_score ASC - weakest first)
+    const rankedIntegrations = [...connectedIntegrations]
+      .filter(i => i.fusion_score !== null)
+      .sort((a, b) => {
+        // Primary: fusion_score ASC (lower = weaker)
+        const scoreDiff = (a.fusion_score ?? 0) - (b.fusion_score ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        // Secondary: trend (declining < stable < improving)
+        const trendOrder: Record<string, number> = { 'declining': 0, 'stable': 1, 'improving': 2 };
+        return (trendOrder[a.trend] ?? 1) - (trendOrder[b.trend] ?? 1);
+      });
+    
+    const integrationNames = connectedIntegrations.map(i => i.name).join(', ');
+    const weakestIntegration = rankedIntegrations[0];
+    const strongestIntegration = rankedIntegrations[rankedIntegrations.length - 1];
+
     // Build strict grounding system prompt
     let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform.
 
 CRITICAL GROUNDING RULES (YOU MUST FOLLOW THESE):
 1. You may ONLY answer using the data provided below. Do NOT infer, assume, or fabricate any information.
 2. If a metric, integration, or data point is not present in the provided data, you MUST explicitly state "This is not currently tracked in Core314" or "No data available for this."
-3. You may NOT claim "there are no integrations" if the connected_integrations array contains entries.
+3. You may NOT claim "there are no integrations" if the CONNECTED INTEGRATIONS list below contains entries.
 4. When referencing data, cite the specific values from the provided context.
 5. End every response with a provenance line: "Based on Core314 data from your [integration name(s)]." or "Based on Core314 data across all your integrations."
+
+REFUSAL RULES:
+- You may ONLY refuse to answer if there are ZERO connected integrations.
+- You may NOT refuse due to sparse metrics, empty integration_performance, or missing advanced analytics.
+- If metrics are limited, acknowledge this but still provide the best answer using available fusion scores and trends.
 
 LIVE SYSTEM DATA FOR THIS USER:`;
 
     if (body.data_context) {
       const dc = body.data_context;
-      // Format connected integrations clearly
-      if (dc.connected_integrations && Array.isArray(dc.connected_integrations)) {
-        systemContent += `\n\nCONNECTED INTEGRATIONS (${dc.connected_integrations.length} total):`;
-        if (dc.connected_integrations.length === 0) {
-          systemContent += `\nNo integrations connected yet.`;
-        } else {
-          dc.connected_integrations.forEach((int: { name: string; fusion_score: number | null; trend: string; metrics_tracked: string[]; data_status: string }) => {
-            systemContent += `\n- ${int.name}: Fusion Score ${int.fusion_score ?? 'N/A'}, Trend: ${int.trend}, Metrics: [${int.metrics_tracked.join(', ') || 'none yet'}], Status: ${int.data_status}`;
+      // Format connected integrations clearly - THIS IS THE AUTHORITATIVE SOURCE
+      systemContent += `\n\n=== CONNECTED INTEGRATIONS (AUTHORITATIVE SOURCE) ===`;
+      if (connectedIntegrations.length === 0) {
+        systemContent += `\nNo integrations connected yet. You may refuse to answer integration-related questions.`;
+      } else {
+        systemContent += `\nTotal: ${connectedIntegrations.length} integrations`;
+        connectedIntegrations.forEach((int) => {
+          const metricsInfo = int.metrics_tracked.length > 0 
+            ? `Metrics: [${int.metrics_tracked.join(', ')}]` 
+            : 'Metrics: limited data';
+          systemContent += `\n- ${int.name}: Fusion Score ${int.fusion_score ?? 'N/A'}, Trend: ${int.trend}, ${metricsInfo}, Status: ${int.data_status}`;
+        });
+        
+        // Add pre-computed ranking for comparative queries
+        if (rankedIntegrations.length > 0) {
+          systemContent += `\n\n=== INTEGRATION RANKING (for comparative queries) ===`;
+          systemContent += `\nRanked by Fusion Score (lowest/weakest first):`;
+          rankedIntegrations.forEach((int, idx) => {
+            systemContent += `\n${idx + 1}. ${int.name}: Score ${int.fusion_score}, Trend: ${int.trend}`;
           });
+          if (weakestIntegration) {
+            systemContent += `\n\nWEAKEST INTEGRATION: ${weakestIntegration.name} (Score: ${weakestIntegration.fusion_score}, Trend: ${weakestIntegration.trend})`;
+          }
+          if (strongestIntegration) {
+            systemContent += `\nSTRONGEST INTEGRATION: ${strongestIntegration.name} (Score: ${strongestIntegration.fusion_score}, Trend: ${strongestIntegration.trend})`;
+          }
         }
       }
+      
       systemContent += `\n\nGlobal Fusion Score: ${dc.global_fusion_score || 0}`;
       systemContent += `\nSystem Health: ${dc.system_health || 'Unknown'}`;
       if (dc.last_analysis_timestamp) {
         systemContent += `\nLast Analysis: ${dc.last_analysis_timestamp}`;
       }
-      // Include other context as JSON for completeness
-      systemContent += `\n\nFull System Context:\n${JSON.stringify(body.data_context, null, 2)}`;
+      
+      // Note about integration_performance - mark as supplementary, not authoritative
+      systemContent += `\n\n=== SUPPLEMENTARY DATA (not authoritative for integration existence) ===`;
+      systemContent += `\nNote: The integration_performance data below is supplementary. Use CONNECTED INTEGRATIONS above as the authoritative source for which integrations exist.`;
+      systemContent += `\n${JSON.stringify({ 
+        top_deficiencies: dc.top_deficiencies,
+        integration_performance: dc.integration_performance,
+        anomalies_today: dc.anomalies_today,
+        recent_alerts: dc.recent_alerts,
+        recent_optimizations: dc.recent_optimizations
+      }, null, 2)}`;
     } else {
       systemContent += `\n\nNo system data available. You should inform the user that Core314 data is not currently loaded.`;
     }
 
-    if (body.context) {
-      systemContent += `\n\nADDITIONAL CONTEXT (Integration-Specific Query):\n${JSON.stringify(body.context, null, 2)}`;
-      if (body.context.integration_name) {
-        systemContent += `\n\nIMPORTANT: This query is specifically about the "${body.context.integration_name}" integration. Answer ONLY using data for this integration. Do not reference other integrations unless explicitly asked.`;
-      }
+    // Add scope-specific instructions
+    if (isGlobalScope) {
+      systemContent += `\n\n=== GLOBAL SCOPE INSTRUCTIONS ===`;
+      systemContent += `\nThis is a GLOBAL query (All Integrations view). You should:`;
+      systemContent += `\n- Aggregate and compare across ALL connected integrations`;
+      systemContent += `\n- For comparative questions ("which is less efficient?", "which is underperforming?", "what is hurting my score?"):`;
+      systemContent += `\n  * Use the INTEGRATION RANKING above to identify the weakest/strongest`;
+      systemContent += `\n  * Provide a comparison table or list with scores`;
+      systemContent += `\n  * Explain contributing factors using available metrics (or note if metrics are limited)`;
+      systemContent += `\n- End with provenance: "Based on Core314 data across your connected integrations (${integrationNames})."`;
+    } else if (body.context?.integration_name) {
+      systemContent += `\n\n=== SCOPED QUERY INSTRUCTIONS ===`;
+      systemContent += `\nThis query is specifically about the "${body.context.integration_name}" integration.`;
+      systemContent += `\nAnswer ONLY using data for this integration. Do not reference other integrations unless explicitly asked.`;
+      systemContent += `\nAdditional context: ${JSON.stringify(body.context, null, 2)}`;
     }
 
     systemContent += `\n\nREMINDER: You must end your response with a provenance line stating which integration(s) your answer is based on.`;
