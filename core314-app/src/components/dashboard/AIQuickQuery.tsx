@@ -11,14 +11,8 @@ export function AIQuickQuery() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<Array<{ query: string; response: string }>>([]);
 
-  // Helper to ensure provenance line is present (client-side guardrail)
-  const ensureProvenanceLine = (response: string): string => {
-    const provenancePattern = /Based on Core314 data/i;
-    if (provenancePattern.test(response)) {
-      return response;
-    }
-    return `${response}\n\n_Based on Core314 data across all your integrations._`;
-  };
+  // NOTE: ensureProvenanceLine() REMOVED per EXECUTION-GATED baseline mode
+  // In baseline mode, responses must be EXACT with NO FOOTERS added
 
   const handleSubmit = async () => {
     if (!query.trim()) return;
@@ -29,10 +23,9 @@ export function AIQuickQuery() {
 
     try {
       const result = await quickQuery(currentQuery);
-      // Ensure provenance line is present
-      const resultWithProvenance = ensureProvenanceLine(result);
-      setResponse(resultWithProvenance);
-      setHistory([{ query: currentQuery, response: resultWithProvenance }, ...history.slice(0, 2)]);
+      // Return result as-is - NO FOOTERS in baseline mode
+      setResponse(result);
+      setHistory([{ query: currentQuery, response: result }, ...history.slice(0, 2)]);
     } catch (error) {
       console.error('Quick query error:', error);
       setResponse('Failed to get response. Please try again.');

@@ -267,6 +267,7 @@ export interface ScenarioResponse {
   success: boolean;
   scenarios?: ScenarioCard[];
   error?: string;
+  message?: string;
 }
 
 /**
@@ -499,6 +500,7 @@ export async function chatWithCore314(
 
 /**
  * Generate predictive optimization scenarios
+ * EXECUTION-GATED: Returns fixed response in baseline mode (NO AI)
  */
 export async function generateScenarios(
   request: ScenarioRequest = {}
@@ -510,6 +512,44 @@ export async function generateScenarios(
       return { success: false, error: 'Not authenticated' };
     }
 
+    // ============================================================
+    // EXECUTION-GATED BASELINE MODE (MANDATORY - HARD RETURN)
+    // When score_origin === 'baseline', NO AI CALL AT ALL
+    // ============================================================
+    const systemStatusResponse = await fetchSystemStatus();
+    const systemStatus = systemStatusResponse.success ? systemStatusResponse.system_status : EMPTY_SYSTEM_STATUS;
+    
+    // BASELINE MODE: Return fixed response (NO AI)
+    if (systemStatus.score_origin === 'baseline') {
+      console.log('BASELINE SHORT-CIRCUIT HIT: generateScenarios - baseline mode (NO AI)');
+      return {
+        success: true,
+        scenarios: [],
+        message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
+      };
+    }
+    
+    // AI ALLOWED ONLY WHEN ALL CONDITIONS ARE TRUE
+    const hasActiveIntegration = systemStatus.connected_integrations.some(
+      i => i.metrics_state === 'active'
+    );
+    
+    if (
+      systemStatus.score_origin !== 'computed' ||
+      !systemStatus.has_efficiency_metrics ||
+      !hasActiveIntegration
+    ) {
+      console.log('BASELINE SHORT-CIRCUIT HIT: generateScenarios - AI conditions not met (NO AI)');
+      return {
+        success: true,
+        scenarios: [],
+        message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
+      };
+    }
+
+    // AI ALLOWED: Proceed to scenario generator
+    console.log('AI ALLOWED: generateScenarios - proceeding to ai_scenario_generator');
+    
     const url = await getSupabaseFunctionUrl('ai_scenario_generator');
     const response = await fetch(
       url,
@@ -519,7 +559,10 @@ export async function generateScenarios(
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          ...request,
+          system_status: systemStatus,
+        }),
       }
     );
 

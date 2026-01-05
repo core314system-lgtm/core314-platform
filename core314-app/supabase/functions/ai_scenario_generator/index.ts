@@ -100,7 +100,73 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    const body: ScenarioRequest = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({})) as ScenarioRequest & { system_status?: { score_origin?: string; has_efficiency_metrics?: boolean; global_fusion_score?: number; connected_integrations?: Array<{ name: string; metrics_state?: string }> } };
+    
+    // ============================================================
+    // EXECUTION-GATED BASELINE MODE (MANDATORY - HARD RETURN)
+    // FAIL-CLOSED: If system_status is missing OR score_origin === 'baseline', NO AI CALL
+    // ============================================================
+    const systemStatus = body.system_status;
+    
+    // FAIL-CLOSED: If system_status is missing, treat as baseline (NO AI)
+    if (!systemStatus) {
+      console.log('BASELINE SHORT-CIRCUIT HIT: ai_scenario_generator - system_status missing (NO AI)');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          scenarios: [],
+          message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // BASELINE MODE: score_origin === 'baseline' means NO AI
+    if (systemStatus.score_origin === 'baseline') {
+      console.log('BASELINE SHORT-CIRCUIT HIT: ai_scenario_generator - baseline mode (NO AI)');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          scenarios: [],
+          message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // AI ALLOWED ONLY WHEN ALL CONDITIONS ARE TRUE
+    const hasActiveIntegration = systemStatus.connected_integrations?.some(
+      i => i.metrics_state === 'active'
+    ) ?? false;
+    
+    if (
+      systemStatus.score_origin !== 'computed' ||
+      !systemStatus.has_efficiency_metrics ||
+      !hasActiveIntegration
+    ) {
+      console.log('BASELINE SHORT-CIRCUIT HIT: ai_scenario_generator - AI conditions not met (NO AI)');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          scenarios: [],
+          message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // AI ALLOWED: All conditions met
+    console.log('AI ALLOWED: ai_scenario_generator - proceeding to OpenAI');
+    
     const horizon = body.horizon || '7d';
     const goal = body.goal || 'Optimize system performance and efficiency';
 
