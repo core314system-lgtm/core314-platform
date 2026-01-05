@@ -2,65 +2,61 @@ import type { Handler, HandlerEvent, HandlerContext } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * AUTHORITATIVE SYSTEM TRUTH ENDPOINT
+ * CANONICAL SYSTEM STATUS ENDPOINT
  * GET /api/system/integrations
  * 
- * This endpoint returns the SINGLE SOURCE OF TRUTH (SystemTruthSnapshot)
- * that BOTH UI and AI MUST consume. This ensures they NEVER contradict.
+ * TRUST RESTORATION FIX - This endpoint returns the SINGLE CANONICAL SystemStatus
+ * that BOTH UI and AI MUST consume. AI is NOT allowed to compute or infer anything
+ * beyond this object.
  * 
- * It MUST:
- * - Query the same sources used by the dashboard UI
- * - Return factual data ONLY
- * - NEVER invoke any LLM
- * - NEVER depend on AI context or prompts
+ * RULES:
+ * - AI must NEVER recalculate global_fusion_score
+ * - AI must NEVER re-label system_health
+ * - AI must NEVER infer severity
+ * - AI must NEVER use words like "indicates", "suggests", "critical", "issues"
  * 
- * HARD GATING RULES:
- * - If has_efficiency_metrics === false:
- *   - metrics_state MUST be 'observing'
- *   - contributes_to_score MUST be false
- * 
- * Response format (SystemTruthSnapshot):
+ * Response format (SystemStatus):
  * {
- *   "connected_integrations": [{ name, connection_status }],
- *   "ui_global_fusion_score": 50,
+ *   "global_fusion_score": 50,
+ *   "score_origin": "baseline" | "computed",
+ *   "system_health": "observing" | "active",
  *   "has_efficiency_metrics": false,
- *   "metrics_state": "observing",
- *   "contributes_to_score": false,
- *   "last_updated_at": "2026-01-04T13:12:00Z"
+ *   "connected_integrations": [{ name, metrics_state }]
  * }
  */
 
-// Metrics State (UI-LOCKED terminology)
-// observing: No efficiency metrics exist yet (HARD GATED: has_efficiency_metrics === false)
-// stabilizing: Has some metrics but still collecting data
-// active: Has recent metrics (within 14 days) AND contributing to score
-type MetricsState = 'observing' | 'stabilizing' | 'active';
+// System Health: ONLY two states allowed
+// observing: No efficiency metrics exist yet OR metrics not recent
+// active: Has recent metrics AND contributing to score
+type SystemHealth = 'observing' | 'active';
+
+// Score Origin: Where the score came from
+// baseline: Using default 50 because no computed scores exist
+// computed: Calculated from actual fusion_scores
+type ScoreOrigin = 'baseline' | 'computed';
+
+// Per-integration metrics state (same vocabulary as system_health for consistency)
+type IntegrationMetricsState = 'observing' | 'active';
 
 // Per-integration facts
 interface ConnectedIntegration {
   name: string;
-  connection_status: 'connected' | 'disconnected';
+  metrics_state: IntegrationMetricsState;
 }
 
-// SystemTruthSnapshot - SINGLE SOURCE OF TRUTH for UI and AI
-interface SystemTruthSnapshot {
-  // Integration facts
-  connected_integrations: ConnectedIntegration[];
-  // Global score (MUST match UI gauge - computed same way as Dashboard)
-  ui_global_fusion_score: number;
-  // HARD GATED: If false, metrics_state MUST be 'observing', contributes_to_score MUST be false
+// SystemStatus - SINGLE CANONICAL OBJECT for UI and AI
+// AI is NOT allowed to compute or infer anything beyond this object
+interface SystemStatus {
+  global_fusion_score: number;
+  score_origin: ScoreOrigin;
+  system_health: SystemHealth;
   has_efficiency_metrics: boolean;
-  // Global metrics state (observing | stabilizing | active)
-  metrics_state: MetricsState;
-  // True ONLY if has_efficiency_metrics AND metrics are recent
-  contributes_to_score: boolean;
-  // Timestamp of last data update
-  last_updated_at: string;
+  connected_integrations: ConnectedIntegration[];
 }
 
-interface SystemIntegrationsResponse {
+interface SystemStatusResponse {
   success: boolean;
-  snapshot: SystemTruthSnapshot;
+  system_status: SystemStatus;
   error?: string;
 }
 
@@ -70,20 +66,17 @@ const BASELINE_SCORE = 50;
 const ACTIVE_THRESHOLD_DAYS = 14;
 
 /**
- * HARD GATING: Compute global metrics_state based on ACTUAL metrics existence
+ * Compute system_health based on ACTUAL metrics existence
+ * ONLY two states: 'observing' or 'active'
  * 
- * CRITICAL RULES (NON-NEGOTIABLE):
- * - If has_efficiency_metrics === false: metrics_state MUST be 'observing'
- * - If has_efficiency_metrics === true but not recent: metrics_state is 'stabilizing'
- * - If has_efficiency_metrics === true AND recent: metrics_state is 'active'
- * 
- * This function enforces UI-LOCKED truth - AI MUST use these exact states.
+ * observing: No efficiency metrics exist OR metrics not recent
+ * active: Has recent metrics AND contributing to score
  */
-function computeGlobalMetricsState(
+function computeSystemHealth(
   hasEfficiencyMetrics: boolean,
   lastMetricSync: string | null
-): MetricsState {
-  // HARD GATING: No metrics = 'observing' (NEVER 'stabilizing' or 'active')
+): SystemHealth {
+  // No metrics = 'observing'
   if (!hasEfficiencyMetrics) {
     return 'observing';
   }
@@ -99,8 +92,35 @@ function computeGlobalMetricsState(
     }
   }
   
-  // Has metrics but not recent enough
-  return 'stabilizing';
+  // Has metrics but not recent enough = 'observing'
+  return 'observing';
+}
+
+/**
+ * Compute per-integration metrics_state
+ * ONLY two states: 'observing' or 'active'
+ */
+function computeIntegrationMetricsState(
+  integrationId: string,
+  metricsMap: Map<string, { hasMetrics: boolean; lastSyncedAt: string | null }>
+): IntegrationMetricsState {
+  const metricsData = metricsMap.get(integrationId);
+  
+  if (!metricsData || !metricsData.hasMetrics) {
+    return 'observing';
+  }
+  
+  if (metricsData.lastSyncedAt) {
+    const now = new Date();
+    const lastMetricDate = new Date(metricsData.lastSyncedAt);
+    const daysSinceMetric = (now.getTime() - lastMetricDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceMetric < ACTIVE_THRESHOLD_DAYS) {
+      return 'active';
+    }
+  }
+  
+  return 'observing';
 }
 
 const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
@@ -209,6 +229,19 @@ const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) =
       .select('integration_id, synced_at')
       .eq('user_id', userId);
 
+    // Build per-integration metrics map
+    const metricsMap = new Map<string, { hasMetrics: boolean; lastSyncedAt: string | null }>();
+    userMetrics?.forEach(m => {
+      if (!metricsMap.has(m.integration_id)) {
+        metricsMap.set(m.integration_id, { hasMetrics: false, lastSyncedAt: null });
+      }
+      const entry = metricsMap.get(m.integration_id)!;
+      entry.hasMetrics = true;
+      if (m.synced_at && (!entry.lastSyncedAt || m.synced_at > entry.lastSyncedAt)) {
+        entry.lastSyncedAt = m.synced_at;
+      }
+    });
+
     // Compute global has_efficiency_metrics (ANY metrics exist for ANY integration)
     const globalHasEfficiencyMetrics = (userMetrics && userMetrics.length > 0) || false;
     
@@ -220,58 +253,46 @@ const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) =
       }
     });
 
-    // Compute ui_global_fusion_score (MUST match Dashboard.tsx calculation)
+    // Compute global_fusion_score and score_origin
     // Dashboard computes: average of all fusion_scores for connected integrations
-    // If no valid scores, use BASELINE_SCORE (50)
-    let uiGlobalFusionScore = BASELINE_SCORE;
-    let lastUpdatedAt = new Date().toISOString();
+    // If no valid scores, use BASELINE_SCORE (50) and score_origin = 'baseline'
+    let globalFusionScore = BASELINE_SCORE;
+    let scoreOrigin: ScoreOrigin = 'baseline';
     
     if (fusionScores && fusionScores.length > 0) {
       const validScores = fusionScores.filter(s => s.fusion_score !== null && s.fusion_score !== undefined);
       if (validScores.length > 0) {
-        uiGlobalFusionScore = validScores.reduce((sum, s) => sum + (s.fusion_score || 0), 0) / validScores.length;
-        // Find most recent update timestamp
-        const mostRecentScore = validScores.reduce((latest, s) => 
-          (!latest || s.updated_at > latest.updated_at) ? s : latest
-        );
-        if (mostRecentScore?.updated_at) {
-          lastUpdatedAt = mostRecentScore.updated_at;
-        }
+        globalFusionScore = validScores.reduce((sum, s) => sum + (s.fusion_score || 0), 0) / validScores.length;
+        scoreOrigin = 'computed';
       }
     }
 
-    // Build connected_integrations array (simple facts only)
+    // Build connected_integrations array with per-integration metrics_state
     const connectedIntegrations: ConnectedIntegration[] = (userIntegrations || []).map(ui => {
       const master = ui.integrations_master as { id: string; integration_name: string } | null;
       if (!master) return null;
       
       return {
         name: master.integration_name,
-        connection_status: 'connected' as const,
+        metrics_state: computeIntegrationMetricsState(ui.integration_id, metricsMap),
       };
     }).filter((i): i is ConnectedIntegration => i !== null);
 
-    // HARD GATING: Compute global metrics_state
-    const globalMetricsState = computeGlobalMetricsState(globalHasEfficiencyMetrics, lastMetricSync);
-    
-    // HARD GATING: contributes_to_score is true ONLY if:
-    // - has_efficiency_metrics === true
-    // - metrics_state === 'active'
-    const globalContributesToScore = globalHasEfficiencyMetrics && globalMetricsState === 'active';
+    // Compute system_health (observing | active)
+    const systemHealth = computeSystemHealth(globalHasEfficiencyMetrics, lastMetricSync);
 
-    // Build SystemTruthSnapshot
-    const snapshot: SystemTruthSnapshot = {
-      connected_integrations: connectedIntegrations,
-      ui_global_fusion_score: Math.round(uiGlobalFusionScore * 10) / 10, // Round to 1 decimal
+    // Build SystemStatus - SINGLE CANONICAL OBJECT
+    const systemStatus: SystemStatus = {
+      global_fusion_score: Math.round(globalFusionScore * 10) / 10, // Round to 1 decimal
+      score_origin: scoreOrigin,
+      system_health: systemHealth,
       has_efficiency_metrics: globalHasEfficiencyMetrics,
-      metrics_state: globalMetricsState,
-      contributes_to_score: globalContributesToScore,
-      last_updated_at: lastUpdatedAt,
+      connected_integrations: connectedIntegrations,
     };
 
-    const response: SystemIntegrationsResponse = {
+    const response: SystemStatusResponse = {
       success: true,
-      snapshot,
+      system_status: systemStatus,
     };
 
     return {
