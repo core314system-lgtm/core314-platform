@@ -143,7 +143,7 @@ Deno.serve(withSentry(async (req) => {
     const isGlobalScope = !body.context?.integration_name;
     const scopedIntegrationName = body.context?.integration_name;
     
-    // Extract intelligence snapshot (AUTHORITATIVE SOURCE)
+    // Extract intelligence snapshot (AUTHORITATIVE SOURCE) - Intelligence Contract v1.1
     // Prefer intelligence_snapshot if available, fall back to connected_integrations for backward compatibility
     interface IntegrationData {
       id?: string;
@@ -156,9 +156,17 @@ Deno.serve(withSentry(async (req) => {
       last_data_at?: string | null;
       connected_at?: string | null;
       contribution_to_global?: number;
+      // Intelligence Contract v1.1 - Additional fields
+      integration_key?: string;
+      display_name?: string;
+      connection_status?: 'connected' | 'disconnected';
+      metrics_state?: 'active' | 'stabilizing' | 'dormant';
+      contributes_to_global_score?: boolean;
+      last_activity_timestamp?: string | null;
     }
     
     const snapshot = body.data_context?.intelligence_snapshot as {
+      user_id?: string;
       connected_integrations: IntegrationData[];
       global_fusion_score: number;
       global_fusion_score_trend: string;
@@ -167,6 +175,9 @@ Deno.serve(withSentry(async (req) => {
       emerging_integrations: number;
       dormant_integrations: number;
       last_analysis_timestamp: string | null;
+      // Intelligence Contract v1.1 - Additional fields
+      scoring_confidence?: 'high' | 'medium' | 'low';
+      system_reasoning?: string;
     } | undefined;
     
     // Use snapshot if available, otherwise fall back to legacy connected_integrations
@@ -214,10 +225,14 @@ Deno.serve(withSentry(async (req) => {
     const globalFusionScore = snapshot?.global_fusion_score ?? (body.data_context?.global_fusion_score as number) ?? 0;
     const globalTrend = snapshot?.global_fusion_score_trend ?? 'stable';
 
-    // Build strict grounding system prompt - Intelligence Contract v1.0
+    // Intelligence Contract v1.1 - Extract scoring_confidence and system_reasoning
+    const scoringConfidence = snapshot?.scoring_confidence || 'low';
+    const systemReasoning = snapshot?.system_reasoning || 'No system reasoning available';
+
+    // Build strict grounding system prompt - Intelligence Contract v1.1
     let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform.
 
-=== INTELLIGENCE CONTRACT v1.0 - CRITICAL RULES ===
+=== INTELLIGENCE CONTRACT v1.1 - CRITICAL RULES ===
 
 GROUNDING RULES (NON-NEGOTIABLE):
 1. You may ONLY answer using the data provided below. Do NOT infer, assume, or fabricate any information.
@@ -232,22 +247,37 @@ REFUSAL RULES:
 - You may NOT refuse due to sparse metrics, low confidence, or emerging/dormant status.
 - If data is limited, explain what IS known and what is still stabilizing.
 
-FORBIDDEN RESPONSE PATTERNS (NEVER USE THESE):
+FORBIDDEN RESPONSE PATTERNS (HARD FAIL - NEVER USE THESE):
 - "There may be no integrations"
 - "Either no integrations exist OR..."
 - "You may need to configure integrations"
 - "The system does not know which integrations are active"
+- "No data is available" (without naming integrations first)
 - Any language suggesting integrations might not exist when they are listed below
 
-REQUIRED RESPONSE PATTERN (when integrations exist but metrics are limited):
-1. FIRST: Acknowledge the connected integrations by name (e.g., "I see the following connected integrations: Slack and Microsoft Teams.")
-2. THEN: Explain the metric availability state (e.g., "At this time, efficiency metrics are still being collected.")
-3. FINALLY: Explain that Core314 will automatically evaluate signals as activity is observed.
+MANDATORY 4-STEP RESPONSE PATTERN (when integrations exist):
+ALL responses MUST follow this order:
+
+1. ACKNOWLEDGE FACTS FIRST
+   Example: "I see two connected integrations: Slack and Microsoft Teams."
+
+2. DESCRIBE CURRENT STATE
+   Example: "Both integrations are connected and currently in a stabilizing phase while Core314 observes activity."
+
+3. EXPLAIN CONSEQUENCES
+   Example: "Because activity thresholds have not yet been crossed, efficiency rankings are not yet computed."
+
+4. STATE WHAT CORE314 WILL DO NEXT
+   Example: "Core314 will automatically begin scoring efficiency as usage data accumulates."
+
+UNCERTAINTY EXPRESSION RULES:
+- Express uncertainty as: confidence level, stabilization phase, observation window
+- NEVER express uncertainty as: absence of integrations, missing configuration, user setup needed
 
 FAILURE MODE HANDLING:
 - If confidence is LOW: State what you know, acknowledge the confidence level, explain what would increase confidence.
-- If status is EMERGING: Explain the integration is connected and data is stabilizing.
-- If status is DORMANT: Explain the integration is connected but hasn't had recent activity.
+- If metrics_state is STABILIZING: Explain the integration is connected and data is stabilizing.
+- If metrics_state is DORMANT: Explain the integration is connected but hasn't had recent activity.
 - NEVER deflect responsibility to user setup. Core314 discovers metrics automatically.
 
 SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
@@ -255,23 +285,27 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
     if (body.data_context) {
       const dc = body.data_context;
       
-      // GLOBAL SYSTEM OVERVIEW
+      // GLOBAL SYSTEM OVERVIEW - Intelligence Contract v1.1
       systemContent += `\n\n=== GLOBAL SYSTEM OVERVIEW ===`;
       systemContent += `\nGlobal Fusion Score: ${globalFusionScore.toFixed(1)}`;
       systemContent += `\nGlobal Trend: ${globalTrend}`;
+      systemContent += `\nScoring Confidence: ${scoringConfidence.toUpperCase()}`;
       systemContent += `\nSystem Health: ${dc.system_health || 'Unknown'}`;
       systemContent += `\nTotal Connected Integrations: ${allIntegrations.length}`;
       if (snapshot) {
         systemContent += `\n- Active: ${snapshot.active_integrations}`;
-        systemContent += `\n- Emerging: ${snapshot.emerging_integrations}`;
+        systemContent += `\n- Stabilizing: ${snapshot.emerging_integrations}`;
         systemContent += `\n- Dormant: ${snapshot.dormant_integrations}`;
       }
       if (snapshot?.last_analysis_timestamp || dc.last_analysis_timestamp) {
         systemContent += `\nLast Analysis: ${snapshot?.last_analysis_timestamp || dc.last_analysis_timestamp}`;
       }
+      // Intelligence Contract v1.1 - System Reasoning (machine-readable state explanation)
+      systemContent += `\n\nSYSTEM REASONING: ${systemReasoning}`;
       
-      // Format connected integrations with Intelligence Contract fields
+      // Format connected integrations with Intelligence Contract v1.1 fields
       systemContent += `\n\n=== CONNECTED INTEGRATIONS (AUTHORITATIVE SOURCE) ===`;
+      systemContent += `\nRULE: These integrations ARE FACTS. They EXIST. You MUST acknowledge them by name.`;
       if (connectedIntegrations.length === 0) {
         if (isGlobalScope) {
           systemContent += `\nNo integrations connected yet. You may refuse to answer integration-related questions.`;
@@ -287,10 +321,14 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
             : 'Metrics: awaiting data';
           const confidenceInfo = int.confidence_level ? `Confidence: ${int.confidence_level.toUpperCase()}` : '';
           const contributionInfo = int.contribution_to_global ? `Contributes: ${int.contribution_to_global}% to global` : '';
+          // Use metrics_state (v1.1) if available, fall back to data_status
+          const metricsState = int.metrics_state || (int.data_status === 'emerging' ? 'stabilizing' : int.data_status);
+          const connectionStatus = int.connection_status || 'connected';
           systemContent += `\n\n${int.name}:`;
+          systemContent += `\n  - Connection Status: ${connectionStatus.toUpperCase()} (FACT)`;
           systemContent += `\n  - Fusion Score: ${int.fusion_score ?? 'calculating...'}`;
           systemContent += `\n  - Trend: ${int.trend}`;
-          systemContent += `\n  - Status: ${int.data_status}`;
+          systemContent += `\n  - Metrics State: ${metricsState}`;
           if (confidenceInfo) systemContent += `\n  - ${confidenceInfo}`;
           if (contributionInfo) systemContent += `\n  - ${contributionInfo}`;
           systemContent += `\n  - ${metricsInfo}`;
@@ -403,7 +441,50 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
     }
 
     const openaiData = await openaiResponse.json();
-    const reply = openaiData.choices[0]?.message?.content || 'No response generated';
+    let reply = openaiData.choices[0]?.message?.content || 'No response generated';
+
+    // Intelligence Contract v1.1 - Post-processing validator for deterministic fallback
+    // This ensures AI output CANNOT contradict Core314 system state
+    const forbiddenPatterns = [
+      /there may be no integrations/i,
+      /either no integrations exist/i,
+      /you may need to configure/i,
+      /the system does not know which integrations/i,
+      /no integrations are connected/i,
+      /no integrations have been set up/i,
+      /you haven't connected any integrations/i,
+      /please connect.*integrations/i,
+      /no data is available(?! for)/i, // "no data is available" without specifying which integration
+    ];
+
+    // Check if AI response violates forbidden patterns when integrations exist
+    if (connectedIntegrations.length > 0) {
+      const hasViolation = forbiddenPatterns.some(pattern => pattern.test(reply));
+      
+      if (hasViolation) {
+        // Generate deterministic fallback response following the 4-step pattern
+        const integrationList = connectedIntegrations.map(i => i.name).join(' and ');
+        const metricsStateDesc = connectedIntegrations.every(i => (i.metrics_state || i.data_status) === 'active') 
+          ? 'actively collecting metrics'
+          : 'in a stabilizing phase while Core314 observes activity';
+        
+        reply = `I see ${connectedIntegrations.length} connected integration${connectedIntegrations.length > 1 ? 's' : ''}: ${integrationList}. `;
+        reply += `${connectedIntegrations.length > 1 ? 'These integrations are' : 'This integration is'} ${metricsStateDesc}. `;
+        
+        if (rankedIntegrations.length >= 2) {
+          reply += `Based on current efficiency scores, ${weakestIntegration?.name} has the lowest score (${weakestIntegration?.fusion_score}) and ${strongestIntegration?.name} has the highest (${strongestIntegration?.fusion_score}). `;
+        } else if (rankedIntegrations.length === 1) {
+          reply += `Currently, only ${rankedIntegrations[0].name} has sufficient data for scoring (Score: ${rankedIntegrations[0].fusion_score}). Comparative ranking will be available once other integrations have accumulated enough activity. `;
+        } else {
+          reply += `Because activity thresholds have not yet been crossed, efficiency rankings are not yet computed. `;
+        }
+        
+        reply += `Core314 will automatically begin scoring efficiency as usage data accumulates. `;
+        reply += `[Based on Core314 data for: ${integrationList}]`;
+        
+        console.log('Intelligence Contract v1.1: Fallback response triggered due to forbidden pattern violation');
+      }
+    }
 
     await supabase.rpc('increment_ai_usage', {
       p_user_id: userId,
