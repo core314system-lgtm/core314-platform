@@ -221,15 +221,28 @@ Deno.serve(withSentry(async (req) => {
 
 GROUNDING RULES (NON-NEGOTIABLE):
 1. You may ONLY answer using the data provided below. Do NOT infer, assume, or fabricate any information.
-2. Connected integrations are FACTS. If an integration exists in the data below, it MUST be acknowledged.
+2. Connected integrations are FACTS. If an integration exists in the data below, it MUST be acknowledged BY NAME.
 3. You may NEVER claim "there are no integrations" if integrations exist in the SYSTEM INTELLIGENCE SNAPSHOT below.
-4. Missing or low-activity data is a SIGNAL, not absence. Express uncertainty as CONFIDENCE LEVEL, not "missing data."
-5. End every response with a provenance line stating which integration(s) your answer is based on.
+4. CRITICAL SEPARATION: Integration EXISTENCE is a FACT. Metric AVAILABILITY is a STATE. These are different things.
+5. Missing or low-activity data is a SIGNAL, not absence. Express uncertainty as CONFIDENCE LEVEL, not "missing data."
+6. End every response with a provenance line stating which integration(s) your answer is based on.
 
 REFUSAL RULES:
 - You may ONLY refuse to answer if there are ZERO connected integrations in the snapshot.
 - You may NOT refuse due to sparse metrics, low confidence, or emerging/dormant status.
 - If data is limited, explain what IS known and what is still stabilizing.
+
+FORBIDDEN RESPONSE PATTERNS (NEVER USE THESE):
+- "There may be no integrations"
+- "Either no integrations exist OR..."
+- "You may need to configure integrations"
+- "The system does not know which integrations are active"
+- Any language suggesting integrations might not exist when they are listed below
+
+REQUIRED RESPONSE PATTERN (when integrations exist but metrics are limited):
+1. FIRST: Acknowledge the connected integrations by name (e.g., "I see the following connected integrations: Slack and Microsoft Teams.")
+2. THEN: Explain the metric availability state (e.g., "At this time, efficiency metrics are still being collected.")
+3. FINALLY: Explain that Core314 will automatically evaluate signals as activity is observed.
 
 FAILURE MODE HANDLING:
 - If confidence is LOW: State what you know, acknowledge the confidence level, explain what would increase confidence.
@@ -284,18 +297,42 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
         });
         
         // Add pre-computed ranking for comparative queries (global scope only)
-        if (isGlobalScope && rankedIntegrations.length > 1) {
-          systemContent += `\n\n=== INTEGRATION RANKING (for comparative queries) ===`;
-          systemContent += `\nRanked by Fusion Score (lowest/weakest first):`;
-          rankedIntegrations.forEach((int, idx) => {
-            const confidenceTag = int.confidence_level ? ` [${int.confidence_level} confidence]` : '';
-            systemContent += `\n${idx + 1}. ${int.name}: Score ${int.fusion_score}, Trend: ${int.trend}${confidenceTag}`;
-          });
-          if (weakestIntegration) {
-            systemContent += `\n\nWEAKEST INTEGRATION: ${weakestIntegration.name} (Score: ${weakestIntegration.fusion_score}, Trend: ${weakestIntegration.trend})`;
-          }
-          if (strongestIntegration) {
-            systemContent += `\nSTRONGEST INTEGRATION: ${strongestIntegration.name} (Score: ${strongestIntegration.fusion_score}, Trend: ${strongestIntegration.trend})`;
+        if (isGlobalScope) {
+          if (rankedIntegrations.length > 1) {
+            // Multiple integrations with scores - can provide ranking
+            systemContent += `\n\n=== INTEGRATION RANKING (for comparative queries) ===`;
+            systemContent += `\nRanked by Fusion Score (lowest/weakest first):`;
+            rankedIntegrations.forEach((int, idx) => {
+              const confidenceTag = int.confidence_level ? ` [${int.confidence_level} confidence]` : '';
+              systemContent += `\n${idx + 1}. ${int.name}: Score ${int.fusion_score}, Trend: ${int.trend}${confidenceTag}`;
+            });
+            if (weakestIntegration) {
+              systemContent += `\n\nWEAKEST INTEGRATION: ${weakestIntegration.name} (Score: ${weakestIntegration.fusion_score}, Trend: ${weakestIntegration.trend})`;
+            }
+            if (strongestIntegration) {
+              systemContent += `\nSTRONGEST INTEGRATION: ${strongestIntegration.name} (Score: ${strongestIntegration.fusion_score}, Trend: ${strongestIntegration.trend})`;
+            }
+          } else if (rankedIntegrations.length === 1) {
+            // Only one integration has a score - can't compare
+            systemContent += `\n\n=== INTEGRATION RANKING (for comparative queries) ===`;
+            systemContent += `\nOnly ${rankedIntegrations[0].name} has sufficient data for scoring (Score: ${rankedIntegrations[0].fusion_score}).`;
+            const otherIntegrations = connectedIntegrations.filter(i => i.fusion_score === null);
+            if (otherIntegrations.length > 0) {
+              systemContent += `\nOther connected integrations awaiting data: ${otherIntegrations.map(i => i.name).join(', ')}`;
+            }
+            systemContent += `\nComparative ranking is not yet possible - more data needed from other integrations.`;
+          } else {
+            // No integrations have scores yet - CRITICAL: still acknowledge they exist
+            systemContent += `\n\n=== INTEGRATION RANKING (for comparative queries) ===`;
+            systemContent += `\nRANKING NOT YET AVAILABLE - efficiency metrics are still being collected.`;
+            systemContent += `\n\nIMPORTANT: The following integrations ARE CONNECTED and ARE FACTS:`;
+            connectedIntegrations.forEach(int => {
+              systemContent += `\n- ${int.name} (Status: ${int.data_status}, awaiting efficiency metrics)`;
+            });
+            systemContent += `\n\nFor comparative questions ("which is less efficient?", "which is underperforming?"):`;
+            systemContent += `\nYou MUST first acknowledge these integrations exist by name, then explain that efficiency metrics are still being collected.`;
+            systemContent += `\nCore314 will automatically begin evaluating efficiency signals as usage activity is observed.`;
+            systemContent += `\nDo NOT suggest integrations may not exist or need configuration.`;
           }
         }
       }
