@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { 
+  deriveExecutionMode, 
+  getBaselineGenericResponse,
+  type ExecutionMode 
+} from '../_shared/execution_mode.ts';
 
 const allowedOrigins = new Set([
   "https://admin.core314.com",
@@ -57,6 +62,47 @@ serve(withSentry(async (req) => {
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
   if (userErr || !user) {
     return jsonError(401, "unauthorized", "Unauthorized", corsHeaders);
+  }
+
+  // ============================================================
+  // GLOBAL EXECUTION SWITCH - SINGLE SOURCE OF TRUTH
+  // MANDATORY: This gate MUST be checked at the VERY TOP before ANY AI processing
+  // FAIL-CLOSED: If system_status is missing, treat as baseline (NO AI)
+  // ============================================================
+  // Note: ai-generate is a generic endpoint that doesn't receive system_status
+  // We need to fetch it from the database to determine execution mode
+  const supabaseService = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  
+  // Fetch user's system status to determine execution mode
+  const { data: fusionScores } = await supabaseService
+    .from('fusion_scores')
+    .select('fusion_score, score_origin')
+    .eq('user_id', user.id)
+    .order('calculated_at', { ascending: false })
+    .limit(1);
+  
+  const { data: efficiencyMetrics } = await supabaseService
+    .from('fusion_efficiency_metrics')
+    .select('id')
+    .eq('user_id', user.id)
+    .limit(1);
+  
+  // Derive execution mode from fetched data
+  const hasComputedScore = fusionScores && fusionScores.length > 0 && fusionScores[0].score_origin === 'computed';
+  const hasEfficiencyMetrics = efficiencyMetrics && efficiencyMetrics.length > 0;
+  
+  // FAIL-CLOSED: If no computed score or no efficiency metrics, treat as baseline
+  const execution_mode: ExecutionMode = (hasComputedScore && hasEfficiencyMetrics) ? 'computed' : 'baseline';
+  
+  // HARD DISABLE: If baseline mode, return IMMEDIATELY with fixed response
+  // NO prompt assembly, NO cache access, NO LLM client reference
+  if (execution_mode === 'baseline') {
+    console.log('BASELINE SHORT-CIRCUIT HIT: ai-generate - baseline mode (NO AI)');
+    const baselineResponse = getBaselineGenericResponse();
+    return new Response(JSON.stringify(baselineResponse), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   let body: AIRequest;

@@ -2,31 +2,17 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { 
+  deriveExecutionMode, 
+  getBaselineChatResponse,
+  BASELINE_RESPONSE_TEXT,
+  type SystemStatus,
+  type ExecutionMode 
+} from '../_shared/execution_mode.ts';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
-}
-
-// TRUST RESTORATION FIX - SystemStatus is the SINGLE CANONICAL OBJECT
-// AI is NOT allowed to compute or infer anything beyond this object
-// System Health: ONLY two states allowed (observing | active)
-type SystemHealth = 'observing' | 'active';
-type ScoreOrigin = 'baseline' | 'computed';
-type IntegrationMetricsState = 'observing' | 'active';
-
-interface ConnectedIntegration {
-  name: string;
-  metrics_state: IntegrationMetricsState;
-}
-
-// SystemStatus - SINGLE CANONICAL OBJECT for UI and AI
-interface SystemStatus {
-  global_fusion_score: number;
-  score_origin: ScoreOrigin;
-  system_health: SystemHealth;
-  has_efficiency_metrics: boolean;
-  connected_integrations: ConnectedIntegration[];
 }
 
 // FORBIDDEN WORDS - AI must NEVER use these
@@ -157,98 +143,19 @@ Deno.serve(withSentry(async (req) => {
     }
 
     // ============================================================
-    // EXECUTION-GATED BASELINE MODE (MANDATORY - HARD RETURN)
-    // FAIL-CLOSED: If system_status is missing OR score_origin === 'baseline', NO AI CALL
-    // This gate MUST be checked BEFORE any other processing
+    // GLOBAL EXECUTION SWITCH - SINGLE SOURCE OF TRUTH
+    // MANDATORY: This gate MUST be checked at the VERY TOP before ANY processing
+    // FAIL-CLOSED: If system_status is missing OR execution_mode === 'baseline', NO AI CALL
     // ============================================================
-    const systemStatus = body.system_status;
+    const systemStatus = body.system_status as SystemStatus | undefined;
+    const execution_mode: ExecutionMode = deriveExecutionMode(systemStatus);
     
-    // FAIL-CLOSED: If system_status is missing, treat as baseline (NO AI)
-    if (!systemStatus) {
-      console.log('BASELINE SHORT-CIRCUIT HIT: system_status missing - FAIL-CLOSED (NO AI)');
-      
-      const baselineResponse = [
-        `You have the following integrations connected: Slack, Microsoft Teams.`,
-        `Core314 is currently observing these integrations.`,
-        `Efficiency metrics are not yet available.`,
-        `Your Global Fusion Score is 50.`,
-        `Core314 will begin scoring automatically as activity data is collected.`
-      ].join('\n');
-      
+    // HARD DISABLE: If baseline mode, return IMMEDIATELY with fixed response
+    // NO prompt assembly, NO cache access, NO LLM client reference
+    if (execution_mode === 'baseline') {
+      const baselineResponse = getBaselineChatResponse();
       return new Response(
-        JSON.stringify({
-          success: true,
-          reply: baselineResponse,
-          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-    
-    // BASELINE MODE: score_origin === 'baseline' means NO AI
-    if (systemStatus.score_origin === 'baseline') {
-      console.log('BASELINE SHORT-CIRCUIT HIT: score_origin === baseline (NO AI)');
-      
-      const baselineResponse = [
-        `You have the following integrations connected: Slack, Microsoft Teams.`,
-        `Core314 is currently observing these integrations.`,
-        `Efficiency metrics are not yet available.`,
-        `Your Global Fusion Score is 50.`,
-        `Core314 will begin scoring automatically as activity data is collected.`
-      ].join('\n');
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          reply: baselineResponse,
-          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-    
-    // ============================================================
-    // AI ALLOWED ONLY WHEN ALL CONDITIONS ARE TRUE:
-    // - score_origin === 'computed'
-    // - has_efficiency_metrics === true
-    // - at least one integration.metrics_state === 'active'
-    // ============================================================
-    const hasActiveIntegration = systemStatus.connected_integrations?.some(
-      (i: { metrics_state?: string }) => i.metrics_state === 'active'
-    ) ?? false;
-    
-    if (
-      systemStatus.score_origin !== 'computed' ||
-      !systemStatus.has_efficiency_metrics ||
-      !hasActiveIntegration
-    ) {
-      console.log('BASELINE SHORT-CIRCUIT HIT: AI conditions not met (NO AI)');
-      
-      // Return fixed text - AI not allowed
-      const integrationNames = systemStatus.connected_integrations?.map(
-        (i: { name: string }) => i.name
-      ).join(', ') || 'None';
-      
-      const fixedResponse = [
-        `You have the following integrations connected: ${integrationNames}.`,
-        `Core314 is currently observing these integrations.`,
-        `Efficiency metrics are not yet available.`,
-        `Your Global Fusion Score is ${systemStatus.global_fusion_score}.`,
-        `Core314 will begin scoring automatically as activity data is collected.`
-      ].join('\n');
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          reply: fixedResponse,
-          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-        }),
+        JSON.stringify(baselineResponse),
         {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

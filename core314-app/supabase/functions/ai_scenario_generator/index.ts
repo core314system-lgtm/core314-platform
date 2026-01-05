@@ -2,6 +2,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { 
+  deriveExecutionMode, 
+  getBaselineScenarioResponse,
+  BASELINE_SCENARIOS_MESSAGE,
+  type ExecutionMode,
+  type SystemStatus
+} from '../_shared/execution_mode.ts';
 
 interface ScenarioRequest {
   goal?: string;
@@ -100,63 +107,22 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    const body = await req.json().catch(() => ({})) as ScenarioRequest & { system_status?: { score_origin?: string; has_efficiency_metrics?: boolean; global_fusion_score?: number; connected_integrations?: Array<{ name: string; metrics_state?: string }> } };
+    const body = await req.json().catch(() => ({})) as ScenarioRequest & { system_status?: SystemStatus };
     
     // ============================================================
-    // EXECUTION-GATED BASELINE MODE (MANDATORY - HARD RETURN)
-    // FAIL-CLOSED: If system_status is missing OR score_origin === 'baseline', NO AI CALL
+    // GLOBAL EXECUTION SWITCH - SINGLE SOURCE OF TRUTH
+    // MANDATORY: This gate MUST be checked at the VERY TOP before ANY AI processing
+    // FAIL-CLOSED: If system_status is missing OR execution_mode === 'baseline', NO AI CALL
     // ============================================================
     const systemStatus = body.system_status;
+    const execution_mode: ExecutionMode = deriveExecutionMode(systemStatus);
     
-    // FAIL-CLOSED: If system_status is missing, treat as baseline (NO AI)
-    if (!systemStatus) {
-      console.log('BASELINE SHORT-CIRCUIT HIT: ai_scenario_generator - system_status missing (NO AI)');
+    // HARD DISABLE: If baseline mode, return IMMEDIATELY with fixed response
+    // NO prompt assembly, NO cache access, NO LLM client reference
+    if (execution_mode === 'baseline') {
+      const baselineResponse = getBaselineScenarioResponse();
       return new Response(
-        JSON.stringify({
-          success: true,
-          scenarios: [],
-          message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-    
-    // BASELINE MODE: score_origin === 'baseline' means NO AI
-    if (systemStatus.score_origin === 'baseline') {
-      console.log('BASELINE SHORT-CIRCUIT HIT: ai_scenario_generator - baseline mode (NO AI)');
-      return new Response(
-        JSON.stringify({
-          success: true,
-          scenarios: [],
-          message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-    
-    // AI ALLOWED ONLY WHEN ALL CONDITIONS ARE TRUE
-    const hasActiveIntegration = systemStatus.connected_integrations?.some(
-      i => i.metrics_state === 'active'
-    ) ?? false;
-    
-    if (
-      systemStatus.score_origin !== 'computed' ||
-      !systemStatus.has_efficiency_metrics ||
-      !hasActiveIntegration
-    ) {
-      console.log('BASELINE SHORT-CIRCUIT HIT: ai_scenario_generator - AI conditions not met (NO AI)');
-      return new Response(
-        JSON.stringify({
-          success: true,
-          scenarios: [],
-          message: 'Scenario generation is not available while Core314 is observing your integrations. Scenarios will become available once efficiency metrics are collected.',
-        }),
+        JSON.stringify(baselineResponse),
         {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
