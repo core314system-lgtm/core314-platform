@@ -36,6 +36,9 @@ interface SystemIntegration {
   connection_status: 'connected' | 'disconnected';
   metrics_state: MetricsState;
   last_activity_timestamp: string | null;
+  // STATE-GATING: Additional flags for contribution determination
+  has_efficiency_metrics: boolean; // True ONLY if fusion_metrics rows exist for this integration
+  contributes_to_score: boolean; // True ONLY if has_efficiency_metrics AND metrics are recent
 }
 
 interface SystemIntegrationsResponse {
@@ -48,16 +51,26 @@ const ACTIVE_THRESHOLD_DAYS = 14;
 const EMERGING_THRESHOLD_DAYS = 7;
 const DORMANT_THRESHOLD_DAYS = 30;
 
+/**
+ * STATE-GATING FIX: Compute metrics_state based on ACTUAL metrics, not scores
+ * 
+ * CRITICAL: An integration is ONLY "active" if:
+ * - hasMetrics === true (fusion_metrics rows exist)
+ * - lastMetricSync is recent (within 14 days)
+ * 
+ * fusion_scores.updated_at does NOT count as "metrics data"
+ * because scores can exist/update even when no efficiency metrics exist
+ */
 function computeMetricsState(
   connectedAt: string | null,
-  lastDataAt: string | null,
+  lastMetricSync: string | null, // ONLY from fusion_metrics, NOT fusion_scores
   hasMetrics: boolean
 ): MetricsState {
   const now = new Date();
   const connectedDate = connectedAt ? new Date(connectedAt) : null;
-  const lastDataDate = lastDataAt ? new Date(lastDataAt) : null;
+  const lastMetricDate = lastMetricSync ? new Date(lastMetricSync) : null;
   
-  // If connected recently (< 7 days), it's stabilizing
+  // If connected recently (< 7 days), it's stabilizing (regardless of metrics)
   if (connectedDate) {
     const daysSinceConnected = (now.getTime() - connectedDate.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceConnected < EMERGING_THRESHOLD_DAYS) {
@@ -65,25 +78,24 @@ function computeMetricsState(
     }
   }
   
-  // If has recent data (< 14 days), it's active
-  if (lastDataDate) {
-    const daysSinceData = (now.getTime() - lastDataDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceData < ACTIVE_THRESHOLD_DAYS) {
+  // CRITICAL: Only mark as "active" if ACTUAL metrics exist AND are recent
+  // fusion_scores.updated_at does NOT count - only fusion_metrics.synced_at
+  if (hasMetrics && lastMetricDate) {
+    const daysSinceMetric = (now.getTime() - lastMetricDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceMetric < ACTIVE_THRESHOLD_DAYS) {
       return 'active';
     }
-    // If no data for > 30 days, it's dormant
-    if (daysSinceData > DORMANT_THRESHOLD_DAYS) {
+    // If metrics exist but not recent (> 30 days), it's dormant
+    if (daysSinceMetric > DORMANT_THRESHOLD_DAYS) {
       return 'dormant';
     }
-  }
-  
-  // If has metrics but not recent, it's stabilizing
-  if (hasMetrics) {
+    // Metrics exist but not recent enough to be "active" - stabilizing
     return 'stabilizing';
   }
   
-  // No metrics at all - dormant
-  return 'dormant';
+  // No metrics at all - stabilizing (not dormant, because integration is connected)
+  // This is the key fix: connected integrations without metrics are "stabilizing", not "active"
+  return 'stabilizing';
 }
 
 const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
@@ -206,24 +218,33 @@ const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) =
     });
 
     // Build integrations array with FACTS ONLY
+    // STATE-GATING FIX: Only use fusion_metrics.synced_at for metrics_state determination
+    // fusion_scores.updated_at does NOT count as "metrics data"
     const integrations: SystemIntegration[] = (userIntegrations || []).map(ui => {
       const master = ui.integrations_master as { id: string; integration_name: string } | null;
       if (!master) return null;
       
       const metricsData = metricsMap.get(ui.integration_id);
       const lastMetricSync = metricsData?.lastSyncedAt || null;
-      const lastScoreUpdate = scoreMap.get(ui.integration_id) || null;
-      const lastDataAt = lastMetricSync && lastScoreUpdate 
-        ? (lastMetricSync > lastScoreUpdate ? lastMetricSync : lastScoreUpdate)
-        : (lastMetricSync || lastScoreUpdate);
       const connectedAt = ui.date_added || null;
       const hasMetrics = metricsData?.hasMetrics || false;
+      
+      // STATE-GATING: Compute metrics_state using ONLY fusion_metrics data
+      // fusion_scores.updated_at is intentionally NOT used here
+      const metricsState = computeMetricsState(connectedAt, lastMetricSync, hasMetrics);
+      
+      // STATE-GATING: contributes_to_score is true ONLY if:
+      // - hasMetrics === true (fusion_metrics rows exist)
+      // - metricsState === 'active' (metrics are recent)
+      const contributesToScore = hasMetrics && metricsState === 'active';
       
       return {
         name: master.integration_name,
         connection_status: 'connected' as const, // All rows from user_integrations with status='active' are connected
-        metrics_state: computeMetricsState(connectedAt, lastDataAt, hasMetrics),
-        last_activity_timestamp: lastDataAt,
+        metrics_state: metricsState,
+        last_activity_timestamp: lastMetricSync, // Only show metric sync time, not score update time
+        has_efficiency_metrics: hasMetrics,
+        contributes_to_score: contributesToScore,
       };
     }).filter((i): i is SystemIntegration => i !== null);
 

@@ -63,6 +63,9 @@ export interface SystemIntegration {
   connection_status: 'connected' | 'disconnected';
   metrics_state: MetricsState;
   last_activity_timestamp: string | null;
+  // STATE-GATING: Additional flags for contribution determination
+  has_efficiency_metrics: boolean; // True ONLY if fusion_metrics rows exist for this integration
+  contributes_to_score: boolean; // True ONLY if has_efficiency_metrics AND metrics are recent
 }
 
 export interface SystemIntegrationsResponse {
@@ -117,6 +120,16 @@ export function isSystemFactQuery(query: string): boolean {
 /**
  * Generate a deterministic response for system fact queries
  * This function NEVER calls AI - it builds responses purely from system data
+ * 
+ * STATE-GATING FIX: An integration may ONLY be described as "contributing" IF:
+ * - contributes_to_score === true
+ * - has_efficiency_metrics === true
+ * 
+ * FORBIDDEN PHRASES (when metrics are not ready):
+ * - "actively contributing"
+ * - "currently contributing signals"
+ * - "feeding efficiency data"
+ * - any implication of scoring before metrics exist
  */
 export function generateDeterministicFactResponse(
   query: string,
@@ -131,14 +144,14 @@ export function generateDeterministicFactResponse(
     const found = integrations.find(i => i.name.toLowerCase().includes(requestedIntegration));
     
     if (found) {
-      return `Yes, ${found.name} is connected to your Core314 account. ` +
-        `Metrics state: ${found.metrics_state}. ` +
-        (found.metrics_state === 'stabilizing' 
-          ? 'Core314 will automatically begin evaluating efficiency signals as activity data is observed.'
-          : found.metrics_state === 'active'
-            ? 'This integration is actively contributing efficiency signals.'
-            : 'This integration has been dormant. Core314 will resume evaluation when activity resumes.') +
-        `\n\n[Based on Core314 system data]`;
+      // STATE-GATING: Only say "contributing" if contributes_to_score is true
+      if (found.contributes_to_score) {
+        return `Yes, ${found.name} is connected to your Core314 account and is actively contributing efficiency signals to your fusion score.\n\n[Based on Core314 system data]`;
+      } else {
+        return `Yes, ${found.name} is connected to your Core314 account. ` +
+          `This integration is currently being observed. Efficiency metrics are still stabilizing and are not yet contributing to your fusion score. ` +
+          `Core314 will automatically begin evaluating efficiency signals as activity data is detected.\n\n[Based on Core314 system data]`;
+      }
     } else {
       return `No, ${specificIntegrationMatch[1]} is not currently connected to your Core314 account. ` +
         `To connect it, visit the Integration Hub.\n\n[Based on Core314 system data]`;
@@ -162,29 +175,32 @@ export function generateDeterministicFactResponse(
       `Core314 supports Slack, Microsoft Teams, and other business tools.\n\n[Based on Core314 system data]`;
   }
   
+  // STATE-GATING: Separate integrations by ACTUAL contribution status
+  const contributingIntegrations = integrations.filter(i => i.contributes_to_score);
+  const observingIntegrations = integrations.filter(i => !i.contributes_to_score);
+  
   let response = `I see the following integrations connected to your Core314 account:\n`;
   integrations.forEach(int => {
     response += `- ${int.name}\n`;
   });
   response += '\n';
   
-  // Describe metric availability STATE (separate from existence FACT)
-  const activeIntegrations = integrations.filter(i => i.metrics_state === 'active');
-  const stabilizingIntegrations = integrations.filter(i => i.metrics_state === 'stabilizing');
-  const dormantIntegrations = integrations.filter(i => i.metrics_state === 'dormant');
-  
-  if (activeIntegrations.length > 0 && stabilizingIntegrations.length > 0) {
-    response += `${activeIntegrations.map(i => i.name).join(' and ')} ${activeIntegrations.length > 1 ? 'are' : 'is'} actively contributing efficiency signals. `;
-    response += `${stabilizingIntegrations.map(i => i.name).join(' and ')} ${stabilizingIntegrations.length > 1 ? 'are' : 'is'} still stabilizing and will begin contributing as activity data is observed.\n\n`;
-  } else if (activeIntegrations.length > 0) {
-    response += `All connected integrations are actively contributing efficiency signals to your Core314 dashboard.\n\n`;
-  } else if (stabilizingIntegrations.length > 0) {
-    response += `At this time, efficiency metrics are still stabilizing, so these integrations are not yet contributing scored efficiency signals. `;
-    response += `Core314 will automatically begin evaluating them as activity data is observed.\n\n`;
-  } else if (dormantIntegrations.length > 0) {
-    response += `These integrations have been dormant. Core314 will resume evaluation when activity resumes.\n\n`;
+  // STATE-GATING: Use EXACT phrasing based on contribution status
+  if (contributingIntegrations.length === integrations.length) {
+    // ALL integrations are contributing
+    response += `All connected integrations are actively contributing efficiency signals to your fusion score.\n\n`;
+  } else if (contributingIntegrations.length > 0 && observingIntegrations.length > 0) {
+    // MIXED: some contributing, some observing
+    response += `${contributingIntegrations.map(i => i.name).join(' and ')} ${contributingIntegrations.length > 1 ? 'are' : 'is'} actively contributing efficiency signals. `;
+    response += `${observingIntegrations.map(i => i.name).join(' and ')} ${observingIntegrations.length > 1 ? 'are' : 'is'} currently connected and being observed. `;
+    response += `Efficiency metrics are still stabilizing for ${observingIntegrations.length > 1 ? 'these integrations' : 'this integration'} and ${observingIntegrations.length > 1 ? 'are' : 'is'} not yet contributing to your fusion score. `;
+    response += `Core314 will automatically begin evaluating efficiency signals as activity data is detected.\n\n`;
   } else {
-    response += `Core314 is monitoring these integrations. Efficiency metrics will be computed as activity data accumulates.\n\n`;
+    // NONE contributing - all observing/stabilizing
+    // This is the REQUIRED phrasing from the user directive
+    response += `These integrations are currently connected and being observed. `;
+    response += `Efficiency metrics are still stabilizing and are not yet contributing to your fusion score. `;
+    response += `Core314 will automatically begin evaluating efficiency signals as activity data is detected.\n\n`;
   }
   
   response += `[Based on Core314 system data for: ${integrations.map(i => i.name).join(', ')}]`;
