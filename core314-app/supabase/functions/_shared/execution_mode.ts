@@ -187,3 +187,186 @@ export function getBaselineGenericResponse(): {
     usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
   };
 }
+
+// ============================================================
+// DATABASE HELPERS FOR EXECUTION MODE
+// ============================================================
+
+/**
+ * Fetch user's execution mode from database
+ * FAIL-CLOSED: Returns 'baseline' if user not found or score_origin is 'baseline'
+ * 
+ * @param supabase - Supabase client with service role key
+ * @param userId - User ID to check
+ * @returns ExecutionMode ('baseline' or 'computed')
+ */
+export async function fetchUserExecutionMode(
+  supabase: any,
+  userId: string
+): Promise<ExecutionMode> {
+  if (!userId) {
+    console.log('EXECUTION MODE: BASELINE (no userId provided - FAIL-CLOSED)');
+    return 'baseline';
+  }
+
+  try {
+    // Fetch the most recent fusion_score for this user
+    const { data: fusionScore, error } = await supabase
+      .from('fusion_scores')
+      .select('score_origin')
+      .eq('user_id', userId)
+      .order('calculated_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !fusionScore) {
+      console.log('EXECUTION MODE: BASELINE (no fusion_score found - FAIL-CLOSED)');
+      return 'baseline';
+    }
+
+    if (fusionScore.score_origin === 'baseline') {
+      console.log('EXECUTION MODE: BASELINE (score_origin === baseline)');
+      return 'baseline';
+    }
+
+    console.log('EXECUTION MODE: COMPUTED (score_origin === computed)');
+    return 'computed';
+  } catch (err) {
+    console.error('Error fetching execution mode:', err);
+    console.log('EXECUTION MODE: BASELINE (error occurred - FAIL-CLOSED)');
+    return 'baseline';
+  }
+}
+
+/**
+ * Baseline response for admin/system functions
+ * Returns a generic "not available in baseline mode" response
+ */
+export function getBaselineAdminResponse(): {
+  success: boolean;
+  message: string;
+  baseline_mode: boolean;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Admin function blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    message: 'This feature is not available while Core314 is in observation mode. AI-powered analysis will become available once efficiency metrics are collected.',
+    baseline_mode: true,
+  };
+}
+
+/**
+ * Baseline response for optimization functions
+ */
+export function getBaselineOptimizationResponse(): {
+  success: boolean;
+  optimization_needed: boolean;
+  message: string;
+  baseline_mode: boolean;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Optimization blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    optimization_needed: false,
+    message: 'Optimization analysis is not available while Core314 is in observation mode. AI-powered optimization will become available once efficiency metrics are collected.',
+    baseline_mode: true,
+  };
+}
+
+/**
+ * Baseline response for prediction/forecast functions
+ */
+export function getBaselinePredictionResponse(): {
+  success: boolean;
+  message: string;
+  baseline_mode: boolean;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Prediction blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    message: 'Predictive insights are not available while Core314 is in observation mode. AI-powered predictions will become available once efficiency metrics are collected.',
+    baseline_mode: true,
+  };
+}
+
+/**
+ * Baseline response for governance functions
+ */
+export function getBaselineGovernanceResponse(): {
+  success: boolean;
+  governance_action: string;
+  message: string;
+  baseline_mode: boolean;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Governance blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    governance_action: 'pending',
+    message: 'Governance evaluation is not available while Core314 is in observation mode. AI-powered governance will become available once efficiency metrics are collected.',
+    baseline_mode: true,
+  };
+}
+
+/**
+ * Baseline response for support/chat functions
+ */
+export function getBaselineSupportResponse(): {
+  success: boolean;
+  response: string;
+  baseline_mode: boolean;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Support chat blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    response: 'Core314 is currently in observation mode. AI-powered support will become available once efficiency metrics are collected. For immediate assistance, please contact support@core314.com.',
+    baseline_mode: true,
+  };
+}
+
+/**
+ * Baseline response for anomaly detection
+ */
+export function getBaselineAnomalyResponse(): {
+  success: boolean;
+  anomalies_detected: number;
+  anomaly_ids: never[];
+  critical_anomalies: number;
+  high_anomalies: number;
+  gpt4o_analyses_performed: number;
+  baseline_mode: boolean;
+  message: string;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Anomaly detection blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    anomalies_detected: 0,
+    anomaly_ids: [],
+    critical_anomalies: 0,
+    high_anomalies: 0,
+    gpt4o_analyses_performed: 0,
+    baseline_mode: true,
+    message: 'AI-powered anomaly analysis is not available while Core314 is in observation mode.',
+  };
+}
+
+/**
+ * Baseline response for decision engine
+ */
+export function getBaselineDecisionResponse(): {
+  success: boolean;
+  recommended_action: string;
+  confidence_score: number;
+  risk_level: string;
+  reasoning: string;
+  baseline_mode: boolean;
+} {
+  console.log('BASELINE SHORT-CIRCUIT HIT: Decision engine blocked in baseline mode (NO AI)');
+  return {
+    success: true,
+    recommended_action: 'pending',
+    confidence_score: 0,
+    risk_level: 'unknown',
+    reasoning: 'AI-powered decision analysis is not available while Core314 is in observation mode. Decisions will be evaluated once efficiency metrics are collected.',
+    baseline_mode: true,
+  };
+}

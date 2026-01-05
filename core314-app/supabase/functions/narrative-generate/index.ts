@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { fetchUserExecutionMode, getBaselineAdminResponse } from "../_shared/execution_mode.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,17 @@ serve(withSentry(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // ============================================================
+    // BASELINE MODE GATE - MUST BE BEFORE ANY AI PROCESSING
+    // ============================================================
+    const executionMode = await fetchUserExecutionMode(supabase, user.id);
+    if (executionMode === 'baseline') {
+      return new Response(JSON.stringify(getBaselineAdminResponse()), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // ============================================================
 
     const { data: member } = await supabase
       .from('organization_members')
