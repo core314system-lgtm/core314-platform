@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { fetchUserExecutionMode, getBaselinePredictionResponse } from "../_shared/execution_mode.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,6 +56,17 @@ serve(withSentry(async (req) => {
       }
       actingUserId = user.id;
     }
+
+    // ============================================================
+    // BASELINE MODE GATE - MUST BE BEFORE ANY AI PROCESSING
+    // ============================================================
+    const executionMode = await fetchUserExecutionMode(supabaseClient, actingUserId);
+    if (executionMode === 'baseline') {
+      return new Response(JSON.stringify(getBaselinePredictionResponse()), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // ============================================================
 
     if (!model_id && !model_name) {
       throw new Error('Either model_id or model_name is required');

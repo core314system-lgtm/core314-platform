@@ -3,17 +3,25 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
-// Intelligence Contract v1.0 - Data Status
+// Intelligence Contract v1.1 - Data Status (legacy alias: data_status)
 // active: Has recent metrics (within 14 days)
-// emerging: Connected recently (<7 days) OR has some data but still stabilizing
+// emerging/stabilizing: Connected recently (<7 days) OR has some data but still stabilizing
 // dormant: Connected but no recent activity (>30 days)
 type DataStatus = 'active' | 'emerging' | 'dormant';
 
-// Intelligence Contract v1.0 - Confidence Level
+// Intelligence Contract v1.1 - Metrics State (v1.1 preferred name)
+// Maps to DataStatus but uses v1.1 terminology
+type MetricsState = 'active' | 'stabilizing' | 'dormant';
+
+// Intelligence Contract v1.1 - Confidence Level
 // high: Has fusion_score AND 2+ metrics AND recent data
 // medium: Has fusion_score OR has metrics
 // low: Connected but minimal data
 type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+// Intelligence Contract v1.1 - Scoring Confidence (snapshot-level)
+// Aggregated from per-integration confidence levels
+type ScoringConfidence = 'high' | 'medium' | 'low';
 
 interface ConnectedIntegration {
   id: string;
@@ -26,14 +34,23 @@ interface ConnectedIntegration {
   last_data_at: string | null;
   connected_at: string | null;
   contribution_to_global: number; // Percentage contribution to global fusion score
+  // Intelligence Contract v1.1 - Additional fields
+  integration_key: string; // Unique identifier for the integration
+  display_name: string; // Human-readable name
+  connection_status: 'connected' | 'disconnected'; // Connection state (always 'connected' for active integrations)
+  metrics_state: MetricsState; // v1.1 preferred name for data_status
+  contributes_to_global_score: boolean; // Whether this integration has a score that contributes to global
+  last_activity_timestamp: string | null; // Most recent activity timestamp
 }
 
-// Intelligence Contract v1.0 - System Intelligence Snapshot
+// Intelligence Contract v1.1 - System Intelligence Snapshot
 // This is the authoritative data structure used by:
 // - Global dashboard AI
 // - Integration dashboard AI (filtered)
 // - Fusion score computation
+// RULE: Integration EXISTENCE is a FACT. Metric AVAILABILITY is a STATE. Never conflate.
 interface SystemIntelligenceSnapshot {
+  user_id: string;
   connected_integrations: ConnectedIntegration[];
   global_fusion_score: number;
   global_fusion_score_trend: string;
@@ -42,6 +59,9 @@ interface SystemIntelligenceSnapshot {
   emerging_integrations: number;
   dormant_integrations: number;
   last_analysis_timestamp: string | null;
+  // Intelligence Contract v1.1 - Additional fields
+  scoring_confidence: ScoringConfidence; // Aggregated confidence level for the snapshot
+  system_reasoning: string; // Machine-readable explanation of current state (not AI prose)
 }
 
 interface DataContext {
@@ -225,7 +245,13 @@ Deno.serve(withSentry(async (req) => {
       return 'low';
     }
 
-    // Build connected integrations array with Intelligence Contract fields
+    // Helper function to convert data_status to metrics_state (v1.1 terminology)
+    function dataStatusToMetricsState(dataStatus: DataStatus): MetricsState {
+      // 'emerging' in v1.0 maps to 'stabilizing' in v1.1
+      return dataStatus === 'emerging' ? 'stabilizing' : dataStatus;
+    }
+
+    // Build connected integrations array with Intelligence Contract v1.1 fields
     const connectedIntegrations: ConnectedIntegration[] = (userIntegrations || []).map(ui => {
       const master = ui.integrations_master as { id: string; integration_name: string } | null;
       if (!master) return null;
@@ -239,6 +265,8 @@ Deno.serve(withSentry(async (req) => {
         ? (lastMetricSync > lastScoreUpdate ? lastMetricSync : lastScoreUpdate)
         : (lastMetricSync || lastScoreUpdate);
       const connectedAt = ui.date_added || null;
+      const dataStatus = computeDataStatus(connectedAt, lastDataAt, metricNames.length > 0);
+      const hasScore = scoreData?.fusion_score !== null && scoreData?.fusion_score !== undefined;
       
       return {
         id: ui.integration_id,
@@ -246,11 +274,18 @@ Deno.serve(withSentry(async (req) => {
         fusion_score: scoreData?.fusion_score ?? null,
         trend: scoreData?.trend_direction || 'stable',
         metrics_tracked: metricNames,
-        data_status: computeDataStatus(connectedAt, lastDataAt, metricNames.length > 0),
+        data_status: dataStatus,
         confidence_level: computeConfidenceLevel(scoreData?.fusion_score ?? null, metricNames.length, lastDataAt),
         last_data_at: lastDataAt,
         connected_at: connectedAt,
         contribution_to_global: 0, // Will be calculated after global score is computed
+        // Intelligence Contract v1.1 - Additional fields
+        integration_key: ui.integration_id,
+        display_name: master.integration_name,
+        connection_status: 'connected' as const, // All rows from user_integrations with status='active' are connected
+        metrics_state: dataStatusToMetricsState(dataStatus),
+        contributes_to_global_score: hasScore, // Only integrations with scores contribute
+        last_activity_timestamp: lastDataAt, // Most recent activity timestamp
       };
     }).filter((i): i is ConnectedIntegration => i !== null);
 
@@ -284,8 +319,60 @@ Deno.serve(withSentry(async (req) => {
       ? fusionScores.reduce((latest, s) => s.updated_at > latest ? s.updated_at : latest, fusionScores[0].updated_at)
       : null;
 
-    // Build System Intelligence Snapshot (AUTHORITATIVE)
+    // Intelligence Contract v1.1 - Compute snapshot-level scoring_confidence
+    // high: >=2 integrations have fusion_score AND minimum confidence among scored is high
+    // medium: >=1 integration has fusion_score OR there are tracked metrics
+    // low: 0 integrations have fusion_score and metrics are empty/sparse
+    function computeScoringConfidence(integrations: ConnectedIntegration[]): ScoringConfidence {
+      const scoredIntegrations = integrations.filter(i => i.fusion_score !== null);
+      const totalMetrics = integrations.reduce((sum, i) => sum + i.metrics_tracked.length, 0);
+      
+      if (scoredIntegrations.length >= 2) {
+        // Check if minimum confidence among scored integrations is high
+        const allHigh = scoredIntegrations.every(i => i.confidence_level === 'high');
+        if (allHigh) return 'high';
+        return 'medium';
+      }
+      
+      if (scoredIntegrations.length >= 1 || totalMetrics > 0) {
+        return 'medium';
+      }
+      
+      return 'low';
+    }
+
+    // Intelligence Contract v1.1 - Generate system_reasoning (machine-readable, not AI prose)
+    // This is a deterministic explanation of the current state derived from snapshot fields
+    function generateSystemReasoning(integrations: ConnectedIntegration[], globalScore: number, confidence: ScoringConfidence): string {
+      const integrationCount = integrations.length;
+      const scoredCount = integrations.filter(i => i.fusion_score !== null).length;
+      const totalMetrics = integrations.reduce((sum, i) => sum + i.metrics_tracked.length, 0);
+      const integrationNames = integrations.map(i => i.name).join(', ');
+      const hasActivity = integrations.some(i => i.last_activity_timestamp !== null);
+      
+      const parts: string[] = [];
+      parts.push(`${integrationCount} connected integration(s): ${integrationNames || 'none'}`);
+      parts.push(`${scoredCount} scored`);
+      parts.push(`${totalMetrics} metrics tracked`);
+      parts.push(`last_activity: ${hasActivity ? 'present' : 'null'}`);
+      parts.push(`global_fusion_score: ${globalScore.toFixed(1)}`);
+      parts.push(`scoring_confidence: ${confidence}`);
+      
+      if (scoredCount === 0) {
+        parts.push('reason: no activity observed yet; awaiting usage data');
+      } else if (scoredCount < integrationCount) {
+        parts.push(`reason: ${integrationCount - scoredCount} integration(s) still stabilizing`);
+      }
+      
+      return parts.join('; ');
+    }
+
+    const scoringConfidence = computeScoringConfidence(connectedIntegrations);
+    const systemReasoning = generateSystemReasoning(connectedIntegrations, globalFusionScore, scoringConfidence);
+
+    // Build System Intelligence Snapshot (AUTHORITATIVE) - Intelligence Contract v1.1
     const intelligenceSnapshot: SystemIntelligenceSnapshot = {
+      user_id: userId,
       connected_integrations: connectedIntegrations,
       global_fusion_score: globalFusionScore,
       global_fusion_score_trend: globalTrend,
@@ -294,6 +381,9 @@ Deno.serve(withSentry(async (req) => {
       emerging_integrations: connectedIntegrations.filter(i => i.data_status === 'emerging').length,
       dormant_integrations: connectedIntegrations.filter(i => i.data_status === 'dormant').length,
       last_analysis_timestamp: lastAnalysisTimestamp,
+      // Intelligence Contract v1.1 - Additional fields
+      scoring_confidence: scoringConfidence,
+      system_reasoning: systemReasoning,
     };
 
     const { data: integrations } = await supabase

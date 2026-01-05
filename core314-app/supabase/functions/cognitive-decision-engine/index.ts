@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { fetchUserExecutionMode, getBaselineDecisionResponse } from "../_shared/execution_mode.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -295,6 +296,21 @@ serve(withSentry(async (req) => {
 
   try {
     const { userId, supabase } = await authenticateRequest(req);
+    
+    // ============================================================
+    // BASELINE MODE GATE - MUST BE BEFORE ANY AI PROCESSING
+    // ============================================================
+    const executionMode = await fetchUserExecutionMode(supabase, userId);
+    if (executionMode === 'baseline') {
+      return new Response(JSON.stringify(getBaselineDecisionResponse()), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+    // ============================================================
     
     const body: DecisionRequest = await req.json();
     const {

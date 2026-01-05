@@ -2,6 +2,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { 
+  deriveExecutionMode, 
+  getBaselineScenarioResponse,
+  BASELINE_SCENARIOS_MESSAGE,
+  type ExecutionMode,
+  type SystemStatus
+} from '../_shared/execution_mode.ts';
 
 interface ScenarioRequest {
   goal?: string;
@@ -100,7 +107,32 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    const body: ScenarioRequest = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({})) as ScenarioRequest & { system_status?: SystemStatus };
+    
+    // ============================================================
+    // GLOBAL EXECUTION SWITCH - SINGLE SOURCE OF TRUTH
+    // MANDATORY: This gate MUST be checked at the VERY TOP before ANY AI processing
+    // FAIL-CLOSED: If system_status is missing OR execution_mode === 'baseline', NO AI CALL
+    // ============================================================
+    const systemStatus = body.system_status;
+    const execution_mode: ExecutionMode = deriveExecutionMode(systemStatus);
+    
+    // HARD DISABLE: If baseline mode, return IMMEDIATELY with fixed response
+    // NO prompt assembly, NO cache access, NO LLM client reference
+    if (execution_mode === 'baseline') {
+      const baselineResponse = getBaselineScenarioResponse();
+      return new Response(
+        JSON.stringify(baselineResponse),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+    
+    // AI ALLOWED: All conditions met
+    console.log('AI ALLOWED: ai_scenario_generator - proceeding to OpenAI');
+    
     const horizon = body.horizon || '7d';
     const goal = body.goal || 'Optimize system performance and efficiency';
 

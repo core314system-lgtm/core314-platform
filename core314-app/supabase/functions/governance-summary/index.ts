@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { fetchUserExecutionMode, getBaselineGovernanceResponse } from "../_shared/execution_mode.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +50,17 @@ serve(withSentry(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // ============================================================
+    // BASELINE MODE GATE - MUST BE BEFORE ANY AI PROCESSING
+    // ============================================================
+    const executionMode = await fetchUserExecutionMode(supabase, user.id);
+    if (executionMode === 'baseline') {
+      return new Response(JSON.stringify(getBaselineGovernanceResponse()), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // ============================================================
 
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - days);

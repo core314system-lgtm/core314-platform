@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { 
+  deriveExecutionMode, 
+  getBaselineInsightsResponse,
+  type ExecutionMode 
+} from '../_shared/execution_mode.ts';
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 
@@ -21,6 +26,42 @@ serve(withSentry(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.id !== userId) {
       return new Response('Unauthorized', { status: 401 });
+    }
+
+    // ============================================================
+    // GLOBAL EXECUTION SWITCH - SINGLE SOURCE OF TRUTH
+    // MANDATORY: This gate MUST be checked at the VERY TOP before ANY AI processing
+    // FAIL-CLOSED: If no computed score or no efficiency metrics, treat as baseline
+    // ============================================================
+    const supabaseService = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const { data: fusionScores } = await supabaseService
+      .from('fusion_scores')
+      .select('fusion_score, score_origin')
+      .eq('user_id', user.id)
+      .order('calculated_at', { ascending: false })
+      .limit(1);
+    
+    const { data: efficiencyMetrics } = await supabaseService
+      .from('fusion_efficiency_metrics')
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1);
+    
+    const hasComputedScore = fusionScores && fusionScores.length > 0 && fusionScores[0].score_origin === 'computed';
+    const hasEfficiencyMetrics = efficiencyMetrics && efficiencyMetrics.length > 0;
+    const execution_mode: ExecutionMode = (hasComputedScore && hasEfficiencyMetrics) ? 'computed' : 'baseline';
+    
+    // HARD DISABLE: If baseline mode, return IMMEDIATELY with fixed response
+    if (execution_mode === 'baseline') {
+      console.log('BASELINE SHORT-CIRCUIT HIT: generate-ai-insights - baseline mode (NO AI)');
+      const baselineResponse = getBaselineInsightsResponse();
+      return new Response(JSON.stringify(baselineResponse), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     const { data: metrics } = await supabase

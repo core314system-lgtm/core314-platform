@@ -6,6 +6,7 @@ import {
   postToSlack,
   postToTeams,
 } from '../_shared/integration-utils.ts';
+import { fetchUserExecutionMode } from "../_shared/execution_mode.ts";
 
 
 interface WebhookModeRequest {
@@ -450,6 +451,20 @@ async function processWebhookMode(
 ) {
   console.log(`Processing webhook mode for ${req.service_name}`);
 
+  // ============================================================
+  // BASELINE MODE GATE - MUST BE BEFORE ANY AI PROCESSING
+  // If user_id is provided, check if they're in baseline mode
+  // ============================================================
+  let skipLLM = false;
+  if (req.user_id) {
+    const executionMode = await fetchUserExecutionMode(supabaseAdmin, req.user_id);
+    if (executionMode === 'baseline') {
+      console.log('BASELINE SHORT-CIRCUIT HIT: Skipping LLM analysis in baseline mode');
+      skipLLM = true;
+    }
+  }
+  // ============================================================
+
   const { data: existingRecovery } = await supabaseAdmin
     .from('system_integrity_events')
     .select('id')
@@ -479,7 +494,8 @@ async function processWebhookMode(
   const analysis = analyzeFailure(analyzerInput);
   console.log(`Analysis result: ${analysis.category} (${analysis.confidence})`);
 
-  const llmReasoning = await enhanceWithLLM(analyzerInput, analysis);
+  // Skip LLM enhancement in baseline mode
+  const llmReasoning = skipLLM ? null : await enhanceWithLLM(analyzerInput, analysis);
 
   const recoveryPlan: RecoveryPlan = {
     category: analysis.category,

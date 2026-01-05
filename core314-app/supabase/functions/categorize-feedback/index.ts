@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { fetchUserExecutionMode, getBaselineAdminResponse } from "../_shared/execution_mode.ts";
 
 interface CategorizeRequest {
   feedback_id: string;
@@ -58,6 +59,17 @@ serve(withSentry(async (req) => {
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
+    // ============================================================
+    // BASELINE MODE GATE - MUST BE BEFORE ANY AI PROCESSING
+    // ============================================================
+    const executionMode = await fetchUserExecutionMode(supabase, user.id);
+    if (executionMode === 'baseline') {
+      return new Response(JSON.stringify(getBaselineAdminResponse()), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      });
+    }
+    // ============================================================
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
