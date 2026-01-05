@@ -3,8 +3,18 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
+interface ConnectedIntegration {
+  id: string;
+  name: string;
+  fusion_score: number | null;
+  trend: string;
+  metrics_tracked: string[];
+  data_status: 'active' | 'no_data';
+}
+
 interface DataContext {
   global_fusion_score: number;
+  connected_integrations: ConnectedIntegration[];
   top_deficiencies: Array<{
     integration: string;
     score: number;
@@ -23,6 +33,7 @@ interface DataContext {
     efficiency: number;
   }>;
   recent_optimizations: number;
+  last_analysis_timestamp: string | null;
 }
 
 interface DataContextResponse {
@@ -66,15 +77,71 @@ Deno.serve(withSentry(async (req) => {
 
     const userOrgId = profile?.organization_id || orgId;
 
-    const { data: fusionMetrics } = await supabase
-      .from('fusion_metrics')
-      .select('fusion_score, efficiency_index')
-      .eq('organization_id', userOrgId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Fetch user's ACTUAL connected integrations (same source as Dashboard)
+    const { data: userIntegrations } = await supabase
+      .from('user_integrations')
+      .select(`
+        id,
+        integration_id,
+        integrations_master (id, integration_name)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .eq('added_by_user', true);
 
-    const globalFusionScore = fusionMetrics?.fusion_score || 0;
+    // Fetch fusion scores for user's integrations
+    const { data: fusionScores } = await supabase
+      .from('fusion_scores')
+      .select('integration_id, fusion_score, trend_direction, updated_at')
+      .eq('user_id', userId);
+
+    const scoreMap = new Map<string, { fusion_score: number; trend_direction: string; updated_at: string }>();
+    fusionScores?.forEach(s => scoreMap.set(s.integration_id, {
+      fusion_score: s.fusion_score,
+      trend_direction: s.trend_direction || 'stable',
+      updated_at: s.updated_at,
+    }));
+
+    // Fetch distinct metric names per integration for the user
+    const { data: userMetrics } = await supabase
+      .from('fusion_metrics')
+      .select('integration_id, metric_name')
+      .eq('user_id', userId);
+
+    const metricsMap = new Map<string, Set<string>>();
+    userMetrics?.forEach(m => {
+      if (!metricsMap.has(m.integration_id)) {
+        metricsMap.set(m.integration_id, new Set());
+      }
+      metricsMap.get(m.integration_id)!.add(m.metric_name);
+    });
+
+    // Build connected integrations array
+    const connectedIntegrations: ConnectedIntegration[] = (userIntegrations || []).map(ui => {
+      const master = ui.integrations_master as { id: string; integration_name: string } | null;
+      if (!master) return null;
+      const scoreData = scoreMap.get(ui.integration_id);
+      const metricNames = metricsMap.get(ui.integration_id);
+      return {
+        id: ui.integration_id,
+        name: master.integration_name,
+        fusion_score: scoreData?.fusion_score ?? null,
+        trend: scoreData?.trend_direction || 'stable',
+        metrics_tracked: metricNames ? Array.from(metricNames) : [],
+        data_status: (metricNames && metricNames.size > 0) ? 'active' as const : 'no_data' as const,
+      };
+    }).filter((i): i is ConnectedIntegration => i !== null);
+
+    // Calculate global fusion score from user's integrations (same as Dashboard)
+    const validScores = connectedIntegrations.filter(i => i.fusion_score !== null);
+    const globalFusionScore = validScores.length > 0
+      ? validScores.reduce((sum, i) => sum + (i.fusion_score || 0), 0) / validScores.length
+      : 0;
+
+    // Get last analysis timestamp from most recent fusion_scores update
+    const lastAnalysisTimestamp = fusionScores && fusionScores.length > 0
+      ? fusionScores.reduce((latest, s) => s.updated_at > latest ? s.updated_at : latest, fusionScores[0].updated_at)
+      : null;
 
     const { data: integrations } = await supabase
       .from('integration_performance')
@@ -142,12 +209,14 @@ Deno.serve(withSentry(async (req) => {
 
     const dataContext: DataContext = {
       global_fusion_score: globalFusionScore,
+      connected_integrations: connectedIntegrations,
       top_deficiencies: topDeficiencies,
       system_health: systemHealth,
       anomalies_today: anomalyCount || 0,
       recent_alerts: recentAlerts,
       integration_performance: integrationPerformance,
       recent_optimizations: optimizationCount || 0,
+      last_analysis_timestamp: lastAnalysisTimestamp,
     };
 
     const response: DataContextResponse = {

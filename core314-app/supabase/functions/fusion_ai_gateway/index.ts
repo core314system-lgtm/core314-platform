@@ -138,24 +138,50 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform. You help users understand their system health, integration performance, and operational metrics.
+    // Build strict grounding system prompt
+    let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform.
 
-You have access to the following LIVE system data for this user:`;
+CRITICAL GROUNDING RULES (YOU MUST FOLLOW THESE):
+1. You may ONLY answer using the data provided below. Do NOT infer, assume, or fabricate any information.
+2. If a metric, integration, or data point is not present in the provided data, you MUST explicitly state "This is not currently tracked in Core314" or "No data available for this."
+3. You may NOT claim "there are no integrations" if the connected_integrations array contains entries.
+4. When referencing data, cite the specific values from the provided context.
+5. End every response with a provenance line: "Based on Core314 data from your [integration name(s)]." or "Based on Core314 data across all your integrations."
+
+LIVE SYSTEM DATA FOR THIS USER:`;
 
     if (body.data_context) {
-      systemContent += `\n\nCurrent System Metrics:\n${JSON.stringify(body.data_context, null, 2)}`;
+      const dc = body.data_context;
+      // Format connected integrations clearly
+      if (dc.connected_integrations && Array.isArray(dc.connected_integrations)) {
+        systemContent += `\n\nCONNECTED INTEGRATIONS (${dc.connected_integrations.length} total):`;
+        if (dc.connected_integrations.length === 0) {
+          systemContent += `\nNo integrations connected yet.`;
+        } else {
+          dc.connected_integrations.forEach((int: { name: string; fusion_score: number | null; trend: string; metrics_tracked: string[]; data_status: string }) => {
+            systemContent += `\n- ${int.name}: Fusion Score ${int.fusion_score ?? 'N/A'}, Trend: ${int.trend}, Metrics: [${int.metrics_tracked.join(', ') || 'none yet'}], Status: ${int.data_status}`;
+          });
+        }
+      }
+      systemContent += `\n\nGlobal Fusion Score: ${dc.global_fusion_score || 0}`;
+      systemContent += `\nSystem Health: ${dc.system_health || 'Unknown'}`;
+      if (dc.last_analysis_timestamp) {
+        systemContent += `\nLast Analysis: ${dc.last_analysis_timestamp}`;
+      }
+      // Include other context as JSON for completeness
+      systemContent += `\n\nFull System Context:\n${JSON.stringify(body.data_context, null, 2)}`;
+    } else {
+      systemContent += `\n\nNo system data available. You should inform the user that Core314 data is not currently loaded.`;
     }
 
     if (body.context) {
-      systemContent += `\n\nAdditional Context:\n${JSON.stringify(body.context, null, 2)}`;
+      systemContent += `\n\nADDITIONAL CONTEXT (Integration-Specific Query):\n${JSON.stringify(body.context, null, 2)}`;
+      if (body.context.integration_name) {
+        systemContent += `\n\nIMPORTANT: This query is specifically about the "${body.context.integration_name}" integration. Answer ONLY using data for this integration. Do not reference other integrations unless explicitly asked.`;
+      }
     }
 
-    systemContent += `\n\nWhen answering questions:
-- Reference specific metrics from the live data when relevant
-- Provide actionable insights based on actual performance numbers
-- Be concise but thorough
-- If you don't have enough information, ask clarifying questions
-- Always cite specific data points when making recommendations`;
+    systemContent += `\n\nREMINDER: You must end your response with a provenance line stating which integration(s) your answer is based on.`;
 
     const systemMessage: ChatMessage = {
       role: 'system',
@@ -173,7 +199,7 @@ You have access to the following LIVE system data for this user:`;
       body: JSON.stringify({
         model: openaiModel,
         messages: messages,
-        temperature: 0.7,
+        temperature: 0.2, // Low temperature to reduce hallucinations and ensure grounded responses
         max_tokens: 500,
       }),
     });
