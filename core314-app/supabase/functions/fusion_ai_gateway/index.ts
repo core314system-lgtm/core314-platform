@@ -138,24 +138,199 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform. You help users understand their system health, integration performance, and operational metrics.
+    // Intelligence Contract v1.0 - Server-side query routing
+    // Determine if this is a global (all integrations) or scoped query
+    const isGlobalScope = !body.context?.integration_name;
+    const scopedIntegrationName = body.context?.integration_name;
+    
+    // Extract intelligence snapshot (AUTHORITATIVE SOURCE)
+    // Prefer intelligence_snapshot if available, fall back to connected_integrations for backward compatibility
+    interface IntegrationData {
+      id?: string;
+      name: string;
+      fusion_score: number | null;
+      trend: string;
+      metrics_tracked: string[];
+      data_status: string;
+      confidence_level?: string;
+      last_data_at?: string | null;
+      connected_at?: string | null;
+      contribution_to_global?: number;
+    }
+    
+    const snapshot = body.data_context?.intelligence_snapshot as {
+      connected_integrations: IntegrationData[];
+      global_fusion_score: number;
+      global_fusion_score_trend: string;
+      total_integrations: number;
+      active_integrations: number;
+      emerging_integrations: number;
+      dormant_integrations: number;
+      last_analysis_timestamp: string | null;
+    } | undefined;
+    
+    // Use snapshot if available, otherwise fall back to legacy connected_integrations
+    let allIntegrations: IntegrationData[] = snapshot?.connected_integrations || 
+      (body.data_context?.connected_integrations as IntegrationData[]) || [];
+    
+    // SERVER-SIDE ROUTING ENFORCEMENT (Intelligence Contract v1.0)
+    // For scoped queries, filter the snapshot to ONLY include the requested integration
+    let connectedIntegrations: IntegrationData[];
+    if (isGlobalScope) {
+      // Global scope: use all integrations
+      connectedIntegrations = allIntegrations;
+    } else {
+      // Scoped query: filter to only the requested integration (case-insensitive match)
+      connectedIntegrations = allIntegrations.filter(i => 
+        i.name.toLowerCase() === scopedIntegrationName?.toLowerCase()
+      );
+      // If no exact match found, try partial match as fallback
+      if (connectedIntegrations.length === 0) {
+        connectedIntegrations = allIntegrations.filter(i => 
+          i.name.toLowerCase().includes(scopedIntegrationName?.toLowerCase() || '') ||
+          (scopedIntegrationName?.toLowerCase() || '').includes(i.name.toLowerCase())
+        );
+      }
+    }
+    
+    // Pre-compute integration ranking for comparative queries (sorted by fusion_score ASC - weakest first)
+    const rankedIntegrations = [...connectedIntegrations]
+      .filter(i => i.fusion_score !== null)
+      .sort((a, b) => {
+        // Primary: fusion_score ASC (lower = weaker)
+        const scoreDiff = (a.fusion_score ?? 0) - (b.fusion_score ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        // Secondary: trend (declining < stable < improving)
+        const trendOrder: Record<string, number> = { 'declining': 0, 'stable': 1, 'improving': 2, 'up': 2, 'down': 0 };
+        return (trendOrder[a.trend] ?? 1) - (trendOrder[b.trend] ?? 1);
+      });
+    
+    const integrationNames = connectedIntegrations.map(i => i.name).join(', ');
+    const allIntegrationNames = allIntegrations.map(i => i.name).join(', ');
+    const weakestIntegration = rankedIntegrations[0];
+    const strongestIntegration = rankedIntegrations[rankedIntegrations.length - 1];
+    
+    // Global metrics from snapshot
+    const globalFusionScore = snapshot?.global_fusion_score ?? (body.data_context?.global_fusion_score as number) ?? 0;
+    const globalTrend = snapshot?.global_fusion_score_trend ?? 'stable';
 
-You have access to the following LIVE system data for this user:`;
+    // Build strict grounding system prompt - Intelligence Contract v1.0
+    let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform.
+
+=== INTELLIGENCE CONTRACT v1.0 - CRITICAL RULES ===
+
+GROUNDING RULES (NON-NEGOTIABLE):
+1. You may ONLY answer using the data provided below. Do NOT infer, assume, or fabricate any information.
+2. Connected integrations are FACTS. If an integration exists in the data below, it MUST be acknowledged.
+3. You may NEVER claim "there are no integrations" if integrations exist in the SYSTEM INTELLIGENCE SNAPSHOT below.
+4. Missing or low-activity data is a SIGNAL, not absence. Express uncertainty as CONFIDENCE LEVEL, not "missing data."
+5. End every response with a provenance line stating which integration(s) your answer is based on.
+
+REFUSAL RULES:
+- You may ONLY refuse to answer if there are ZERO connected integrations in the snapshot.
+- You may NOT refuse due to sparse metrics, low confidence, or emerging/dormant status.
+- If data is limited, explain what IS known and what is still stabilizing.
+
+FAILURE MODE HANDLING:
+- If confidence is LOW: State what you know, acknowledge the confidence level, explain what would increase confidence.
+- If status is EMERGING: Explain the integration is connected and data is stabilizing.
+- If status is DORMANT: Explain the integration is connected but hasn't had recent activity.
+- NEVER deflect responsibility to user setup. Core314 discovers metrics automatically.
+
+SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
 
     if (body.data_context) {
-      systemContent += `\n\nCurrent System Metrics:\n${JSON.stringify(body.data_context, null, 2)}`;
+      const dc = body.data_context;
+      
+      // GLOBAL SYSTEM OVERVIEW
+      systemContent += `\n\n=== GLOBAL SYSTEM OVERVIEW ===`;
+      systemContent += `\nGlobal Fusion Score: ${globalFusionScore.toFixed(1)}`;
+      systemContent += `\nGlobal Trend: ${globalTrend}`;
+      systemContent += `\nSystem Health: ${dc.system_health || 'Unknown'}`;
+      systemContent += `\nTotal Connected Integrations: ${allIntegrations.length}`;
+      if (snapshot) {
+        systemContent += `\n- Active: ${snapshot.active_integrations}`;
+        systemContent += `\n- Emerging: ${snapshot.emerging_integrations}`;
+        systemContent += `\n- Dormant: ${snapshot.dormant_integrations}`;
+      }
+      if (snapshot?.last_analysis_timestamp || dc.last_analysis_timestamp) {
+        systemContent += `\nLast Analysis: ${snapshot?.last_analysis_timestamp || dc.last_analysis_timestamp}`;
+      }
+      
+      // Format connected integrations with Intelligence Contract fields
+      systemContent += `\n\n=== CONNECTED INTEGRATIONS (AUTHORITATIVE SOURCE) ===`;
+      if (connectedIntegrations.length === 0) {
+        if (isGlobalScope) {
+          systemContent += `\nNo integrations connected yet. You may refuse to answer integration-related questions.`;
+        } else {
+          systemContent += `\nThe requested integration "${scopedIntegrationName}" was not found in the user's connected integrations.`;
+          systemContent += `\nAvailable integrations: ${allIntegrationNames || 'none'}`;
+        }
+      } else {
+        systemContent += `\nShowing: ${connectedIntegrations.length} integration(s)`;
+        connectedIntegrations.forEach((int) => {
+          const metricsInfo = int.metrics_tracked.length > 0 
+            ? `Metrics: [${int.metrics_tracked.join(', ')}]` 
+            : 'Metrics: awaiting data';
+          const confidenceInfo = int.confidence_level ? `Confidence: ${int.confidence_level.toUpperCase()}` : '';
+          const contributionInfo = int.contribution_to_global ? `Contributes: ${int.contribution_to_global}% to global` : '';
+          systemContent += `\n\n${int.name}:`;
+          systemContent += `\n  - Fusion Score: ${int.fusion_score ?? 'calculating...'}`;
+          systemContent += `\n  - Trend: ${int.trend}`;
+          systemContent += `\n  - Status: ${int.data_status}`;
+          if (confidenceInfo) systemContent += `\n  - ${confidenceInfo}`;
+          if (contributionInfo) systemContent += `\n  - ${contributionInfo}`;
+          systemContent += `\n  - ${metricsInfo}`;
+        });
+        
+        // Add pre-computed ranking for comparative queries (global scope only)
+        if (isGlobalScope && rankedIntegrations.length > 1) {
+          systemContent += `\n\n=== INTEGRATION RANKING (for comparative queries) ===`;
+          systemContent += `\nRanked by Fusion Score (lowest/weakest first):`;
+          rankedIntegrations.forEach((int, idx) => {
+            const confidenceTag = int.confidence_level ? ` [${int.confidence_level} confidence]` : '';
+            systemContent += `\n${idx + 1}. ${int.name}: Score ${int.fusion_score}, Trend: ${int.trend}${confidenceTag}`;
+          });
+          if (weakestIntegration) {
+            systemContent += `\n\nWEAKEST INTEGRATION: ${weakestIntegration.name} (Score: ${weakestIntegration.fusion_score}, Trend: ${weakestIntegration.trend})`;
+          }
+          if (strongestIntegration) {
+            systemContent += `\nSTRONGEST INTEGRATION: ${strongestIntegration.name} (Score: ${strongestIntegration.fusion_score}, Trend: ${strongestIntegration.trend})`;
+          }
+        }
+      }
+      
+      // Note about integration_performance - mark as supplementary, not authoritative
+      systemContent += `\n\n=== SUPPLEMENTARY DATA (not authoritative for integration existence) ===`;
+      systemContent += `\nNote: The data below is supplementary context. Use CONNECTED INTEGRATIONS above as the authoritative source.`;
+      systemContent += `\n${JSON.stringify({ 
+        top_deficiencies: dc.top_deficiencies,
+        anomalies_today: dc.anomalies_today,
+        recent_alerts: dc.recent_alerts,
+        recent_optimizations: dc.recent_optimizations
+      }, null, 2)}`;
+    } else {
+      systemContent += `\n\nNo system data available. You should inform the user that Core314 data is not currently loaded.`;
     }
 
-    if (body.context) {
-      systemContent += `\n\nAdditional Context:\n${JSON.stringify(body.context, null, 2)}`;
+    // Add scope-specific instructions
+    if (isGlobalScope) {
+      systemContent += `\n\n=== GLOBAL SCOPE INSTRUCTIONS ===`;
+      systemContent += `\nThis is a GLOBAL query (All Integrations view). You should:`;
+      systemContent += `\n- Aggregate and compare across ALL connected integrations`;
+      systemContent += `\n- For comparative questions ("which is less efficient?", "which is underperforming?", "what is hurting my score?"):`;
+      systemContent += `\n  * Use the INTEGRATION RANKING above to identify the weakest/strongest`;
+      systemContent += `\n  * Provide a comparison table or list with scores`;
+      systemContent += `\n  * Explain contributing factors using available metrics (or note if metrics are limited)`;
+      systemContent += `\n- End with provenance: "Based on Core314 data across your connected integrations (${integrationNames})."`;
+    } else if (body.context?.integration_name) {
+      systemContent += `\n\n=== SCOPED QUERY INSTRUCTIONS ===`;
+      systemContent += `\nThis query is specifically about the "${body.context.integration_name}" integration.`;
+      systemContent += `\nAnswer ONLY using data for this integration. Do not reference other integrations unless explicitly asked.`;
+      systemContent += `\nAdditional context: ${JSON.stringify(body.context, null, 2)}`;
     }
 
-    systemContent += `\n\nWhen answering questions:
-- Reference specific metrics from the live data when relevant
-- Provide actionable insights based on actual performance numbers
-- Be concise but thorough
-- If you don't have enough information, ask clarifying questions
-- Always cite specific data points when making recommendations`;
+    systemContent += `\n\nREMINDER: You must end your response with a provenance line stating which integration(s) your answer is based on.`;
 
     const systemMessage: ChatMessage = {
       role: 'system',
@@ -173,7 +348,7 @@ You have access to the following LIVE system data for this user:`;
       body: JSON.stringify({
         model: openaiModel,
         messages: messages,
-        temperature: 0.7,
+        temperature: 0.2, // Low temperature to reduce hallucinations and ensure grounded responses
         max_tokens: 500,
       }),
     });

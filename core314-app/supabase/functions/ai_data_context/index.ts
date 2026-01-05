@@ -3,8 +3,53 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { verifyAndAuthorizeWithPolicy } from '../_shared/auth.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
-interface DataContext {
+// Intelligence Contract v1.0 - Data Status
+// active: Has recent metrics (within 14 days)
+// emerging: Connected recently (<7 days) OR has some data but still stabilizing
+// dormant: Connected but no recent activity (>30 days)
+type DataStatus = 'active' | 'emerging' | 'dormant';
+
+// Intelligence Contract v1.0 - Confidence Level
+// high: Has fusion_score AND 2+ metrics AND recent data
+// medium: Has fusion_score OR has metrics
+// low: Connected but minimal data
+type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+interface ConnectedIntegration {
+  id: string;
+  name: string;
+  fusion_score: number | null;
+  trend: string;
+  metrics_tracked: string[];
+  data_status: DataStatus;
+  confidence_level: ConfidenceLevel;
+  last_data_at: string | null;
+  connected_at: string | null;
+  contribution_to_global: number; // Percentage contribution to global fusion score
+}
+
+// Intelligence Contract v1.0 - System Intelligence Snapshot
+// This is the authoritative data structure used by:
+// - Global dashboard AI
+// - Integration dashboard AI (filtered)
+// - Fusion score computation
+interface SystemIntelligenceSnapshot {
+  connected_integrations: ConnectedIntegration[];
   global_fusion_score: number;
+  global_fusion_score_trend: string;
+  total_integrations: number;
+  active_integrations: number;
+  emerging_integrations: number;
+  dormant_integrations: number;
+  last_analysis_timestamp: string | null;
+}
+
+interface DataContext {
+  // Primary: System Intelligence Snapshot (AUTHORITATIVE)
+  intelligence_snapshot: SystemIntelligenceSnapshot;
+  // Legacy fields for backward compatibility
+  global_fusion_score: number;
+  connected_integrations: ConnectedIntegration[];
   top_deficiencies: Array<{
     integration: string;
     score: number;
@@ -23,6 +68,7 @@ interface DataContext {
     efficiency: number;
   }>;
   recent_optimizations: number;
+  last_analysis_timestamp: string | null;
 }
 
 interface DataContextResponse {
@@ -66,15 +112,189 @@ Deno.serve(withSentry(async (req) => {
 
     const userOrgId = profile?.organization_id || orgId;
 
-    const { data: fusionMetrics } = await supabase
-      .from('fusion_metrics')
-      .select('fusion_score, efficiency_index')
-      .eq('organization_id', userOrgId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Fetch user's ACTUAL connected integrations (same source as Dashboard)
+    // Include date_added for determining emerging vs dormant status
+    const { data: userIntegrations } = await supabase
+      .from('user_integrations')
+      .select(`
+        id,
+        integration_id,
+        date_added,
+        integrations_master (id, integration_name)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .eq('added_by_user', true);
 
-    const globalFusionScore = fusionMetrics?.fusion_score || 0;
+    // Fetch fusion scores for user's integrations
+    const { data: fusionScores } = await supabase
+      .from('fusion_scores')
+      .select('integration_id, fusion_score, trend_direction, updated_at')
+      .eq('user_id', userId);
+
+    const scoreMap = new Map<string, { fusion_score: number; trend_direction: string; updated_at: string }>();
+    fusionScores?.forEach(s => scoreMap.set(s.integration_id, {
+      fusion_score: s.fusion_score,
+      trend_direction: s.trend_direction || 'stable',
+      updated_at: s.updated_at,
+    }));
+
+    // Fetch distinct metric names per integration for the user, with most recent synced_at
+    const { data: userMetrics } = await supabase
+      .from('fusion_metrics')
+      .select('integration_id, metric_name, synced_at')
+      .eq('user_id', userId);
+
+    const metricsMap = new Map<string, { names: Set<string>; lastSyncedAt: string | null }>();
+    userMetrics?.forEach(m => {
+      if (!metricsMap.has(m.integration_id)) {
+        metricsMap.set(m.integration_id, { names: new Set(), lastSyncedAt: null });
+      }
+      const entry = metricsMap.get(m.integration_id)!;
+      entry.names.add(m.metric_name);
+      if (m.synced_at && (!entry.lastSyncedAt || m.synced_at > entry.lastSyncedAt)) {
+        entry.lastSyncedAt = m.synced_at;
+      }
+    });
+
+    // Intelligence Contract v1.0 - Helper functions for data_status and confidence_level
+    const now = new Date();
+    const ACTIVE_THRESHOLD_DAYS = 14;
+    const EMERGING_THRESHOLD_DAYS = 7;
+    const DORMANT_THRESHOLD_DAYS = 30;
+
+    function computeDataStatus(
+      connectedAt: string | null,
+      lastDataAt: string | null,
+      hasMetrics: boolean
+    ): DataStatus {
+      const connectedDate = connectedAt ? new Date(connectedAt) : null;
+      const lastDataDate = lastDataAt ? new Date(lastDataAt) : null;
+      
+      // If connected recently (< 7 days), it's emerging
+      if (connectedDate) {
+        const daysSinceConnected = (now.getTime() - connectedDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceConnected < EMERGING_THRESHOLD_DAYS) {
+          return 'emerging';
+        }
+      }
+      
+      // If has recent data (< 14 days), it's active
+      if (lastDataDate) {
+        const daysSinceData = (now.getTime() - lastDataDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceData < ACTIVE_THRESHOLD_DAYS) {
+          return 'active';
+        }
+        // If no data for > 30 days, it's dormant
+        if (daysSinceData > DORMANT_THRESHOLD_DAYS) {
+          return 'dormant';
+        }
+      }
+      
+      // If has metrics but not recent, it's emerging (stabilizing)
+      if (hasMetrics) {
+        return 'emerging';
+      }
+      
+      // No metrics at all - dormant
+      return 'dormant';
+    }
+
+    function computeConfidenceLevel(
+      fusionScore: number | null,
+      metricsCount: number,
+      lastDataAt: string | null
+    ): ConfidenceLevel {
+      const hasScore = fusionScore !== null;
+      const hasMultipleMetrics = metricsCount >= 2;
+      const lastDataDate = lastDataAt ? new Date(lastDataAt) : null;
+      const hasRecentData = lastDataDate && 
+        (now.getTime() - lastDataDate.getTime()) / (1000 * 60 * 60 * 24) < ACTIVE_THRESHOLD_DAYS;
+      
+      // High: Has fusion_score AND 2+ metrics AND recent data
+      if (hasScore && hasMultipleMetrics && hasRecentData) {
+        return 'high';
+      }
+      
+      // Medium: Has fusion_score OR has metrics
+      if (hasScore || metricsCount > 0) {
+        return 'medium';
+      }
+      
+      // Low: Connected but minimal data
+      return 'low';
+    }
+
+    // Build connected integrations array with Intelligence Contract fields
+    const connectedIntegrations: ConnectedIntegration[] = (userIntegrations || []).map(ui => {
+      const master = ui.integrations_master as { id: string; integration_name: string } | null;
+      if (!master) return null;
+      
+      const scoreData = scoreMap.get(ui.integration_id);
+      const metricsData = metricsMap.get(ui.integration_id);
+      const metricNames = metricsData?.names ? Array.from(metricsData.names) : [];
+      const lastMetricSync = metricsData?.lastSyncedAt || null;
+      const lastScoreUpdate = scoreData?.updated_at || null;
+      const lastDataAt = lastMetricSync && lastScoreUpdate 
+        ? (lastMetricSync > lastScoreUpdate ? lastMetricSync : lastScoreUpdate)
+        : (lastMetricSync || lastScoreUpdate);
+      const connectedAt = ui.date_added || null;
+      
+      return {
+        id: ui.integration_id,
+        name: master.integration_name,
+        fusion_score: scoreData?.fusion_score ?? null,
+        trend: scoreData?.trend_direction || 'stable',
+        metrics_tracked: metricNames,
+        data_status: computeDataStatus(connectedAt, lastDataAt, metricNames.length > 0),
+        confidence_level: computeConfidenceLevel(scoreData?.fusion_score ?? null, metricNames.length, lastDataAt),
+        last_data_at: lastDataAt,
+        connected_at: connectedAt,
+        contribution_to_global: 0, // Will be calculated after global score is computed
+      };
+    }).filter((i): i is ConnectedIntegration => i !== null);
+
+    // Calculate global fusion score from user's integrations (same as Dashboard)
+    const validScores = connectedIntegrations.filter(i => i.fusion_score !== null);
+    const globalFusionScore = validScores.length > 0
+      ? validScores.reduce((sum, i) => sum + (i.fusion_score || 0), 0) / validScores.length
+      : 0;
+
+    // Calculate contribution_to_global for each integration
+    if (validScores.length > 0) {
+      const totalScore = validScores.reduce((sum, i) => sum + (i.fusion_score || 0), 0);
+      connectedIntegrations.forEach(i => {
+        if (i.fusion_score !== null && totalScore > 0) {
+          i.contribution_to_global = Math.round((i.fusion_score / totalScore) * 100);
+        }
+      });
+    }
+
+    // Determine global trend from individual trends
+    const trendCounts = { improving: 0, stable: 0, declining: 0 };
+    connectedIntegrations.forEach(i => {
+      const trend = i.trend === 'up' ? 'improving' : i.trend === 'down' ? 'declining' : 'stable';
+      trendCounts[trend]++;
+    });
+    const globalTrend = trendCounts.declining > trendCounts.improving ? 'declining' 
+      : trendCounts.improving > trendCounts.declining ? 'improving' : 'stable';
+
+    // Get last analysis timestamp from most recent fusion_scores update
+    const lastAnalysisTimestamp = fusionScores && fusionScores.length > 0
+      ? fusionScores.reduce((latest, s) => s.updated_at > latest ? s.updated_at : latest, fusionScores[0].updated_at)
+      : null;
+
+    // Build System Intelligence Snapshot (AUTHORITATIVE)
+    const intelligenceSnapshot: SystemIntelligenceSnapshot = {
+      connected_integrations: connectedIntegrations,
+      global_fusion_score: globalFusionScore,
+      global_fusion_score_trend: globalTrend,
+      total_integrations: connectedIntegrations.length,
+      active_integrations: connectedIntegrations.filter(i => i.data_status === 'active').length,
+      emerging_integrations: connectedIntegrations.filter(i => i.data_status === 'emerging').length,
+      dormant_integrations: connectedIntegrations.filter(i => i.data_status === 'dormant').length,
+      last_analysis_timestamp: lastAnalysisTimestamp,
+    };
 
     const { data: integrations } = await supabase
       .from('integration_performance')
@@ -141,13 +361,18 @@ Deno.serve(withSentry(async (req) => {
       .gte('created_at', today.toISOString());
 
     const dataContext: DataContext = {
+      // Primary: System Intelligence Snapshot (AUTHORITATIVE)
+      intelligence_snapshot: intelligenceSnapshot,
+      // Legacy fields for backward compatibility
       global_fusion_score: globalFusionScore,
+      connected_integrations: connectedIntegrations,
       top_deficiencies: topDeficiencies,
       system_health: systemHealth,
       anomalies_today: anomalyCount || 0,
       recent_alerts: recentAlerts,
       integration_performance: integrationPerformance,
       recent_optimizations: optimizationCount || 0,
+      last_analysis_timestamp: lastAnalysisTimestamp,
     };
 
     const response: DataContextResponse = {

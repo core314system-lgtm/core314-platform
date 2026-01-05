@@ -21,6 +21,15 @@ export function IntegrationScopedAIQuery({
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Helper to ensure provenance line is present
+  const ensureProvenanceLine = (response: string, integrationName: string): string => {
+    const provenancePattern = /Based on Core314 data from/i;
+    if (provenancePattern.test(response)) {
+      return response;
+    }
+    return `${response}\n\n_Based on Core314 data from your ${integrationName} integration._`;
+  };
+
   const handleSubmit = async () => {
     if (!query.trim()) return;
 
@@ -29,7 +38,16 @@ export function IntegrationScopedAIQuery({
     setQuery('');
 
     try {
-      // Build integration-specific context
+      // FAIL-SAFE: If integration has no metrics and no insights, return early with appropriate message
+      const hasData = recentMetrics.length > 0 || recentInsights.length > 0 || integration.fusion_score !== undefined;
+      if (!hasData) {
+        setResponse(`Core314 is connected to ${integration.integration_name}, but sufficient activity has not yet been observed to generate insights. Once more data is collected, you'll be able to ask questions about this integration's performance.\n\n_Based on Core314 data from your ${integration.integration_name} integration._`);
+        setLoading(false);
+        return;
+      }
+
+      // Build integration-specific context with explicit metric names
+      const metricNames = [...new Set(recentMetrics.map(m => m.metric_name))];
       const metricSummary = recentMetrics.length > 0 
         ? recentMetrics.slice(0, 5).map(m => `${m.metric_name}: ${m.raw_value}`).join(', ')
         : 'No recent metrics available';
@@ -38,14 +56,15 @@ export function IntegrationScopedAIQuery({
         ? recentInsights.slice(0, 3).map(i => i.message).join('; ')
         : 'No recent insights available';
 
-      // Construct a scoped prompt that instructs AI to focus only on this integration
+      // Construct a scoped prompt with strict grounding instructions
       const scopedPrompt = `[INTEGRATION CONTEXT: ${integration.integration_name}]
 Current Fusion Score: ${integration.fusion_score?.toFixed(0) || 'N/A'}
 Trend: ${integration.trend_direction || 'stable'}
-Recent Metrics: ${metricSummary}
+Metrics Being Tracked: [${metricNames.join(', ') || 'none yet'}]
+Recent Metric Values: ${metricSummary}
 Recent Insights: ${insightSummary}
 
-Please answer the following question ONLY using information about ${integration.integration_name}. Do not reference other integrations or global metrics.
+IMPORTANT: Answer ONLY using the data provided above for ${integration.integration_name}. If the requested information is not in the data above, say "This is not currently tracked in Core314 for ${integration.integration_name}."
 
 User Question: ${currentQuery}`;
 
@@ -57,12 +76,14 @@ User Question: ${currentQuery}`;
             fusion_score: integration.fusion_score,
             trend_direction: integration.trend_direction,
             metrics_count: integration.metrics_count,
+            metrics_tracked: metricNames,
           }
         }
       );
 
       if (result.success && result.reply) {
-        setResponse(result.reply);
+        // Ensure provenance line is present (client-side guardrail)
+        setResponse(ensureProvenanceLine(result.reply, integration.integration_name));
       } else {
         setResponse(result.error || 'Failed to get response. Please try again.');
       }
