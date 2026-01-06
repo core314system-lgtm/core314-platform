@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Database, Zap, BarChart3, TrendingUp, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronDown, CheckCircle, XCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { HeroIllustration } from '../components/illustrations';
@@ -301,7 +301,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How Core314 Works Section */}
+      {/* How Core314 Works - 5-Step Visual Flow */}
       <section className="py-24 px-4 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <motion.h2
@@ -322,88 +322,35 @@ export default function LandingPage() {
             className="text-xl text-slate-600 text-center mb-16 max-w-3xl mx-auto leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            A simple control loop for complex operations. Core314 does not replace your tools — it brings them under control.
+            A progressive system maturity model. Core314 grows with your organization through five distinct stages.
           </motion.p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {[
               {
-                icon: Database,
-                title: "Fuse & Score Your Operations",
-                desc: "Core314 connects to your existing systems and continuously monitors how work actually flows across your business. It normalizes operational data across tools, correlates activity in real time, and generates clear operational scores that show what's working, what's drifting, and where risk is building — without relying on static dashboards or manual reporting."
-              },
-              {
-                icon: TrendingUp,
-                title: "Proactively Optimize Before Problems Occur",
-                desc: "Instead of waiting for alerts or failures, Core314 detects early signs of inefficiency, overload, or instability. When performance begins to drift, Core314 automatically recommends or initiates corrective actions — such as reprioritizing work, rebalancing workflows, or escalating issues — before they impact customers or revenue."
-              },
-              {
-                icon: Shield,
-                title: "Govern Automation Safely and Intentionally",
-                desc: "Automation without control creates risk. Core314 prevents that. Every automated action is evaluated against governance rules, risk thresholds, and operational context. Low-risk actions can execute automatically, while higher-risk actions require review or approval."
-              }
-            ].map((pillar, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.2, duration: 0.6 }}
-                className="group relative bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-xl hover:border-sky-200 transition-all duration-300"
-              >
-                <div className="bg-sky-100 rounded-xl w-16 h-16 flex items-center justify-center mb-6 group-hover:bg-sky-200 transition-colors">
-                  <pillar.icon className="h-8 w-8 text-sky-600" />
-                </div>
-                <h3 className="text-xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {pillar.title}
-                </h3>
-                <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  {pillar.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* What to Expect Section */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold text-center mb-16 text-slate-900"
-            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
-          >
-            What to Expect After You Connect Your Systems
-          </motion.h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[
-              {
-                icon: Database,
                 step: "1",
-                title: "Connect Your Existing Tools",
-                desc: "You connect the systems you already use. There is no data migration, no workflow replacement, and no forced reconfiguration."
+                title: "Connect",
+                desc: "Link your existing tools. No data migration, no workflow changes. Core314 connects via secure APIs."
               },
               {
-                icon: BarChart3,
                 step: "2",
-                title: "Core314 Monitors and Scores Operations",
-                desc: "Core314 observes how work flows across your systems and establishes operational baselines. During this phase, no actions are taken."
+                title: "Observe",
+                desc: "Core314 discovers metrics and relationships. Dashboards generate automatically in preview mode."
               },
               {
-                icon: Zap,
                 step: "3",
-                title: "Optimization and Automation Are Introduced Gradually",
-                desc: "You decide how Core314 acts — recommendations only, assisted execution, or governed automation within defined guardrails."
+                title: "Analyze",
+                desc: "Intelligence activates. The Global Fusion Score becomes dynamic. AI insights are grounded in your data."
               },
               {
-                icon: TrendingUp,
                 step: "4",
-                title: "Continuous Improvement Over Time",
-                desc: "As outcomes are observed, Core314 continuously refines scoring, optimization, and governance behavior."
+                title: "Predict",
+                desc: "Identify trends, risks, and inefficiencies before they impact performance. Forecasting becomes available."
+              },
+              {
+                step: "5",
+                title: "Act",
+                desc: "Move from insight to execution. Corrective actions and self-healing logic with governance controls."
               }
             ].map((step, index) => (
               <motion.div
@@ -411,31 +358,93 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.15, duration: 0.6 }}
+                transition={{ delay: index * 0.1, duration: 0.6 }}
                 className="relative group"
               >
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-sky-200 transition-all duration-300 h-full">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="bg-sky-500 rounded-full w-12 h-12 flex items-center justify-center shadow-md">
-                      <span className="text-xl font-bold text-white">{step.step}</span>
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-sky-200 transition-all duration-300 h-full">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-sky-500 rounded-full w-10 h-10 flex items-center justify-center shadow-md">
+                      <span className="text-lg font-bold text-white">{step.step}</span>
                     </div>
+                    <h3 className="text-lg font-bold text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      {step.title}
+                    </h3>
                   </div>
-                  <h3 className="text-lg font-bold mb-3 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    {step.title}
-                  </h3>
                   <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
                     {step.desc}
                   </p>
                 </div>
-                {index < 3 && (
-                  <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-sky-400 z-10">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                {index < 4 && (
+                  <div className="hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 text-sky-400 z-10">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <path d="M5 12 L19 12 M19 12 L14 7 M19 12 L14 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                 )}
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* System Maturity Explanation */}
+      <section className="py-24 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-5xl font-bold text-center mb-6 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
+          >
+            Why System Maturity Matters
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="text-xl text-slate-600 text-center mb-12 max-w-3xl mx-auto leading-relaxed"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            Core314's tiered approach ensures intelligence is grounded in real data, not assumptions. Each stage builds on the previous one.
+          </motion.p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-slate-50 border border-slate-200 rounded-2xl p-8"
+            >
+              <h3 className="text-xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                Observation Before Intelligence
+              </h3>
+              <p className="text-slate-600 leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Core314 doesn't guess. Before activating AI insights, the system observes how your organization actually operates. This discovery phase identifies metrics, maps relationships, and establishes baselines.
+              </p>
+              <p className="text-slate-500 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Intelligence unlocks automatically once sufficient activity is detected.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-slate-50 border border-slate-200 rounded-2xl p-8"
+            >
+              <h3 className="text-xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                Governance at Every Stage
+              </h3>
+              <p className="text-slate-600 leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                Even at the highest maturity levels, Core314 maintains governance controls. Autonomous actions are evaluated against risk thresholds. High-risk actions require approval.
+              </p>
+              <p className="text-slate-500 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+                You decide how much autonomy Core314 has at each stage.
+              </p>
+            </motion.div>
           </div>
         </div>
       </section>

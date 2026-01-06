@@ -17,51 +17,70 @@ export default function PricingPage() {
 
   const plans = [
     {
-      name: PRICING.starter.name,
+      name: 'Observe',
+      label: 'System Calibration Phase',
+      subtext: 'Required first step for all Core314 intelligence',
       price: formatPrice(PRICING.starter.monthly),
       period: '/mo',
-      description: PRICING.starter.description,
+      description: 'Core314 connects to your tools and begins observing how your organization operates. Dashboards are generated automatically in preview mode while the system identifies metrics and relationships.',
       features: [
-        'Unified dashboards',
         `${PRICING.starter.integrations} integrations included`,
-        'Basic AI recommendations',
+        'Automatic dashboard generation',
+        'Metric discovery & relationship mapping',
+        'Global Fusion Score at baseline',
         'Email support',
         '14-day free trial'
       ],
-      cta: 'Start Free Trial',
+      constraints: [
+        'AI analysis not yet active',
+        'Metrics are being discovered, not scored'
+      ],
+      lockedFeatures: [
+        'AI insights',
+        'Scoring variance',
+        'Predictive indicators',
+        'Optimization actions'
+      ],
+      cta: 'Begin System Calibration',
       link: '/signup?plan=starter',
       popular: false
     },
     {
-      name: PRICING.pro.name,
+      name: 'Analyze',
+      label: 'Active System Intelligence',
       price: formatPrice(PRICING.pro.monthly),
       period: '/mo',
-      description: PRICING.pro.description,
+      description: 'Core314 activates real-time intelligence across your integrations. The Global Fusion Score becomes dynamic. Each integration receives its own active dashboard with live metrics and explanations.',
       features: [
         `${PRICING.pro.integrations} integrations included`,
-        'Proactive Optimization Engine™',
+        'Dynamic Global Fusion Score',
+        'AI insights grounded in your data',
         'Real-time KPI alerts',
-        'Advanced analytics',
+        'Per-integration active dashboards',
         'Priority support',
         '14-day free trial'
       ],
+      constraints: [],
       cta: 'Start Free Trial',
       link: '/signup?plan=pro',
       popular: true
     },
     {
-      name: PRICING.enterprise.name,
+      name: 'Predict & Act',
+      label: 'Predictive Intelligence + Autonomous Optimization',
       price: 'Custom',
       period: '',
-      description: PRICING.enterprise.description,
+      description: 'Core314 identifies trends, risks, and emerging inefficiencies before they impact performance. The system moves from insight to execution with corrective actions, optimizations, and self-healing logic.',
       features: [
         'Unlimited integrations',
-        'Admin Analytics dashboard',
+        'Forecasting & scenario modeling',
+        'Early-warning indicators',
+        'Autonomous optimization with governance',
         'Full API access',
-        'On-premise deployment option',
         'Dedicated account manager',
         'Custom SLA'
       ],
+      constraints: [],
       cta: 'Contact Sales',
       link: '/contact?plan=enterprise',
       popular: false
@@ -107,7 +126,7 @@ export default function PricingPage() {
             className="text-5xl md:text-7xl font-bold mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            Choose Your Core
+            System Maturity Tiers
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -115,7 +134,7 @@ export default function PricingPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto"
           >
-            Start with a 14-day free trial. Cancel anytime.
+            Core314 grows with your organization. Start observing, then unlock intelligence as your system matures.
           </motion.p>
         </div>
       </section>
@@ -144,9 +163,15 @@ export default function PricingPage() {
                 )}
                 
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold mb-2 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  <h3 className="text-2xl font-bold mb-1 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
                     {plan.name}
                   </h3>
+                  {'label' in plan && plan.label && (
+                    <p className="text-sky-600 text-sm font-medium mb-1">{plan.label}</p>
+                  )}
+                  {'subtext' in plan && plan.subtext && (
+                    <p className="text-slate-400 text-xs mb-3">{plan.subtext}</p>
+                  )}
                   <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-5xl font-bold text-slate-900">{plan.price}</span>
@@ -154,7 +179,7 @@ export default function PricingPage() {
                   </div>
                 </div>
 
-                <ul className="space-y-4 mb-8">
+                <ul className="space-y-4 mb-4">
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <Check className="h-5 w-5 text-sky-500 flex-shrink-0 mt-0.5" />
@@ -162,6 +187,36 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
+
+                {'constraints' in plan && plan.constraints && plan.constraints.length > 0 && (
+                  <div className="mb-4 pt-4 border-t border-slate-100">
+                    <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">This tier is intentionally preparatory:</p>
+                    <ul className="space-y-2">
+                      {plan.constraints.map((constraint: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-slate-500">
+                          <span className="text-slate-400">•</span>
+                          <span>{constraint}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {'lockedFeatures' in plan && plan.lockedFeatures && plan.lockedFeatures.length > 0 && (
+                  <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <p className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-2">
+                      <span>🔒</span>
+                      <span>Intelligence Locked Until Calibration Completes</span>
+                    </p>
+                    <ul className="space-y-1">
+                      {plan.lockedFeatures.map((feature: string, i: number) => (
+                        <li key={i} className="text-xs text-slate-400">
+                          • {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <Link
                   to={plan.link}
@@ -265,7 +320,11 @@ export default function PricingPage() {
               },
               {
                 q: 'Can I add more integrations?',
-                a: 'Absolutely! You can add integrations starting at $75/month each on the Starter plan or $50/month each on the Pro plan. For more than 8 integrations, upgrading to Pro provides the best long-term value.'
+                a: 'Absolutely! You can add integrations starting at $75/month each on the Observe tier or $50/month each on the Analyze tier. For more than 8 integrations, upgrading to Analyze provides the best long-term value.'
+              },
+              {
+                q: 'Why does the Observe tier have limited AI features?',
+                a: 'The Observe tier is intentionally preparatory. Core314 needs time to discover your metrics, map relationships, and establish baselines before intelligence can be activated. This ensures AI insights are grounded in real data, not assumptions.'
               }
             ].map((faq, index) => (
               <motion.div

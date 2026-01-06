@@ -227,12 +227,15 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>AI Insights</CardTitle>
-            <Badge variant="secondary">Pro Feature</Badge>
+            <Badge variant="secondary">Analyze Tier</Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Unlock AI-powered insights with a Professional or Enterprise subscription.
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Core314 is currently in observation mode for this integration. Dashboards are generated automatically while the system discovers metrics and establishes baselines.
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-500">
+            AI insights activate automatically once sufficient activity is detected, or upgrade to the Analyze tier for immediate access.
           </p>
         </CardContent>
       </Card>
