@@ -83,7 +83,7 @@ export default function IntegrationsPage() {
               How Integrations Work
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Core314 connects to your tools through secure API connections. Your data stays in your systems while Core314 monitors and orchestrates operations.
+              When you connect an integration, Core314 automatically discovers available metrics and begins observing activity. Intelligence activates once sufficient data is collected.
             </p>
           </motion.div>
 
@@ -91,18 +91,18 @@ export default function IntegrationsPage() {
             {[
               {
                 icon: Plug,
-                title: "Secure Connection",
-                desc: "Each integration uses OAuth or API key authentication. Core314 requests only the permissions needed to monitor and interact with your data."
+                title: "Connect & Discover",
+                desc: "Each integration uses OAuth or API key authentication. Once connected, Core314 automatically discovers available metrics and data points without manual configuration."
               },
               {
                 icon: Network,
-                title: "Central Orchestration",
-                desc: "All connected systems feed into Core314's central hub. Data is normalized and correlated to provide a unified operational view."
+                title: "Observe & Baseline",
+                desc: "Core314 observes activity patterns and establishes operational baselines. During this phase, dashboards are generated in preview mode while the system learns your operations."
               },
               {
                 icon: Code,
-                title: "API-First Design",
-                desc: "Core314 is built API-first. Every integration follows consistent patterns, and custom integrations can be built using our API."
+                title: "Activate Intelligence",
+                desc: "Once sufficient activity is detected, AI insights activate automatically. Each integration receives its own active dashboard with live metrics and explanations."
               }
             ].map((item, index) => (
               <motion.div
