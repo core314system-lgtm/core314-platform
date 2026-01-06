@@ -226,9 +226,14 @@ export default function PricingPage() {
                 )}
 
                 {plan.name === 'Observe' && (
-                  <p className="text-xs text-slate-400 text-center mb-4">
-                    Observe is not intended for long-term use. Intelligence unlocks as calibration completes.
-                  </p>
+                  <div className="text-center mb-4">
+                    <p className="text-xs text-slate-400 mb-1">
+                      Observe is not intended for long-term use. Intelligence unlocks as calibration completes.
+                    </p>
+                    <p className="text-xs text-sky-600 font-medium">
+                      Most organizations activate Analyze once calibration completes.
+                    </p>
+                  </div>
                 )}
 
                 <Link
