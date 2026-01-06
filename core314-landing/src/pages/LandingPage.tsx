@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Database, Zap, BarChart3, TrendingUp, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronDown, CheckCircle, XCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { HeroIllustration } from '../components/illustrations';
