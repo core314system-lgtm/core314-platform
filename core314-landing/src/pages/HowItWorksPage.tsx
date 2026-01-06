@@ -83,6 +83,69 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      {/* System Learning Timeline */}
+      <section className="py-12 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-sm text-slate-500 text-center mb-8 uppercase tracking-wide" style={{ fontFamily: 'Inter, sans-serif' }}>
+            How Core314 Learns Your System
+          </p>
+          
+          {/* Desktop Timeline (horizontal) */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between relative">
+              {/* Connecting line */}
+              <div className="absolute top-3 left-0 right-0 h-px bg-slate-200" />
+              
+              {[
+                { title: 'Connect', desc: 'Securely link your systems' },
+                { title: 'Observe', desc: 'Discover behavior and relationships' },
+                { title: 'Analyze', desc: 'Activate real intelligence' },
+                { title: 'Predict', desc: 'Identify risks and opportunities' },
+                { title: 'Act', desc: 'Execute governed optimization' }
+              ].map((step, index) => (
+                <div key={index} className="flex flex-col items-center relative z-10">
+                  <div className={`w-6 h-6 rounded-full border-2 ${index === 0 ? 'bg-sky-500 border-sky-500' : 'bg-white border-slate-300'}`} />
+                  <p className="mt-3 text-sm font-semibold text-slate-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    {step.title}
+                  </p>
+                  <p className="text-xs text-slate-500 text-center max-w-[120px]" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    {step.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile Timeline (vertical) */}
+          <div className="md:hidden">
+            <div className="relative pl-8">
+              {/* Connecting line */}
+              <div className="absolute top-0 bottom-0 left-3 w-px bg-slate-200" />
+              
+              {[
+                { title: 'Connect', desc: 'Securely link your systems' },
+                { title: 'Observe', desc: 'Discover behavior and relationships' },
+                { title: 'Analyze', desc: 'Activate real intelligence' },
+                { title: 'Predict', desc: 'Identify risks and opportunities' },
+                { title: 'Act', desc: 'Execute governed optimization' }
+              ].map((step, index) => (
+                <div key={index} className="flex items-start gap-4 mb-6 last:mb-0 relative">
+                  <div className={`absolute left-[-20px] w-6 h-6 rounded-full border-2 ${index === 0 ? 'bg-sky-500 border-sky-500' : 'bg-white border-slate-300'}`} />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {step.title}
+                    </p>
+                    <p className="text-xs text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {step.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Transition Bridge */}
       <section className="pt-12 pb-8 px-4 bg-white">
         <div className="max-w-3xl mx-auto">
