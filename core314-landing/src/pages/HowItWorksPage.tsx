@@ -52,13 +52,13 @@ export default function HowItWorksPage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
+      <section className="pt-24 pb-16 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
         <div className="max-w-5xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-6xl font-bold mb-6 text-slate-900"
+            className="text-5xl md:text-6xl font-bold mb-4 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
             Core314 Is Not Installed — It's Learned
@@ -67,23 +67,46 @@ export default function HowItWorksPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed"
-            style={{ fontFamily: 'Inter, sans-serif' }}
+            className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-medium"
+            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
           >
             True system intelligence requires observation before optimization.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="mt-8 flex justify-center"
+          >
+            <div className="w-16 h-px bg-slate-300" />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Transition Bridge */}
+      <section className="pt-12 pb-8 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-lg text-slate-600 text-center"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            Most platforms optimize before they understand. Core314 does the opposite.
           </motion.p>
         </div>
       </section>
 
       {/* The Problem Section */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
               Most "AI Platforms" Fail
             </h2>
             <div className="space-y-6 text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -102,15 +125,15 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Intelligence Lifecycle Section */}
-      <section className="py-24 px-4 bg-slate-50">
+      <section className="py-16 px-4 bg-slate-50">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
               The Core314 Intelligence Lifecycle
             </h2>
           </motion.div>
@@ -147,14 +170,14 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Why Observe Is Required Section */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
               Core314 Does Not Guess
             </h2>
             <div className="space-y-6 text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -190,14 +213,14 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Pricing Alignment Section */}
-      <section className="py-24 px-4 bg-slate-50">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-16 px-4 bg-slate-50">
+        <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
               Pricing Aligned to System Maturity
             </h2>
             <div className="space-y-4 mb-8">
@@ -245,14 +268,14 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Why Core314 Is Different Section */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
               Why Core314 Can't Be Replicated
             </h2>
             <div className="space-y-4">
@@ -276,13 +299,13 @@ export default function HowItWorksPage() {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-24 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="py-16 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
+        <div className="max-w-3xl mx-auto text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold mb-6 text-slate-900"
+            className="text-4xl md:text-5xl font-bold mb-4 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
             Ready to Begin?
