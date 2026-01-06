@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ProductPage from './pages/ProductPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 import SolutionsPage from './pages/SolutionsPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import PricingPage from './pages/PricingPage';
@@ -23,6 +24,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/product" element={<ProductPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/solutions" element={<SolutionsPage />} />
         <Route path="/integrations" element={<IntegrationsPage />} />
         <Route path="/pricing" element={<PricingPage />} />

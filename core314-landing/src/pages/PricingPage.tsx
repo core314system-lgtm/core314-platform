@@ -134,7 +134,8 @@ export default function PricingPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto"
           >
-            Core314 grows with your organization. Start observing, then unlock intelligence as your system matures.
+            Core314 grows with your organization. Start observing, then unlock intelligence as your system matures.{' '}
+            <Link to="/how-it-works" className="text-sky-600 hover:text-sky-700 underline">Learn how it works</Link>.
           </motion.p>
         </div>
       </section>
@@ -167,7 +168,13 @@ export default function PricingPage() {
                     {plan.name}
                   </h3>
                   {'label' in plan && plan.label && (
-                    <p className="text-sky-600 text-sm font-medium mb-1">{plan.label}</p>
+                    <p className="text-sky-600 text-sm font-medium mb-1">
+                      {plan.name === 'Observe' ? (
+                        <Link to="/how-it-works" className="hover:underline">{plan.label}</Link>
+                      ) : (
+                        plan.label
+                      )}
+                    </p>
                   )}
                   {'subtext' in plan && plan.subtext && (
                     <p className="text-slate-400 text-xs mb-3">{plan.subtext}</p>
