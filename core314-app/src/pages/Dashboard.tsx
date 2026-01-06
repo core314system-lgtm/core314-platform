@@ -23,6 +23,7 @@ import { IntegrationScopedAIQuery } from '../components/dashboard/IntegrationSco
 import { IntelligencePreviewPanels } from '../components/dashboard/IntelligencePreviewPanels';
 import { CalibrationCompletionBanner } from '../components/dashboard/CalibrationCompletionBanner';
 import { LockedInsightTeaser } from '../components/dashboard/LockedInsightTeaser';
+import { AnalyzeUnlockBanner } from '../components/dashboard/AnalyzeUnlockBanner';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -328,8 +329,14 @@ export function Dashboard() {
     return (selectedIntegration.fusion_score / totalScore) * 100;
   };
 
+  // Derive isComputed from systemStatus - true when score_origin is 'computed'
+  const isComputed = systemStatus?.score_origin === 'computed';
+
   return (
     <div className="p-6 space-y-6">
+      {/* Analyze Unlock Orientation Banner - computed users only */}
+      {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}
+
       {/* Billing Success Banner */}
       {showBillingSuccess && (
         <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
