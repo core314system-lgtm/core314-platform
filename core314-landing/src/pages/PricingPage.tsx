@@ -18,7 +18,8 @@ export default function PricingPage() {
   const plans = [
     {
       name: 'Observe',
-      label: 'System Observation & Discovery',
+      label: 'System Calibration Phase',
+      subtext: 'Required first step for all Core314 intelligence',
       price: formatPrice(PRICING.starter.monthly),
       period: '/mo',
       description: 'Core314 connects to your tools and begins observing how your organization operates. Dashboards are generated automatically in preview mode while the system identifies metrics and relationships.',
@@ -34,7 +35,13 @@ export default function PricingPage() {
         'AI analysis not yet active',
         'Metrics are being discovered, not scored'
       ],
-      cta: 'Start Free Trial',
+      lockedFeatures: [
+        'AI insights',
+        'Scoring variance',
+        'Predictive indicators',
+        'Optimization actions'
+      ],
+      cta: 'Begin System Calibration',
       link: '/signup?plan=starter',
       popular: false
     },
@@ -160,7 +167,10 @@ export default function PricingPage() {
                     {plan.name}
                   </h3>
                   {'label' in plan && plan.label && (
-                    <p className="text-sky-600 text-sm font-medium mb-3">{plan.label}</p>
+                    <p className="text-sky-600 text-sm font-medium mb-1">{plan.label}</p>
+                  )}
+                  {'subtext' in plan && plan.subtext && (
+                    <p className="text-slate-400 text-xs mb-3">{plan.subtext}</p>
                   )}
                   <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline justify-center gap-1">
@@ -179,13 +189,29 @@ export default function PricingPage() {
                 </ul>
 
                 {'constraints' in plan && plan.constraints && plan.constraints.length > 0 && (
-                  <div className="mb-6 pt-4 border-t border-slate-100">
+                  <div className="mb-4 pt-4 border-t border-slate-100">
                     <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">This tier is intentionally preparatory:</p>
                     <ul className="space-y-2">
                       {plan.constraints.map((constraint: string, i: number) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-slate-500">
                           <span className="text-slate-400">•</span>
                           <span>{constraint}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {'lockedFeatures' in plan && plan.lockedFeatures && plan.lockedFeatures.length > 0 && (
+                  <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <p className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-2">
+                      <span>🔒</span>
+                      <span>Intelligence Locked Until Calibration Completes</span>
+                    </p>
+                    <ul className="space-y-1">
+                      {plan.lockedFeatures.map((feature: string, i: number) => (
+                        <li key={i} className="text-xs text-slate-400">
+                          • {feature}
                         </li>
                       ))}
                     </ul>
