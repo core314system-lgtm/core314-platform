@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { useAddons } from '../hooks/useAddons';
 import { useIntelligenceDashboard } from '../hooks/useIntelligenceDashboard';
+import { useSystemStatus } from '../hooks/useSystemStatus';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -19,6 +20,9 @@ import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidg
 import { IntelligenceDashboard } from '../components/intelligence/IntelligenceDashboard';
 import { IntegrationContextSelector } from '../components/dashboard/IntegrationContextSelector';
 import { IntegrationScopedAIQuery } from '../components/dashboard/IntegrationScopedAIQuery';
+import { IntelligencePreviewPanels } from '../components/dashboard/IntelligencePreviewPanels';
+import { CalibrationCompletionBanner } from '../components/dashboard/CalibrationCompletionBanner';
+import { LockedInsightTeaser } from '../components/dashboard/LockedInsightTeaser';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -32,6 +36,7 @@ export function Dashboard() {
   const { subscription } = useSubscription(profile?.id);
   const { hasAddon, loading: addonsLoading } = useAddons();
   const { isIntelligenceDashboardEnabled } = useIntelligenceDashboard();
+  const { isObserveTier, systemStatus } = useSystemStatus();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
@@ -511,7 +516,26 @@ export function Dashboard() {
       )}
 
       {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
-      {hasConnectedIntegrations && <FusionOverviewWidget />}
+      {hasConnectedIntegrations && (
+        <>
+          <FusionOverviewWidget />
+          {/* Locked Insight Teaser - Observe tier only */}
+          {isObserveTier && <LockedInsightTeaser className="mt-2" />}
+        </>
+      )}
+
+      {/* Intelligence Preview Panels - Observe tier only */}
+      {hasConnectedIntegrations && isObserveTier && (
+        <IntelligencePreviewPanels />
+      )}
+
+      {/* Calibration Completion Banner - Observe tier only */}
+      {hasConnectedIntegrations && isObserveTier && (
+        <CalibrationCompletionBanner
+          firstIntegrationDate={systemStatus?.connected_integrations?.[0] ? new Date().toISOString() : null}
+          integrationCount={systemStatus?.connected_integrations?.length || 0}
+        />
+      )}
 
       {/* Intelligence Dashboard Modules - only show when feature flag is enabled */}
       {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
