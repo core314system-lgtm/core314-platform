@@ -210,7 +210,7 @@ export default function PricingPage() {
                 )}
 
                 {'lockedFeatures' in plan && plan.lockedFeatures && plan.lockedFeatures.length > 0 && (
-                  <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <p className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-2">
                       <span>🔒</span>
                       <span>Intelligence Locked Until Calibration Completes</span>
@@ -223,6 +223,12 @@ export default function PricingPage() {
                       ))}
                     </ul>
                   </div>
+                )}
+
+                {plan.name === 'Observe' && (
+                  <p className="text-xs text-slate-400 text-center mb-4">
+                    Observe is not intended for long-term use. Intelligence unlocks as calibration completes.
+                  </p>
                 )}
 
                 <Link

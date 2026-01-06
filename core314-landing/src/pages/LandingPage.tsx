@@ -384,6 +384,25 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.6 }}
+            className="text-center mt-12"
+          >
+            <Link
+              to="/how-it-works"
+              className="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700 font-medium transition-colors"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              See how Core314 actually works
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5">
+                <path d="M5 12 L19 12 M19 12 L14 7 M19 12 L14 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+          </motion.div>
         </div>
       </section>
 

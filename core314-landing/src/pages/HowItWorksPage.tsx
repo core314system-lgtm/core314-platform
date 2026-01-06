@@ -84,17 +84,17 @@ export default function HowItWorksPage() {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Why Most "AI Platforms" Fail
+              Most "AI Platforms" Fail
             </h2>
             <div className="space-y-6 text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
               <p>
-                Modern organizations run on fragmented tools. Dashboards show numbers without context. Alerts arrive after damage is done. AI systems generate conclusions before understanding how a system actually operates.
+                Organizations run on fragmented tools. Dashboards display numbers without context. Alerts fire after damage occurs. AI systems generate conclusions before understanding how a system actually operates.
               </p>
               <p className="font-semibold text-slate-800">
-                That isn't intelligence. It's noise.
+                That is noise, not intelligence.
               </p>
               <p>
-                Core314 was built to solve this at the system level — not the tool level.
+                Core314 enforces system-level intelligence where most platforms fail.
               </p>
             </div>
           </motion.div>
@@ -155,14 +155,14 @@ export default function HowItWorksPage() {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Why Core314 Refuses to Guess
+              Core314 Does Not Guess
             </h2>
             <div className="space-y-6 text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
               <p>
-                Most platforms skip calibration and immediately generate insights. Core314 does not.
+                Most platforms skip calibration and generate insights immediately. Core314 refuses.
               </p>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 my-8">
-                <p className="font-semibold text-slate-800 mb-4">Until your system is observed:</p>
+                <p className="font-semibold text-slate-800 mb-4">Until observation completes:</p>
                 <ul className="space-y-2 text-slate-600">
                   <li className="flex items-center gap-3">
                     <span className="text-slate-400">•</span>
@@ -174,15 +174,15 @@ export default function HowItWorksPage() {
                   </li>
                   <li className="flex items-center gap-3">
                     <span className="text-slate-400">•</span>
-                    <span>No predictions or optimizations occur</span>
+                    <span>No predictions or optimizations execute</span>
                   </li>
                 </ul>
               </div>
               <p className="font-semibold text-slate-800">
-                This protects organizations from false intelligence.
+                This is how Core314 protects organizations from false intelligence.
               </p>
               <p>
-                Observation is not a limitation — it is the foundation.
+                Observation is the foundation. Not a limitation.
               </p>
             </div>
           </motion.div>
@@ -221,8 +221,8 @@ export default function HowItWorksPage() {
               </div>
             </div>
             <div className="text-lg text-slate-600 leading-relaxed mb-10" style={{ fontFamily: 'Inter, sans-serif' }}>
-              <p className="mb-2">You don't buy features.</p>
-              <p className="font-semibold text-slate-800">You unlock intelligence when your system is ready.</p>
+              <p className="mb-2">Core314 does not sell features.</p>
+              <p className="font-semibold text-slate-800">Intelligence unlocks when your system is ready.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
@@ -295,7 +295,7 @@ export default function HowItWorksPage() {
             className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Start with the Observe tier. Connect your tools. Let Core314 learn your system before it acts.
+            Start with Observe. Connect your tools. Core314 learns your system before it acts.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
