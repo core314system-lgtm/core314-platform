@@ -24,6 +24,7 @@ import { IntelligencePreviewPanels } from '../components/dashboard/IntelligenceP
 import { CalibrationCompletionBanner } from '../components/dashboard/CalibrationCompletionBanner';
 import { LockedInsightTeaser } from '../components/dashboard/LockedInsightTeaser';
 import { AnalyzeUnlockBanner } from '../components/dashboard/AnalyzeUnlockBanner';
+import { SystemSignalSummary } from '../components/dashboard/SystemSignalSummary';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -564,6 +565,14 @@ export function Dashboard() {
             )}
           </div>
           <div className="lg:col-span-2 space-y-6">
+            {/* System Signal Summary - computed users only, below Fusion Score, above AI panels */}
+            <SystemSignalSummary
+              isComputed={isComputed}
+              integrations={integrations}
+              globalScore={globalScore}
+              trendSnapshot={trendSnapshot}
+            />
+            
             {selectedIntegration ? (
               <AIInsightsPanel 
                 hasAccess={subscription.hasAIInsights || false} 
