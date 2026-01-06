@@ -361,6 +361,83 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      {/* Why Core314 Can't Be Shortcut Section */}
+      <section className="py-16 px-4 bg-slate-50">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+              Why Core314 Can't Be Shortcut
+            </h2>
+            <div className="space-y-4 text-lg text-slate-600 leading-relaxed mb-12" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <p>
+                Most platforms promise instant intelligence. Core314 deliberately refuses.
+              </p>
+              <p>
+                True system intelligence is not generated — it is accumulated. The moment a system begins observing, it starts building context that can never be recreated later.
+              </p>
+            </div>
+
+            {/* Four-Card Logic Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+              <div className="bg-white border border-slate-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  Intelligence Is Path-Dependent
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  Core314's understanding of your system is shaped by when and how it observes. Two organizations using identical tools will develop different intelligence based on their operational history.
+                </p>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  Observation Creates Irreplaceable Context
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  Relationships, dependencies, and behavioral patterns emerge over time. Skipping observation permanently removes signals that no AI model can infer retroactively.
+                </p>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  Scores Are Earned, Not Assigned
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  The Global Fusion Score is not a benchmark or preset value. It reflects accumulated system understanding. Without sufficient observation, any score would be guesswork. Core314 refuses to guess.
+                </p>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-slate-800 mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  Optimization Without Understanding Degrades Systems
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  Acting on incomplete intelligence introduces risk, not efficiency. Core314 activates optimization only after the system has learned enough to act responsibly.
+                </p>
+              </div>
+            </div>
+
+            {/* Visual Diagram */}
+            <div className="flex justify-center mb-10">
+              <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 text-sm text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <span className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium">Context Accumulates</span>
+                <span className="text-slate-300 hidden md:inline">→</span>
+                <span className="text-slate-300 md:hidden">↓</span>
+                <span className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium">Intelligence Compounds</span>
+                <span className="text-slate-300 hidden md:inline">→</span>
+                <span className="text-slate-300 md:hidden">↓</span>
+                <span className="px-4 py-2 bg-sky-50 border border-sky-200 rounded-lg text-sky-700 font-medium">Optimization Becomes Safe</span>
+              </div>
+            </div>
+
+            {/* Closing Statement */}
+            <p className="text-center text-lg text-slate-700 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+              This is why every Core314 journey begins with observation — and why the advantage compounds over time.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Final CTA Section */}
       <section className="py-16 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
         <div className="max-w-3xl mx-auto text-center">
