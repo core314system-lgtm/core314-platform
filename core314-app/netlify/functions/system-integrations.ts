@@ -31,8 +31,9 @@ import { createClient } from "@supabase/supabase-js";
 type SystemHealth = 'observing' | 'active';
 
 // Score Origin: Where the score came from
-// baseline: Using default 50 because no computed scores exist
-// computed: Calculated from actual fusion_scores
+// baseline: Using default 50 because no fusion_metrics exist or none are active
+// computed: Calculated from actual fusion_metrics with active state
+// NOTE: score_origin is derived from fusion_metrics ONLY, NOT fusion_scores
 type ScoreOrigin = 'baseline' | 'computed';
 
 // Per-integration metrics state (same vocabulary as system_health for consistency)
@@ -253,21 +254,8 @@ const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) =
       }
     });
 
-    // Compute global_fusion_score and score_origin
-    // Dashboard computes: average of all fusion_scores for connected integrations
-    // If no valid scores, use BASELINE_SCORE (50) and score_origin = 'baseline'
-    let globalFusionScore = BASELINE_SCORE;
-    let scoreOrigin: ScoreOrigin = 'baseline';
-    
-    if (fusionScores && fusionScores.length > 0) {
-      const validScores = fusionScores.filter(s => s.fusion_score !== null && s.fusion_score !== undefined);
-      if (validScores.length > 0) {
-        globalFusionScore = validScores.reduce((sum, s) => sum + (s.fusion_score || 0), 0) / validScores.length;
-        scoreOrigin = 'computed';
-      }
-    }
-
-    // Build connected_integrations array with per-integration metrics_state
+    // Build connected_integrations array with per-integration metrics_state FIRST
+    // We need this to determine score_origin
     const connectedIntegrations: ConnectedIntegration[] = (userIntegrations || []).map(ui => {
       const master = ui.integrations_master as { id: string; integration_name: string } | null;
       if (!master) return null;
@@ -280,6 +268,41 @@ const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) =
 
     // Compute system_health (observing | active)
     const systemHealth = computeSystemHealth(globalHasEfficiencyMetrics, lastMetricSync);
+
+    // ============================================================
+    // SCORE_ORIGIN DERIVATION - AUTHORITATIVE RULE
+    // score_origin is derived from fusion_metrics ONLY, NOT fusion_scores
+    // 
+    // score_origin = 'computed' ONLY IF:
+    //   - fusion_metrics has >= 1 row (globalHasEfficiencyMetrics === true)
+    //   - AND at least one integration has metrics_state === 'active'
+    //   - AND integration is connected (connectedIntegrations.length > 0)
+    // Otherwise:
+    //   - score_origin = 'baseline'
+    // ============================================================
+    let scoreOrigin: ScoreOrigin = 'baseline';
+    const hasActiveIntegration = connectedIntegrations.some(i => i.metrics_state === 'active');
+    
+    if (
+      globalHasEfficiencyMetrics &&
+      hasActiveIntegration &&
+      connectedIntegrations.length > 0
+    ) {
+      scoreOrigin = 'computed';
+    }
+
+    // Compute global_fusion_score for UI display
+    // Dashboard computes: average of all fusion_scores for connected integrations
+    // If no valid scores, use BASELINE_SCORE (50)
+    // NOTE: This does NOT affect score_origin - that is derived from fusion_metrics only
+    let globalFusionScore = BASELINE_SCORE;
+    
+    if (fusionScores && fusionScores.length > 0) {
+      const validScores = fusionScores.filter(s => s.fusion_score !== null && s.fusion_score !== undefined);
+      if (validScores.length > 0) {
+        globalFusionScore = validScores.reduce((sum, s) => sum + (s.fusion_score || 0), 0) / validScores.length;
+      }
+    }
 
     // Build SystemStatus - SINGLE CANONICAL OBJECT
     const systemStatus: SystemStatus = {
