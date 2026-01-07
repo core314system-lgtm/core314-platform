@@ -26,6 +26,7 @@ import { LockedInsightTeaser } from '../components/dashboard/LockedInsightTeaser
 import { AnalyzeUnlockBanner } from '../components/dashboard/AnalyzeUnlockBanner';
 import { SystemSignalSummary } from '../components/dashboard/SystemSignalSummary';
 import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplainabilityPanel';
+import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -571,6 +572,15 @@ export function Dashboard() {
               scoreOrigin={systemStatus?.score_origin}
               integrations={integrations}
               globalScore={globalScore}
+            />
+            
+            {/* System Trajectory Panel - Predictive Signal Framing */}
+            {/* Visible ONLY for computed users */}
+            <SystemTrajectoryPanel
+              isComputed={isComputed}
+              integrations={integrations}
+              trendSnapshot={trendSnapshot}
+              globalTrend={globalTrend}
             />
           </div>
           <div className="lg:col-span-2 space-y-6">
