@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -85,50 +84,30 @@ export function AnalyzeUnlockBanner({ isComputed }: AnalyzeUnlockBannerProps) {
     );
   }
 
-  // Full banner on first view (not dismissible)
+  // Full banner on first view (dismissible)
   return (
     <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-6">
       <div className="flex items-start gap-3 mb-4">
         <CheckCircle className="h-6 w-6 text-emerald-600 flex-shrink-0 mt-0.5" />
         <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-200">
-          System Status: Analyze Mode Activated
+          System Intelligence Activated
         </h3>
       </div>
       
       <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300 mb-6">
         <p>
-          Core314 has completed initial system calibration.
-        </p>
-        <p>
-          Your connected integrations have produced sufficient behavioral signals for Core314 to begin computing real efficiency scores and system relationships.
-        </p>
-        <p>
-          At this stage, intelligence is directional and confidence-weighted — not final. Core314 will continue observing and refining understanding as activity increases.
-        </p>
-      </div>
-
-      <div className="border-t border-emerald-200 dark:border-emerald-700 pt-4 mb-6">
-        <p className="font-medium text-slate-800 dark:text-slate-200 mb-2">
-          Core314 will now explain what it sees, not what you should do.
-        </p>
-        <p className="text-sm text-slate-700 dark:text-slate-300">
-          Predictive insights and optimization actions unlock only after sustained observation confirms system stability. This prevents premature recommendations and preserves decision integrity.
+          Core314 has accumulated sufficient stable data to begin reliable analysis. Intelligence panels now reflect real system behavior rather than baseline observation.
         </p>
       </div>
 
       <div className="flex items-center gap-4">
-        <Link to="/fusion-details">
-          <Button variant="outline" size="sm" className="border-emerald-300 text-emerald-700 hover:bg-emerald-100">
-            View System Intelligence
-          </Button>
-        </Link>
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={handleAcknowledge}
           className="text-slate-600 hover:text-slate-800"
         >
-          I understand
+          Dismiss
         </Button>
       </div>
     </div>

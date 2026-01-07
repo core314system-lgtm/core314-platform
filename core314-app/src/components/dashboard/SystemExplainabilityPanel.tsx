@@ -141,12 +141,13 @@ export function SystemExplainabilityPanel({
     ? `${lowestConfidenceIntegration.integration_name} shows higher variance, affecting system confidence`
     : "All integrations show consistent signal patterns";
 
+  // Computed users get subtle visual emphasis
   return (
-    <Card className="bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800">
+    <Card className="bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/50">
       <CardContent className="pt-4 pb-4">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 p-1.5 rounded-md bg-slate-100 dark:bg-slate-800">
-            <Info className="h-4 w-4 text-slate-500" />
+          <div className="flex-shrink-0 p-1.5 rounded-md bg-emerald-100/50 dark:bg-emerald-800/30">
+            <Info className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="flex-1 space-y-1.5">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
