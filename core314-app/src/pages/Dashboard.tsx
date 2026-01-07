@@ -584,16 +584,26 @@ export function Dashboard() {
               globalTrend={globalTrend}
             />
             
-            {/* Intelligence Readiness Panel - Readiness Signaling */}
-            {/* Visible for BOTH baseline and computed users */}
-            <IntelligenceReadinessPanel
-              scoreOrigin={systemStatus?.score_origin}
-              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
-              integrations={integrations}
-              trendSnapshot={trendSnapshot}
-              globalTrend={globalTrend}
-            />
-          </div>
+                      {/* Intelligence Readiness Panel - Readiness Signaling */}
+                      {/* Visible for BOTH baseline and computed users */}
+                      <IntelligenceReadinessPanel
+                        scoreOrigin={systemStatus?.score_origin}
+                        hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
+                        integrations={integrations}
+                        trendSnapshot={trendSnapshot}
+                        globalTrend={globalTrend}
+                      />
+            
+                      {/* Link to System Intelligence Overview */}
+                      <div className="pt-2">
+                        <Link 
+                          to="/system-intelligence" 
+                          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                        >
+                          View full System Intelligence Overview
+                        </Link>
+                      </div>
+                    </div>
           <div className="lg:col-span-2 space-y-6">
             {/* System Signal Summary - computed users only, below Fusion Score, above AI panels */}
             <SystemSignalSummary
