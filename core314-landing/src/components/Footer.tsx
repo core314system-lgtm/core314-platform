@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear();
+  
   return (
     <footer className="bg-slate-50 border-t border-gray-200 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,17 +16,22 @@ export default function Footer() {
             <Link to="/terms" className="text-slate-500 hover:text-sky-600 transition-colors">
               Terms of Service
             </Link>
-            <Link to="/cookies" className="text-slate-500 hover:text-sky-600 transition-colors">
-              Cookie Policy
+            <Link to="/ai-disclaimer" className="text-slate-500 hover:text-sky-600 transition-colors">
+              AI Disclaimer
             </Link>
-            <Link to="/dpa" className="text-slate-500 hover:text-sky-600 transition-colors">
-              Data Processing Addendum
-            </Link>
+            <a href="mailto:support@core314.com" className="text-slate-500 hover:text-sky-600 transition-colors">
+              Contact: support@core314.com
+            </a>
           </nav>
 
-          <p className="text-slate-400 text-sm">
-            © 2025 Core314. All Rights Reserved.
-          </p>
+          <div className="text-center">
+            <p className="text-slate-400 text-sm">
+              © {currentYear} Core314 Technologies LLC
+            </p>
+            <p className="text-slate-400 text-xs mt-1">
+              United States
+            </p>
+          </div>
         </div>
       </div>
     </footer>

@@ -16,6 +16,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import CookiesPage from './pages/CookiesPage';
 import DPAPage from './pages/DPAPage';
+import AIDisclaimerPage from './pages/AIDisclaimerPage';
 import './App.css';
 
 function App() {
@@ -36,10 +37,11 @@ function App() {
         <Route path="/reset-password/confirm" element={<ResetPasswordConfirmPage />} />
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/contact" element={<ContactPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/cookies" element={<CookiesPage />} />
-        <Route path="/dpa" element={<DPAPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/cookies" element={<CookiesPage />} />
+                <Route path="/dpa" element={<DPAPage />} />
+                <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
       </Routes>
     </Router>
   );
