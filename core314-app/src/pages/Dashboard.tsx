@@ -27,6 +27,7 @@ import { AnalyzeUnlockBanner } from '../components/dashboard/AnalyzeUnlockBanner
 import { SystemSignalSummary } from '../components/dashboard/SystemSignalSummary';
 import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplainabilityPanel';
 import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
+import { IntelligenceReadinessPanel } from '../components/dashboard/IntelligenceReadinessPanel';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -578,6 +579,16 @@ export function Dashboard() {
             {/* Visible ONLY for computed users */}
             <SystemTrajectoryPanel
               isComputed={isComputed}
+              integrations={integrations}
+              trendSnapshot={trendSnapshot}
+              globalTrend={globalTrend}
+            />
+            
+            {/* Intelligence Readiness Panel - Readiness Signaling */}
+            {/* Visible for BOTH baseline and computed users */}
+            <IntelligenceReadinessPanel
+              scoreOrigin={systemStatus?.score_origin}
+              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
               integrations={integrations}
               trendSnapshot={trendSnapshot}
               globalTrend={globalTrend}
