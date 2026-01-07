@@ -36,10 +36,10 @@ interface TrajectorySignalProps {
 
 function TrajectorySignal({ icon, title, status, statusColor, secondaryText }: TrajectorySignalProps) {
   return (
-    <Card className="h-full">
+    <Card className="h-full bg-emerald-50/20 dark:bg-emerald-900/10 border-emerald-200/40 dark:border-emerald-800/40">
       <CardContent className="pt-4 pb-4">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+          <div className="flex-shrink-0 p-2 rounded-lg bg-emerald-100/30 dark:bg-emerald-800/20">
             {icon}
           </div>
           <div className="flex-1 min-w-0">
@@ -65,9 +65,42 @@ export function SystemTrajectoryPanel({
   trendSnapshot,
   globalTrend,
 }: SystemTrajectoryPanelProps) {
-  // Only render for computed users
+  // Show locked/preview state for baseline users
   if (!isComputed) {
-    return null;
+    return (
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+            System Trajectory
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Early directional signals detected by Core314
+          </p>
+        </div>
+        <Card className="border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <CardContent className="pt-6 pb-6">
+            <div className="text-center space-y-3">
+              <div className="flex justify-center">
+                <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-700">
+                  <Activity className="h-6 w-6 text-slate-400" />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                  Calibration in progress
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
+                  Behavioral patterns are still stabilizing across your connected integrations.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                  Unlocks automatically after calibration completes
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Derive Score Momentum signal

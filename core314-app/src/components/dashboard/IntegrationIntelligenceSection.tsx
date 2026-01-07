@@ -90,7 +90,7 @@ function generateIntelligenceStatements(
   // 2. Signal Stability statement
   if (isObserving) {
     statements.push(
-      'Signals are still being observed to establish stable patterns.'
+      'Signal patterns are still stabilizing during calibration.'
     );
   } else {
     statements.push(
@@ -101,7 +101,7 @@ function generateIntelligenceStatements(
   // 3. Influence on System statement
   if (isObserving) {
     statements.push(
-      'This integration is being calibrated to determine its influence on Global Fusion Score.'
+      'Integration influence will be determined after calibration completes.'
     );
   } else if (varianceLevel === 'low') {
     statements.push(

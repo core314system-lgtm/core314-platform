@@ -126,12 +126,12 @@ export function IntelligenceReadinessPanel({
     if (!isComputed || !hasEfficiencyMetrics) {
       return {
         state: 'observing',
-        badge: 'Observing',
+        badge: 'Calibrating',
         badgeColor: 'text-slate-700 dark:text-slate-300',
         badgeBgColor: 'bg-slate-100 dark:bg-slate-800',
         icon: <Eye className="h-4 w-4 text-slate-500" />,
-        primaryLine: "Core314 is still accumulating stable system intelligence.",
-        secondaryLine: "Readiness increases as consistent activity patterns are observed."
+        primaryLine: "System signals are being collected and normalized.",
+        secondaryLine: "Unlocks automatically after calibration completes."
       };
     }
 
@@ -145,7 +145,7 @@ export function IntelligenceReadinessPanel({
         state: 'prediction_ready',
         badge: 'Prediction Ready',
         badgeColor: 'text-emerald-700 dark:text-emerald-300',
-        badgeBgColor: 'bg-emerald-100 dark:bg-emerald-900/50',
+        badgeBgColor: 'bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200/50 dark:border-emerald-700/50',
         icon: <Target className="h-4 w-4 text-emerald-600" />,
         primaryLine: "System intelligence has reached predictive reliability.",
         secondaryLine: "Future-oriented insights are now statistically meaningful."
@@ -160,23 +160,23 @@ export function IntelligenceReadinessPanel({
       return {
         state: 'analysis_ready',
         badge: 'Analysis Ready',
-        badgeColor: 'text-blue-700 dark:text-blue-300',
-        badgeBgColor: 'bg-blue-100 dark:bg-blue-900/50',
-        icon: <Zap className="h-4 w-4 text-blue-600" />,
+        badgeColor: 'text-emerald-700 dark:text-emerald-300',
+        badgeBgColor: 'bg-emerald-100/80 dark:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-700/50',
+        icon: <Zap className="h-4 w-4 text-emerald-600" />,
         primaryLine: "Core314 has accumulated sufficient data for reliable analysis.",
         secondaryLine: "System intelligence is stable enough to support deeper insights."
       };
     }
 
-    // Default to Observing if conditions don't match other states
+    // Default to Calibrating if conditions don't match other states
     return {
       state: 'observing',
-      badge: 'Observing',
+      badge: 'Calibrating',
       badgeColor: 'text-slate-700 dark:text-slate-300',
       badgeBgColor: 'bg-slate-100 dark:bg-slate-800',
       icon: <Eye className="h-4 w-4 text-slate-500" />,
-      primaryLine: "Core314 is still accumulating stable system intelligence.",
-      secondaryLine: "Readiness increases as consistent activity patterns are observed."
+      primaryLine: "System signals are being collected and normalized.",
+      secondaryLine: "Unlocks automatically after calibration completes."
     };
   };
 
