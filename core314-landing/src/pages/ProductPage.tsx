@@ -55,12 +55,15 @@ export default function ProductPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              System Hub for Operations
-            </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Core314 acts as the central orchestration layer for your business operations. Instead of managing each tool separately, Core314 provides a unified control point where all your systems connect and communicate.
-            </p>
+                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+                          System Hub for Operations
+                        </h2>
+                        <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          Core314 acts as the central orchestration layer for your business operations. Instead of managing each tool separately, Core314 provides a unified control point where all your systems connect and communicate.
+                        </p>
+                        <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          Core314 observes signals, behavioral patterns, and variance across connected systems to build intelligence over time.
+                        </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -224,13 +227,19 @@ export default function ProductPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Intelligence & Insights
-            </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Core314 analyzes operational data to surface patterns and potential issues.
-            </p>
-          </motion.div>
+                      <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+                        Intelligence & Insights
+                      </h2>
+                      <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Core314 analyzes operational data to surface patterns and potential issues.
+                      </p>
+                      <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Intelligence strengthens as consistent patterns emerge across time and systems.
+                      </p>
+                      <p className="text-base text-slate-400 max-w-3xl mx-auto leading-relaxed font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Integrations provide signals. Core314 provides understanding.
+                      </p>
+                    </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <motion.div
@@ -279,13 +288,16 @@ export default function ProductPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Enterprise-Ready Architecture
-            </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Core314 is built with security and reliability as foundational requirements.
-            </p>
-          </motion.div>
+                      <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+                        Enterprise-Ready Architecture
+                      </h2>
+                      <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Core314 is built with security and reliability as foundational requirements.
+                      </p>
+                      <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Core314 prioritizes correctness over speed.
+                      </p>
+                    </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[

@@ -5,52 +5,56 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 export default function SolutionsPage() {
-  const solutions = [
-    {
-      icon: TrendingUp,
-      title: "Scaling Companies",
-      problem: "As companies grow, operational complexity increases. More tools, more data, more processes to manage. Teams spend increasing time coordinating across systems instead of executing.",
-      solution: "Core314 provides a central point of control that scales with your business. Connect new tools as you add them, maintain visibility across all systems, and keep operations coordinated without adding headcount.",
-      benefits: [
-        "Unified view across all business systems",
-        "Reduced time spent switching between tools",
-        "Operational visibility that grows with your stack"
-      ]
-    },
-    {
-      icon: Users,
-      title: "Operations-Heavy Teams",
-      problem: "Operations teams often work reactively, responding to issues after they occur. Manual monitoring across multiple dashboards is time-consuming and error-prone.",
-      solution: "Core314 monitors your connected systems continuously and surfaces issues early. Instead of checking multiple dashboards, your team gets a single operational view with alerts when attention is needed.",
-      benefits: [
-        "Proactive issue detection",
-        "Single dashboard for cross-system visibility",
-        "Reduced manual monitoring burden"
-      ]
-    },
-    {
-      icon: Settings,
-      title: "Engineering & DevOps",
-      problem: "Engineering teams need visibility into how technical systems affect business operations. Disconnected monitoring tools make it difficult to correlate technical events with business impact.",
-      solution: "Core314 connects technical and business systems, providing context that helps engineering teams understand the operational impact of technical changes and incidents.",
-      benefits: [
-        "Correlation between technical and business metrics",
-        "API-first architecture for custom integrations",
-        "Audit trails for operational changes"
-      ]
-    },
-    {
-      icon: Building2,
-      title: "Enterprise Operations Leadership",
-      problem: "Operations leaders need visibility across departments and systems to make informed decisions. Getting this visibility typically requires manual reporting and data aggregation.",
-      solution: "Core314 provides operational scores and metrics that aggregate data from across your connected systems. Leaders get a clear view of operational health without waiting for manual reports.",
-      benefits: [
-        "Executive-level operational dashboards",
-        "Cross-department visibility",
-        "Data-driven operational insights"
-      ]
-    }
-  ];
+    const solutions = [
+      {
+        icon: TrendingUp,
+        title: "Scaling Companies",
+        problem: "As companies grow, operational complexity increases. More tools, more data, more processes to manage. Teams spend increasing time coordinating across systems instead of executing.",
+        solution: "Core314 provides a central point of control that scales with your business. Connect new tools as you add them, maintain visibility across all systems, and keep operations coordinated without adding headcount.",
+        benefits: [
+          "Unified view across all business systems",
+          "Reduced time spent switching between tools",
+          "Operational visibility that grows with your stack"
+        ],
+        closing: "Core314 makes operational drift visible before it becomes disruptive."
+      },
+      {
+        icon: Users,
+        title: "Operations-Heavy Teams",
+        problem: "Operations teams often work reactively, responding to issues after they occur. Manual monitoring across multiple dashboards is time-consuming and error-prone.",
+        solution: "Core314 monitors your connected systems continuously and surfaces issues early. Instead of checking multiple dashboards, your team gets a single operational view with alerts when attention is needed.",
+        benefits: [
+          "Proactive issue detection",
+          "Single dashboard for cross-system visibility",
+          "Reduced manual monitoring burden"
+        ],
+        closing: "Core314 makes emerging issues visible before they escalate."
+      },
+      {
+        icon: Settings,
+        title: "Engineering & DevOps",
+        problem: "Engineering teams need visibility into how technical systems affect business operations. Disconnected monitoring tools make it difficult to correlate technical events with business impact.",
+        solution: "Core314 connects technical and business systems, providing context that helps engineering teams understand the operational impact of technical changes and incidents.",
+        benefits: [
+          "Correlation between technical and business metrics",
+          "API-first architecture for custom integrations",
+          "Audit trails for operational changes"
+        ],
+        closing: "Core314 makes cross-system dependencies visible before they cause failures."
+      },
+      {
+        icon: Building2,
+        title: "Enterprise Operations Leadership",
+        problem: "Operations leaders need visibility across departments and systems to make informed decisions. Getting this visibility typically requires manual reporting and data aggregation.",
+        solution: "Core314 provides operational scores and metrics that aggregate data from across your connected systems. Leaders get a clear view of operational health without waiting for manual reports.",
+        benefits: [
+          "Executive-level operational dashboards",
+          "Cross-department visibility",
+          "Data-driven operational insights"
+        ],
+        closing: "Core314 makes organizational blind spots visible before they impact performance."
+      }
+    ];
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -124,23 +128,29 @@ export default function SolutionsPage() {
                       </p>
                     </div>
 
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-700 mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                        Key Benefits
-                      </h3>
-                      <ul className="space-y-2">
-                        {solution.benefits.map((benefit, i) => (
-                          <li key={i} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-                            <CheckCircle className="h-5 w-5 text-sky-500 mt-0.5 flex-shrink-0" />
-                            {benefit}
-                          </li>
+                                <div>
+                                  <h3 className="text-lg font-semibold text-slate-700 mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                                    Key Benefits
+                                  </h3>
+                                  <ul className="space-y-2">
+                                    {solution.benefits.map((benefit, i) => (
+                                      <li key={i} className="flex items-start gap-3 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                        <CheckCircle className="h-5 w-5 text-sky-500 mt-0.5 flex-shrink-0" />
+                                        {benefit}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+
+                                {solution.closing && (
+                                  <p className="mt-6 text-slate-500 text-sm font-medium border-t border-slate-200 pt-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                    {solution.closing}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
                         ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>

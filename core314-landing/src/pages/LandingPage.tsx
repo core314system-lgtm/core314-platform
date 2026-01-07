@@ -51,15 +51,25 @@ export default function LandingPage() {
             <span className="text-slate-800">for Scaling Businesses</span>
           </motion.h1>
           
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="text-xl md:text-2xl text-slate-600 mb-8 max-w-4xl mx-auto leading-relaxed"
-            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
-          >
-            Core314 is an AI-powered operations platform that connects your systems, monitors performance in real time, and catches operational issues before they impact customers or revenue.
-          </motion.p>
+                    <motion.p
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.5 }}
+                      className="text-xl md:text-2xl text-slate-600 mb-4 max-w-4xl mx-auto leading-relaxed"
+                      style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
+                    >
+                      Core314 is an AI-powered operations platform that connects your systems, monitors performance in real time, and catches operational issues before they impact customers or revenue.
+                    </motion.p>
+
+                    <motion.p
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.55 }}
+                      className="text-lg text-slate-500 mb-8 max-w-3xl mx-auto leading-relaxed"
+                      style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
+                    >
+                      Core314 continuously observes how your systems actually behave — not what they claim — and builds intelligence from real operational patterns.
+                    </motion.p>
 
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -326,54 +336,62 @@ export default function LandingPage() {
           </motion.p>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {[
-              {
-                step: "1",
-                title: "Connect",
-                desc: "Link your existing tools. No data migration, no workflow changes. Core314 connects via secure APIs."
-              },
-              {
-                step: "2",
-                title: "Observe",
-                desc: "Core314 discovers metrics and relationships. Dashboards generate automatically in preview mode."
-              },
-              {
-                step: "3",
-                title: "Analyze",
-                desc: "Intelligence activates. The Global Fusion Score becomes dynamic. AI insights are grounded in your data."
-              },
-              {
-                step: "4",
-                title: "Predict",
-                desc: "Identify trends, risks, and inefficiencies before they impact performance. Forecasting becomes available."
-              },
-              {
-                step: "5",
-                title: "Act",
-                desc: "Move from insight to execution. Corrective actions and self-healing logic with governance controls."
-              }
-            ].map((step, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                className="relative group"
-              >
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-sky-200 transition-all duration-300 h-full">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-sky-500 rounded-full w-10 h-10 flex items-center justify-center shadow-md">
-                      <span className="text-lg font-bold text-white">{step.step}</span>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                      {step.title}
-                    </h3>
-                  </div>
-                  <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {step.desc}
-                  </p>
-                </div>
+                        {[
+                          {
+                            step: "1",
+                            title: "Connect",
+                            subtitle: "Securely links operational systems to begin observation.",
+                            desc: "Link your existing tools. No data migration, no workflow changes. Core314 connects via secure APIs."
+                          },
+                          {
+                            step: "2",
+                            title: "Observe",
+                            subtitle: "Establishes behavioral baselines across systems.",
+                            desc: "Core314 discovers metrics and relationships. Dashboards generate automatically in preview mode."
+                          },
+                          {
+                            step: "3",
+                            title: "Analyze",
+                            subtitle: "Identifies variance, drift, and emerging instability.",
+                            desc: "Intelligence activates. The Global Fusion Score becomes dynamic. AI insights are grounded in your data."
+                          },
+                          {
+                            step: "4",
+                            title: "Predict",
+                            subtitle: "Anticipates system stress before it surfaces.",
+                            desc: "Identify trends, risks, and inefficiencies before they impact performance. Forecasting becomes available."
+                          },
+                          {
+                            step: "5",
+                            title: "Act",
+                            subtitle: "Guides informed intervention — not automation by default.",
+                            desc: "Move from insight to execution. Corrective actions and self-healing logic with governance controls."
+                          }
+                        ].map((step, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 50 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: index * 0.1, duration: 0.6 }}
+                            className="relative group"
+                          >
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-sky-200 transition-all duration-300 h-full">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="bg-sky-500 rounded-full w-10 h-10 flex items-center justify-center shadow-md">
+                                  <span className="text-lg font-bold text-white">{step.step}</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                                  {step.title}
+                                </h3>
+                              </div>
+                              <p className="text-sky-600 text-xs font-medium mb-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                {step.subtitle}
+                              </p>
+                              <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                                {step.desc}
+                              </p>
+                            </div>
                 {index < 4 && (
                   <div className="hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 text-sky-400 z-10">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -419,16 +437,27 @@ export default function LandingPage() {
             Why System Maturity Matters
           </motion.h2>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-xl text-slate-600 text-center mb-12 max-w-3xl mx-auto leading-relaxed"
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            Core314's tiered approach ensures intelligence is grounded in real data, not assumptions. Each stage builds on the previous one.
-          </motion.p>
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2 }}
+                      className="text-xl text-slate-600 text-center mb-6 max-w-3xl mx-auto leading-relaxed"
+                      style={{ fontFamily: 'Inter, sans-serif' }}
+                    >
+                      Core314's tiered approach ensures intelligence is grounded in real data, not assumptions. Each stage builds on the previous one.
+                    </motion.p>
+
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.3 }}
+                      className="text-lg text-slate-500 text-center mb-12 max-w-3xl mx-auto leading-relaxed"
+                      style={{ fontFamily: 'Inter, sans-serif' }}
+                    >
+                      Without system maturity, organizations operate reactively — responding to outcomes instead of understanding causes.
+                    </motion.p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <motion.div
@@ -526,16 +555,27 @@ export default function LandingPage() {
             </Link>
           </motion.div>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.5 }}
-            className="text-slate-500 text-sm"
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            No disruption. No forced automation. Full control from day one.
-          </motion.p>
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      whileInView={{ opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.5 }}
+                      className="text-slate-500 text-sm mb-2"
+                      style={{ fontFamily: 'Inter, sans-serif' }}
+                    >
+                      No disruption. No forced automation. Full control from day one.
+                    </motion.p>
+
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      whileInView={{ opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.6 }}
+                      className="text-slate-400 text-xs"
+                      style={{ fontFamily: 'Inter, sans-serif' }}
+                    >
+                      Core314 does not sell conclusions before evidence exists.
+                    </motion.p>
         </div>
       </section>
 
