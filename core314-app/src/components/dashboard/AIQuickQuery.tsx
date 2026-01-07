@@ -4,18 +4,38 @@ import { Input } from '../ui/input';
 import { Card } from '../ui/card';
 import { Sparkles, Send } from 'lucide-react';
 import { quickQuery } from '../../services/aiGateway';
+import { 
+  PromptChips, 
+  GLOBAL_PROMPT_CHIPS, 
+  isVagueQuery, 
+  VagueQueryWarning,
+  ContextLabel 
+} from './AIInteractionHelpers';
 
 export function AIQuickQuery() {
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<Array<{ query: string; response: string }>>([]);
+  const [showVagueWarning, setShowVagueWarning] = useState(false);
 
   // NOTE: ensureProvenanceLine() REMOVED per EXECUTION-GATED baseline mode
   // In baseline mode, responses must be EXACT with NO FOOTERS added
 
+  const handleChipClick = (prompt: string) => {
+    setQuery(prompt);
+    setShowVagueWarning(false);
+  };
+
   const handleSubmit = async () => {
     if (!query.trim()) return;
+
+    // Soft guardrail: intercept vague queries
+    if (isVagueQuery(query)) {
+      setShowVagueWarning(true);
+      return;
+    }
+    setShowVagueWarning(false);
 
     setLoading(true);
     const currentQuery = query;
@@ -42,12 +62,27 @@ export function AIQuickQuery() {
 
   return (
     <div className="space-y-4">
+      {/* Prompt suggestion chips - Global dashboard context */}
+      <PromptChips 
+        chips={GLOBAL_PROMPT_CHIPS} 
+        onChipClick={handleChipClick} 
+        disabled={loading} 
+      />
+
+      {/* Vague query warning */}
+      {showVagueWarning && (
+        <VagueQueryWarning onDismiss={() => setShowVagueWarning(false)} />
+      )}
+
       <div className="flex gap-2">
         <Input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (showVagueWarning) setShowVagueWarning(false);
+          }}
           onKeyPress={handleKeyPress}
-          placeholder="Ask Core314 anything..."
+          placeholder="Ask Core314 about your system..."
           disabled={loading}
           className="flex-1"
         />
@@ -66,6 +101,8 @@ export function AIQuickQuery() {
 
       {response && (
         <Card className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
+          {/* Context label above response */}
+          <ContextLabel />
           <div className="flex items-start gap-3">
             <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">

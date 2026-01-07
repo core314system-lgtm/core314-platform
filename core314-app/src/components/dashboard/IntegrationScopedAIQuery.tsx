@@ -5,6 +5,13 @@ import { Card } from '../ui/card';
 import { Sparkles, Send } from 'lucide-react';
 import { chatWithCore314 } from '../../services/aiGateway';
 import { IntegrationWithScore, FusionMetric, FusionInsight } from '../../types';
+import { 
+  PromptChips, 
+  getIntegrationPromptChips, 
+  isVagueQuery, 
+  VagueQueryWarning,
+  ContextLabel 
+} from './AIInteractionHelpers';
 
 interface IntegrationScopedAIQueryProps {
   integration: IntegrationWithScore;
@@ -20,6 +27,15 @@ export function IntegrationScopedAIQuery({
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showVagueWarning, setShowVagueWarning] = useState(false);
+
+  // Get integration-specific prompt chips
+  const promptChips = getIntegrationPromptChips(integration.integration_name);
+
+  const handleChipClick = (prompt: string) => {
+    setQuery(prompt);
+    setShowVagueWarning(false);
+  };
 
   // Helper to ensure provenance line is present
   const ensureProvenanceLine = (response: string, integrationName: string): string => {
@@ -32,6 +48,13 @@ export function IntegrationScopedAIQuery({
 
   const handleSubmit = async () => {
     if (!query.trim()) return;
+
+    // Soft guardrail: intercept vague queries
+    if (isVagueQuery(query)) {
+      setShowVagueWarning(true);
+      return;
+    }
+    setShowVagueWarning(false);
 
     setLoading(true);
     const currentQuery = query;
@@ -107,11 +130,26 @@ User Question: ${currentQuery}`;
         <Sparkles className="h-4 w-4" />
         <span>Ask AI about {integration.integration_name}</span>
       </div>
+
+      {/* Prompt suggestion chips - Integration-scoped context */}
+      <PromptChips 
+        chips={promptChips} 
+        onChipClick={handleChipClick} 
+        disabled={loading} 
+      />
+
+      {/* Vague query warning */}
+      {showVagueWarning && (
+        <VagueQueryWarning onDismiss={() => setShowVagueWarning(false)} />
+      )}
       
       <div className="flex gap-2">
         <Input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (showVagueWarning) setShowVagueWarning(false);
+          }}
           onKeyPress={handleKeyPress}
           placeholder={`Ask about ${integration.integration_name}...`}
           disabled={loading}
@@ -132,6 +170,8 @@ User Question: ${currentQuery}`;
 
       {response && (
         <Card className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800">
+          {/* Context label above response */}
+          <ContextLabel integrationName={integration.integration_name} />
           <div className="flex items-start gap-3">
             <Sparkles className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
