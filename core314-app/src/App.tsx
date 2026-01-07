@@ -43,6 +43,7 @@ import { ApiAccess } from './pages/ApiAccess';
 import { AuditTrails } from './pages/AuditTrails';
 import { AccountSupport } from './pages/AccountSupport';
 import { FusionDetails } from './pages/FusionDetails';
+import { SystemIntelligence } from './pages/SystemIntelligence';
 import { PredictiveInsights } from './pages/PredictiveInsights';
 import { DecisionCenter } from './pages/DecisionCenter';
 import { DecisionAudit } from './pages/admin/DecisionAudit';
@@ -176,6 +177,7 @@ function App() {
             <Route path="audit-trails" element={<AuditTrails />} />
             <Route path="account-support" element={<AccountSupport />} />
             <Route path="fusion-details" element={<FusionDetails />} />
+            <Route path="system-intelligence" element={<SystemIntelligence />} />
             <Route path="admin/fusion-weights" element={<ProtectedRoute requireAdmin><FusionWeights /></ProtectedRoute>} />
             <Route path="admin/fusion-intelligence" element={<ProtectedRoute requireAdmin><FusionIntelligence /></ProtectedRoute>} />
             <Route path="admin/automation-rules" element={<ProtectedRoute requireAdmin><AutomationRules /></ProtectedRoute>} />
