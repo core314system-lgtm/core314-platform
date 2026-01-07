@@ -15,6 +15,8 @@ import {
   getTrendFramingText,
   INTELLIGENCE_TOOLTIP_COPY,
 } from '../../hooks/useIntegrationIntelligence';
+import { IntegrationIntelligenceSection } from './IntegrationIntelligenceSection';
+import { useSystemStatus } from '../../hooks/useSystemStatus';
 import {
   Tooltip,
   TooltipContent,
@@ -29,6 +31,7 @@ interface IntegrationCardProps {
 export function IntegrationCard({ integration }: IntegrationCardProps) {
   const [history, setHistory] = useState<FusionScoreHistory[]>([]);
   const [lastAdjusted, setLastAdjusted] = useState<string | null>(null);
+  const { systemStatus } = useSystemStatus();
   
   // Get service_name from integration (normalize to match database format)
   const serviceName = integration.integration_name?.toLowerCase().replace(/\s+/g, '_') || '';
@@ -258,6 +261,12 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
             </div>
           )}
         </div>
+        
+        {/* Integration Intelligence Section - What Core314 Is Learning */}
+        <IntegrationIntelligenceSection
+          integration={integration}
+          scoreOrigin={systemStatus?.score_origin}
+        />
       </CardContent>
     </Card>
   );
