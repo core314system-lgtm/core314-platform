@@ -15,11 +15,12 @@ import { PRICING, ADDONS, formatPrice } from '../config/pricing';
 export default function PricingPage() {
   const [expandedAddons, setExpandedAddons] = useState(false);
 
-  const plans = [
-    {
-      name: 'Observe',
-      label: 'System Calibration Phase',
-      subtext: 'Required first step for all Core314 intelligence',
+    const plans = [
+      {
+        name: 'Observe',
+        label: 'System Calibration Phase',
+        tierFraming: 'Awareness',
+        subtext: 'Required first step for all Core314 intelligence',
       price: formatPrice(PRICING.starter.monthly),
       period: '/mo',
       description: 'Core314 connects to your tools and begins observing how your organization operates. Dashboards are generated automatically in preview mode while the system identifies metrics and relationships.',
@@ -45,10 +46,11 @@ export default function PricingPage() {
       link: '/signup?plan=starter',
       popular: false
     },
-    {
-      name: 'Analyze',
-      label: 'Active System Intelligence',
-      price: formatPrice(PRICING.pro.monthly),
+        {
+          name: 'Analyze',
+          label: 'Active System Intelligence',
+          tierFraming: 'Understanding',
+          price: formatPrice(PRICING.pro.monthly),
       period: '/mo',
       description: 'Core314 activates real-time intelligence across your integrations. The Global Fusion Score becomes dynamic. Each integration receives its own active dashboard with live metrics and explanations.',
       features: [
@@ -65,10 +67,11 @@ export default function PricingPage() {
       link: '/signup?plan=pro',
       popular: true
     },
-    {
-      name: 'Predict & Act',
-      label: 'Predictive Intelligence + Autonomous Optimization',
-      price: 'Custom',
+        {
+          name: 'Predict & Act',
+          label: 'Predictive Intelligence + Autonomous Optimization',
+          tierFraming: 'Confidence',
+          price: 'Custom',
       period: '',
       description: 'Core314 identifies trends, risks, and emerging inefficiencies before they impact performance. The system moves from insight to execution with corrective actions, optimizations, and self-healing logic.',
       features: [
@@ -128,17 +131,25 @@ export default function PricingPage() {
           >
             System Maturity Tiers
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto"
-          >
-            Core314 grows with your organization. Start observing, then unlock intelligence as your system matures.{' '}
-            <Link to="/how-it-works" className="text-sky-600 hover:text-sky-700 underline">Learn how it works</Link>.
-          </motion.p>
-        </div>
-      </section>
+                <motion.p
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className="text-xl text-slate-600 mb-6 max-w-3xl mx-auto"
+                >
+                  Core314 grows with your organization. Start observing, then unlock intelligence as your system matures.{' '}
+                  <Link to="/how-it-works" className="text-sky-600 hover:text-sky-700 underline">Learn how it works</Link>.
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                  className="text-lg text-slate-500 mb-8 max-w-3xl mx-auto leading-relaxed"
+                >
+                  Core314 prices intelligence maturity deliberately. Each tier provides value, but conclusions are only unlocked when evidence supports them.
+                </motion.p>
+              </div>
+            </section>
 
       {/* Pricing Cards */}
       <section className="py-20 px-4 bg-slate-50">
@@ -163,22 +174,27 @@ export default function PricingPage() {
                   </div>
                 )}
                 
-                <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold mb-1 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                    {plan.name}
-                  </h3>
-                  {'label' in plan && plan.label && (
-                    <p className="text-sky-600 text-sm font-medium mb-1">
-                      {plan.name === 'Observe' ? (
-                        <Link to="/how-it-works" className="hover:underline">{plan.label}</Link>
-                      ) : (
-                        plan.label
-                      )}
-                    </p>
-                  )}
-                  {'subtext' in plan && plan.subtext && (
-                    <p className="text-slate-400 text-xs mb-3">{plan.subtext}</p>
-                  )}
+                                <div className="text-center mb-6">
+                                  <h3 className="text-2xl font-bold mb-1 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                                    {plan.name}
+                                  </h3>
+                                  {'tierFraming' in plan && plan.tierFraming && (
+                                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">
+                                      {plan.tierFraming}
+                                    </p>
+                                  )}
+                                  {'label' in plan && plan.label && (
+                                    <p className="text-sky-600 text-sm font-medium mb-1">
+                                      {plan.name === 'Observe' ? (
+                                        <Link to="/how-it-works" className="hover:underline">{plan.label}</Link>
+                                      ) : (
+                                        plan.label
+                                      )}
+                                    </p>
+                                  )}
+                                  {'subtext' in plan && plan.subtext && (
+                                    <p className="text-slate-400 text-xs mb-3">{plan.subtext}</p>
+                                  )}
                   <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
                   <div className="flex items-baseline justify-center gap-1">
                     <span className="text-5xl font-bold text-slate-900">{plan.price}</span>

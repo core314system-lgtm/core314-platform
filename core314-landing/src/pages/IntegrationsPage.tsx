@@ -58,17 +58,26 @@ export default function IntegrationsPage() {
           >
             Integrations
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed"
-            style={{ fontFamily: 'Inter, sans-serif' }}
-          >
-            Connect your business tools to Core314. Our integration hub supports the systems you already use.
-          </motion.p>
-        </div>
-      </section>
+                <motion.p
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className="text-xl md:text-2xl text-slate-600 mb-6 max-w-3xl mx-auto leading-relaxed"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  Connect your business tools to Core314. Our integration hub supports the systems you already use.
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                  className="text-lg text-slate-500 mb-10 max-w-3xl mx-auto leading-relaxed"
+                  style={{ fontFamily: 'Inter, sans-serif' }}
+                >
+                  Integrations alone don't create intelligence — correlation does.
+                </motion.p>
+              </div>
+            </section>
 
       {/* How Integrations Work */}
       <section className="py-24 px-4 bg-white">
@@ -79,13 +88,16 @@ export default function IntegrationsPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              How Integrations Work
-            </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              When you connect an integration, Core314 automatically discovers available metrics and begins observing activity. Intelligence activates once sufficient data is collected.
-            </p>
-          </motion.div>
+                      <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+                        How Integrations Work
+                      </h2>
+                      <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        When you connect an integration, Core314 automatically discovers available metrics and begins observing activity. Intelligence activates once sufficient data is collected.
+                      </p>
+                      <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                        Each integration contributes signals; intelligence emerges when those signals align across systems.
+                      </p>
+                    </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[

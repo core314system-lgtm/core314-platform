@@ -264,18 +264,39 @@ export default function HowItWorksPage() {
                   </li>
                 </ul>
               </div>
-              <p className="font-semibold text-slate-800">
-                This is how Core314 protects organizations from false intelligence.
-              </p>
-              <p>
-                Observation is the foundation. Not a limitation.
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+                    <p className="font-semibold text-slate-800">
+                      This is how Core314 protects organizations from false intelligence.
+                    </p>
+                    <p>
+                      Observation is the foundation. Not a limitation.
+                    </p>
+                    <p className="font-semibold text-slate-700 mt-4">
+                      Shortcut AI optimizes confidence — not correctness.
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            </section>
 
-      {/* Pricing Alignment Section */}
+            {/* What You See During Observe */}
+            <section className="py-16 px-4 bg-slate-50">
+              <div className="max-w-3xl mx-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-3xl md:text-4xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+                    What You See During Observe
+                  </h2>
+                  <p className="text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    During the Observe phase, Core314 actively captures signals, establishes baselines, and begins identifying stability and variance. Progress is visible — conclusions are simply withheld until evidence is sufficient.
+                  </p>
+                </motion.div>
+              </div>
+            </section>
+
+            {/* Pricing Alignment Section */}
       <section className="py-16 px-4 bg-slate-50">
         <div className="max-w-3xl mx-auto">
           <motion.div
@@ -306,10 +327,13 @@ export default function HowItWorksPage() {
                 </p>
               </div>
             </div>
-            <div className="text-lg text-slate-600 leading-relaxed mb-10" style={{ fontFamily: 'Inter, sans-serif' }}>
-              <p className="mb-2">Core314 does not sell features.</p>
-              <p className="font-semibold text-slate-800">Intelligence unlocks when your system is ready.</p>
-            </div>
+                        <div className="text-lg text-slate-600 leading-relaxed mb-6" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          <p className="mb-2">Core314 does not sell features.</p>
+                          <p className="font-semibold text-slate-800">Intelligence unlocks when your system is ready.</p>
+                        </div>
+                        <p className="text-base text-slate-500 mb-10" style={{ fontFamily: 'Inter, sans-serif' }}>
+                          Lower tiers are intentionally observational to prevent premature conclusions.
+                        </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
                 to="/pricing"
