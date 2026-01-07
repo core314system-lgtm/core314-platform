@@ -17,6 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/tooltip';
+import { HowToAskGuidance } from './AIInteractionHelpers';
 
 // Storage key for first AI Insight explanation dismissal
 const AI_INSIGHT_EXPLAINED_KEY = 'core314_ai_insight_explained';
@@ -282,6 +283,9 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
           <div className="space-y-4">
             {/* First AI Insight explainer - shows only once per user when insights are available */}
             {showExplainer && <FirstAIInsightExplainer onDismiss={handleDismissExplainer} />}
+            
+            {/* How to Ask Core314 guidance - contextual help for asking better questions */}
+            <HowToAskGuidance integrationName={integrationName} />
             
                         {insights.map((insight) => (
                           <div key={insight.id} className="border-b pb-3 last:border-0 last:pb-0">
