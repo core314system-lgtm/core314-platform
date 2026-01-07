@@ -25,6 +25,7 @@ import { CalibrationCompletionBanner } from '../components/dashboard/Calibration
 import { LockedInsightTeaser } from '../components/dashboard/LockedInsightTeaser';
 import { AnalyzeUnlockBanner } from '../components/dashboard/AnalyzeUnlockBanner';
 import { SystemSignalSummary } from '../components/dashboard/SystemSignalSummary';
+import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplainabilityPanel';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -551,7 +552,7 @@ export function Dashboard() {
       {/* Analytics sections - only show when user has connected integrations */}
       {hasConnectedIntegrations ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-4">
             {selectedIntegration ? (
               <FusionGauge 
                 score={selectedIntegration.fusion_score || 0} 
@@ -563,6 +564,14 @@ export function Dashboard() {
             ) : (
               <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
             )}
+            
+            {/* System Explainability Panel - Why Core314 Sees This */}
+            {/* Visible for both baseline and computed users when logged in */}
+            <SystemExplainabilityPanel
+              scoreOrigin={systemStatus?.score_origin}
+              integrations={integrations}
+              globalScore={globalScore}
+            />
           </div>
           <div className="lg:col-span-2 space-y-6">
             {/* System Signal Summary - computed users only, below Fusion Score, above AI panels */}
