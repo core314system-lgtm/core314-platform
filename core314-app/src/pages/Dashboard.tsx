@@ -28,6 +28,7 @@ import { SystemSignalSummary } from '../components/dashboard/SystemSignalSummary
 import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplainabilityPanel';
 import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
 import { IntelligenceReadinessPanel } from '../components/dashboard/IntelligenceReadinessPanel';
+import { BetaOnboardingPanel } from '../components/dashboard/BetaOnboardingPanel';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -338,6 +339,9 @@ export function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Beta Onboarding Panel - first-time users only (no connected integrations) */}
+      <BetaOnboardingPanel hasConnectedIntegrations={hasConnectedIntegrations} />
+
       {/* Analyze Unlock Orientation Banner - computed users only */}
       {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}
 
