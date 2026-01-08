@@ -1,14 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSystemStatus } from '../hooks/useSystemStatus';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Brain, Layers, Activity } from 'lucide-react';
+import { Brain, Layers, Activity, Sparkles } from 'lucide-react';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplainabilityPanel';
 import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
 import { IntelligenceReadinessPanel } from '../components/dashboard/IntelligenceReadinessPanel';
 import { IntegrationWithScore, FusionScore } from '../types';
+
+/**
+ * Tier Detection Types
+ * 
+ * Observe: score_origin === "baseline"
+ * Analyze: score_origin === "computed" AND IntelligenceReadiness !== "Prediction Ready"
+ * Predict: score_origin === "computed" AND IntelligenceReadiness === "Prediction Ready"
+ */
+type SystemTier = 'observe' | 'analyze' | 'predict';
 
 /**
  * System Intelligence Overview Page
@@ -168,6 +177,86 @@ export function SystemIntelligence() {
   const isComputed = systemStatus?.score_origin === 'computed';
   const hasEfficiencyMetrics = systemStatus?.has_efficiency_metrics || false;
 
+  /**
+   * Tier Detection Logic (read-only, uses existing signals)
+   * 
+   * Observe: score_origin === "baseline"
+   * Analyze: score_origin === "computed" AND IntelligenceReadiness !== "Prediction Ready"
+   * Predict: score_origin === "computed" AND IntelligenceReadiness === "Prediction Ready"
+   */
+  const currentTier = useMemo((): SystemTier => {
+    // Observe tier: baseline mode
+    if (systemStatus?.score_origin !== 'computed') {
+      return 'observe';
+    }
+
+    // For computed users, check if they meet Prediction Ready criteria
+    // (same logic as IntelligenceReadinessPanel)
+    if (!hasEfficiencyMetrics) {
+      return 'analyze';
+    }
+
+    // Calculate variance level
+    let varianceLevel: 'high' | 'medium' | 'low' = 'low';
+    if (trendSnapshot.length >= 2) {
+      const scores = trendSnapshot.map(t => t.score);
+      const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+      const variance = scores.reduce((sum, s) => sum + Math.pow(s - avgScore, 2), 0) / scores.length;
+      const stdDev = Math.sqrt(variance);
+
+      const integrationScores = integrations
+        .filter(i => i.fusion_score !== undefined)
+        .map(i => i.fusion_score || 0);
+      
+      let integrationStdDev = 0;
+      if (integrationScores.length >= 2) {
+        const avgIntScore = integrationScores.reduce((sum, s) => sum + s, 0) / integrationScores.length;
+        const intVariance = integrationScores.reduce((sum, s) => sum + Math.pow(s - avgIntScore, 2), 0) / integrationScores.length;
+        integrationStdDev = Math.sqrt(intVariance);
+      }
+
+      const combinedStdDev = (stdDev + integrationStdDev) / 2;
+
+      if (combinedStdDev >= 15 || stdDev >= 15) {
+        varianceLevel = 'high';
+      } else if (combinedStdDev >= 5 || stdDev >= 5) {
+        varianceLevel = 'medium';
+      }
+    }
+
+    // Calculate confidence level
+    const totalMetrics = integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0);
+    const integrationsWithScores = integrations.filter(i => i.fusion_score !== undefined).length;
+    
+    let confidenceScore = 0;
+    if (integrations.length >= 3) confidenceScore += 3;
+    else if (integrations.length >= 2) confidenceScore += 2;
+    else if (integrations.length >= 1) confidenceScore += 1;
+    
+    if (totalMetrics >= 50) confidenceScore += 3;
+    else if (totalMetrics >= 20) confidenceScore += 2;
+    else if (totalMetrics >= 5) confidenceScore += 1;
+    
+    if (trendSnapshot.length >= 7) confidenceScore += 2;
+    else if (trendSnapshot.length >= 3) confidenceScore += 1;
+    
+    if (integrationsWithScores === integrations.length && integrations.length > 0) confidenceScore += 2;
+    else if (integrationsWithScores > 0) confidenceScore += 1;
+
+    const confidenceLevel = confidenceScore >= 8 ? 'high' : confidenceScore >= 4 ? 'medium' : 'low';
+
+    // Prediction Ready: variance low + confidence high + sufficient trend data
+    if (varianceLevel === 'low' && confidenceLevel === 'high' && trendSnapshot.length >= 7) {
+      return 'predict';
+    }
+
+    return 'analyze';
+  }, [systemStatus?.score_origin, hasEfficiencyMetrics, trendSnapshot, integrations]);
+
+  const isPredictTier = currentTier === 'predict';
+  const isAnalyzeTier = currentTier === 'analyze';
+  const isObserveTier_derived = currentTier === 'observe';
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -240,11 +329,23 @@ export function SystemIntelligence() {
       {/* Section B: System Trajectory Summary */}
       {isComputed && (
         <section className="space-y-4">
+          {/* Predictive Context Enabled label for Predict tier only */}
+          {isPredictTier && (
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100/80 dark:bg-emerald-900/30 border border-emerald-200/50 dark:border-emerald-800/50">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                  Predictive Context Enabled
+                </span>
+              </div>
+            </div>
+          )}
           <SystemTrajectoryPanel
             isComputed={isComputed}
             integrations={integrations}
             trendSnapshot={trendSnapshot}
             globalTrend={globalTrend}
+            isPredictTier={isPredictTier}
           />
         </section>
       )}
