@@ -24,6 +24,11 @@ interface SystemTrajectoryPanelProps {
   integrations: IntegrationWithScore[];
   trendSnapshot: { date: string; score: number }[];
   globalTrend: 'up' | 'down' | 'stable';
+  /** 
+   * When true, enables forward-framing language (Predict tier).
+   * When false or undefined, uses present-state only language (Analyze tier).
+   */
+  isPredictTier?: boolean;
 }
 
 interface TrajectorySignalProps {
@@ -32,14 +37,26 @@ interface TrajectorySignalProps {
   status: string;
   statusColor: string;
   secondaryText: string;
+  /** When true, applies emerald accent emphasis (Predict tier only) */
+  isPredictTier?: boolean;
 }
 
-function TrajectorySignal({ icon, title, status, statusColor, secondaryText }: TrajectorySignalProps) {
+function TrajectorySignal({ icon, title, status, statusColor, secondaryText, isPredictTier = false }: TrajectorySignalProps) {
+  // Predict tier: emerald accent emphasis
+  // Analyze tier: neutral styling (no accent emphasis)
+  const cardClassName = isPredictTier
+    ? "h-full bg-emerald-50/20 dark:bg-emerald-900/10 border-emerald-200/40 dark:border-emerald-800/40"
+    : "h-full bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700";
+  
+  const iconBgClassName = isPredictTier
+    ? "flex-shrink-0 p-2 rounded-lg bg-emerald-100/30 dark:bg-emerald-800/20"
+    : "flex-shrink-0 p-2 rounded-lg bg-slate-100 dark:bg-slate-700/50";
+
   return (
-    <Card className="h-full bg-emerald-50/20 dark:bg-emerald-900/10 border-emerald-200/40 dark:border-emerald-800/40">
+    <Card className={cardClassName}>
       <CardContent className="pt-4 pb-4">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 p-2 rounded-lg bg-emerald-100/30 dark:bg-emerald-800/20">
+          <div className={iconBgClassName}>
             {icon}
           </div>
           <div className="flex-1 min-w-0">
@@ -64,6 +81,7 @@ export function SystemTrajectoryPanel({
   integrations,
   trendSnapshot,
   globalTrend,
+  isPredictTier = false,
 }: SystemTrajectoryPanelProps) {
   // Show locked/preview state for baseline users
   if (!isComputed) {
@@ -104,13 +122,18 @@ export function SystemTrajectoryPanel({
   }
 
   // Derive Score Momentum signal
-  const deriveScoreMomentum = (): { status: string; statusColor: string; icon: React.ReactNode } => {
+  // Analyze tier: present-state only (improving / declining / stable)
+  // Predict tier: may add conditional framing ("If current patterns persist...")
+  const deriveScoreMomentum = (): { status: string; statusColor: string; icon: React.ReactNode; secondaryText: string } => {
     // Use globalTrend as primary indicator, with trendSnapshot as secondary
     if (globalTrend === 'up') {
       return {
         status: "System efficiency trend is improving",
         statusColor: "text-emerald-600 dark:text-emerald-400",
-        icon: <TrendingUp className="h-4 w-4 text-emerald-600" />
+        icon: <TrendingUp className="h-4 w-4 text-emerald-600" />,
+        secondaryText: isPredictTier 
+          ? "If current patterns persist, efficiency gains may continue"
+          : "Based on recent signal variance across integrations"
       };
     }
     
@@ -118,7 +141,10 @@ export function SystemTrajectoryPanel({
       return {
         status: "System efficiency trend is declining",
         statusColor: "text-amber-600 dark:text-amber-400",
-        icon: <TrendingDown className="h-4 w-4 text-amber-600" />
+        icon: <TrendingDown className="h-4 w-4 text-amber-600" />,
+        secondaryText: isPredictTier 
+          ? "If current patterns persist, efficiency may continue to decrease"
+          : "Based on recent signal variance across integrations"
       };
     }
 
@@ -135,7 +161,10 @@ export function SystemTrajectoryPanel({
           return {
             status: "System efficiency trend is improving",
             statusColor: "text-emerald-600 dark:text-emerald-400",
-            icon: <TrendingUp className="h-4 w-4 text-emerald-600" />
+            icon: <TrendingUp className="h-4 w-4 text-emerald-600" />,
+            secondaryText: isPredictTier 
+              ? "If current patterns persist, efficiency gains may continue"
+              : "Based on recent signal variance across integrations"
           };
         }
         
@@ -143,7 +172,10 @@ export function SystemTrajectoryPanel({
           return {
             status: "System efficiency trend is declining",
             statusColor: "text-amber-600 dark:text-amber-400",
-            icon: <TrendingDown className="h-4 w-4 text-amber-600" />
+            icon: <TrendingDown className="h-4 w-4 text-amber-600" />,
+            secondaryText: isPredictTier 
+              ? "If current patterns persist, efficiency may continue to decrease"
+              : "Based on recent signal variance across integrations"
           };
         }
       }
@@ -152,17 +184,25 @@ export function SystemTrajectoryPanel({
     return {
       status: "System efficiency trend is stable",
       statusColor: "text-slate-600 dark:text-slate-400",
-      icon: <Minus className="h-4 w-4 text-slate-500" />
+      icon: <Minus className="h-4 w-4 text-slate-500" />,
+      secondaryText: isPredictTier 
+        ? "System trajectory indicates sustained stability"
+        : "Based on recent signal variance across integrations"
     };
   };
 
   // Derive Variance Pressure signal
-  const deriveVariancePressure = (): { status: string; statusColor: string; level: 'high' | 'medium' | 'low' } => {
+  // Analyze tier: controlled / moderate / elevated (present-state only)
+  // Predict tier: may reference stabilization direction
+  const deriveVariancePressure = (): { status: string; statusColor: string; level: 'high' | 'medium' | 'low'; secondaryText: string } => {
     if (trendSnapshot.length < 2) {
       return {
         status: "System variance is controlled",
         statusColor: "text-emerald-600 dark:text-emerald-400",
-        level: 'low'
+        level: 'low',
+        secondaryText: isPredictTier 
+          ? "Trajectory suggests increasing stability"
+          : "Higher variance reduces system confidence over time"
       };
     }
 
@@ -188,9 +228,12 @@ export function SystemTrajectoryPanel({
 
     if (combinedVariance >= 15 || stdDev >= 15) {
       return {
-        status: "System variance is increasing",
+        status: "System variance is elevated",
         statusColor: "text-amber-600 dark:text-amber-400",
-        level: 'high'
+        level: 'high',
+        secondaryText: isPredictTier 
+          ? "If current conditions persist, variance may impact confidence"
+          : "Higher variance reduces system confidence over time"
       };
     }
 
@@ -198,25 +241,33 @@ export function SystemTrajectoryPanel({
       return {
         status: "System variance is moderate",
         statusColor: "text-slate-600 dark:text-slate-400",
-        level: 'medium'
+        level: 'medium',
+        secondaryText: isPredictTier 
+          ? "Trajectory suggests variance is stabilizing"
+          : "Higher variance reduces system confidence over time"
       };
     }
 
     return {
       status: "System variance is controlled",
       statusColor: "text-emerald-600 dark:text-emerald-400",
-      level: 'low'
+      level: 'low',
+      secondaryText: isPredictTier 
+        ? "Trajectory suggests increasing stability"
+        : "Higher variance reduces system confidence over time"
     };
   };
 
   // Derive Confidence Trajectory signal (optional - only if sufficient data)
-  const deriveConfidenceTrajectory = (): { status: string; statusColor: string; show: boolean } => {
+  // Analyze tier: strengthening / steady / weakening (present-state only)
+  // Predict tier: may reference stabilization direction
+  const deriveConfidenceTrajectory = (): { status: string; statusColor: string; show: boolean; secondaryText: string } => {
     const totalMetrics = integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0);
     const integrationsWithScores = integrations.filter(i => i.fusion_score !== undefined).length;
     
     // Only show if we have enough data to make a meaningful statement
     if (integrations.length < 1 || trendSnapshot.length < 2) {
-      return { status: "", statusColor: "", show: false };
+      return { status: "", statusColor: "", show: false, secondaryText: "" };
     }
 
     // Calculate current confidence score
@@ -245,7 +296,10 @@ export function SystemTrajectoryPanel({
       return {
         status: "System confidence is strengthening",
         statusColor: "text-emerald-600 dark:text-emerald-400",
-        show: true
+        show: true,
+        secondaryText: isPredictTier 
+          ? "If current conditions persist, confidence may continue to increase"
+          : "Confidence reflects consistency across integrations"
       };
     }
 
@@ -254,7 +308,10 @@ export function SystemTrajectoryPanel({
       return {
         status: "System confidence is weakening",
         statusColor: "text-amber-600 dark:text-amber-400",
-        show: true
+        show: true,
+        secondaryText: isPredictTier 
+          ? "If current conditions persist, confidence may continue to decrease"
+          : "Confidence reflects consistency across integrations"
       };
     }
 
@@ -262,7 +319,10 @@ export function SystemTrajectoryPanel({
     return {
       status: "System confidence remains steady",
       statusColor: "text-slate-600 dark:text-slate-400",
-      show: true
+      show: true,
+      secondaryText: isPredictTier 
+        ? "Trajectory suggests sustained confidence levels"
+        : "Confidence reflects consistency across integrations"
     };
   };
 
@@ -271,20 +331,23 @@ export function SystemTrajectoryPanel({
   const confidenceTrajectory = deriveConfidenceTrajectory();
 
   // Build signal cards array (2-3 depending on data availability)
+  // Uses tier-specific secondaryText from each derive function
   const signals: TrajectorySignalProps[] = [
     {
       icon: scoreMomentum.icon,
       title: "Score Momentum",
       status: scoreMomentum.status,
       statusColor: scoreMomentum.statusColor,
-      secondaryText: "Based on recent signal variance across integrations"
+      secondaryText: scoreMomentum.secondaryText,
+      isPredictTier
     },
     {
       icon: <BarChart3 className="h-4 w-4 text-blue-600" />,
       title: "Variance Pressure",
       status: variancePressure.status,
       statusColor: variancePressure.statusColor,
-      secondaryText: "Higher variance reduces system confidence over time"
+      secondaryText: variancePressure.secondaryText,
+      isPredictTier
     }
   ];
 
@@ -295,7 +358,8 @@ export function SystemTrajectoryPanel({
       title: "Confidence Trajectory",
       status: confidenceTrajectory.status,
       statusColor: confidenceTrajectory.statusColor,
-      secondaryText: "Confidence reflects consistency across integrations"
+      secondaryText: confidenceTrajectory.secondaryText,
+      isPredictTier
     });
   }
 
@@ -318,6 +382,7 @@ export function SystemTrajectoryPanel({
             status={signal.status}
             statusColor={signal.statusColor}
             secondaryText={signal.secondaryText}
+            isPredictTier={signal.isPredictTier}
           />
         ))}
       </div>
