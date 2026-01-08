@@ -23,9 +23,17 @@ import {
   Code,
   FileCheck,
   Headphones,
-  User
+  User,
+  ChevronDown
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface NavItem {
   path: string;
@@ -201,34 +209,36 @@ export function MainLayout() {
           {/* Top header with account controls */}
           <header className="h-16 flex items-center justify-end px-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
             <div className="flex items-center gap-2">
-              {/* User info display */}
-              <div className="hidden sm:flex items-center gap-2 mr-2 text-sm text-gray-600 dark:text-gray-400">
-                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  {profile?.email || 'Account'}
-                </span>
-              </div>
-              
-              {/* Settings - standalone button */}
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/settings" className="flex items-center gap-1">
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Settings</span>
-                </Link>
-              </Button>
-              
-              {/* Sign Out - standalone button */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline ml-1">Sign Out</span>
-              </Button>
+              {/* User Menu Dropdown - contains Account Settings and Sign Out */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                      <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <span className="hidden sm:inline font-medium text-gray-700 dark:text-gray-300">
+                      {profile?.email || 'Account'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="h-4 w-4" />
+                      <span>Account Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleSignOut}
+                    className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400 focus:bg-red-50 dark:focus:bg-red-900/20 cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
           
