@@ -3,6 +3,7 @@ import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { ResetPassword } from './pages/auth/ResetPassword';
 import { ResetPasswordConfirm } from './pages/auth/ResetPasswordConfirm';
+import { AuthConfirm } from './pages/auth/AuthConfirm';
 import { Dashboard } from './pages/Dashboard';
 import { Pricing } from './pages/Pricing';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -110,6 +111,7 @@ function App() {
         <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
         <Route path="/reset-password" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
         <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
+        <Route path="/auth/confirm" element={<AuthConfirm />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/beta-invite" element={<BetaInvite />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
