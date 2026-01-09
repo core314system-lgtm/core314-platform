@@ -20,8 +20,26 @@ The following environment variables must be configured in your Supabase project:
 | `SENDGRID_SENDER_EMAIL` | No | `noreply@core314.com` | Verified sender email address in SendGrid |
 | `SENDGRID_SENDER_NAME` | No | `Core314` | Display name for the sender |
 | `APP_URL` | No | `https://app.core314.com` | Base URL for the application (used in email links) |
+| `SEND_EMAIL_HOOK_SECRET` | Yes* | - | Authorization secret for Supabase Auth Hook (required when used as Auth Hook) |
 | `SUPABASE_URL` | Yes | - | Supabase project URL (auto-configured) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Supabase service role key for logging (auto-configured) |
+
+*Required when the function is used as a Supabase Auth Hook. The secret must match the authorization token configured in the Auth Hook settings.
+
+## Deployment
+
+**IMPORTANT**: This function must be deployed with the `--no-verify-jwt` flag to allow Supabase Auth Hooks to call it with a custom authorization header instead of a Supabase JWT.
+
+```bash
+# Deploy to production
+supabase functions deploy auth-send-email --project-ref <your-project-ref> --no-verify-jwt
+
+# Set the required secrets
+supabase secrets set SENDGRID_API_KEY=your_api_key_here --project-ref <your-project-ref>
+supabase secrets set SEND_EMAIL_HOOK_SECRET=your_auth_hook_secret_here --project-ref <your-project-ref>
+```
+
+The `SEND_EMAIL_HOOK_SECRET` must match the authorization token configured in the Supabase Auth Hook settings (Authentication > Hooks > Send Email).
 
 ## Setup Instructions
 
