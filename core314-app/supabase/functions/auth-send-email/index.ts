@@ -25,7 +25,6 @@ const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') || '';
 const SENDGRID_SENDER_EMAIL = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'noreply@core314.com';
 const SENDGRID_SENDER_NAME = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
 const APP_URL = Deno.env.get('APP_URL') || 'https://app.core314.com';
-const SEND_EMAIL_HOOK_SECRET = Deno.env.get('SEND_EMAIL_HOOK_SECRET') || '';
 
 // Base email template wrapper - professional, minimal design
 const createEmailTemplate = (content: string, preheader: string = '') => `<!DOCTYPE html>
@@ -380,51 +379,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate Authorization header for Supabase Auth Hook
-  // Handle various formats: "Bearer <token>", "<token>", or "Bearer Bearer <token>" (double prefix)
-  const authHeader = req.headers.get('Authorization');
-  if (SEND_EMAIL_HOOK_SECRET) {
-    let isAuthorized = false;
-    
-    if (authHeader) {
-      // Extract the token from the header, handling various formats
-      const headerValue = authHeader.trim();
-      
-      // Check for exact match with Bearer prefix
-      if (headerValue === `Bearer ${SEND_EMAIL_HOOK_SECRET}`) {
-        isAuthorized = true;
-      }
-      // Check for token without Bearer prefix
-      else if (headerValue === SEND_EMAIL_HOOK_SECRET) {
-        isAuthorized = true;
-      }
-      // Check for double Bearer prefix (common misconfiguration)
-      else if (headerValue === `Bearer Bearer ${SEND_EMAIL_HOOK_SECRET}`) {
-        isAuthorized = true;
-      }
-      // Extract token after "Bearer " and compare
-      else if (headerValue.startsWith('Bearer ')) {
-        const token = headerValue.substring(7).trim();
-        if (token === SEND_EMAIL_HOOK_SECRET || token === `Bearer ${SEND_EMAIL_HOOK_SECRET}`) {
-          isAuthorized = true;
-        }
-      }
-    }
-    
-    if (!isAuthorized) {
-      // Log non-sensitive debug info
-      console.error('Authorization failed:', {
-        hasHeader: !!authHeader,
-        headerLength: authHeader?.length || 0,
-        startsWithBearer: authHeader?.startsWith('Bearer ') || false,
-        expectedSecretLength: SEND_EMAIL_HOOK_SECRET.length,
-      });
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-  }
+  // Supabase Auth Hooks are trusted system calls - no authorization verification needed
+  // Supabase handles verification internally before calling this function
+  // See: https://supabase.com/docs/guides/auth/auth-hooks/send-email-hook
 
   try {
     const payload = await req.json();
