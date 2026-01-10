@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '../lib/supabase';
-import { IntegrationWithScore, FusionScore, FusionMetric } from '../types';
+import { IntegrationWithScore, FusionScore, FusionScoreHistory, FusionMetric } from '../types';
 
 /**
  * Learning State Hook - Phase: Learning Transparency & Proof Layer
@@ -188,7 +188,7 @@ function deriveConfidence(
  */
 function generateLearningEvents(
   integrations: IntegrationWithScore[],
-  scoreHistory: Map<string, FusionScore[]>,
+  scoreHistory: Map<string, FusionScoreHistory[]>,
   metricsMap: Map<string, FusionMetric[]>
 ): LearningEvent[] {
   const events: LearningEvent[] = [];
@@ -204,7 +204,7 @@ function generateLearningEvents(
       events.push({
         id: `event-${eventId++}`,
         event_type: 'BASELINE_ESTABLISHED',
-        occurred_at: firstScore.created_at,
+        occurred_at: firstScore.recorded_at,
         explanation: `Baseline established for ${integration.integration_name} after ${metrics.length} observations.`,
         integration_id: integration.id,
         integration_name: integration.integration_name,
@@ -225,8 +225,8 @@ function generateLearningEvents(
           events.push({
             id: `event-${eventId++}`,
             event_type: 'CONFIDENCE_INCREASED',
-            occurred_at: recentScores[0].calculated_at,
-            explanation: `Confidence increased for ${integration.integration_name} as variance declined from ${olderVariance.toFixed(1)} to ${recentVariance.toFixed(1)}.`,
+                        occurred_at: recentScores[0].recorded_at,
+                        explanation: `Confidence increased for ${integration.integration_name} as variance declined from ${olderVariance.toFixed(1)} to ${recentVariance.toFixed(1)}.`,
             integration_id: integration.id,
             integration_name: integration.integration_name,
           });
@@ -234,8 +234,8 @@ function generateLearningEvents(
           events.push({
             id: `event-${eventId++}`,
             event_type: 'CONFIDENCE_DECREASED',
-            occurred_at: recentScores[0].calculated_at,
-            explanation: `Confidence decreased for ${integration.integration_name} as variance increased from ${olderVariance.toFixed(1)} to ${recentVariance.toFixed(1)}.`,
+                        occurred_at: recentScores[0].recorded_at,
+                        explanation: `Confidence decreased for ${integration.integration_name} as variance increased from ${olderVariance.toFixed(1)} to ${recentVariance.toFixed(1)}.`,
             integration_id: integration.id,
             integration_name: integration.integration_name,
           });
@@ -246,8 +246,8 @@ function generateLearningEvents(
           events.push({
             id: `event-${eventId++}`,
             event_type: 'VARIANCE_STABILIZED',
-            occurred_at: recentScores[0].calculated_at,
-            explanation: `Variance stabilized for ${integration.integration_name}. Patterns are now consistent.`,
+                        occurred_at: recentScores[0].recorded_at,
+                        explanation: `Variance stabilized for ${integration.integration_name}. Patterns are now consistent.`,
             integration_id: integration.id,
             integration_name: integration.integration_name,
           });
@@ -262,8 +262,8 @@ function generateLearningEvents(
         events.push({
           id: `event-${eventId++}`,
           event_type: 'MATURITY_PROMOTED',
-          occurred_at: history[0].calculated_at,
-          explanation: `${integration.integration_name} reached analysis readiness after stability window met.`,
+                    occurred_at: history[0].recorded_at,
+                    explanation: `${integration.integration_name} reached analysis readiness after stability window met.`,
           integration_id: integration.id,
           integration_name: integration.integration_name,
         });
@@ -282,8 +282,8 @@ function generateLearningEvents(
         events.push({
           id: `event-${eventId++}`,
           event_type: 'ANOMALY_PATTERN_LEARNED',
-          occurred_at: history[0].calculated_at,
-          explanation: `${integration.integration_name}: ${anomalies.length} anomaly pattern${anomalies.length !== 1 ? 's' : ''} identified and incorporated into baseline.`,
+                    occurred_at: history[0].recorded_at,
+                    explanation: `${integration.integration_name}: ${anomalies.length} anomaly pattern${anomalies.length !== 1 ? 's' : ''} identified and incorporated into baseline.`,
           integration_id: integration.id,
           integration_name: integration.integration_name,
         });
@@ -356,18 +356,18 @@ export function useLearningState(): UseLearningStateResult {
         .select('*')
         .eq('user_id', profile.id);
 
-      // Build maps for efficient lookup
-      const scoreMap = new Map<string, FusionScore>();
-      scores?.forEach(s => scoreMap.set(s.integration_id, s));
+            // Build maps for efficient lookup
+            const scoreMap = new Map<string, FusionScore>();
+            scores?.forEach(s => scoreMap.set(s.integration_id, s));
 
-      const historyMap = new Map<string, FusionScore[]>();
-      scoreHistory?.forEach(s => {
-        const existing = historyMap.get(s.integration_id) || [];
-        existing.push(s as FusionScore);
-        historyMap.set(s.integration_id, existing);
-      });
+            const historyMap = new Map<string, FusionScoreHistory[]>();
+            scoreHistory?.forEach(s => {
+              const existing = historyMap.get(s.integration_id) || [];
+              existing.push(s as FusionScoreHistory);
+              historyMap.set(s.integration_id, existing);
+            });
 
-      const metricsMap = new Map<string, FusionMetric[]>();
+            const metricsMap = new Map<string, FusionMetric[]>();
       metrics?.forEach(m => {
         const existing = metricsMap.get(m.integration_id) || [];
         existing.push(m);
