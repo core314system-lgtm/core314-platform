@@ -389,7 +389,7 @@ export function useLearningState(): UseLearningStateResult {
 
       // Derive learning state for each integration
       const states: LearningState[] = userInts.map(ui => {
-        const master = ui.integrations_master as Record<string, unknown> | null;
+        const master = ui.integrations_master as unknown as Record<string, unknown> | null;
         if (!master) return null;
 
         const integrationId = ui.integration_id;
