@@ -4,6 +4,7 @@ import { useSubscription } from '../hooks/useSubscription';
 import { useAddons } from '../hooks/useAddons';
 import { useIntelligenceDashboard } from '../hooks/useIntelligenceDashboard';
 import { useSystemStatus } from '../hooks/useSystemStatus';
+import { useLearningState } from '../hooks/useLearningState';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -29,6 +30,8 @@ import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplain
 import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
 import { IntelligenceReadinessPanel } from '../components/dashboard/IntelligenceReadinessPanel';
 import { BetaOnboardingPanel } from '../components/dashboard/BetaOnboardingPanel';
+import { SystemLearningPanel } from '../components/dashboard/SystemLearningPanel';
+import { LearningTimeline } from '../components/dashboard/LearningTimeline';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -43,6 +46,7 @@ export function Dashboard() {
   const { hasAddon, loading: addonsLoading } = useAddons();
   const { isIntelligenceDashboardEnabled } = useIntelligenceDashboard();
   const { isObserveTier, systemStatus } = useSystemStatus();
+  const { learningStates, learningEvents, globalSummary, loading: learningLoading } = useLearningState();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
@@ -588,17 +592,32 @@ export function Dashboard() {
               globalTrend={globalTrend}
             />
             
-                      {/* Intelligence Readiness Panel - Readiness Signaling */}
-                      {/* Visible for BOTH baseline and computed users */}
-                      <IntelligenceReadinessPanel
-                        scoreOrigin={systemStatus?.score_origin}
-                        hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
-                        integrations={integrations}
-                        trendSnapshot={trendSnapshot}
-                        globalTrend={globalTrend}
-                      />
+                                            {/* Intelligence Readiness Panel - Readiness Signaling */}
+                                            {/* Visible for BOTH baseline and computed users */}
+                                            <IntelligenceReadinessPanel
+                                              scoreOrigin={systemStatus?.score_origin}
+                                              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
+                                              integrations={integrations}
+                                              trendSnapshot={trendSnapshot}
+                                              globalTrend={globalTrend}
+                                            />
             
-                      {/* Link to System Intelligence Overview */}
+                                  {/* System Learning Panel - Learning Evidence (Non-Actionable) */}
+                                  {/* Visible for BOTH baseline and computed users */}
+                                  <SystemLearningPanel
+                                    learningStates={learningStates}
+                                    globalSummary={globalSummary}
+                                    loading={learningLoading}
+                                  />
+            
+                                  {/* Learning Timeline - What Core314 Has Learned */}
+                                  {/* Visible for BOTH baseline and computed users */}
+                                  <LearningTimeline
+                                    events={learningEvents}
+                                    loading={learningLoading}
+                                  />
+            
+                                            {/* Link to System Intelligence Overview */}
                       <div className="pt-2">
                         <Link 
                           to="/system-intelligence" 
