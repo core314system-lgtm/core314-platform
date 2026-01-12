@@ -15,15 +15,15 @@ export default function PrivacyPage() {
         </Link>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-8 md:p-12 shadow-sm">
-          <h1 className="text-4xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
-            Privacy Policy
-          </h1>
+                    <h1 className="text-4xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      Privacy Policy
+                    </h1>
 
-          <div className="prose prose-slate max-w-none space-y-8 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-            <p className="text-sm text-slate-500">Last Updated: January 7, 2026</p>
+                    <div className="prose prose-slate max-w-none space-y-8 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      <p className="text-sm text-slate-500">Last Updated: January 7, 2026</p>
 
-            <p className="text-lg">
-              Core314 Technologies LLC ("Core314," "we," "us," or "our") is committed to protecting your privacy. 
+                      <p className="text-lg">
+                        Core314™ Technologies LLC ("Core314," "we," "us," or "our") is committed to protecting your privacy.
               This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you 
               use our system intelligence platform and related services.
             </p>
@@ -164,18 +164,21 @@ export default function PrivacyPage() {
                 If you have questions about this Privacy Policy or our data practices, please contact us at:
               </p>
               <p className="mt-4">
-                <strong>Core314 Technologies LLC</strong><br />
-                Email:{' '}
-                <a href="mailto:support@core314.com" className="text-sky-600 hover:text-sky-700 underline">
-                  support@core314.com
-                </a>
-              </p>
-            </section>
-          </div>
-        </div>
-      </div>
+                      <strong>Core314™ Technologies LLC</strong><br />
+                      Email:{' '}
+                      <a href="mailto:support@core314.com" className="text-sky-600 hover:text-sky-700 underline">
+                        support@core314.com
+                      </a>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-4">
+                      Patent Pending
+                    </p>
+                  </section>
+                </div>
+              </div>
+            </div>
 
-      <Footer />
+            <Footer />
     </div>
   );
 }

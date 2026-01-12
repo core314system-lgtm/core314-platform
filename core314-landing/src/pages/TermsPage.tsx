@@ -15,16 +15,17 @@ export default function TermsPage() {
         </Link>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-8 md:p-12 shadow-sm">
-          <h1 className="text-4xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
-            Terms of Service
-          </h1>
+                    <h1 className="text-4xl font-bold mb-8 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      Terms of Service
+                    </h1>
 
-          <div className="prose prose-slate max-w-none space-y-8 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
-            <p className="text-sm text-slate-500">Last Updated: January 7, 2026</p>
+                    <div className="prose prose-slate max-w-none space-y-8 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      <p className="text-sm text-slate-500">Last Updated: January 7, 2026</p>
+                      <p className="text-xs text-slate-400">Patent Pending</p>
 
             <p className="text-lg">
-              These Terms of Service ("Terms") govern your access to and use of the Core314 platform and services 
-              provided by Core314 Technologies LLC ("Core314," "we," "us," or "our"). By accessing or using our 
+                            These Terms of Service ("Terms") govern your access to and use of the Core314™ platform and services 
+                            provided by Core314™ Technologies LLC ("Core314," "we," "us," or "our").By accessing or using our 
               services, you agree to be bound by these Terms.
             </p>
 

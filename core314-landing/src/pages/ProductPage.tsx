@@ -28,7 +28,7 @@ export default function ProductPage() {
             className="text-xl md:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Core314 is a system hub that connects your business tools, monitors operations in real time, and helps you maintain control as you scale.
+            Core314™ is a system hub that connects your business tools, monitors operations in real time, and helps you maintain control as you scale.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
