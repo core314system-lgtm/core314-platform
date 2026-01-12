@@ -27,8 +27,8 @@ export default function AIDisclaimerPage() {
                 Important Notice Regarding AI-Generated Outputs
               </p>
               <p className="text-amber-700">
-                This disclaimer applies to all artificial intelligence features, insights, analyses, and outputs 
-                provided by the Core314 platform. Please read this disclaimer carefully before using our services.
+                                This disclaimer applies to all artificial intelligence features, insights, analyses, and outputs 
+                                provided by the Core314™ platform. Please read this disclaimer carefully before using our services.
               </p>
             </div>
 
@@ -165,18 +165,21 @@ export default function AIDisclaimerPage() {
                 If you have questions about this disclaimer, please contact us at:
               </p>
               <p className="mt-4">
-                <strong>Core314 Technologies LLC</strong><br />
-                Email:{' '}
-                <a href="mailto:support@core314.com" className="text-sky-600 hover:text-sky-700 underline">
-                  support@core314.com
-                </a>
-              </p>
-            </section>
-          </div>
-        </div>
-      </div>
+                      <strong>Core314™ Technologies LLC</strong><br />
+                      Email:{' '}
+                      <a href="mailto:support@core314.com" className="text-sky-600 hover:text-sky-700 underline">
+                        support@core314.com
+                      </a>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-4">
+                      Patent Pending
+                    </p>
+                  </section>
+                </div>
+              </div>
+            </div>
 
-      <Footer />
+            <Footer />
     </div>
   );
 }

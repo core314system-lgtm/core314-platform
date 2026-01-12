@@ -24,14 +24,17 @@ export default function Footer() {
             </a>
           </nav>
 
-          <div className="text-center">
-            <p className="text-slate-400 text-sm">
-              © {currentYear} Core314 Technologies LLC
-            </p>
-            <p className="text-slate-400 text-xs mt-1">
-              United States
-            </p>
-          </div>
+                    <div className="text-center">
+                      <p className="text-slate-400 text-sm">
+                        © {currentYear} Core314™ Technologies LLC
+                      </p>
+                      <p className="text-slate-400 text-xs mt-1">
+                        United States
+                      </p>
+                      <p className="text-slate-400 text-xs mt-1">
+                        Patent Pending
+                      </p>
+                    </div>
         </div>
       </div>
     </footer>
