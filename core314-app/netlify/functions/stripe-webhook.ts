@@ -156,8 +156,53 @@ async function updateWebhookEventStatus(
       p_error_message: errorMessage || null,
       p_user_id: userId || null,
     });
+
+    // Log failures to ops_event_log for production monitoring
+    if (status === 'failed') {
+      await logOpsEvent(
+        'webhook_failure',
+        'netlify:stripe-webhook',
+        'error',
+        userId || undefined,
+        eventId,
+        'WEBHOOK_PROCESSING_FAILED',
+        errorMessage || 'Unknown webhook processing error'
+      );
+    }
   } catch (err) {
     console.error(`[WEBHOOK_LOG] Failed to update event ${eventId} status:`, err);
+  }
+}
+
+// =============================================================================
+// PRODUCTION MONITORING: OPS EVENT LOGGING
+// =============================================================================
+
+async function logOpsEvent(
+  eventType: string,
+  source: string,
+  severity: string = 'info',
+  userId?: string,
+  correlationId?: string,
+  errorCode?: string,
+  errorReason?: string,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  try {
+    await supabase.rpc('log_ops_event', {
+      p_event_type: eventType,
+      p_source: source,
+      p_severity: severity,
+      p_user_id: userId || null,
+      p_correlation_id: correlationId || null,
+      p_error_code: errorCode || null,
+      p_error_reason: errorReason || null,
+      p_metadata: metadata,
+    });
+    console.log(`[OPS_LOG] Logged ${eventType} event`);
+  } catch (err) {
+    // Non-fatal: log but don't fail the webhook
+    console.error(`[OPS_LOG] Failed to log ${eventType} event:`, err);
   }
 }
 
