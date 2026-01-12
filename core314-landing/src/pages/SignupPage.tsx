@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { initSupabaseClient } from '../lib/supabase';
 import { Loader2 } from 'lucide-react';
 import Header from '../components/Header';
+import { PRICING, formatMonthlyPrice } from '../config/pricing';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
@@ -97,10 +98,12 @@ export default function SignupPage() {
     }
   };
 
+  // Plan display names aligned with pricing page (Observe, Analyze, Predict & Act)
+  // Prices imported from shared/pricing.ts - single source of truth
   const plans = {
-    starter: { name: 'Starter', price: '$99/mo' },
-    pro: { name: 'Pro', price: '$999/mo' },
-    enterprise: { name: 'Enterprise', price: 'Custom' }
+    starter: { name: 'Observe', price: formatMonthlyPrice(PRICING.starter.monthly) },
+    pro: { name: 'Analyze', price: formatMonthlyPrice(PRICING.pro.monthly) },
+    enterprise: { name: 'Predict & Act', price: 'Custom' }
   };
 
   return (
