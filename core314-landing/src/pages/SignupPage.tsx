@@ -57,25 +57,13 @@ export default function SignupPage() {
 
       if (!authData.user) throw new Error('Failed to create user account');
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: authData.user.id,
-          email: formData.email,
-          full_name: formData.fullName,
-        }, {
-          onConflict: 'id'
-        });
-
-      if (profileError) {
-        console.error('Profile upsert error:', profileError);
-        // Check if this is a duplicate email constraint violation
-        if (profileError.message?.includes('profiles_email_key') || 
-            profileError.message?.includes('duplicate key value violates unique constraint')) {
-          throw new Error('An account with this email already exists. Please log in instead.');
-        }
-        throw new Error(`Failed to update profile: ${profileError.message}`);
-      }
+      // Profile is created automatically by the handle_new_user() database trigger
+      // which runs with SECURITY DEFINER and sets profiles.id = auth.users.id.
+      // The trigger reads full_name from raw_user_meta_data (set in signUp options above).
+      // We do NOT attempt a client-side upsert here because:
+      // 1. Email confirmation flow means authData.session may be null
+      // 2. Without a session, auth.uid() is null and RLS policies fail
+      // 3. The trigger already handles profile creation correctly
 
       const response = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
