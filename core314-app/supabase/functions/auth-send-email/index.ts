@@ -482,6 +482,22 @@ serve(async (req) => {
           status: result.success ? 'sent' : 'failed',
         },
       });
+
+      // Log to ops_event_log for production monitoring (failures only)
+      if (!result.success) {
+        await supabase.rpc('log_ops_event', {
+          p_event_type: 'auth_failure',
+          p_source: 'edge:auth-send-email',
+          p_severity: 'error',
+          p_user_id: user.id || null,
+          p_error_code: 'EMAIL_SEND_FAILED',
+          p_error_reason: result.error || 'Unknown email send error',
+          p_metadata: {
+            email_type: emailType,
+            sendgrid_error: result.error,
+          },
+        });
+      }
     } catch (logError) {
       console.error('Failed to log email event:', logError);
     }
