@@ -39,6 +39,6 @@ jobs:
       - name: Build
         working-directory: core314-app
         env:
-          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_URL: https://placeholder.invalid
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: npm run build
