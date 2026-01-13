@@ -46,9 +46,10 @@ import { SentryTest } from './pages/SentryTest';
 import SentryVerify from './pages/SentryVerify';
 
 function App() {
-  const { isAuthenticated, loading } = useAdminAuth();
+  const { authStatus } = useAdminAuth();
 
-  if (loading) {
+  // Show spinner only while auth is resolving (max 3 seconds due to timeout)
+  if (authStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -56,10 +57,12 @@ function App() {
     );
   }
 
+  // Once auth is resolved (authenticated or unauthenticated), render the router
+  // The AdminProtectedRoute will handle redirects for unauthenticated users
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <AdminLogin />} />
+        <Route path="/login" element={authStatus === 'authenticated' ? <Navigate to="/" /> : <AdminLogin />} />
         <Route path="/admin-health" element={<HealthCheck />} />
         
         <Route
