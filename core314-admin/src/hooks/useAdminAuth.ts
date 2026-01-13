@@ -190,7 +190,44 @@ export function useAdminAuth() {
         const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
         console.log('[AdminAuth] Admin allowlist check:', isAllowlisted ? 'ALLOWED' : 'not in allowlist');
 
-        // Fetch profile from database
+        // ALLOWLIST SHORT-CIRCUIT: Grant immediate access without waiting for profile fetch
+        if (isAllowlisted) {
+          console.log('[AdminAuth] ALLOWLIST SHORT-CIRCUIT (initializeAuth): Granting immediate access');
+          const syntheticProfile: User = {
+            id: userId,
+            email: userEmail,
+            full_name: userEmail.split('@')[0] || 'Admin User',
+            role: 'admin',
+            two_factor_enabled: false,
+            subscription_tier: 'enterprise',
+            subscription_status: 'active',
+            is_platform_admin: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User;
+          
+          try { localStorage.setItem('admin_profile_cache', JSON.stringify(syntheticProfile)); } catch { /* ignore */ }
+          setAuthenticated(syntheticProfile, supabaseSession);
+          
+          // Kick off profile fetch in background (non-blocking) to update cache with real data
+          Promise.resolve(
+            supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single()
+          ).then(({ data: realProfile }) => {
+            if (realProfile) {
+              console.log('[AdminAuth] Background profile fetch succeeded, updating cache');
+              try { localStorage.setItem('admin_profile_cache', JSON.stringify(realProfile)); } catch { /* ignore */ }
+              setState(prev => ({ ...prev, adminUser: realProfile }));
+            }
+          }).catch(() => { /* ignore background fetch errors */ });
+          
+          return;
+        }
+
+        // Fetch profile from database (only for non-allowlisted users)
         console.debug('[AdminAuth] Fetching profile from database...');
         const profilePromise = Promise.resolve(
           supabase
@@ -326,14 +363,57 @@ export function useAdminAuth() {
         const userEmail = session.user.email || '';
         const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
         
-        // Session changed outside of signIn flow - re-verify admin status
+        // ALLOWLIST SHORT-CIRCUIT: Grant immediate access without waiting for profile fetch
+        if (isAllowlisted) {
+          console.log('[AdminAuth] ALLOWLIST SHORT-CIRCUIT (SIGNED_IN): Granting immediate access');
+          const syntheticProfile: User = {
+            id: session.user.id,
+            email: userEmail,
+            full_name: userEmail.split('@')[0] || 'Admin User',
+            role: 'admin',
+            two_factor_enabled: false,
+            subscription_tier: 'enterprise',
+            subscription_status: 'active',
+            is_platform_admin: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User;
+          
+          try { localStorage.setItem('admin_profile_cache', JSON.stringify(syntheticProfile)); } catch { /* ignore */ }
+          resolvedRef.current = true;
+          setState({
+            adminUser: syntheticProfile,
+            authStatus: 'authenticated',
+            supabaseSession: session,
+            authError: null,
+          });
+          
+          // Kick off profile fetch in background (non-blocking)
+          Promise.resolve(
+            supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+          ).then(({ data: realProfile }) => {
+            if (realProfile) {
+              console.log('[AdminAuth] Background profile fetch succeeded, updating cache');
+              try { localStorage.setItem('admin_profile_cache', JSON.stringify(realProfile)); } catch { /* ignore */ }
+              setState(prev => ({ ...prev, adminUser: realProfile }));
+            }
+          }).catch(() => { /* ignore background fetch errors */ });
+          
+          return;
+        }
+        
+        // Session changed outside of signIn flow - re-verify admin status (non-allowlisted users only)
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
-        const hasAdminAccess = profile?.is_platform_admin || isAllowlisted;
+        const hasAdminAccess = profile?.is_platform_admin;
         
         if (hasAdminAccess && profile) {
           try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
@@ -366,14 +446,57 @@ export function useAdminAuth() {
         const userEmail = session.user.email || '';
         const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
         
-        // Token refresh - re-verify admin status
+        // ALLOWLIST SHORT-CIRCUIT: Grant immediate access without waiting for profile fetch
+        if (isAllowlisted) {
+          console.log('[AdminAuth] ALLOWLIST SHORT-CIRCUIT (TOKEN_REFRESHED): Granting immediate access');
+          const syntheticProfile: User = {
+            id: session.user.id,
+            email: userEmail,
+            full_name: userEmail.split('@')[0] || 'Admin User',
+            role: 'admin',
+            two_factor_enabled: false,
+            subscription_tier: 'enterprise',
+            subscription_status: 'active',
+            is_platform_admin: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User;
+          
+          try { localStorage.setItem('admin_profile_cache', JSON.stringify(syntheticProfile)); } catch { /* ignore */ }
+          resolvedRef.current = true;
+          setState({
+            adminUser: syntheticProfile,
+            authStatus: 'authenticated',
+            supabaseSession: session,
+            authError: null,
+          });
+          
+          // Kick off profile fetch in background (non-blocking)
+          Promise.resolve(
+            supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+          ).then(({ data: realProfile }) => {
+            if (realProfile) {
+              console.log('[AdminAuth] Background profile fetch succeeded, updating cache');
+              try { localStorage.setItem('admin_profile_cache', JSON.stringify(realProfile)); } catch { /* ignore */ }
+              setState(prev => ({ ...prev, adminUser: realProfile }));
+            }
+          }).catch(() => { /* ignore background fetch errors */ });
+          
+          return;
+        }
+        
+        // Token refresh - re-verify admin status (non-allowlisted users only)
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
-        const hasAdminAccess = profile?.is_platform_admin || isAllowlisted;
+        const hasAdminAccess = profile?.is_platform_admin;
 
         if (hasAdminAccess && profile) {
           try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
