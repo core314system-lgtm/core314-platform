@@ -1,7 +1,10 @@
 [build]
-  command = "npm run build"
-  publish = "core314-app/dist"
-  functions = "netlify/functions"
+base = "core314-app"
+command = "npm run build"
+publish = "core314-app/dist"
+# Force builds on every merge - disable "skip builds when no content change" optimization
+# Exit code 1 = always build, Exit code 0 = skip build
+ignore = "exit 1"
 
 [functions]
-  node_bundler = "esbuild"
+directory = "core314-app/netlify/functions"
