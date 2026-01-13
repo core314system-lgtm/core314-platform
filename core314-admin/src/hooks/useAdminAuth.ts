@@ -18,6 +18,14 @@ interface AdminAuthState {
 const AUTH_TIMEOUT_MS = 3000;
 
 /**
+ * Module-level guards to prevent race conditions across multiple useAdminAuth instances.
+ * These are shared across all hook instances to ensure only one sign-out or sign-in
+ * operation happens at a time, preventing the cascade of SIGNED_OUT events.
+ */
+let signOutInFlight = false;
+let signInInFlight = false;
+
+/**
  * Admin authentication hook that enforces Supabase Auth as the SINGLE source of truth.
  * 
  * Authentication requirements:
@@ -151,7 +159,7 @@ export function useAdminAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
 
-      console.debug('[AdminAuth] Auth state change:', event);
+      console.debug('[AdminAuth] Auth state change:', event, 'signInInFlight:', signInInFlight);
 
       if (event === 'SIGNED_OUT' || !session) {
         // Supabase session ended - clear all auth state
@@ -162,8 +170,16 @@ export function useAdminAuth() {
           authStatus: 'unauthenticated',
           supabaseSession: null,
         });
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Session changed - re-verify admin status
+      } else if (event === 'SIGNED_IN') {
+        // Skip admin check if signIn() is in progress - it will handle the check
+        // This prevents race conditions where multiple hook instances all try to
+        // verify admin status and potentially call signOut() concurrently
+        if (signInInFlight) {
+          console.debug('[AdminAuth] Skipping SIGNED_IN handling - signIn in progress');
+          return;
+        }
+        
+        // Session changed outside of signIn flow - re-verify admin status
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -179,8 +195,44 @@ export function useAdminAuth() {
             supabaseSession: session,
           });
         } else {
-          // Not an admin - sign out
-          await supabase.auth.signOut();
+          // Not an admin - sign out (with guard to prevent multiple concurrent signOuts)
+          if (!signOutInFlight) {
+            signOutInFlight = true;
+            console.debug('[AdminAuth] Signing out non-admin user');
+            await supabase.auth.signOut();
+            signOutInFlight = false;
+          }
+          try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
+          resolvedRef.current = true;
+          setState({
+            adminUser: null,
+            authStatus: 'unauthenticated',
+            supabaseSession: null,
+          });
+        }
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Token refresh - re-verify admin status
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile?.is_platform_admin) {
+          try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
+          resolvedRef.current = true;
+          setState({
+            adminUser: profile,
+            authStatus: 'authenticated',
+            supabaseSession: session,
+          });
+        } else {
+          // Not an admin - sign out (with guard)
+          if (!signOutInFlight) {
+            signOutInFlight = true;
+            await supabase.auth.signOut();
+            signOutInFlight = false;
+          }
           try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
           resolvedRef.current = true;
           setState({
@@ -200,18 +252,28 @@ export function useAdminAuth() {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Set guard to prevent onAuthStateChange from racing with this function
+    signInInFlight = true;
+    console.debug('[AdminAuth] signIn started');
+    
     try {
       // STEP 1: Authenticate with Supabase
+      console.debug('[AdminAuth] Calling signInWithPassword');
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError || !authData.user || !authData.session) {
+        console.debug('[AdminAuth] signInWithPassword failed:', authError?.message);
+        signInInFlight = false;
         return { error: { message: 'Invalid credentials' } };
       }
+      
+      console.debug('[AdminAuth] signInWithPassword succeeded, user:', authData.user.id);
 
       // STEP 2: Fetch and verify admin profile
+      console.debug('[AdminAuth] Fetching profile');
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -219,17 +281,34 @@ export function useAdminAuth() {
         .single();
 
       if (profileError || !profile) {
-        await supabase.auth.signOut();
+        console.debug('[AdminAuth] Profile fetch failed:', profileError?.message);
+        // Use guard for signOut to prevent race conditions
+        if (!signOutInFlight) {
+          signOutInFlight = true;
+          await supabase.auth.signOut();
+          signOutInFlight = false;
+        }
+        signInInFlight = false;
         return { error: { message: 'Access denied. Profile not found.' } };
       }
+      
+      console.debug('[AdminAuth] Profile fetched, is_platform_admin:', profile.is_platform_admin);
 
       // STEP 3: Verify is_platform_admin flag
       if (!profile.is_platform_admin) {
-        await supabase.auth.signOut();
+        console.debug('[AdminAuth] User is not a platform admin, signing out');
+        // Use guard for signOut to prevent race conditions
+        if (!signOutInFlight) {
+          signOutInFlight = true;
+          await supabase.auth.signOut();
+          signOutInFlight = false;
+        }
+        signInInFlight = false;
         return { error: { message: 'Access denied. Platform administrator access required.' } };
       }
 
       // STEP 4: Success - update state and cache
+      console.debug('[AdminAuth] signIn successful, updating state');
       try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
       setState({
         adminUser: profile,
@@ -237,8 +316,11 @@ export function useAdminAuth() {
         supabaseSession: authData.session,
       });
 
+      signInInFlight = false;
       return { data: profile, error: null };
-    } catch {
+    } catch (error) {
+      console.error('[AdminAuth] signIn unexpected error:', error);
+      signInInFlight = false;
       return { error: { message: 'Authentication failed' } };
     }
   };

@@ -19,13 +19,20 @@ export function AdminLogin() {
     setError('');
     setLoading(true);
 
-    const { error } = await signIn(email, password);
-    
-    if (error) {
-      setError(error.message);
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        setError(error.message);
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      console.error('[AdminLogin] Unexpected error during sign-in:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      // Always reset loading state to prevent infinite spinner
       setLoading(false);
-    } else {
-      navigate('/');
     }
   };
 
