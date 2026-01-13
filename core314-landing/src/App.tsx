@@ -18,6 +18,7 @@ import CookiesPage from './pages/CookiesPage';
 import DPAPage from './pages/DPAPage';
 import AIDisclaimerPage from './pages/AIDisclaimerPage';
 import PartnersPage from './pages/PartnersPage';
+import BetaInvitePage from './pages/BetaInvitePage';
 import './App.css';
 
 function App() {
@@ -43,8 +44,9 @@ function App() {
                 <Route path="/cookies" element={<CookiesPage />} />
                 <Route path="/dpa" element={<DPAPage />} />
                 <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
-                <Route path="/partners" element={<PartnersPage />} />
-      </Routes>
+                      <Route path="/partners" element={<PartnersPage />} />
+                      <Route path="/beta" element={<BetaInvitePage />} />
+            </Routes>
     </Router>
   );
 }
