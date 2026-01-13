@@ -5,6 +5,14 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Exclude public Supabase identifiers from Netlify's secrets scanning
+  # These are NOT secrets - they are designed for client-side use:
+  # - SUPABASE_URL: Public project URL (required for Supabase client)
+  # - VITE_SUPABASE_URL: Same URL exposed to Vite build
+  # - SUPABASE_ANON_KEY: Public anonymous key (designed for browser use)
+  # - VITE_SUPABASE_ANON_KEY: Same key exposed to Vite build
+  # Real secrets (service_role, Stripe secret keys, etc.) remain protected
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,VITE_SUPABASE_URL,SUPABASE_ANON_KEY,VITE_SUPABASE_ANON_KEY"
 
 # AUTHORITATIVE SYSTEM FACT ENDPOINT
 # This redirect MUST come before the SPA catch-all
