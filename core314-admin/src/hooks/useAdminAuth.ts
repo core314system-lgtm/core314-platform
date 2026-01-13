@@ -443,7 +443,50 @@ export function useAdminAuth() {
       const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
       console.log('[AdminAuth] Admin allowlist check:', isAllowlisted ? 'ALLOWED' : 'not in allowlist');
 
-      // STEP 2: Fetch admin profile (with timeout)
+      // ALLOWLIST SHORT-CIRCUIT: Grant immediate access without waiting for profile fetch
+      if (isAllowlisted) {
+        console.log('[AdminAuth] ALLOWLIST SHORT-CIRCUIT: Granting immediate access');
+        const syntheticProfile: User = {
+          id: authData.user.id,
+          email: userEmail,
+          full_name: userEmail.split('@')[0] || 'Admin User',
+          role: 'admin',
+          two_factor_enabled: false,
+          subscription_tier: 'enterprise',
+          subscription_status: 'active',
+          is_platform_admin: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as User;
+        
+        try { localStorage.setItem('admin_profile_cache', JSON.stringify(syntheticProfile)); } catch { /* ignore */ }
+        setState({
+          adminUser: syntheticProfile,
+          authStatus: 'authenticated',
+          supabaseSession: authData.session,
+          authError: null,
+        });
+        
+        // Kick off profile fetch in background (non-blocking) to update cache with real data
+        Promise.resolve(
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single()
+        ).then(({ data: realProfile }) => {
+          if (realProfile) {
+            console.log('[AdminAuth] Background profile fetch succeeded, updating cache');
+            try { localStorage.setItem('admin_profile_cache', JSON.stringify(realProfile)); } catch { /* ignore */ }
+            setState(prev => ({ ...prev, adminUser: realProfile }));
+          }
+        }).catch(() => { /* ignore background fetch errors */ });
+        
+        signInInFlight = false;
+        return { data: syntheticProfile, error: null };
+      }
+
+      // STEP 2: Fetch admin profile (with timeout) - only for non-allowlisted users
       console.debug('[AdminAuth] Fetching profile from database...');
       const signInProfilePromise = Promise.resolve(
         supabase
