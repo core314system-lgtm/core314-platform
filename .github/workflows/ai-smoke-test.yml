@@ -38,7 +38,7 @@ jobs:
       - name: Build admin app
         working-directory: core314-admin
         env:
-          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_URL: https://placeholder.invalid
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
           VITE_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
           VITE_STRIPE_STARTER_PRICE_ID: price_placeholder
@@ -53,7 +53,7 @@ jobs:
       - name: Build user app
         working-directory: core314-app
         env:
-          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_URL: https://placeholder.invalid
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: npm run build
 
