@@ -38,6 +38,7 @@ import { IntegrationHealth } from './pages/admin/IntegrationHealth';
 import AdminEntitlements from './pages/admin/Entitlements';
 import AdminKillSwitches from './pages/admin/KillSwitches';
 import AdminLaunchReadiness from './pages/admin/LaunchReadiness';
+import { BetaOperations } from './pages/admin/BetaOperations';
 import { AdvancedAnalytics } from './pages/AdvancedAnalytics';
 import { OptimizationEngine } from './pages/OptimizationEngine';
 import { ApiAccess } from './pages/ApiAccess';
@@ -198,8 +199,9 @@ function App() {
                         <Route path="admin/integration-health" element={<ProtectedRoute requireAdmin><IntegrationHealth /></ProtectedRoute>} />
                         <Route path="admin/entitlements" element={<ProtectedRoute requireAdmin><AdminEntitlements /></ProtectedRoute>} />
                         <Route path="admin/kill-switches" element={<ProtectedRoute requireAdmin><AdminKillSwitches /></ProtectedRoute>} />
-                        <Route path="admin/launch-readiness" element={<ProtectedRoute requireAdmin><AdminLaunchReadiness /></ProtectedRoute>} />
-                      </Route>
+                                              <Route path="admin/launch-readiness" element={<ProtectedRoute requireAdmin><AdminLaunchReadiness /></ProtectedRoute>} />
+                                              <Route path="admin/beta-operations" element={<ProtectedRoute requireAdmin><BetaOperations /></ProtectedRoute>} />
+                                            </Route>
                     </Route>
         </Routes>
         <Toaster />
