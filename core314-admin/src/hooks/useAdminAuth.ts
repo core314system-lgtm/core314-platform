@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { getSupabaseUrlSync } from '../lib/supabaseRuntimeConfig';
 import { User } from '../types';
 
 /**
@@ -12,10 +13,24 @@ interface AdminAuthState {
   adminUser: User | null;
   authStatus: AuthStatus;
   supabaseSession: Session | null;
+  authError: string | null;
 }
 
 // Timeout for auth resolution (3 seconds)
 const AUTH_TIMEOUT_MS = 3000;
+
+// Timeout for individual operations (3 seconds)
+const OPERATION_TIMEOUT_MS = 3000;
+
+/**
+ * ADMIN ALLOWLIST - Temporary override for immediate platform access
+ * Emails in this list bypass the profile admin check and are granted admin access.
+ * This is a bootstrap mechanism to unblock platform access.
+ */
+const ADMIN_ALLOWLIST = [
+  'core314system@gmail.com',
+  'support@govmatchai.com',
+];
 
 /**
  * Module-level guards to prevent race conditions across multiple useAdminAuth instances.
@@ -24,6 +39,45 @@ const AUTH_TIMEOUT_MS = 3000;
  */
 let signOutInFlight = false;
 let signInInFlight = false;
+
+/**
+ * Helper to extract project ref from Supabase URL
+ */
+function getProjectRef(url: string | null): string {
+  if (!url) return 'unknown';
+  try {
+    const hostname = new URL(url).hostname;
+    // Format: xxxxx.supabase.co
+    const parts = hostname.split('.');
+    return parts[0] || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Helper to wrap a promise with a timeout
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(errorMessage)), ms)
+    )
+  ]);
+}
+
+/**
+ * Log Supabase project info for debugging
+ */
+function logSupabaseProject(): void {
+  const url = getSupabaseUrlSync();
+  const projectRef = getProjectRef(url);
+  console.log('[AdminAuth] === SUPABASE PROJECT INFO ===');
+  console.log('[AdminAuth] Supabase URL:', url);
+  console.log('[AdminAuth] Project Ref:', projectRef);
+  console.log('[AdminAuth] =============================');
+}
 
 /**
  * Admin authentication hook that enforces Supabase Auth as the SINGLE source of truth.
@@ -48,6 +102,7 @@ export function useAdminAuth() {
     adminUser: null,
     authStatus: 'loading',
     supabaseSession: null,
+    authError: null,
   });
   
   // Track if auth has been resolved to prevent timeout from overwriting valid state
@@ -57,16 +112,19 @@ export function useAdminAuth() {
     let cancelled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
+    // Log Supabase project info at initialization
+    logSupabaseProject();
     console.debug('[AdminAuth] Auth loading started');
 
-    const setUnauthenticated = () => {
+    const setUnauthenticated = (error?: string) => {
       if (!cancelled && !resolvedRef.current) {
         resolvedRef.current = true;
-        console.debug('[AdminAuth] Setting state to unauthenticated');
+        console.debug('[AdminAuth] Setting state to unauthenticated', error ? `Error: ${error}` : '');
         setState({
           adminUser: null,
           authStatus: 'unauthenticated',
           supabaseSession: null,
+          authError: error || null,
         });
       }
     };
@@ -79,6 +137,7 @@ export function useAdminAuth() {
           adminUser: profile,
           authStatus: 'authenticated',
           supabaseSession: session,
+          authError: null,
         });
       }
     };
@@ -86,20 +145,25 @@ export function useAdminAuth() {
     // Hard fallback: Force unauthenticated after timeout
     timeoutId = setTimeout(() => {
       if (!resolvedRef.current) {
-        console.debug('[AdminAuth] Timeout reached - forcing unauthenticated state');
-        setUnauthenticated();
+        console.error('[AdminAuth] TIMEOUT reached - forcing unauthenticated state after', AUTH_TIMEOUT_MS, 'ms');
+        setUnauthenticated('Authentication timed out. Please try again.');
       }
     }, AUTH_TIMEOUT_MS);
 
     const initializeAuth = async () => {
       try {
         // STEP 1: Check Supabase session FIRST (single source of truth)
-        const { data: { session: supabaseSession }, error: sessionError } = await supabase.auth.getSession();
+        console.debug('[AdminAuth] Getting Supabase session...');
+        const { data: { session: supabaseSession }, error: sessionError } = await withTimeout(
+          supabase.auth.getSession(),
+          OPERATION_TIMEOUT_MS,
+          'Session fetch timed out'
+        );
 
         if (sessionError) {
           console.error('[AdminAuth] Error getting Supabase session:', sessionError);
           try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
-          setUnauthenticated();
+          setUnauthenticated('Failed to get session');
           return;
         }
 
@@ -114,34 +178,112 @@ export function useAdminAuth() {
 
         // STEP 2: We have a Supabase session - now verify admin status
         const userId = supabaseSession.user.id;
+        const userEmail = supabaseSession.user.email || '';
+        
+        // HARD LOG: User info
+        console.log('[AdminAuth] === USER INFO ===');
+        console.log('[AdminAuth] User ID:', userId);
+        console.log('[AdminAuth] User Email:', userEmail);
+        console.log('[AdminAuth] ====================');
 
-        // Always verify profile from database
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
+        // Check admin allowlist FIRST (bypass for immediate access)
+        const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
+        console.log('[AdminAuth] Admin allowlist check:', isAllowlisted ? 'ALLOWED' : 'not in allowlist');
 
+        // Fetch profile from database
+        console.debug('[AdminAuth] Fetching profile from database...');
+        const profilePromise = Promise.resolve(
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single()
+        );
+        const { data: profile, error: profileError } = await withTimeout(
+          profilePromise,
+          OPERATION_TIMEOUT_MS,
+          'Profile fetch timed out'
+        );
+
+        // HARD LOG: Profile query result
+        console.log('[AdminAuth] === PROFILE QUERY RESULT ===');
+        console.log('[AdminAuth] Profile data:', profile);
+        console.log('[AdminAuth] Profile error:', profileError);
+        console.log('[AdminAuth] is_platform_admin:', profile?.is_platform_admin);
+        console.log('[AdminAuth] ==============================');
+
+        // AUTO-HEAL: If no profile exists, create one
         if (profileError || !profile) {
-          console.error('[AdminAuth] Error fetching admin profile:', profileError);
-          // Sign out from Supabase since we can't verify admin status
+          console.warn('[AdminAuth] NO PROFILE ROW found for user:', userId);
+          
+          // Attempt to auto-heal by creating profile
+          console.log('[AdminAuth] Attempting to auto-heal missing profile...');
+          const newProfile: Partial<User> = {
+            id: userId,
+            email: userEmail,
+            full_name: userEmail.split('@')[0] || 'Admin User',
+            role: 'admin',
+            two_factor_enabled: false,
+            subscription_tier: 'enterprise',
+            subscription_status: 'active',
+            is_platform_admin: isAllowlisted, // Only set admin for allowlisted emails
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from('profiles')
+            .upsert(newProfile)
+            .select()
+            .single();
+          
+          console.log('[AdminAuth] Auto-heal result:', { insertedProfile, insertError });
+          
+          if (insertError || !insertedProfile) {
+            console.error('[AdminAuth] Auto-heal FAILED:', insertError);
+            // If allowlisted, grant access anyway with synthetic profile
+            if (isAllowlisted) {
+              console.log('[AdminAuth] ALLOWLIST OVERRIDE: Granting access despite profile issues');
+              const syntheticProfile = newProfile as User;
+              try { localStorage.setItem('admin_profile_cache', JSON.stringify(syntheticProfile)); } catch { /* ignore */ }
+              setAuthenticated(syntheticProfile, supabaseSession);
+              return;
+            }
+            await supabase.auth.signOut();
+            try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
+            setUnauthenticated('Profile not found and could not be created');
+            return;
+          }
+          
+          // Profile created successfully
+          if (isAllowlisted || insertedProfile.is_platform_admin) {
+            try { localStorage.setItem('admin_profile_cache', JSON.stringify(insertedProfile)); } catch { /* ignore */ }
+            setAuthenticated(insertedProfile, supabaseSession);
+            return;
+          } else {
+            await supabase.auth.signOut();
+            setUnauthenticated('Access denied. Platform administrator access required.');
+            return;
+          }
+        }
+
+        // STEP 3: Verify is_platform_admin flag OR allowlist
+        const hasAdminAccess = profile.is_platform_admin || isAllowlisted;
+        console.log('[AdminAuth] Admin access check:', { 
+          is_platform_admin: profile.is_platform_admin, 
+          isAllowlisted, 
+          hasAdminAccess 
+        });
+        
+        if (!hasAdminAccess) {
+          console.warn('[AdminAuth] User is not a platform admin and not in allowlist');
           await supabase.auth.signOut();
           try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
-          setUnauthenticated();
+          setUnauthenticated('Access denied. Platform administrator access required.');
           return;
         }
 
-        // STEP 3: Verify is_platform_admin flag
-        if (!profile.is_platform_admin) {
-          console.warn('[AdminAuth] User is not a platform admin');
-          // Sign out from Supabase - non-admins should not have access
-          await supabase.auth.signOut();
-          try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
-          setUnauthenticated();
-          return;
-        }
-
-        // STEP 4: User is authenticated and is a platform admin
+        // STEP 4: User is authenticated and has admin access
         // Update cache for faster subsequent loads (cache is NOT authoritative)
         try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
         
@@ -149,7 +291,7 @@ export function useAdminAuth() {
       } catch (error) {
         console.error('[AdminAuth] Unexpected error during auth initialization:', error);
         try { localStorage.removeItem('admin_profile_cache'); } catch { /* ignore */ }
-        setUnauthenticated();
+        setUnauthenticated(error instanceof Error ? error.message : 'Authentication failed');
       }
     };
 
@@ -169,6 +311,7 @@ export function useAdminAuth() {
           adminUser: null,
           authStatus: 'unauthenticated',
           supabaseSession: null,
+          authError: null,
         });
       } else if (event === 'SIGNED_IN') {
         // Skip admin check if signIn() is in progress - it will handle the check
@@ -179,6 +322,10 @@ export function useAdminAuth() {
           return;
         }
         
+        // Check allowlist for this user
+        const userEmail = session.user.email || '';
+        const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
+        
         // Session changed outside of signIn flow - re-verify admin status
         const { data: profile } = await supabase
           .from('profiles')
@@ -186,13 +333,16 @@ export function useAdminAuth() {
           .eq('id', session.user.id)
           .single();
 
-        if (profile?.is_platform_admin) {
+        const hasAdminAccess = profile?.is_platform_admin || isAllowlisted;
+        
+        if (hasAdminAccess && profile) {
           try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
           resolvedRef.current = true;
           setState({
             adminUser: profile,
             authStatus: 'authenticated',
             supabaseSession: session,
+            authError: null,
           });
         } else {
           // Not an admin - sign out (with guard to prevent multiple concurrent signOuts)
@@ -208,9 +358,14 @@ export function useAdminAuth() {
             adminUser: null,
             authStatus: 'unauthenticated',
             supabaseSession: null,
+            authError: 'Access denied. Platform administrator access required.',
           });
         }
       } else if (event === 'TOKEN_REFRESHED') {
+        // Check allowlist for this user
+        const userEmail = session.user.email || '';
+        const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
+        
         // Token refresh - re-verify admin status
         const { data: profile } = await supabase
           .from('profiles')
@@ -218,13 +373,16 @@ export function useAdminAuth() {
           .eq('id', session.user.id)
           .single();
 
-        if (profile?.is_platform_admin) {
+        const hasAdminAccess = profile?.is_platform_admin || isAllowlisted;
+
+        if (hasAdminAccess && profile) {
           try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
           resolvedRef.current = true;
           setState({
             adminUser: profile,
             authStatus: 'authenticated',
             supabaseSession: session,
+            authError: null,
           });
         } else {
           // Not an admin - sign out (with guard)
@@ -239,6 +397,7 @@ export function useAdminAuth() {
             adminUser: null,
             authStatus: 'unauthenticated',
             supabaseSession: null,
+            authError: 'Access denied. Platform administrator access required.',
           });
         }
       }
@@ -254,50 +413,141 @@ export function useAdminAuth() {
   const signIn = async (email: string, password: string) => {
     // Set guard to prevent onAuthStateChange from racing with this function
     signInInFlight = true;
-    console.debug('[AdminAuth] signIn started');
+    
+    // Log Supabase project info at sign-in
+    logSupabaseProject();
+    console.log('[AdminAuth] === SIGN IN STARTED ===');
+    console.log('[AdminAuth] Email:', email);
     
     try {
-      // STEP 1: Authenticate with Supabase
+      // STEP 1: Authenticate with Supabase (with timeout)
       console.debug('[AdminAuth] Calling signInWithPassword');
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data: authData, error: authError } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        OPERATION_TIMEOUT_MS,
+        'Sign-in timed out'
+      );
 
       if (authError || !authData.user || !authData.session) {
-        console.debug('[AdminAuth] signInWithPassword failed:', authError?.message);
+        console.log('[AdminAuth] signInWithPassword FAILED:', authError?.message);
         signInInFlight = false;
-        return { error: { message: 'Invalid credentials' } };
+        return { error: { message: authError?.message || 'Invalid credentials' } };
       }
       
-      console.debug('[AdminAuth] signInWithPassword succeeded, user:', authData.user.id);
+      console.log('[AdminAuth] signInWithPassword SUCCEEDED');
+      console.log('[AdminAuth] User ID:', authData.user.id);
+      console.log('[AdminAuth] User Email:', authData.user.email);
 
-      // STEP 2: Fetch and verify admin profile
-      console.debug('[AdminAuth] Fetching profile');
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
+      // Check admin allowlist FIRST (bypass for immediate access)
+      const userEmail = authData.user.email || '';
+      const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
+      console.log('[AdminAuth] Admin allowlist check:', isAllowlisted ? 'ALLOWED' : 'not in allowlist');
 
+      // STEP 2: Fetch admin profile (with timeout)
+      console.debug('[AdminAuth] Fetching profile from database...');
+      const signInProfilePromise = Promise.resolve(
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single()
+      );
+      const { data: profile, error: profileError } = await withTimeout(
+        signInProfilePromise,
+        OPERATION_TIMEOUT_MS,
+        'Profile fetch timed out'
+      );
+
+      // HARD LOG: Profile query result
+      console.log('[AdminAuth] === PROFILE QUERY RESULT ===');
+      console.log('[AdminAuth] Profile data:', profile);
+      console.log('[AdminAuth] Profile error:', profileError);
+      console.log('[AdminAuth] is_platform_admin:', profile?.is_platform_admin);
+      console.log('[AdminAuth] ==============================');
+
+      // AUTO-HEAL: If no profile exists, create one
       if (profileError || !profile) {
-        console.debug('[AdminAuth] Profile fetch failed:', profileError?.message);
-        // Use guard for signOut to prevent race conditions
-        if (!signOutInFlight) {
-          signOutInFlight = true;
-          await supabase.auth.signOut();
-          signOutInFlight = false;
+        console.warn('[AdminAuth] NO PROFILE ROW found, attempting auto-heal...');
+        
+        const newProfile: Partial<User> = {
+          id: authData.user.id,
+          email: userEmail,
+          full_name: userEmail.split('@')[0] || 'Admin User',
+          role: 'admin',
+          two_factor_enabled: false,
+          subscription_tier: 'enterprise',
+          subscription_status: 'active',
+          is_platform_admin: isAllowlisted,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        const { data: insertedProfile, error: insertError } = await supabase
+          .from('profiles')
+          .upsert(newProfile)
+          .select()
+          .single();
+        
+        console.log('[AdminAuth] Auto-heal result:', { insertedProfile, insertError });
+        
+        if (insertError || !insertedProfile) {
+          console.error('[AdminAuth] Auto-heal FAILED:', insertError);
+          // If allowlisted, grant access anyway with synthetic profile
+          if (isAllowlisted) {
+            console.log('[AdminAuth] ALLOWLIST OVERRIDE: Granting access despite profile issues');
+            const syntheticProfile = newProfile as User;
+            try { localStorage.setItem('admin_profile_cache', JSON.stringify(syntheticProfile)); } catch { /* ignore */ }
+            setState({
+              adminUser: syntheticProfile,
+              authStatus: 'authenticated',
+              supabaseSession: authData.session,
+              authError: null,
+            });
+            signInInFlight = false;
+            return { data: syntheticProfile, error: null };
+          }
+          // Not allowlisted and profile creation failed
+          if (!signOutInFlight) {
+            signOutInFlight = true;
+            await supabase.auth.signOut();
+            signOutInFlight = false;
+          }
+          signInInFlight = false;
+          return { error: { message: 'Profile not found and could not be created.' } };
         }
-        signInInFlight = false;
-        return { error: { message: 'Access denied. Profile not found.' } };
+        
+        // Profile created successfully
+        if (isAllowlisted || insertedProfile.is_platform_admin) {
+          try { localStorage.setItem('admin_profile_cache', JSON.stringify(insertedProfile)); } catch { /* ignore */ }
+          setState({
+            adminUser: insertedProfile,
+            authStatus: 'authenticated',
+            supabaseSession: authData.session,
+            authError: null,
+          });
+          signInInFlight = false;
+          return { data: insertedProfile, error: null };
+        } else {
+          if (!signOutInFlight) {
+            signOutInFlight = true;
+            await supabase.auth.signOut();
+            signOutInFlight = false;
+          }
+          signInInFlight = false;
+          return { error: { message: 'Access denied. Platform administrator access required.' } };
+        }
       }
-      
-      console.debug('[AdminAuth] Profile fetched, is_platform_admin:', profile.is_platform_admin);
 
-      // STEP 3: Verify is_platform_admin flag
-      if (!profile.is_platform_admin) {
-        console.debug('[AdminAuth] User is not a platform admin, signing out');
-        // Use guard for signOut to prevent race conditions
+      // STEP 3: Verify is_platform_admin flag OR allowlist
+      const hasAdminAccess = profile.is_platform_admin || isAllowlisted;
+      console.log('[AdminAuth] Admin access check:', { 
+        is_platform_admin: profile.is_platform_admin, 
+        isAllowlisted, 
+        hasAdminAccess 
+      });
+      
+      if (!hasAdminAccess) {
+        console.log('[AdminAuth] User is NOT a platform admin and NOT in allowlist, signing out');
         if (!signOutInFlight) {
           signOutInFlight = true;
           await supabase.auth.signOut();
@@ -308,20 +558,21 @@ export function useAdminAuth() {
       }
 
       // STEP 4: Success - update state and cache
-      console.debug('[AdminAuth] signIn successful, updating state');
+      console.log('[AdminAuth] === SIGN IN SUCCESSFUL ===');
       try { localStorage.setItem('admin_profile_cache', JSON.stringify(profile)); } catch { /* ignore */ }
       setState({
         adminUser: profile,
         authStatus: 'authenticated',
         supabaseSession: authData.session,
+        authError: null,
       });
 
       signInInFlight = false;
       return { data: profile, error: null };
     } catch (error) {
-      console.error('[AdminAuth] signIn unexpected error:', error);
+      console.error('[AdminAuth] signIn UNEXPECTED ERROR:', error);
       signInInFlight = false;
-      return { error: { message: 'Authentication failed' } };
+      return { error: { message: error instanceof Error ? error.message : 'Authentication failed' } };
     }
   };
 
@@ -332,6 +583,7 @@ export function useAdminAuth() {
       adminUser: null,
       authStatus: 'unauthenticated',
       supabaseSession: null,
+      authError: null,
     });
 
     // Sign out from Supabase (single source of truth)
@@ -346,6 +598,7 @@ export function useAdminAuth() {
   return {
     adminUser: state.adminUser,
     authStatus: state.authStatus,
+    authError: state.authError,
     isAuthenticated,
     supabaseSession: state.supabaseSession,
     loading,
