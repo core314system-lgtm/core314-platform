@@ -119,6 +119,29 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
       betaCapacity: 25,
     });
 
+    // Debug instrumentation state
+    interface DebugLogEntry {
+      timestamp: string;
+      step: string;
+      status: 'info' | 'success' | 'error' | 'pending';
+      details?: string;
+    }
+    const [debugLog, setDebugLog] = useState<DebugLogEntry[]>([]);
+    const [showDebugPanel, setShowDebugPanel] = useState(true); // Always show for debugging
+
+    const addDebugLog = (step: string, status: DebugLogEntry['status'], details?: string) => {
+      const entry: DebugLogEntry = {
+        timestamp: new Date().toISOString().split('T')[1].split('.')[0],
+        step,
+        status,
+        details,
+      };
+      setDebugLog(prev => [...prev, entry]);
+      console.log(`[DEBUG] ${entry.timestamp} - ${step}: ${status}${details ? ` - ${details}` : ''}`);
+    };
+
+    const clearDebugLog = () => setDebugLog([]);
+
     useEffect(() => {
       if (activeTab === 'beta-users') {
         fetchBetaUsers();
@@ -315,58 +338,137 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     };
 
     const sendBetaInvitation = async () => {
+      // Clear previous debug log and start fresh
+      clearDebugLog();
+      addDebugLog('onClick fired', 'success', 'Button click detected');
+      addDebugLog('Handler entered', 'success', 'sendBetaInvitation() called');
+
       if (!inviteEmail.trim()) {
+        addDebugLog('Validation failed', 'error', 'Email is required');
         toast.error('Email is required');
         return;
       }
 
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
+        addDebugLog('Validation failed', 'error', 'Invalid email format');
         toast.error('Invalid email format');
         return;
       }
 
+      addDebugLog('Validation passed', 'success', `Email: ${inviteEmail}`);
       setSendingInvite(true);
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Step 1: Get session
+        addDebugLog('Getting session', 'pending', 'Calling supabase.auth.getSession()');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          addDebugLog('Session error', 'error', sessionError.message);
+          toast.error(`Session error: ${sessionError.message}`);
+          return;
+        }
+        
         if (!session) {
-          toast.error('Not authenticated');
+          addDebugLog('No session', 'error', 'User not authenticated');
+          toast.error('Not authenticated - no session found');
+          return;
+        }
+        
+        addDebugLog('Session obtained', 'success', `User: ${session.user.email}, Token: ${session.access_token.substring(0, 20)}...`);
+
+        // Step 2: Get Edge Function URL
+        addDebugLog('Getting function URL', 'pending', 'Calling getSupabaseFunctionUrl()');
+        let url: string;
+        try {
+          url = await getSupabaseFunctionUrl('admin-messaging');
+          addDebugLog('Function URL resolved', 'success', url);
+        } catch (urlError) {
+          addDebugLog('URL resolution failed', 'error', urlError instanceof Error ? urlError.message : 'Unknown error');
+          toast.error('Failed to resolve Edge Function URL');
           return;
         }
 
-        const url = await getSupabaseFunctionUrl('admin-messaging');
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            action: 'send_beta_invite',
-            recipient_email: inviteEmail.trim(),
-            recipient_name: inviteName.trim() || undefined,
-            recipient_company: inviteCompany.trim() || undefined,
-            admin_user_id: session.user.id,
-          }),
-        });
+        // Step 3: Send request
+        const requestBody = {
+          action: 'send_beta_invite',
+          recipient_email: inviteEmail.trim(),
+          recipient_name: inviteName.trim() || undefined,
+          recipient_company: inviteCompany.trim() || undefined,
+          admin_user_id: session.user.id,
+        };
+        addDebugLog('Sending request', 'pending', `POST ${url} - Body: ${JSON.stringify(requestBody)}`);
 
-        const result = await response.json();
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+          addDebugLog('Response received', 'info', `Status: ${response.status} ${response.statusText}`);
+        } catch (fetchError) {
+          addDebugLog('Fetch failed', 'error', fetchError instanceof Error ? fetchError.message : 'Network error');
+          toast.error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to send request'}`);
+          return;
+        }
+
+        // Step 4: Parse response (handle non-JSON responses)
+        addDebugLog('Parsing response', 'pending', 'Reading response body');
+        let responseText: string;
+        try {
+          responseText = await response.text();
+          addDebugLog('Response body', 'info', responseText.substring(0, 500));
+        } catch (textError) {
+          addDebugLog('Failed to read response', 'error', textError instanceof Error ? textError.message : 'Unknown error');
+          toast.error('Failed to read response from server');
+          return;
+        }
+
+        // Try to parse as JSON
+        let result: { success?: boolean; error?: string; invitation?: unknown };
+        try {
+          result = JSON.parse(responseText);
+          addDebugLog('JSON parsed', 'success', `success: ${result.success}, error: ${result.error || 'none'}`);
+        } catch {
+          addDebugLog('JSON parse failed', 'error', `Response is not JSON: ${responseText.substring(0, 200)}`);
+          toast.error(`Server returned non-JSON response (status ${response.status}): ${responseText.substring(0, 100)}`);
+          return;
+        }
+
+        // Step 5: Handle result
+        if (!response.ok) {
+          addDebugLog('HTTP error', 'error', `Status ${response.status}: ${result.error || responseText}`);
+          toast.error(`Server error (${response.status}): ${result.error || 'Unknown error'}`);
+          return;
+        }
 
         if (result.success) {
+          addDebugLog('SUCCESS', 'success', `Invitation sent to ${inviteEmail}`);
           toast.success(`Beta invitation sent to ${inviteEmail}`);
           // Clear form
           setInviteEmail('');
           setInviteName('');
           setInviteCompany('');
           // Refresh data
+          addDebugLog('Refreshing list', 'pending', 'Calling fetchInvitations()');
           await fetchInvitations();
+          addDebugLog('List refreshed', 'success', 'Invitations list updated');
         } else {
-          throw new Error(result.error || 'Failed to send invitation');
+          addDebugLog('API returned failure', 'error', result.error || 'No error message provided');
+          toast.error(result.error || 'Failed to send invitation');
         }
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        addDebugLog('Unexpected error', 'error', errorMsg);
         console.error('Error sending invitation:', error);
-        toast.error(error instanceof Error ? error.message : 'Failed to send invitation');
+        toast.error(`Unexpected error: ${errorMsg}`);
       } finally {
         setSendingInvite(false);
+        addDebugLog('Handler complete', 'info', 'sendBetaInvitation() finished');
       }
     };
 
@@ -1238,35 +1340,80 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
 
             {activeTab === 'alerts' && <AlertsPanel />}
 
-            {activeTab === 'invitations' && (
-              <div className="space-y-6">
-                {/* Beta Capacity Indicator */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Beta Capacity</h3>
-                    <span className="text-sm text-gray-500">
-                      {invitationStats.accepted} / {invitationStats.betaCapacity} spots filled
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className={`h-3 rounded-full ${
-                        invitationStats.accepted >= invitationStats.betaCapacity 
-                          ? 'bg-red-500' 
-                          : invitationStats.accepted >= invitationStats.betaCapacity * 0.8 
-                            ? 'bg-yellow-500' 
-                            : 'bg-green-500'
-                      }`}
-                      style={{ width: `${Math.min((invitationStats.accepted / invitationStats.betaCapacity) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-gray-500">
-                    <span>{invitationStats.total} total invitations</span>
-                    <span>{invitationStats.sent} sent, {invitationStats.accepted} accepted</span>
-                  </div>
-                </div>
+                        {activeTab === 'invitations' && (
+                          <div className="space-y-6">
+                            {/* DEBUG PANEL - Visible instrumentation for troubleshooting */}
+                            <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-lg font-bold text-yellow-800 flex items-center gap-2">
+                                  <AlertTriangle className="w-5 h-5" />
+                                  DEBUG PANEL - Invitation Flow Instrumentation
+                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={clearDebugLog}
+                                  className="px-3 py-1 text-sm bg-yellow-200 text-yellow-800 rounded hover:bg-yellow-300"
+                                >
+                                  Clear Log
+                                </button>
+                              </div>
+                              <div className="bg-white rounded border border-yellow-300 p-3 max-h-64 overflow-y-auto font-mono text-xs">
+                                {debugLog.length === 0 ? (
+                                  <p className="text-gray-500 italic">No debug events yet. Click "Send Invitation" to see the flow.</p>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {debugLog.map((entry, idx) => (
+                                      <div 
+                                        key={idx} 
+                                        className={`p-1 rounded ${
+                                          entry.status === 'success' ? 'bg-green-100 text-green-800' :
+                                          entry.status === 'error' ? 'bg-red-100 text-red-800' :
+                                          entry.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}
+                                      >
+                                        <span className="font-bold">[{entry.timestamp}]</span>{' '}
+                                        <span className="font-semibold">{entry.step}</span>
+                                        {entry.details && (
+                                          <span className="ml-2 text-xs opacity-80">- {entry.details}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <p className="mt-2 text-xs text-yellow-700">
+                                This panel shows each step of the invitation send process. Look for errors here if the button appears to do nothing.
+                              </p>
+                            </div>
 
-                {/* Send Invitation Form */}
+                            {/* Beta Capacity Indicator */}
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">Beta Capacity</h3>
+                                <span className="text-sm text-gray-500">
+                                  {invitationStats.accepted} / {invitationStats.betaCapacity} spots filled
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-3">
+                                <div 
+                                  className={`h-3 rounded-full ${
+                                    invitationStats.accepted >= invitationStats.betaCapacity 
+                                      ? 'bg-red-500' 
+                                      : invitationStats.accepted >= invitationStats.betaCapacity * 0.8 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-green-500'
+                                  }`}
+                                  style={{ width: `${Math.min((invitationStats.accepted / invitationStats.betaCapacity) * 100, 100)}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between mt-2 text-xs text-gray-500">
+                                <span>{invitationStats.total} total invitations</span>
+                                <span>{invitationStats.sent} sent, {invitationStats.accepted} accepted</span>
+                              </div>
+                            </div>
+
+                            {/* Send Invitation Form */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">

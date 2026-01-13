@@ -434,17 +434,27 @@ async function sendEmailWithTemplate(
   templateId: string,
   templateData: SendGridTemplateData
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  console.log('[SENDGRID] sendEmailWithTemplate called', { to, templateId });
+  
   const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
   const senderEmail = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'noreply@core314.com';
   const senderName = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
 
+  console.log('[SENDGRID] Config check', { 
+    hasApiKey: !!sendgridApiKey, 
+    apiKeyPrefix: sendgridApiKey?.substring(0, 10),
+    senderEmail, 
+    senderName 
+  });
+
   if (!sendgridApiKey) {
-    console.error('SENDGRID_API_KEY not configured');
-    return { success: false, error: 'Email service not configured' };
+    console.error('[SENDGRID] SENDGRID_API_KEY not configured');
+    return { success: false, error: 'Email service not configured - SENDGRID_API_KEY missing' };
   }
 
   // Check if using a real SendGrid template ID (starts with 'd-')
   const useTemplateId = templateId.startsWith('d-') && !templateId.includes('placeholder');
+  console.log('[SENDGRID] Template mode', { useTemplateId, templateId });
 
   try {
     let body: Record<string, unknown>;
@@ -467,6 +477,7 @@ async function sendEmailWithTemplate(
     } else {
       // Use fallback HTML templates
       const templateType = Object.entries(TEMPLATE_IDS).find(([, id]) => id === templateId)?.[0] || 'beta_invite';
+      console.log('[SENDGRID] Using fallback HTML template', { templateType });
       
       let html: string;
       let text: string;
@@ -505,6 +516,7 @@ async function sendEmailWithTemplate(
       };
     }
 
+    console.log('[SENDGRID] Sending request to SendGrid API');
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
@@ -514,19 +526,23 @@ async function sendEmailWithTemplate(
       body: JSON.stringify(body),
     });
 
+    console.log('[SENDGRID] Response received', { status: response.status, statusText: response.statusText });
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('SendGrid error:', errorText);
-      return { success: false, error: 'Failed to send email' };
+      console.error('[SENDGRID] SendGrid error response:', { status: response.status, body: errorText });
+      return { success: false, error: `SendGrid error (${response.status}): ${errorText}` };
     }
 
     // Extract message ID from headers if available
     const messageId = response.headers.get('X-Message-Id') || undefined;
+    console.log('[SENDGRID] Email sent successfully', { messageId });
 
     return { success: true, messageId };
   } catch (error) {
-    console.error('Email send error:', error);
-    return { success: false, error: 'Failed to send email' };
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[SENDGRID] Email send error:', { error: errorMsg, stack: error instanceof Error ? error.stack : undefined });
+    return { success: false, error: `Email send failed: ${errorMsg}` };
   }
 }
 
@@ -535,6 +551,14 @@ async function sendEmailWithTemplate(
 // =============================================================================
 
 serve(async (req) => {
+  // Generate request ID for tracing
+  const requestId = crypto.randomUUID().substring(0, 8);
+  const log = (step: string, data?: unknown) => {
+    console.log(`[${requestId}] ${step}`, data ? JSON.stringify(data) : '');
+  };
+
+  log('FUNCTION_ENTRY', { method: req.method, url: req.url });
+
   // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -544,55 +568,92 @@ serve(async (req) => {
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    log('CORS_PREFLIGHT', { status: 204 });
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   // Only allow POST
   if (req.method !== 'POST') {
+    log('METHOD_NOT_ALLOWED', { method: req.method });
     return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
+      JSON.stringify({ error: 'Method not allowed', request_id: requestId }),
       { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
   try {
+    // Check authorization header
+    const authHeader = req.headers.get('authorization');
+    log('AUTH_CHECK', { hasAuthHeader: !!authHeader, headerPrefix: authHeader?.substring(0, 20) });
+
+    // Decode JWT to get user info (for logging only - actual auth is done by Supabase)
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          log('JWT_DECODED', { 
+            sub: payload.sub, 
+            email: payload.email, 
+            role: payload.role,
+            exp: payload.exp,
+            aud: payload.aud
+          });
+        }
+      } catch (jwtError) {
+        log('JWT_DECODE_ERROR', { error: String(jwtError) });
+      }
+    }
+
     // Parse request body
+    log('PARSING_BODY', {});
     const body: SendMessageRequest = await req.json();
+    log('BODY_PARSED', { action: body.action, recipient_email: body.recipient_email, admin_user_id: body.admin_user_id });
 
     // Validate required fields
     if (!body.action || !body.recipient_email || !body.admin_user_id) {
+      log('VALIDATION_FAILED', { reason: 'Missing required fields' });
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: action, recipient_email, admin_user_id' }),
+        JSON.stringify({ error: 'Missing required fields: action, recipient_email, admin_user_id', request_id: requestId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.recipient_email)) {
+      log('VALIDATION_FAILED', { reason: 'Invalid email format', email: body.recipient_email });
       return new Response(
-        JSON.stringify({ error: 'Invalid email format' }),
+        JSON.stringify({ error: 'Invalid email format', request_id: requestId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    log('VALIDATION_PASSED', {});
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+    log('SUPABASE_CONFIG', { hasUrl: !!supabaseUrl, hasServiceKey: !!supabaseServiceKey });
+
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Supabase configuration missing');
+      log('CONFIG_ERROR', { reason: 'Supabase configuration missing' });
       return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
+        JSON.stringify({ error: 'Server configuration error', request_id: requestId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    log('SUPABASE_CLIENT_CREATED', {});
 
     // Determine message type and template
     const messageType = body.action.replace('send_', '');
     const templateName = MESSAGE_TYPE_TO_TEMPLATE[messageType] || 'beta_invite';
     const templateId = TEMPLATE_IDS[templateName as keyof typeof TEMPLATE_IDS] || TEMPLATE_IDS.beta_invite;
+
+    log('TEMPLATE_RESOLVED', { messageType, templateName, templateId });
 
     // Prepare template data
     const betaLink = Deno.env.get('BETA_SIGNUP_URL') || 'https://app.core314.com/beta-invite';
@@ -605,14 +666,19 @@ serve(async (req) => {
       support_email: supportEmail,
     };
 
+    log('TEMPLATE_DATA_PREPARED', { betaLink, supportEmail, hasName: !!body.recipient_name });
+
     // Send the email
+    log('SENDGRID_SEND_START', { recipient: body.recipient_email });
     const emailResult = await sendEmailWithTemplate(
       body.recipient_email,
       templateId,
       templateData
     );
+    log('SENDGRID_SEND_COMPLETE', { success: emailResult.success, messageId: emailResult.messageId, error: emailResult.error });
 
     // Log the message send
+    log('DB_LOG_START', {});
     const { data: logEntry, error: logError } = await supabase
       .from('admin_messaging_log')
       .insert({
@@ -632,11 +698,14 @@ serve(async (req) => {
       .single();
 
     if (logError) {
-      console.error('Failed to log message:', logError);
+      log('DB_LOG_ERROR', { error: logError.message });
+    } else {
+      log('DB_LOG_SUCCESS', { logId: logEntry?.id });
     }
 
     // If this is a beta invite, also create/update the beta_invitations record
     if (messageType === 'beta_invite' && emailResult.success) {
+      log('BETA_INVITATION_UPSERT_START', { email: body.recipient_email });
       const { error: inviteError } = await supabase
         .from('beta_invitations')
         .upsert({
@@ -653,36 +722,43 @@ serve(async (req) => {
         });
 
       if (inviteError) {
-        console.error('Failed to update beta invitation:', inviteError);
+        log('BETA_INVITATION_UPSERT_ERROR', { error: inviteError.message });
+      } else {
+        log('BETA_INVITATION_UPSERT_SUCCESS', {});
       }
     }
 
     // Return response
     if (emailResult.success) {
+      log('FUNCTION_SUCCESS', { logId: logEntry?.id, messageId: emailResult.messageId });
       return new Response(
         JSON.stringify({
           success: true,
           message: 'Email sent successfully',
           log_id: logEntry?.id,
           message_id: emailResult.messageId,
+          request_id: requestId,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
+      log('FUNCTION_FAILURE', { error: emailResult.error, logId: logEntry?.id });
       return new Response(
         JSON.stringify({
           success: false,
           error: emailResult.error || 'Failed to send email',
           log_id: logEntry?.id,
+          request_id: requestId,
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    log('UNEXPECTED_ERROR', { error: errorMsg, stack: error instanceof Error ? error.stack : undefined });
     return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred' }),
+      JSON.stringify({ error: 'An unexpected error occurred', details: errorMsg, request_id: requestId }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
