@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
 import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig';
-import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell } from 'lucide-react';
+import { ClipboardList, RefreshCw, Eye, Save, CheckCircle, XCircle, MessageSquare, Key, Plus, BarChart3, TrendingDown, Activity, Bell, Send, UserPlus, RotateCcw, Clock, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AnalyticsPanel from './components/AnalyticsPanel';
 import ChurnPanel from './components/ChurnPanel';
@@ -59,7 +59,18 @@ interface AccessCode {
   created_at: string;
 }
 
-type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability' | 'alerts';
+type TabType = 'beta-users' | 'feedback' | 'access-codes' | 'analytics' | 'churn-intelligence' | 'reliability' | 'alerts' | 'invitations';
+
+interface BetaInvitation {
+  id: string;
+  email: string;
+  name?: string;
+  company?: string;
+  status: 'pending' | 'sent' | 'accepted' | 'expired' | 'revoked';
+  sent_count: number;
+  last_sent_at?: string;
+  created_at: string;
+}
 
 interface BetaOpsConsoleProps {
   defaultTab?: TabType;
@@ -93,19 +104,34 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     expires_at: '',
     notes: '',
   });
-  const [creatingCode, setCreatingCode] = useState(false);
+    const [creatingCode, setCreatingCode] = useState(false);
 
-  useEffect(() => {
-    if (activeTab === 'beta-users') {
-      fetchBetaUsers();
-    } else if (activeTab === 'feedback') {
-      fetchFeedback();
-    } else if (activeTab === 'access-codes') {
-      fetchAccessCodes();
-    } else if (activeTab === 'analytics') {
-      setLoading(false);
-    }
-  }, [activeTab]);
+    // Invitations state
+    const [invitations, setInvitations] = useState<BetaInvitation[]>([]);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteName, setInviteName] = useState('');
+    const [inviteCompany, setInviteCompany] = useState('');
+    const [sendingInvite, setSendingInvite] = useState(false);
+    const [invitationStats, setInvitationStats] = useState({
+      total: 0,
+      sent: 0,
+      accepted: 0,
+      betaCapacity: 25,
+    });
+
+    useEffect(() => {
+      if (activeTab === 'beta-users') {
+        fetchBetaUsers();
+      } else if (activeTab === 'feedback') {
+        fetchFeedback();
+      } else if (activeTab === 'access-codes') {
+        fetchAccessCodes();
+      } else if (activeTab === 'analytics') {
+        setLoading(false);
+      } else if (activeTab === 'invitations') {
+        fetchInvitations();
+      }
+    }, [activeTab]);
 
   const fetchBetaUsers = async () => {
     try {
@@ -245,21 +271,164 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
     }
   };
 
-  const fetchAccessCodes = async () => {
-    try {
-      setLoading(true);
+    const fetchAccessCodes = async () => {
+      try {
+        setLoading(true);
 
-      toast('Access codes feature not yet available in simplified schema');
-      setAccessCodes([]);
-    } catch (error) {
-      console.error('Error fetching access codes:', error);
-      toast.error('Failed to load access codes');
-    } finally {
-      setLoading(false);
-    }
-  };
+        toast('Access codes feature not yet available in simplified schema');
+        setAccessCodes([]);
+      } catch (error) {
+        console.error('Error fetching access codes:', error);
+        toast.error('Failed to load access codes');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleViewAllEvents = async (userId: string) => {
+    const fetchInvitations = async () => {
+      try {
+        setLoading(true);
+
+        const { data, error } = await supabase
+          .from('beta_invitations')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setInvitations(data || []);
+
+        // Update stats
+        const sent = data?.filter(i => i.status === 'sent').length || 0;
+        const accepted = data?.filter(i => i.status === 'accepted').length || 0;
+        setInvitationStats(prev => ({
+          ...prev,
+          total: data?.length || 0,
+          sent,
+          accepted,
+        }));
+      } catch (error) {
+        console.error('Error fetching invitations:', error);
+        toast.error('Failed to load invitations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const sendBetaInvitation = async () => {
+      if (!inviteEmail.trim()) {
+        toast.error('Email is required');
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
+        toast.error('Invalid email format');
+        return;
+      }
+
+      setSendingInvite(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const url = await getSupabaseFunctionUrl('admin-messaging');
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'send_beta_invite',
+            recipient_email: inviteEmail.trim(),
+            recipient_name: inviteName.trim() || undefined,
+            recipient_company: inviteCompany.trim() || undefined,
+            admin_user_id: session.user.id,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          toast.success(`Beta invitation sent to ${inviteEmail}`);
+          // Clear form
+          setInviteEmail('');
+          setInviteName('');
+          setInviteCompany('');
+          // Refresh data
+          await fetchInvitations();
+        } else {
+          throw new Error(result.error || 'Failed to send invitation');
+        }
+      } catch (error) {
+        console.error('Error sending invitation:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to send invitation');
+      } finally {
+        setSendingInvite(false);
+      }
+    };
+
+    const resendInvitation = async (invitation: BetaInvitation) => {
+      setSendingInvite(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const url = await getSupabaseFunctionUrl('admin-messaging');
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'send_beta_reminder',
+            recipient_email: invitation.email,
+            recipient_name: invitation.name || undefined,
+            recipient_company: invitation.company || undefined,
+            admin_user_id: session.user.id,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          toast.success(`Reminder sent to ${invitation.email}`);
+          await fetchInvitations();
+        } else {
+          throw new Error(result.error || 'Failed to send reminder');
+        }
+      } catch (error) {
+        console.error('Error sending reminder:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to send reminder');
+      } finally {
+        setSendingInvite(false);
+      }
+    };
+
+    const getInvitationStatusBadge = (status: string) => {
+      switch (status) {
+        case 'pending':
+          return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />Pending</span>;
+        case 'sent':
+          return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"><Send className="w-3 h-3 mr-1" />Sent</span>;
+        case 'accepted':
+          return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Accepted</span>;
+        case 'expired':
+          return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><AlertTriangle className="w-3 h-3 mr-1" />Expired</span>;
+        case 'revoked':
+          return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Revoked</span>;
+        default:
+          return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status}</span>;
+      }
+    };
+
+    const handleViewAllEvents = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('beta_events')
@@ -621,19 +790,19 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
               )}
             </button>
           )}
-          {activeTab !== 'analytics' && activeTab !== 'churn-intelligence' && activeTab !== 'reliability' && activeTab !== 'alerts' && (
-            <button
-              onClick={() => {
-                if (activeTab === 'beta-users') fetchBetaUsers();
-                else if (activeTab === 'feedback') fetchFeedback();
-                else if (activeTab === 'access-codes') fetchAccessCodes();
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          )}
+                    {activeTab !== 'analytics' && activeTab !== 'churn-intelligence' && activeTab !== 'reliability' && activeTab !== 'alerts' && activeTab !== 'invitations' && (
+                      <button
+                        onClick={() => {
+                          if (activeTab === 'beta-users') fetchBetaUsers();
+                          else if (activeTab === 'feedback') fetchFeedback();
+                          else if (activeTab === 'access-codes') fetchAccessCodes();
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh
+                      </button>
+                    )}
         </div>
       </div>
 
@@ -691,21 +860,34 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
               Analytics
             </div>
           </button>
-          <button
-            onClick={() => setActiveTab('churn-intelligence')}
-            className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-              activeTab === 'churn-intelligence'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <TrendingDown className="w-4 h-4" />
-              Churn Intelligence
+                <button
+                  onClick={() => setActiveTab('churn-intelligence')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                    activeTab === 'churn-intelligence'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4" />
+                    Churn Intelligence
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('invitations')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                    activeTab === 'invitations'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    Invitations
+                  </div>
+                </button>
+              </div>
             </div>
-          </button>
-        </div>
-      </div>
 
       {activeTab === 'beta-users' && (
         <>
@@ -1054,9 +1236,187 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
 
       {activeTab === 'reliability' && <ReliabilityPanel />}
 
-      {activeTab === 'alerts' && <AlertsPanel />}
+            {activeTab === 'alerts' && <AlertsPanel />}
 
-      {/* Events Modal */}
+            {activeTab === 'invitations' && (
+              <div className="space-y-6">
+                {/* Beta Capacity Indicator */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Beta Capacity</h3>
+                    <span className="text-sm text-gray-500">
+                      {invitationStats.accepted} / {invitationStats.betaCapacity} spots filled
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className={`h-3 rounded-full ${
+                        invitationStats.accepted >= invitationStats.betaCapacity 
+                          ? 'bg-red-500' 
+                          : invitationStats.accepted >= invitationStats.betaCapacity * 0.8 
+                            ? 'bg-yellow-500' 
+                            : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min((invitationStats.accepted / invitationStats.betaCapacity) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-gray-500">
+                    <span>{invitationStats.total} total invitations</span>
+                    <span>{invitationStats.sent} sent, {invitationStats.accepted} accepted</span>
+                  </div>
+                </div>
+
+                {/* Send Invitation Form */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Send className="w-5 h-5" />
+                      Send Beta Invitation
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Send a beta invitation email directly. No confirmation dialogs—click send and it goes.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="recipient@company.com"
+                        className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
+                      <input
+                        type="text"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                        placeholder="John Smith"
+                        className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Company (optional)</label>
+                      <input
+                        type="text"
+                        value={inviteCompany}
+                        onChange={(e) => setInviteCompany(e.target.value)}
+                        placeholder="Acme Corp"
+                        className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={sendBetaInvitation}
+                        disabled={sendingInvite || !inviteEmail.trim()}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {sendingInvite ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Send Invitation
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sent Invitations List */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Sent Invitations ({invitations.length})
+                      </h3>
+                      <button
+                        onClick={fetchInvitations}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">Track and resend beta invitations</p>
+                  </div>
+                  {loading ? (
+                    <div className="p-12 text-center">
+                      <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mx-auto" />
+                      <p className="text-gray-500 mt-2">Loading invitations...</p>
+                    </div>
+                  ) : invitations.length === 0 ? (
+                    <div className="p-12 text-center text-gray-500">
+                      No invitations sent yet
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {invitations.map((invitation) => (
+                            <tr key={invitation.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm font-medium text-gray-900">{invitation.email}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-600">{invitation.name || '—'}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="text-sm text-gray-600">{invitation.company || '—'}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {getInvitationStatusBadge(invitation.status)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-600">
+                                  {invitation.last_sent_at 
+                                    ? formatDate(invitation.last_sent_at)
+                                    : formatDate(invitation.created_at)}
+                                  {invitation.sent_count > 1 && (
+                                    <span className="text-xs text-gray-400 ml-1">
+                                      ({invitation.sent_count}x)
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <button
+                                  onClick={() => resendInvitation(invitation)}
+                                  disabled={sendingInvite || invitation.status === 'accepted'}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  Resend
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Events Modal */}
       {showEventsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden">
