@@ -17,6 +17,7 @@ import TermsPage from './pages/TermsPage';
 import CookiesPage from './pages/CookiesPage';
 import DPAPage from './pages/DPAPage';
 import AIDisclaimerPage from './pages/AIDisclaimerPage';
+import PartnersPage from './pages/PartnersPage';
 import './App.css';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
                 <Route path="/cookies" element={<CookiesPage />} />
                 <Route path="/dpa" element={<DPAPage />} />
                 <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
+                <Route path="/partners" element={<PartnersPage />} />
       </Routes>
     </Router>
   );
