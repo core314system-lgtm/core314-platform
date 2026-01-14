@@ -351,19 +351,14 @@ export function useAdminAuth() {
           authError: null,
         });
       } else if (event === 'SIGNED_IN') {
-        // Skip admin check if signIn() is in progress - it will handle the check
-        // This prevents race conditions where multiple hook instances all try to
-        // verify admin status and potentially call signOut() concurrently
-        if (signInInFlight) {
-          console.debug('[AdminAuth] Skipping SIGNED_IN handling - signIn in progress');
-          return;
-        }
-        
-        // Check allowlist for this user
+        // Check allowlist FIRST - allowlisted users always get immediate access
+        // This must happen BEFORE the signInInFlight check to ensure ALL hook instances
+        // (including route guards) get the authenticated state for allowlisted users
         const userEmail = session.user.email || '';
         const isAllowlisted = ADMIN_ALLOWLIST.includes(userEmail.toLowerCase());
         
         // ALLOWLIST SHORT-CIRCUIT: Grant immediate access without waiting for profile fetch
+        // This runs for ALL hook instances, not just the one that called signIn()
         if (isAllowlisted) {
           console.log('[AdminAuth] ALLOWLIST SHORT-CIRCUIT (SIGNED_IN): Granting immediate access');
           const syntheticProfile: User = {
@@ -403,6 +398,14 @@ export function useAdminAuth() {
             }
           }).catch(() => { /* ignore background fetch errors */ });
           
+          return;
+        }
+        
+        // For non-allowlisted users, skip if signIn() is in progress - it will handle the check
+        // This prevents race conditions where multiple hook instances all try to
+        // verify admin status and potentially call signOut() concurrently
+        if (signInInFlight) {
+          console.debug('[AdminAuth] Skipping SIGNED_IN handling for non-allowlisted user - signIn in progress');
           return;
         }
         
