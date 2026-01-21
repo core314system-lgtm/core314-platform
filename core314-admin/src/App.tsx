@@ -39,6 +39,7 @@ import { AddOnPurchases } from './pages/admin/AddOnPurchases';
 import Subscriptions from './pages/admin/Subscriptions';
 import BetaFeedback from './pages/admin/BetaFeedback';
 import BetaOpsConsole from './pages/admin/BetaOpsConsole';
+import { SystemIntelligenceSummary } from './pages/admin/SystemIntelligenceSummary';
 import HealthCheck from './pages/HealthCheck';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
@@ -80,6 +81,7 @@ function App() {
           <Route path="billing" element={<BillingOverview />} />
           <Route path="ai-logs" element={<AILogs />} />
           <Route path="system-health" element={<SystemHealth />} />
+          <Route path="system-intelligence" element={<SystemIntelligenceSummary />} />
           <Route path="self-healing" element={<SelfHealingActivity />} />
           <Route path="adaptive-workflows" element={<AdaptiveWorkflows />} />
           <Route path="fusion-risk-dashboard" element={<FusionRiskDashboard />} />
