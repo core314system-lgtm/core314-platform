@@ -3,6 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { SystemHealth as SystemHealthType } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import { 
   Activity, 
   CheckCircle2, 
@@ -13,7 +20,8 @@ import {
   TrendingDown,
   Minus,
   Signal,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react';
 
 /**
@@ -24,14 +32,21 @@ import {
  * 
  * Data Sources:
  * - system_health table: Platform-level service health (already used by SystemHealth.tsx)
+ * - trust_graph_dashboard view: Organization data with trust metrics (already used by TrustGraph.tsx)
+ * - system_health_events table: Org-scoped health events (has organization_id column)
  * 
  * Required Fields:
- * 1. System Status: Derived from system_health table aggregation
- * 2. Execution Mode: Platform-level not available (user-scoped in production)
- * 3. Fusion Health: Platform-level not available (user-scoped in production)
- * 4. Trend: Insufficient historical data (no platform-level trend exists)
- * 5. Primary Signals: From system_health service names and statuses
- * 6. Confidence Level: Derived from service health data availability
+ * 1. System Status: Derived from system_health table (platform) or system_health_events (org)
+ * 2. Execution Mode: Not available at platform or org level (user-scoped only)
+ * 3. Fusion Health: Not available at platform or org level (user-scoped only)
+ * 4. Trend: Insufficient historical data (no platform/org-level trend exists)
+ * 5. Primary Signals: From system_health (platform) or system_health_events (org)
+ * 6. Confidence Level: Derived from data availability
+ * 
+ * Organization Selector:
+ * - Lists organizations from trust_graph_dashboard (same pattern as TrustGraph.tsx)
+ * - Default: "Platform Overview" shows platform-level intelligence
+ * - Selecting an org switches to org-scoped view using system_health_events
  */
 
 type PlatformStatus = 'Healthy' | 'Degraded' | 'Down';
@@ -43,33 +58,111 @@ interface PrimarySignal {
   status: 'healthy' | 'degraded' | 'down';
 }
 
+interface Organization {
+  id: string;
+  name: string;
+}
+
+interface SystemHealthEvent {
+  id: string;
+  organization_id: string | null;
+  component_type: string;
+  component_name: string;
+  status: string;
+  created_at: string;
+}
+
+interface TrustGraphRecord {
+  organization_id: string | null;
+  organization_name: string | null;
+}
+
 export function SystemIntelligenceSummary() {
   const [services, setServices] = useState<SystemHealthType[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('platform');
+  const [orgHealthEvents, setOrgHealthEvents] = useState<SystemHealthEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
-    fetchSystemHealth();
-    const interval = setInterval(fetchSystemHealth, 30000);
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchSystemHealth = async () => {
+  useEffect(() => {
+    if (selectedOrgId !== 'platform') {
+      fetchOrgHealthEvents(selectedOrgId);
+    }
+  }, [selectedOrgId]);
+
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch platform-level system health
+      const { data: healthData, error: healthError } = await supabase
         .from('system_health')
         .select('*')
         .order('last_check_at', { ascending: false });
 
-      if (error) throw error;
-      setServices(data || []);
+      if (healthError) throw healthError;
+      setServices(healthData || []);
+
+      // Fetch organizations from trust_graph_dashboard (same pattern as TrustGraph.tsx)
+      // This ensures we only show orgs that have intelligence data available
+      const { data: trustData, error: trustError } = await supabase
+        .from('trust_graph_dashboard')
+        .select('organization_id, organization_name');
+
+      if (!trustError && trustData) {
+        // Extract unique organizations (same pattern as TrustGraph.tsx)
+        const uniqueOrgs = new Map<string, string>();
+        (trustData as TrustGraphRecord[]).forEach(record => {
+          if (record.organization_id && record.organization_name) {
+            uniqueOrgs.set(record.organization_id, record.organization_name);
+          }
+        });
+        
+        const orgList: Organization[] = Array.from(uniqueOrgs.entries()).map(([id, name]) => ({
+          id,
+          name,
+        }));
+        setOrganizations(orgList);
+      }
+
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error fetching system health:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchOrgHealthEvents = async (orgId: string) => {
+    try {
+      // Fetch system_health_events for the selected organization
+      // This table has organization_id column and admin RLS policy
+      const { data, error } = await supabase
+        .from('system_health_events')
+        .select('id, organization_id, component_type, component_name, status, created_at')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('Error fetching org health events:', error);
+        setOrgHealthEvents([]);
+      } else {
+        setOrgHealthEvents(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching org health events:', error);
+      setOrgHealthEvents([]);
+    }
+  };
+
+  const isOrgView = selectedOrgId !== 'platform';
+  const selectedOrg = organizations.find(o => o.id === selectedOrgId);
 
   /**
    * Derive Platform System Status from system_health table
@@ -88,29 +181,82 @@ export function SystemIntelligenceSummary() {
   };
 
   /**
-   * Derive Confidence Level from service health data availability
-   * Rule: No services -> Low, some services -> Medium, 3+ healthy services -> High
+   * Derive Org System Status from system_health_events table
+   * Maps system_health_events.status (healthy/degraded/unhealthy/critical) to panel tri-state
+   * Rule: If any critical/unhealthy -> Down, if any degraded -> Degraded, else Healthy
+   */
+  const deriveOrgStatus = (): PlatformStatus | null => {
+    if (orgHealthEvents.length === 0) return null;
+    
+    const hasDown = orgHealthEvents.some(e => 
+      e.status === 'critical' || e.status === 'unhealthy'
+    );
+    if (hasDown) return 'Down';
+    
+    const hasDegraded = orgHealthEvents.some(e => e.status === 'degraded');
+    if (hasDegraded) return 'Degraded';
+    
+    return 'Healthy';
+  };
+
+  /**
+   * Derive Confidence Level from data availability
+   * Platform: Based on service health data
+   * Org: Based on health events data
    */
   const deriveConfidenceLevel = (): ConfidenceLevel => {
+    if (isOrgView) {
+      if (orgHealthEvents.length === 0) return 'Confidence pending sufficient data';
+      const healthyCount = orgHealthEvents.filter(e => e.status === 'healthy').length;
+      if (healthyCount >= 3) return 'High';
+      if (orgHealthEvents.length >= 2) return 'Medium';
+      return 'Low';
+    }
+    
     if (services.length === 0) return 'Confidence pending sufficient data';
-    
     const healthyCount = services.filter(s => s.status === 'healthy').length;
-    
     if (healthyCount >= 3) return 'High';
     if (services.length >= 2) return 'Medium';
     return 'Low';
   };
 
   /**
-   * Get Primary Signals from system_health services
-   * Returns top 5 services sorted by status (down first, then degraded, then healthy)
+   * Get Primary Signals
+   * Platform: From system_health services
+   * Org: From system_health_events components
    */
   const getPrimarySignals = (): PrimarySignal[] => {
-    const statusPriority = { down: 0, degraded: 1, healthy: 2 };
+    const statusPriority: Record<string, number> = { down: 0, critical: 0, unhealthy: 0, degraded: 1, healthy: 2 };
+    
+    if (isOrgView) {
+      // Map system_health_events status to panel tri-state
+      const mapStatus = (status: string): 'healthy' | 'degraded' | 'down' => {
+        if (status === 'critical' || status === 'unhealthy') return 'down';
+        if (status === 'degraded') return 'degraded';
+        return 'healthy';
+      };
+      
+      // Get unique components with their worst status
+      const componentMap = new Map<string, string>();
+      orgHealthEvents.forEach(e => {
+        const existing = componentMap.get(e.component_name);
+        if (!existing || (statusPriority[e.status] ?? 2) < (statusPriority[existing] ?? 2)) {
+          componentMap.set(e.component_name, e.status);
+        }
+      });
+      
+      return Array.from(componentMap.entries())
+        .sort((a, b) => (statusPriority[a[1]] ?? 2) - (statusPriority[b[1]] ?? 2))
+        .slice(0, 5)
+        .map(([name, status]) => ({
+          name,
+          status: mapStatus(status),
+        }));
+    }
     
     return services
       .slice()
-      .sort((a, b) => statusPriority[a.status] - statusPriority[b.status])
+      .sort((a, b) => (statusPriority[a.status] ?? 2) - (statusPriority[b.status] ?? 2))
       .slice(0, 5)
       .map(s => ({
         name: s.service_name,
@@ -118,12 +264,13 @@ export function SystemIntelligenceSummary() {
       }));
   };
 
-  const platformStatus = derivePlatformStatus();
+  const systemStatus = isOrgView ? deriveOrgStatus() : derivePlatformStatus();
   const confidenceLevel = deriveConfidenceLevel();
   const primarySignals = getPrimarySignals();
   const trend: TrendDirection = 'Insufficient historical data';
 
-  const getStatusIcon = (status: PlatformStatus) => {
+  const getStatusIcon = (status: PlatformStatus | null) => {
+    if (!status) return <Minus className="h-6 w-6 text-gray-400" />;
     switch (status) {
       case 'Healthy':
         return <CheckCircle2 className="h-6 w-6 text-green-500" />;
@@ -134,7 +281,8 @@ export function SystemIntelligenceSummary() {
     }
   };
 
-  const getStatusBadgeColor = (status: PlatformStatus) => {
+  const getStatusBadgeColor = (status: PlatformStatus | null) => {
+    if (!status) return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
     switch (status) {
       case 'Healthy':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
@@ -215,41 +363,106 @@ export function SystemIntelligenceSummary() {
           </span>
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Platform-level operational intelligence derived from existing system data
+          {isOrgView 
+            ? `Organization-scoped intelligence for ${selectedOrg?.name || 'selected organization'}`
+            : 'Platform-level operational intelligence derived from existing system data'
+          }
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Organization Selector */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-3 mb-3">
+            <Building2 className="h-5 w-5 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Intelligence Scope
+            </span>
+          </div>
+          <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select scope" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="platform">
+                <div className="flex items-center gap-2">
+                  <Cpu className="h-4 w-4" />
+                  Platform Overview
+                </div>
+              </SelectItem>
+              {organizations.length > 0 && (
+                <>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Organizations with Intelligence Data
+                  </div>
+                  {organizations.map(org => (
+                    <SelectItem key={org.id} value={org.id}>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        {org.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+            </SelectContent>
+          </Select>
+          {organizations.length === 0 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              No organizations with intelligence data available
+            </p>
+          )}
+        </div>
+
         {/* Row 1: System Status + Execution Mode */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* System Status */}
           <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                System Status
+                System Status {isOrgView && '(Org-Scoped)'}
               </span>
-              {getStatusIcon(platformStatus)}
+              {getStatusIcon(systemStatus)}
             </div>
-            <Badge className={`${getStatusBadgeColor(platformStatus)} text-sm px-3 py-1`}>
-              {platformStatus}
-            </Badge>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Derived from {services.length} monitored service{services.length !== 1 ? 's' : ''}
-            </p>
+            {systemStatus ? (
+              <>
+                <Badge className={`${getStatusBadgeColor(systemStatus)} text-sm px-3 py-1`}>
+                  {systemStatus}
+                </Badge>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  {isOrgView 
+                    ? `Derived from ${orgHealthEvents.length} health event${orgHealthEvents.length !== 1 ? 's' : ''} for this organization`
+                    : `Derived from ${services.length} monitored service${services.length !== 1 ? 's' : ''}`
+                  }
+                </p>
+              </>
+            ) : (
+              <>
+                <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-sm px-3 py-1">
+                  No health data available
+                </Badge>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  No system_health_events found for this organization
+                </p>
+              </>
+            )}
           </div>
 
           {/* Execution Mode */}
           <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Execution Mode
+                Execution Mode {isOrgView && '(Org-Scoped)'}
               </span>
               <Activity className="h-5 w-5 text-gray-400" />
             </div>
             <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-sm px-3 py-1">
-              Platform-level not available
+              {isOrgView ? 'Org-level not available' : 'Platform-level not available'}
             </Badge>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Execution mode is user-scoped (Baseline/Computed per tenant)
+              {isOrgView 
+                ? 'Execution mode (Baseline/Computed) is derived per-user, not per-organization'
+                : 'Execution mode is user-scoped (Baseline/Computed per tenant)'
+              }
             </p>
           </div>
         </div>
@@ -260,15 +473,18 @@ export function SystemIntelligenceSummary() {
           <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Fusion Health
+                Fusion Health {isOrgView && '(Org-Scoped)'}
               </span>
               <Shield className="h-5 w-5 text-gray-400" />
             </div>
             <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-sm px-3 py-1">
-              Platform-level not available
+              {isOrgView ? 'Org-level not available' : 'Platform-level not available'}
             </Badge>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Fusion scores are computed per-user from their connected integrations
+              {isOrgView 
+                ? 'Fusion scores are computed per-user from their connected integrations, not aggregated at org level'
+                : 'Fusion scores are computed per-user from their connected integrations'
+              }
             </p>
           </div>
 
@@ -276,7 +492,7 @@ export function SystemIntelligenceSummary() {
           <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Trend
+                Trend {isOrgView && '(Org-Scoped)'}
               </span>
               {getTrendIcon(trend)}
             </div>
@@ -284,7 +500,10 @@ export function SystemIntelligenceSummary() {
               {trend}
             </Badge>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Platform-level trend analysis requires historical aggregation
+              {isOrgView 
+                ? 'No historical trend data exists at organization scope'
+                : 'Platform-level trend analysis requires historical aggregation'
+              }
             </p>
           </div>
         </div>
@@ -293,13 +512,16 @@ export function SystemIntelligenceSummary() {
         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Primary Signals
+              Primary Signals {isOrgView && '(Org-Scoped)'}
             </span>
             <Signal className="h-5 w-5 text-blue-500" />
           </div>
           {primarySignals.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              No service signals available
+              {isOrgView 
+                ? 'No component signals available for this organization'
+                : 'No service signals available'
+              }
             </p>
           ) : (
             <div className="space-y-2">
@@ -322,7 +544,10 @@ export function SystemIntelligenceSummary() {
             </div>
           )}
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-            Showing top {primarySignals.length} service{primarySignals.length !== 1 ? 's' : ''} by status priority
+            {isOrgView 
+              ? `Showing ${primarySignals.length} component${primarySignals.length !== 1 ? 's' : ''} from system_health_events`
+              : `Showing top ${primarySignals.length} service${primarySignals.length !== 1 ? 's' : ''} by status priority`
+            }
           </p>
         </div>
 
@@ -330,7 +555,7 @@ export function SystemIntelligenceSummary() {
         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Confidence Level
+              Confidence Level {isOrgView && '(Org-Scoped)'}
             </span>
             <Activity className="h-5 w-5 text-blue-500" />
           </div>
@@ -338,15 +563,29 @@ export function SystemIntelligenceSummary() {
             {confidenceLevel}
           </Badge>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Based on service health data availability and coverage
+            {isOrgView 
+              ? 'Based on system_health_events data availability for this organization'
+              : 'Based on service health data availability and coverage'
+            }
           </p>
         </div>
 
         {/* Footer: Data Source Attribution */}
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            <strong>Data Sources:</strong> system_health table (platform-level service monitoring). 
-            User-scoped intelligence (Execution Mode, Fusion Health) is available per-tenant in the user application.
+            <strong>Data Sources:</strong>{' '}
+            {isOrgView ? (
+              <>
+                system_health_events table (org-scoped component monitoring), 
+                trust_graph_dashboard view (organization list).
+                User-scoped intelligence (Execution Mode, Fusion Health) is available per-user in the user application.
+              </>
+            ) : (
+              <>
+                system_health table (platform-level service monitoring).
+                User-scoped intelligence (Execution Mode, Fusion Health) is available per-tenant in the user application.
+              </>
+            )}
           </p>
         </div>
       </CardContent>
