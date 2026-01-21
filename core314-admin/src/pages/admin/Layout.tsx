@@ -85,18 +85,19 @@ const navGroups = [
       { path: '/reliability', label: 'Reliability Dashboard', icon: Activity },
     ]
   },
-  {
-    id: 'system-health',
-    label: 'System Health',
-    icon: HeartPulse,
-    items: [
-      { path: '/system-health', label: 'System Health', icon: Activity },
-      { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
-      { path: '/alerts', label: 'Alert Center', icon: Bell },
-      { path: '/notifications', label: 'Notification Center', icon: Bell },
-      { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
-    ]
-  },
+    {
+      id: 'system-health',
+      label: 'System Health',
+      icon: HeartPulse,
+      items: [
+        { path: '/system-intelligence', label: 'System Intelligence Summary', icon: Cpu },
+        { path: '/system-health', label: 'System Health', icon: Activity },
+        { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
+        { path: '/alerts', label: 'Alert Center', icon: Bell },
+        { path: '/notifications', label: 'Notification Center', icon: Bell },
+        { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
+      ]
+    },
   {
     id: 'beta-operations',
     label: 'Beta Operations',
