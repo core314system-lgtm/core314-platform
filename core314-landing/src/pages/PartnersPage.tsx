@@ -694,10 +694,16 @@ export default function PartnersPage() {
             >
               Interested in Partnering with Core314?
             </h2>
-            <PrimaryButton onClick={scrollToForm} className="bg-white text-sky-600 hover:bg-slate-100 shadow-lg">
+            {/* White button variant for dark background */}
+            <button
+              type="button"
+              onClick={scrollToForm}
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-sky-600 font-semibold rounded-lg shadow-lg hover:bg-slate-100 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
               Request Partner Invitation
               <ArrowRight className="w-5 h-5" />
-            </PrimaryButton>
+            </button>
           </AnimatedSection>
         </div>
       </section>
