@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, type Variants } from 'framer-motion';
 import { CheckCircle, Sparkles, TrendingUp, Shield, Users, Zap, ArrowRight } from 'lucide-react';
 import Footer from '../components/Footer';
 import { initSupabaseClient } from '../lib/supabase';
@@ -47,16 +47,19 @@ const initialFormData: FormData = {
 // ANIMATION VARIANTS
 // =============================================================================
 
-const fadeInUp = {
+// Cubic bezier easing for smooth animations (typed as tuple for Framer Motion)
+const EASE_OUT: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
+
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 24 },
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }
+    transition: { duration: 0.3, ease: EASE_OUT }
   }
 };
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
