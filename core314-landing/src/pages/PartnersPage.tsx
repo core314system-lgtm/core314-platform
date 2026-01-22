@@ -422,11 +422,7 @@ export default function PartnersPage() {
             <div className="flex items-center justify-center gap-3 mb-8">
               <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-sky-100 text-sky-700 text-sm font-medium rounded-full">
                 <Shield className="w-4 h-4" />
-                Invitation-Only Program
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-100 text-amber-700 text-sm font-medium rounded-full">
-                <Sparkles className="w-4 h-4" />
-                Coming Soon
+                Invitation-Only Program · Limited Early Partner Access
               </span>
             </div>
 
@@ -435,29 +431,23 @@ export default function PartnersPage() {
               className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight"
               style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
             >
-              Partner with Core314
+              Build a More Valuable Advisory Business with Core314
             </h1>
-            <p 
-              className="text-xl md:text-2xl text-slate-700 mb-4 max-w-3xl mx-auto"
-              style={{ fontFamily: 'Inter, sans-serif' }}
-            >
-              Deliver the Next Generation of Operational Intelligence
-            </p>
             <p 
               className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
-              Join a select group of enterprise advisors, integrators, and operators helping organizations make better decisions across complex systems.
+              Join an invitation-only partner program for enterprise advisors and integrators who want to deliver operational intelligence—not just tools—to their clients.
             </p>
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <PrimaryButton onClick={scrollToForm}>
-                Request Partner Invitation
+                Request an Invitation to Partner
                 <ArrowRight className="w-5 h-5" />
               </PrimaryButton>
               <SecondaryButton onClick={() => document.getElementById('why-partner')?.scrollIntoView({ behavior: 'smooth' })}>
-                Explore the Partner Program
+                See How the Partner Program Works
               </SecondaryButton>
             </div>
           </motion.div>
@@ -485,23 +475,23 @@ export default function PartnersPage() {
           >
             <ValueCard
               icon={Sparkles}
-              title="Differentiate Your Advisory Services"
-              description="Core314 delivers a unified intelligence layer across tools, teams, and workflows - enabling clarity where dashboards and disconnected systems fail."
+              title="Differentiate Your Practice at the Executive Level"
+              description="Give your clients something most advisors can't: a unified intelligence layer that makes complex operations understandable, actionable, and defensible at the leadership table."
             />
             <ValueCard
               icon={TrendingUp}
-              title="Increase Long-Term Client Value"
-              description="Partners embed Core314 into operating models, not one-off projects - driving stickier relationships and ongoing strategic relevance."
+              title="Become Embedded, Not Replaceable"
+              description="Partners don't &quot;hand off&quot; Core314. They integrate it into how clients operate—creating longer engagements, deeper trust, and ongoing strategic relevance."
             />
             <ValueCard
               icon={Shield}
-              title="Built for Complex, High-Stakes Environments"
-              description="Designed for organizations where decisions impact performance, compliance, and risk - not experimental automation."
+              title="Built for High-Stakes Environments"
+              description="Core314 is designed for organizations where decisions carry financial, operational, or compliance risk—making it safe to recommend in serious enterprise contexts."
             />
             <ValueCard
               icon={Zap}
-              title="Aligned, Recurring Growth"
-              description="Partners participate in long-term customer success through ongoing revenue alignment, not short-term referrals."
+              title="Aligned Long-Term Growth"
+              description="Partners participate in recurring revenue tied to sustained customer success—not one-time referrals or transactional deals."
             />
           </motion.div>
         </div>
@@ -689,11 +679,23 @@ export default function PartnersPage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <AnimatedSection>
             <h2 
-              className="text-3xl md:text-4xl font-bold text-white mb-8"
+              className="text-3xl md:text-4xl font-bold text-white mb-6"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             >
-              Interested in Partnering with Core314?
+              This Program Is Not Open to Everyone
             </h2>
+            <p 
+              className="text-lg text-slate-300 mb-4 max-w-2xl mx-auto"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              We are selectively onboarding a limited number of partners who advise organizations operating at scale and complexity.
+            </p>
+            <p 
+              className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              If accepted, you'll gain access to a platform designed to elevate how your clients make decisions—and how they see your value.
+            </p>
             {/* White button variant for dark background */}
             <button
               type="button"
@@ -701,9 +703,15 @@ export default function PartnersPage() {
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-sky-600 font-semibold rounded-lg shadow-lg hover:bg-slate-100 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900 transition-all duration-200"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             >
-              Request Partner Invitation
+              Request an Invitation to Partner
               <ArrowRight className="w-5 h-5" />
             </button>
+            <p 
+              className="text-sm text-slate-400 mt-4"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Partner invitations are reviewed individually. Submission does not guarantee acceptance.
+            </p>
           </AnimatedSection>
         </div>
       </section>
