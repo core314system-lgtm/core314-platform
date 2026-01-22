@@ -204,8 +204,8 @@ export default function AppScreenshotCarousel() {
               className="text-slate-600 mb-6 leading-relaxed"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
-              Real-time metrics, system health indicators, and AI-powered insights help you 
-              identify operational issues before they impact your customers or revenue. 
+                            Real-time metrics, system health indicators, and AI-governed insights help you 
+                            identify emerging operational risk conditions with full context.
               The interface is designed for clarity, so you can make informed decisions quickly.
             </p>
 
