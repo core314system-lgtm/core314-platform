@@ -160,7 +160,7 @@ export default async (request: Request, context: Context) => {
             <p class="greeting">Hello ${fullName},</p>
             
             <p class="text">
-              Welcome to Core314 — the future of business orchestration powered by AI. 
+              Welcome to Core314 — the future of operational intelligence and governance powered by AI. 
               Your account has been successfully created and your system is now live.
             </p>
             

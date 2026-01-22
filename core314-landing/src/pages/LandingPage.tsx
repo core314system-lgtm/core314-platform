@@ -58,7 +58,7 @@ export default function LandingPage() {
                       className="text-xl md:text-2xl text-slate-600 mb-4 max-w-4xl mx-auto leading-relaxed"
                       style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
                     >
-                      Core314 is an AI-powered operations platform that connects your systems, monitors performance in real time, and catches operational issues before they impact customers or revenue.
+                      Core314 is an AI-governed operational intelligence platform that connects your systems, monitors performance in real time, and identifies emerging operational risk conditions with full context.
                     </motion.p>
 
                     <motion.p
@@ -68,7 +68,7 @@ export default function LandingPage() {
                       className="text-lg text-slate-500 mb-8 max-w-3xl mx-auto leading-relaxed"
                       style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400 }}
                     >
-                      Core314 continuously observes how your systems actually behave — not what they claim — and builds intelligence from real operational patterns.
+                      Core314 continuously observes how your systems actually behave — not what they claim — and builds intelligence from real operational patterns. Core314 determines when AI is allowed to operate based on verified system state—and enforces that decision everywhere.
                     </motion.p>
 
           <motion.p
