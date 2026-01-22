@@ -490,15 +490,68 @@ export default function PartnersPage() {
             />
             <ValueCard
               icon={Zap}
-              title="Aligned Long-Term Growth"
-              description="Partners participate in recurring revenue tied to sustained customer success—not one-time referrals or transactional deals."
+              title="Aligned, Recurring Revenue Growth"
+              description="Approved partners earn 25% recurring revenue for the lifetime of referred customers—directly tied to retention and long-term success, not one-time referrals."
             />
           </motion.div>
         </div>
       </section>
 
-      {/* What Makes Core314 Different */}
+      {/* Partner Earnings & Incentives */}
       <section className="py-24 bg-slate-50">
+        <div className="max-w-6xl mx-auto px-4">
+          <AnimatedSection className="text-center mb-16">
+            <h2 
+              className="text-3xl md:text-4xl font-bold text-slate-900 mb-4"
+              style={{ fontFamily: 'Poppins, sans-serif' }}
+            >
+              Partner Earnings & Incentives
+            </h2>
+            <p 
+              className="text-lg text-slate-600 max-w-2xl mx-auto"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Designed for long-term alignment, not short-term referrals.
+            </p>
+          </AnimatedSection>
+
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-50px' }}
+            variants={staggerContainer}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            <ValueCard
+              icon={TrendingUp}
+              title="25% Recurring Revenue Share"
+              description="Approved partners earn a 25% recurring revenue share on customers they introduce to Core314. Revenue is tied to active subscriptions, ensuring incentives remain aligned with real, sustained value."
+            />
+            <ValueCard
+              icon={Shield}
+              title="Lifetime Customer Attribution"
+              description="Partner revenue continues for the lifetime of each referred customer, as long as the customer remains active. There are no caps, expirations, or resets."
+            />
+            <ValueCard
+              icon={Zap}
+              title="Built Around Retention and Success"
+              description="Core314's partner model rewards long-term customer success—not one-time transactions. As your clients grow with Core314, your recurring revenue grows alongside them."
+            />
+          </motion.div>
+
+          <AnimatedSection className="text-center mt-8">
+            <p 
+              className="text-sm text-slate-500"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Specific commercial terms are provided during partner onboarding.
+            </p>
+          </AnimatedSection>
+        </div>
+      </section>
+
+      {/* What Makes Core314 Different */}
+      <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-4">
           <AnimatedSection>
             <div className="bg-white rounded-2xl border border-slate-200 p-8 md:p-12 shadow-sm">
@@ -691,10 +744,16 @@ export default function PartnersPage() {
               We are selectively onboarding a limited number of partners who advise organizations operating at scale and complexity.
             </p>
             <p 
-              className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto"
+              className="text-lg text-slate-300 mb-4 max-w-2xl mx-auto"
               style={{ fontFamily: 'Inter, sans-serif' }}
             >
               If accepted, you'll gain access to a platform designed to elevate how your clients make decisions—and how they see your value.
+            </p>
+            <p 
+              className="text-lg text-white font-medium mb-8 max-w-2xl mx-auto"
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            >
+              Approved partners earn recurring revenue for as long as their referred customers remain active.
             </p>
             {/* White button variant for dark background */}
             <button
