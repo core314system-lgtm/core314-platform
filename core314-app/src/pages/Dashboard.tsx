@@ -560,75 +560,28 @@ export function Dashboard() {
       {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
 
       {/* Analytics sections - only show when user has connected integrations */}
+      {/* Desktop (xl+): Two-zone layout with primary flow left, intelligence rail right */}
+      {/* Mobile/Tablet: Single column layout (unchanged) */}
       {hasConnectedIntegrations ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-4">
-            {selectedIntegration ? (
-              <FusionGauge 
-                score={selectedIntegration.fusion_score || 0} 
-                trend={selectedIntegration.trend_direction || 'stable'} 
-                integrationName={selectedIntegration.integration_name}
-                globalScore={globalScore}
-                fusionContribution={calculateFusionContribution()}
-              />
-            ) : (
-              <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
-            )}
-            
-            {/* System Explainability Panel - Why Core314 Sees This */}
-            {/* Visible for both baseline and computed users when logged in */}
-            <SystemExplainabilityPanel
-              scoreOrigin={systemStatus?.score_origin}
-              integrations={integrations}
-              globalScore={globalScore}
-            />
-            
-            {/* System Trajectory Panel - Predictive Signal Framing */}
-            {/* Visible ONLY for computed users */}
-            <SystemTrajectoryPanel
-              isComputed={isComputed}
-              integrations={integrations}
-              trendSnapshot={trendSnapshot}
-              globalTrend={globalTrend}
-            />
-            
-                                            {/* Intelligence Readiness Panel - Readiness Signaling */}
-                                            {/* Visible for BOTH baseline and computed users */}
-                                            <IntelligenceReadinessPanel
-                                              scoreOrigin={systemStatus?.score_origin}
-                                              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
-                                              integrations={integrations}
-                                              trendSnapshot={trendSnapshot}
-                                              globalTrend={globalTrend}
-                                            />
-            
-                                  {/* System Learning Panel - Learning Evidence (Non-Actionable) */}
-                                  {/* Visible for BOTH baseline and computed users */}
-                                  <SystemLearningPanel
-                                    learningStates={learningStates}
-                                    globalSummary={globalSummary}
-                                    loading={learningLoading}
-                                  />
-            
-                                  {/* Learning Timeline - What Core314 Has Learned */}
-                                  {/* Visible for BOTH baseline and computed users */}
-                                  <LearningTimeline
-                                    events={learningEvents}
-                                    loading={learningLoading}
-                                  />
-            
-                                            {/* Link to System Intelligence Overview */}
-                      <div className="pt-2">
-                        <Link 
-                          to="/system-intelligence" 
-                          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                        >
-                          View full System Intelligence Overview
-                        </Link>
-                      </div>
-                    </div>
-          <div className="lg:col-span-2 space-y-6">
-            {/* System Signal Summary - computed users only, below Fusion Score, above AI panels */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* LEFT COLUMN: Primary Intelligence Flow */}
+          <div className="xl:col-span-8 space-y-6">
+            {/* Fusion Gauge - visible on mobile/tablet, hidden on desktop (moves to rail) */}
+            <div className="xl:hidden">
+              {selectedIntegration ? (
+                <FusionGauge 
+                  score={selectedIntegration.fusion_score || 0} 
+                  trend={selectedIntegration.trend_direction || 'stable'} 
+                  integrationName={selectedIntegration.integration_name}
+                  globalScore={globalScore}
+                  fusionContribution={calculateFusionContribution()}
+                />
+              ) : (
+                <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
+              )}
+            </div>
+
+            {/* System Signal Summary - computed users only */}
             <SystemSignalSummary
               isComputed={isComputed}
               integrations={integrations}
@@ -679,6 +632,119 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Intelligence panels - visible on mobile/tablet, hidden on desktop (moves to rail) */}
+            <div className="xl:hidden space-y-4">
+              {/* System Explainability Panel - Why Core314 Sees This */}
+              <SystemExplainabilityPanel
+                scoreOrigin={systemStatus?.score_origin}
+                integrations={integrations}
+                globalScore={globalScore}
+              />
+              
+              {/* System Trajectory Panel - Predictive Signal Framing */}
+              <SystemTrajectoryPanel
+                isComputed={isComputed}
+                integrations={integrations}
+                trendSnapshot={trendSnapshot}
+                globalTrend={globalTrend}
+              />
+              
+              {/* Intelligence Readiness Panel - Readiness Signaling */}
+              <IntelligenceReadinessPanel
+                scoreOrigin={systemStatus?.score_origin}
+                hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
+                integrations={integrations}
+                trendSnapshot={trendSnapshot}
+                globalTrend={globalTrend}
+              />
+              
+              {/* System Learning Panel - Learning Evidence */}
+              <SystemLearningPanel
+                learningStates={learningStates}
+                globalSummary={globalSummary}
+                loading={learningLoading}
+              />
+              
+              {/* Learning Timeline - What Core314 Has Learned */}
+              <LearningTimeline
+                events={learningEvents}
+                loading={learningLoading}
+              />
+              
+              {/* Link to System Intelligence Overview */}
+              <div className="pt-2">
+                <Link 
+                  to="/system-intelligence" 
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                >
+                  View full System Intelligence Overview
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Intelligence Context Rail - Desktop only */}
+          <div className="hidden xl:block xl:col-span-4 space-y-4">
+            {/* Fusion Gauge */}
+            {selectedIntegration ? (
+              <FusionGauge 
+                score={selectedIntegration.fusion_score || 0} 
+                trend={selectedIntegration.trend_direction || 'stable'} 
+                integrationName={selectedIntegration.integration_name}
+                globalScore={globalScore}
+                fusionContribution={calculateFusionContribution()}
+              />
+            ) : (
+              <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
+            )}
+            
+            {/* System Explainability Panel - Why Core314 Sees This */}
+            <SystemExplainabilityPanel
+              scoreOrigin={systemStatus?.score_origin}
+              integrations={integrations}
+              globalScore={globalScore}
+            />
+            
+            {/* System Trajectory Panel - Predictive Signal Framing */}
+            <SystemTrajectoryPanel
+              isComputed={isComputed}
+              integrations={integrations}
+              trendSnapshot={trendSnapshot}
+              globalTrend={globalTrend}
+            />
+            
+            {/* Intelligence Readiness Panel - Readiness Signaling */}
+            <IntelligenceReadinessPanel
+              scoreOrigin={systemStatus?.score_origin}
+              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
+              integrations={integrations}
+              trendSnapshot={trendSnapshot}
+              globalTrend={globalTrend}
+            />
+            
+            {/* System Learning Panel - Learning Evidence */}
+            <SystemLearningPanel
+              learningStates={learningStates}
+              globalSummary={globalSummary}
+              loading={learningLoading}
+            />
+            
+            {/* Learning Timeline - What Core314 Has Learned */}
+            <LearningTimeline
+              events={learningEvents}
+              loading={learningLoading}
+            />
+            
+            {/* Link to System Intelligence Overview */}
+            <div className="pt-2">
+              <Link 
+                to="/system-intelligence" 
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+              >
+                View full System Intelligence Overview
+              </Link>
+            </div>
           </div>
         </div>
       ) : (
