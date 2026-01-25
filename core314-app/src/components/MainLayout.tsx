@@ -12,19 +12,14 @@ import {
   Settings,
   LogOut,
   BarChart3,
-  Building2,
   Zap,
-  FileText,
-  Sparkles,
-  Activity,
-  Globe,
-  Shield,
   TrendingUp,
   Code,
   FileCheck,
   Headphones,
   User,
-  ChevronDown
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import {
@@ -34,6 +29,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from './ui/collapsible';
 
 interface NavItem {
   path: string;
@@ -42,48 +42,59 @@ interface NavItem {
   badge?: string;
 }
 
-const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionTier?: string): NavItem[] => {
-  // Sidebar contains ONLY product features - account items are in top-right menu
-  const baseItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: Home },
-    { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
-    { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
-    { path: '/fusion-details', label: 'Fusion Overview', icon: Zap },
-    // Dashboard Builder hidden from nav for launch - route preserved at /dashboard-builder
-    { path: '/goals', label: 'Goals & KPIs', icon: Target },
-    { path: '/notifications', label: 'Notifications', icon: Bell },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+  defaultOpen?: boolean;
+}
+
+/**
+ * Navigation structure for the user app sidebar.
+ * 
+ * PRODUCT-CORRECTIVE UI REFACTOR:
+ * - PRIMARY (Always Visible): Dashboard, Integrations, Notifications
+ * - SECONDARY (Collapsible "Analysis" group): Visualizations, Fusion Overview, Goals & KPIs
+ * - ADVANCED (Collapsible "Advanced" group): Integration Hub, Advanced Analytics, Optimization Engine, etc.
+ * 
+ * Rules:
+ * - Secondary and Advanced groups are collapsed by default
+ * - Groups auto-expand when the current route is inside them
+ * - All existing routes remain reachable
+ * - No feature disappears from navigation
+ */
+const getPrimaryNavItems = (integrationBadge?: string): NavItem[] => [
+  { path: '/dashboard', label: 'Dashboard', icon: Home },
+  { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
+  { path: '/notifications', label: 'Notifications', icon: Bell },
+];
+
+const getAnalysisNavItems = (): NavItem[] => [
+  { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
+  { path: '/fusion-details', label: 'Fusion Overview', icon: Zap },
+  { path: '/goals', label: 'Goals & KPIs', icon: Target },
+];
+
+const getAdvancedNavItems = (subscriptionTier?: string): NavItem[] => {
+  const items: NavItem[] = [
     { path: '/integration-hub', label: 'Integration Hub', icon: Layers },
   ];
   
   if (subscriptionTier === 'professional' || subscriptionTier === 'enterprise') {
-    baseItems.push(
+    items.push(
       { path: '/advanced-analytics', label: 'Advanced Analytics', icon: TrendingUp },
       { path: '/optimization-engine', label: 'Optimization Engine', icon: Zap }
     );
   }
   
   if (subscriptionTier === 'enterprise') {
-    baseItems.push(
+    items.push(
       { path: '/api-access', label: 'API Access', icon: Code },
       { path: '/audit-trails', label: 'Audit Trails', icon: FileCheck },
       { path: '/account-support', label: 'Account Support', icon: Headphones }
     );
   }
   
-  if (isAdmin) {
-    baseItems.push(
-      { path: '/admin/automation-rules-manager', label: 'Automation Rules', icon: Zap },
-      { path: '/admin/automation-logs', label: 'Automation Logs', icon: FileText },
-      { path: '/admin/ai-narratives', label: 'AI Narratives', icon: Sparkles },
-      { path: '/admin/simulations', label: 'Simulations', icon: Zap },
-      { path: '/admin/optimizations', label: 'Optimizations', icon: Activity },
-      { path: '/admin/insight-hub', label: 'Global Insights', icon: Globe },
-      { path: '/admin/governance', label: 'AI Governance & Ethics', icon: Shield },
-      { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
-    );
-  }
-  
-  return baseItems;
+  return items;
 };
 
 /**
@@ -142,13 +153,84 @@ export function MainLayout() {
     await signOut();
   };
 
-  const navItems = getNavItems(
-    integrationCount.max === -1 
-      ? `${integrationCount.current}` 
-      : `${integrationCount.current}/${integrationCount.max}`,
-    profile?.role === 'admin',
-    subscriptionTier
-  );
+  // Get navigation items
+  const integrationBadge = integrationCount.max === -1 
+    ? `${integrationCount.current}` 
+    : `${integrationCount.current}/${integrationCount.max}`;
+  
+  const primaryItems = getPrimaryNavItems(integrationBadge);
+  const analysisItems = getAnalysisNavItems();
+  const advancedItems = getAdvancedNavItems(subscriptionTier);
+
+  // Check if current route is in a group (for auto-expand)
+  const isRouteInGroup = (items: NavItem[]) => 
+    items.some(item => location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
+
+  // Collapsible group state - auto-expand if current route is in the group
+  const [analysisOpen, setAnalysisOpen] = useState(isRouteInGroup(analysisItems));
+  const [advancedOpen, setAdvancedOpen] = useState(isRouteInGroup(advancedItems));
+
+  // Auto-expand groups when navigating to a route within them
+  useEffect(() => {
+    if (isRouteInGroup(analysisItems)) setAnalysisOpen(true);
+    if (isRouteInGroup(advancedItems)) setAdvancedOpen(true);
+  }, [location.pathname]);
+
+  // Render a single nav item
+  const renderNavItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+    
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
+          isActive
+            ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+        }`}
+      >
+        <div className="flex items-center">
+          <Icon className="mr-3 h-5 w-5" />
+          {item.label}
+        </div>
+        {item.badge && (
+          <Badge 
+            variant="secondary" 
+            className={`text-xs ${
+              integrationCount.current >= integrationCount.max && integrationCount.max !== -1
+                ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                : ''
+            }`}
+          >
+            {item.badge}
+          </Badge>
+        )}
+      </Link>
+    );
+  };
+
+  // Render a collapsible nav group
+  const renderNavGroup = (label: string, items: NavItem[], isOpen: boolean, setIsOpen: (open: boolean) => void) => {
+    const hasActiveRoute = isRouteInGroup(items);
+    
+    return (
+      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="space-y-1">
+        <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-md transition-colors">
+          <span className={hasActiveRoute ? 'text-blue-600 dark:text-blue-400' : ''}>{label}</span>
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-1 pl-2">
+          {items.map(renderNavItem)}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -164,40 +246,17 @@ export function MainLayout() {
             <p className="text-sm text-gray-600 dark:text-gray-400 ml-11">Operations Control</p>
           </div>
           
-          <nav className="flex-1 overflow-y-auto pb-4 px-3 py-4 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <Icon className="mr-3 h-5 w-5" />
-                    {item.label}
-                  </div>
-                  {item.badge && (
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs ${
-                        integrationCount.current >= integrationCount.max && integrationCount.max !== -1
-                          ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                          : ''
-                      }`}
-                    >
-                      {item.badge}
-                    </Badge>
-                  )}
-                </Link>
-              );
-            })}
+          <nav className="flex-1 overflow-y-auto pb-4 px-3 py-4 space-y-4">
+            {/* PRIMARY: Always visible */}
+            <div className="space-y-1">
+              {primaryItems.map(renderNavItem)}
+            </div>
+            
+            {/* SECONDARY: Collapsible "Analysis" group */}
+            {renderNavGroup('Analysis', analysisItems, analysisOpen, setAnalysisOpen)}
+            
+            {/* ADVANCED: Collapsible "Advanced" group */}
+            {advancedItems.length > 0 && renderNavGroup('Advanced', advancedItems, advancedOpen, setAdvancedOpen)}
           </nav>
           
           <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
