@@ -47,6 +47,8 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
   const baseItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
+    { path: '/integration-performance', label: 'Integration Performance', icon: BarChart3 },
+    { path: '/system-signals', label: 'System Signals', icon: Activity },
     { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
     { path: '/fusion-details', label: 'Fusion Overview', icon: Zap },
     // Dashboard Builder hidden from nav for launch - route preserved at /dashboard-builder
