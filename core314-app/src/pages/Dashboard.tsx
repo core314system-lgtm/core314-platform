@@ -403,31 +403,37 @@ export function Dashboard() {
 
       {/* PRIMARY SIGNAL ROW - Highest visual priority (Fusion Score + System Health) */}
       {hasConnectedIntegrations && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            {selectedIntegration ? (
-              <FusionGauge 
-                score={selectedIntegration.fusion_score || 0} 
-                trend={selectedIntegration.trend_direction || 'stable'} 
-                integrationName={selectedIntegration.integration_name}
-                globalScore={globalScore}
-                fusionContribution={calculateFusionContribution()}
-              />
-            ) : (
-              <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
-            )}
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              {selectedIntegration ? (
+                <FusionGauge 
+                  score={selectedIntegration.fusion_score || 0} 
+                  trend={selectedIntegration.trend_direction || 'stable'} 
+                  integrationName={selectedIntegration.integration_name}
+                  globalScore={globalScore}
+                  fusionContribution={calculateFusionContribution()}
+                />
+              ) : (
+                <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
+              )}
+            </div>
+            <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
+              <CardContent className="p-4 flex flex-col justify-center h-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Health</span>
+                </div>
+                <div className="text-3xl font-bold text-green-600">Healthy</div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All systems operational</p>
+              </CardContent>
+            </Card>
           </div>
-          <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
-            <CardContent className="p-4 flex flex-col justify-center h-full">
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Health</span>
-              </div>
-              <div className="text-3xl font-bold text-green-600">Healthy</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All systems operational</p>
-            </CardContent>
-          </Card>
-        </div>
+          {/* SYSTEM SUMMARY - Single-line status confirmation */}
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Your system is active and operating within expected parameters.
+          </p>
+        </>
       )}
 
       {/* KEY COUNTS - Compressed summary row (not feature cards) */}
@@ -624,24 +630,21 @@ export function Dashboard() {
             />
           </div>
 
-          {/* EDUCATIONAL/GUIDANCE CONTENT - Collapsed by default */}
-          <div className="lg:col-span-3">
+          {/* EDUCATIONAL/GUIDANCE CONTENT - Collapsed by default, visually de-emphasized */}
+          <div className="lg:col-span-3 mt-2">
             <Collapsible open={learningExpanded} onOpenChange={setLearningExpanded}>
-              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 px-3 rounded border border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                 {learningExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                  <ChevronDown className="h-3 w-3 text-gray-400" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                  <ChevronRight className="h-3 w-3 text-gray-400" />
                 )}
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                   System Learning & Timeline
                 </span>
-                <span className="text-xs text-gray-500 ml-auto">
-                  {learningExpanded ? 'Click to collapse' : 'Click to expand'}
-                </span>
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-3">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <CollapsibleContent className="mt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   <SystemLearningPanel
                     learningStates={learningStates}
                     globalSummary={globalSummary}
@@ -738,30 +741,30 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Fusion Trend Snapshot - collapsed by default */}
+      {/* Fusion Trend Snapshot - collapsed by default, visually de-emphasized */}
       {hasConnectedIntegrations && (
         <Collapsible open={trendExpanded} onOpenChange={setTrendExpanded}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          <CollapsibleTrigger className="flex items-center justify-between w-full py-2 px-3 rounded border border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
             <div className="flex items-center gap-2">
               {trendExpanded ? (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
+                <ChevronDown className="h-3 w-3 text-gray-400" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-500" />
+                <ChevronRight className="h-3 w-3 text-gray-400" />
               )}
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                 Fusion Trend Snapshot (7 Days)
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <ExportDataButton
                 data={trendSnapshot}
                 filename="fusion-trend"
                 headers={['date', 'score']}
               />
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="text-xs"
+                className="text-xs h-6 px-2 text-gray-500"
                 onClick={(e) => { e.stopPropagation(); window.location.href = '/visualizations'; }}
               >
                 View Full
@@ -769,10 +772,10 @@ export function Dashboard() {
             </div>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2">
-            <Card>
-              <CardContent className="py-3">
+            <Card className="border-gray-100 dark:border-gray-800">
+              <CardContent className="py-2">
                 {trendSnapshot.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={100}>
+                  <ResponsiveContainer width="100%" height={80}>
                     <LineChart data={trendSnapshot}>
                       <Line
                         type="monotone"
@@ -785,7 +788,7 @@ export function Dashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-gray-500 py-2 text-xs">
+                  <p className="text-center text-gray-400 py-2 text-xs">
                     No trend data available
                   </p>
                 )}
