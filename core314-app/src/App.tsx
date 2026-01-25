@@ -46,6 +46,8 @@ import { AuditTrails } from './pages/AuditTrails';
 import { AccountSupport } from './pages/AccountSupport';
 import { FusionDetails } from './pages/FusionDetails';
 import { SystemIntelligence } from './pages/SystemIntelligence';
+import { IntegrationPerformance } from './pages/IntegrationPerformance';
+import { SystemSignals } from './pages/SystemSignals';
 import { PredictiveInsights } from './pages/PredictiveInsights';
 import { DecisionCenter } from './pages/DecisionCenter';
 import { DecisionAudit } from './pages/admin/DecisionAudit';
@@ -157,6 +159,8 @@ function App() {
           {/* Organizations are OPTIONAL configuration layers for team features */}
           <Route element={<MainLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="integration-performance" element={<IntegrationPerformance />} />
+            <Route path="system-signals" element={<SystemSignals />} />
             <Route path="integrations" element={<Integrations />} />
             <Route path="visualizations" element={<Visualizations />} />
             <Route path="dashboard-builder" element={<DashboardBuilder />} />

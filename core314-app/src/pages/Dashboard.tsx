@@ -551,17 +551,7 @@ export function Dashboard() {
       {/* Analytics sections - restructured for executive hierarchy */}
       {hasConnectedIntegrations ? (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Row 1: System Signal Summary (full width) */}
-          <div className="lg:col-span-3">
-            <SystemSignalSummary
-              isComputed={isComputed}
-              integrations={integrations}
-              globalScore={globalScore}
-              trendSnapshot={trendSnapshot}
-            />
-          </div>
-
-          {/* Row 2: System Explainability (1 col) + AI Insights Panel (2 cols) */}
+          {/* Row 1: System Explainability (1 col) + AI Insights Panel (2 cols) */}
           <div className="lg:col-span-1">
             <SystemExplainabilityPanel
               scoreOrigin={systemStatus?.score_origin}
@@ -800,32 +790,6 @@ export function Dashboard() {
             </Card>
           </CollapsibleContent>
         </Collapsible>
-      )}
-
-      {/* Integration Performance - compact layout */}
-      {hasConnectedIntegrations && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {selectedIntegration ? `${selectedIntegration.integration_name} Performance` : 'Integration Performance'}
-            </h2>
-            <ExportDataButton
-              data={(selectedIntegration ? [selectedIntegration] : integrations).map(i => ({
-                integration_name: i.integration_name,
-                fusion_score: i.fusion_score || 0,
-                trend_direction: i.trend_direction || 'stable',
-                metrics_count: i.metrics_count,
-              }))}
-              filename="integration-performance"
-              headers={['integration_name', 'fusion_score', 'trend_direction', 'metrics_count']}
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(selectedIntegration ? [selectedIntegration] : integrations).map(integration => (
-              <IntegrationCard key={integration.id} integration={integration} />
-            ))}
-          </div>
-        </div>
       )}
 
       {/* Session Activity - compact */}
