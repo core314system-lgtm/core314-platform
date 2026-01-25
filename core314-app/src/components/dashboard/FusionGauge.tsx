@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface FusionGaugeProps {
   score: number;
@@ -42,7 +43,32 @@ export function FusionGauge({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span>{isIntegrationScoped ? `${integrationName} Fusion Score` : 'Global Fusion Score'}</span>
+            <div className="flex items-center gap-1.5">
+              <span>{isIntegrationScoped ? `${integrationName} Fusion Score` : 'Global Fusion Score'}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button 
+                      type="button" 
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+                      aria-label="Learn more about Fusion Score"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <p className="text-sm">
+                      <strong>What is the Fusion Score?</strong>
+                    </p>
+                    <p className="text-xs mt-1 text-gray-600 dark:text-gray-300">
+                      The Fusion Score represents your operational health based on signals from connected integrations. 
+                      It improves as your integrations provide more data over time. 
+                      This score is derived from verified system signals, not estimates.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             {showIntelligenceLabel && !isIntegrationScoped && (
               <span className="text-xs font-normal text-purple-600 dark:text-purple-400">
                 Powered by Cross-Integration Intelligence

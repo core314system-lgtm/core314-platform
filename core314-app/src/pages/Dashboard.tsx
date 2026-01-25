@@ -31,6 +31,7 @@ import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplain
 import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
 import { IntelligenceReadinessPanel } from '../components/dashboard/IntelligenceReadinessPanel';
 import { BetaOnboardingPanel } from '../components/dashboard/BetaOnboardingPanel';
+import { GettingStartedChecklist } from '../components/dashboard/GettingStartedChecklist';
 import { SystemLearningPanel } from '../components/dashboard/SystemLearningPanel';
 import { LearningTimeline } from '../components/dashboard/LearningTimeline';
 import { AddOnCTA } from '../components/AddOnCTA';
@@ -350,6 +351,9 @@ export function Dashboard() {
     <div className="min-h-full flex flex-col p-4 space-y-4">
       {/* Beta Onboarding Panel - first-time users only (no connected integrations) */}
       <BetaOnboardingPanel hasConnectedIntegrations={hasConnectedIntegrations} />
+
+      {/* Getting Started Checklist - dismissible, new users only */}
+      <GettingStartedChecklist hasConnectedIntegrations={hasConnectedIntegrations} />
 
       {/* System Status Banner - reduced padding, contextual confirmation */}
       {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}
