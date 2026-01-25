@@ -344,12 +344,10 @@ export function Dashboard() {
   return (
     <div className="min-h-full flex flex-col p-6 space-y-6">
       {/* Beta Onboarding Panel - first-time users only (no connected integrations) */}
-      <BetaOnboardingPanel hasConnectedIntegrations={hasConnectedIntegrations} />
+      {/* Auto-dismisses once system is active */}
+      {!hasConnectedIntegrations && <BetaOnboardingPanel hasConnectedIntegrations={hasConnectedIntegrations} />}
 
-      {/* Analyze Unlock Orientation Banner - computed users only */}
-      {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}
-
-      {/* Billing Success Banner */}
+      {/* Billing Success Banner - temporary notification */}
       {showBillingSuccess && (
         <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
           <div className="flex items-center gap-3">
@@ -366,167 +364,103 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Contextual Micro CTA - Prompt 4: Conditional Top-of-Page Micro CTA */}
-      {/* Trigger: active_integrations >= 1 AND user_has_logged_in_before === true */}
-      {/* Disappears when user owns all relevant add-ons */}
-      {!addonsLoading && 
-       hasConnectedIntegrations && 
-       sessionData?.last_login && 
-       sessionData.last_login !== 'Never' &&
-       (!hasAddon('premium_analytics') || !hasAddon('advanced_fusion_ai')) && (
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          <Link 
-            to="/account/plan" 
-            className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          >
-            <span className="flex items-center gap-1">
-              <Sparkles className="h-3 w-3" />
-              Advanced features available for your setup
-            </span>
-          </Link>
-        </div>
-      )}
-
+      {/* ============================================ */}
+      {/* ABOVE THE FOLD: Primary Dashboard Content   */}
+      {/* ============================================ */}
+      
+      {/* Compact Header - reduced visual weight */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome, {profile?.full_name || 'User'}
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            {profile?.full_name || 'Dashboard'}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Current Plan: <span className="font-semibold capitalize">{subscription.tier}</span>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {hasConnectedIntegrations 
+              ? `${activeIntegrationCount} integration${activeIntegrationCount !== 1 ? 's' : ''} connected`
+              : 'Connect integrations to begin analysis'
+            }
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          {isAdmin() && (
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="auto-optimize"
-                checked={autoOptimize}
-                onCheckedChange={setAutoOptimize}
-                disabled
-              />
-              <Label htmlFor="auto-optimize" className="text-sm font-medium cursor-pointer">
-                Auto-Optimize Weights
-              </Label>
-            </div>
-          )}
-          <Button onClick={handleSync} disabled={syncing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            Sync Data
-          </Button>
-          <Button onClick={() => navigate('/feedback')} variant="outline">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Submit Feedback
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSync} disabled={syncing} variant="ghost" size="sm">
+            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
 
-      {/* Integration Context Selector - only show when user has connected integrations */}
-      {hasConnectedIntegrations && integrations.length > 0 && (
-        <IntegrationContextSelector
-          integrations={integrations}
-          selectedIntegrationId={selectedIntegrationId}
-          onSelectionChange={setSelectedIntegrationId}
-        />
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Integrations</CardTitle>
-            <Layers className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeIntegrationCount}</div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Max: {subscription.maxIntegrations === -1 ? 'Unlimited' : subscription.maxIntegrations}
-            </p>
-            {/* Prompt 2a: Integration Limit Reached */}
-            {!addonsLoading &&
-             subscription.maxIntegrations !== -1 &&
-             activeIntegrationCount >= subscription.maxIntegrations &&
-             !hasAddon('additional_integration_pro') &&
-             !hasAddon('additional_integration_starter') && (
-              <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
-                <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="h-3 w-3" />
-                  <span>You've reached your plan limit.</span>
-                </div>
-                <Link 
-                  to="/account/plan" 
-                  className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  Expand with Add-Ons
-                </Link>
-              </div>
+      {/* PRIMARY FOCAL ELEMENT: Fusion Score + System Health */}
+      {hasConnectedIntegrations ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Fusion Score - Primary focal element */}
+          <div className="lg:col-span-2">
+            {selectedIntegration ? (
+              <FusionGauge 
+                score={selectedIntegration.fusion_score || 0} 
+                trend={selectedIntegration.trend_direction || 'stable'} 
+                integrationName={selectedIntegration.integration_name}
+                globalScore={globalScore}
+                fusionContribution={calculateFusionContribution()}
+              />
+            ) : (
+              <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-            <Users className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Max: {subscription.maxUsers === -1 ? 'Unlimited' : subscription.maxUsers}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Metrics Tracked</CardTitle>
-            <Bot className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {integrations.reduce((sum, i) => sum + i.metrics_count, 0)}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Max per integration: {subscription.maxMetricsPerIntegration === -1 ? 'Unlimited' : subscription.maxMetricsPerIntegration}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <TrendingUp className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">Healthy</div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">All systems operational</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Prompt 1: First Integration - Unlock deeper insights */}
-      {/* Trigger: activeIntegrationCount === 1 */}
-      {/* Disappears when user owns premium_analytics add-on */}
-      {!addonsLoading &&
-       activeIntegrationCount === 1 &&
-       hasConnectedIntegrations &&
-       !hasAddon('premium_analytics') && (
-        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-blue-600" />
+          </div>
+          
+          {/* System Health Status - Secondary focal element */}
+          <div className="lg:col-span-1">
+            <Card className="h-full">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-gray-500" />
+                  System Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    Unlock deeper insights
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Advanced Analytics can unlock deeper performance insights from your integration.
+                  <div className={`text-xl font-semibold ${
+                    systemStatus?.system_health === 'active' ? 'text-green-600' : 'text-amber-600'
+                  }`}>
+                    {systemStatus?.system_health === 'active' ? 'Healthy' : 'Observing'}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {systemStatus?.system_health === 'active' 
+                      ? 'All systems operational' 
+                      : 'Building intelligence from your data'
+                    }
                   </p>
                 </div>
-              </div>
-              <Link to="/account/plan">
-                <Button variant="outline" size="sm">
-                  View Advanced Analytics Add-On
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                      <div className="text-lg font-semibold">{activeIntegrationCount}</div>
+                      <div className="text-xs text-gray-500">Integrations</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{integrations.reduce((sum, i) => sum + i.metrics_count, 0)}</div>
+                      <div className="text-xs text-gray-500">Metrics</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        /* Empty state for no integrations */
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Layers className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Connect your first integration to begin analysis
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                Integration performance data, fusion scores, and AI insights will appear here once you connect your first service.
+              </p>
+              <Link to="/integration-hub">
+                <Button>
+                  <Layers className="h-4 w-4 mr-2" />
+                  Open Integration Hub
                 </Button>
               </Link>
             </div>
@@ -534,14 +468,22 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
-      {hasConnectedIntegrations && (
-        <>
-          <FusionOverviewWidget />
-          {/* Locked Insight Teaser - Observe tier only */}
-          {isObserveTier && <LockedInsightTeaser className="mt-2" />}
-        </>
+      {/* Integration Context Selector - compact, below primary content */}
+      {hasConnectedIntegrations && integrations.length > 1 && (
+        <IntegrationContextSelector
+          integrations={integrations}
+          selectedIntegrationId={selectedIntegrationId}
+          onSelectionChange={setSelectedIntegrationId}
+        />
       )}
+
+      {/* ============================================ */}
+      {/* BELOW THE FOLD: Secondary Dashboard Content */}
+      {/* De-emphasized sections - still accessible     */}
+      {/* ============================================ */}
+
+      {/* Analyze Unlock Orientation Banner - computed users only */}
+      {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}
 
       {/* Intelligence Preview Panels - Observe tier only */}
       {hasConnectedIntegrations && isObserveTier && (
