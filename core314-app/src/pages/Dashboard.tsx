@@ -32,6 +32,7 @@ import { IntelligenceReadinessPanel } from '../components/dashboard/Intelligence
 import { BetaOnboardingPanel } from '../components/dashboard/BetaOnboardingPanel';
 import { SystemLearningPanel } from '../components/dashboard/SystemLearningPanel';
 import { LearningTimeline } from '../components/dashboard/LearningTimeline';
+import { CollapsibleSection } from '../components/dashboard/CollapsibleSection';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
 import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
@@ -758,58 +759,57 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Fusion Trend Snapshot - only show when user has connected integrations */}
+      {/* Historical Analysis - Fusion Trend Snapshot (COLLAPSIBLE - below the fold) */}
       {hasConnectedIntegrations && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Fusion Trend Snapshot (7 Days)</CardTitle>
-              <div className="flex items-center gap-2">
-                <ExportDataButton
-                  data={trendSnapshot}
-                  filename="fusion-trend"
-                  headers={['date', 'score']}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/visualizations'}
-                >
-                  View Full Visualization
-                </Button>
-              </div>
+        <CollapsibleSection
+          title="Historical Analysis"
+          icon={<TrendingUp className="h-4 w-4 text-gray-500" />}
+          defaultOpen={false}
+          headerActions={
+            <div className="flex items-center gap-2">
+              <ExportDataButton
+                data={trendSnapshot}
+                filename="fusion-trend"
+                headers={['date', 'score']}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/visualizations'}
+              >
+                View Full Visualization
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent>
-            {trendSnapshot.length > 0 ? (
-              <ResponsiveContainer width="100%" height={120}>
-                <LineChart data={trendSnapshot}>
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Tooltip />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-center text-gray-600 py-4 text-sm">
-                No trend data available. Visit Visualizations to generate analytics.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          }
+        >
+          {trendSnapshot.length > 0 ? (
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={trendSnapshot}>
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Tooltip />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-center text-gray-600 py-4 text-sm">
+              No trend data available. Visit Visualizations to generate analytics.
+            </p>
+          )}
+        </CollapsibleSection>
       )}
 
-      {/* Integration Performance - only show when user has connected integrations */}
+      {/* Integration Performance (COLLAPSIBLE - below the fold) */}
       {hasConnectedIntegrations && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">
-              {selectedIntegration ? `${selectedIntegration.integration_name} Performance` : 'Integration Performance'}
-            </h2>
+        <CollapsibleSection
+          title={selectedIntegration ? `${selectedIntegration.integration_name} Performance` : 'Integration Performance'}
+          icon={<Layers className="h-4 w-4 text-gray-500" />}
+          defaultOpen={false}
+          headerActions={
             <ExportDataButton
               data={(selectedIntegration ? [selectedIntegration] : integrations).map(i => ({
                 integration_name: i.integration_name,
@@ -820,13 +820,14 @@ export function Dashboard() {
               filename="integration-performance"
               headers={['integration_name', 'fusion_score', 'trend_direction', 'metrics_count']}
             />
-          </div>
+          }
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(selectedIntegration ? [selectedIntegration] : integrations).map(integration => (
               <IntegrationCard key={integration.id} integration={integration} />
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
