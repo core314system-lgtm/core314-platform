@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
-import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../components/ui/collapsible';
+import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -77,6 +78,10 @@ export function Dashboard() {
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('all');
   const [integrationMetrics, setIntegrationMetrics] = useState<FusionMetric[]>([]);
   const [integrationInsights, setIntegrationInsights] = useState<FusionInsight[]>([]);
+
+  // Collapsible section state for educational/guidance content
+  const [learningExpanded, setLearningExpanded] = useState(false);
+  const [trendExpanded, setTrendExpanded] = useState(false);
 
   // Handle billing success redirect
   useEffect(() => {
@@ -342,61 +347,36 @@ export function Dashboard() {
   const isComputed = systemStatus?.score_origin === 'computed';
 
   return (
-    <div className="min-h-full flex flex-col p-6 space-y-6">
+    <div className="min-h-full flex flex-col p-4 space-y-4">
       {/* Beta Onboarding Panel - first-time users only (no connected integrations) */}
       <BetaOnboardingPanel hasConnectedIntegrations={hasConnectedIntegrations} />
 
-      {/* Analyze Unlock Orientation Banner - computed users only */}
+      {/* System Status Banner - reduced padding, contextual confirmation */}
       {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}
 
-      {/* Billing Success Banner */}
+      {/* Billing Success Banner - compact */}
       {showBillingSuccess && (
-        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <div>
-              <p className="font-medium text-green-800 dark:text-green-200">
-                Add-on activated successfully
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300">
-                {successAddonName ? `${successAddonName.replace(/_/g, ' ')} is now active for your organization.` : 'Your add-on is now active and ready to use.'}
-              </p>
-            </div>
+        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+              {successAddonName ? `${successAddonName.replace(/_/g, ' ')} activated` : 'Add-on activated'}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Contextual Micro CTA - Prompt 4: Conditional Top-of-Page Micro CTA */}
-      {/* Trigger: active_integrations >= 1 AND user_has_logged_in_before === true */}
-      {/* Disappears when user owns all relevant add-ons */}
-      {!addonsLoading && 
-       hasConnectedIntegrations && 
-       sessionData?.last_login && 
-       sessionData.last_login !== 'Never' &&
-       (!hasAddon('premium_analytics') || !hasAddon('advanced_fusion_ai')) && (
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          <Link 
-            to="/account/plan" 
-            className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          >
-            <span className="flex items-center gap-1">
-              <Sparkles className="h-3 w-3" />
-              Advanced features available for your setup
-            </span>
-          </Link>
-        </div>
-      )}
-
+      {/* Welcome Header - de-emphasized plan text */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Welcome, {profile?.full_name || 'User'}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Current Plan: <span className="font-semibold capitalize">{subscription.tier}</span>
+          <p className="text-xs text-gray-500 dark:text-gray-500">
+            {subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)} Plan
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           {isAdmin() && (
             <div className="flex items-center space-x-2">
               <Switch
@@ -405,21 +385,96 @@ export function Dashboard() {
                 onCheckedChange={setAutoOptimize}
                 disabled
               />
-              <Label htmlFor="auto-optimize" className="text-sm font-medium cursor-pointer">
-                Auto-Optimize Weights
+              <Label htmlFor="auto-optimize" className="text-xs font-medium cursor-pointer">
+                Auto-Optimize
               </Label>
             </div>
           )}
-          <Button onClick={handleSync} disabled={syncing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            Sync Data
+          <Button onClick={handleSync} disabled={syncing} variant="outline" size="sm">
+            <RefreshCw className={`h-3 w-3 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+            Sync
           </Button>
-          <Button onClick={() => navigate('/feedback')} variant="outline">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Submit Feedback
+          <Button onClick={() => navigate('/feedback')} variant="outline" size="sm">
+            <MessageSquare className="h-3 w-3 mr-1" />
+            Feedback
           </Button>
         </div>
       </div>
+
+      {/* PRIMARY SIGNAL ROW - Highest visual priority (Fusion Score + System Health) */}
+      {hasConnectedIntegrations && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              {selectedIntegration ? (
+                <FusionGauge 
+                  score={selectedIntegration.fusion_score || 0} 
+                  trend={selectedIntegration.trend_direction || 'stable'} 
+                  integrationName={selectedIntegration.integration_name}
+                  globalScore={globalScore}
+                  fusionContribution={calculateFusionContribution()}
+                />
+              ) : (
+                <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
+              )}
+            </div>
+            <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
+              <CardContent className="p-4 flex flex-col justify-center h-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Health</span>
+                </div>
+                <div className="text-3xl font-bold text-green-600">Healthy</div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All systems operational</p>
+              </CardContent>
+            </Card>
+          </div>
+          {/* SYSTEM SUMMARY - Single-line status confirmation */}
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Your system is active and operating within expected parameters.
+          </p>
+        </>
+      )}
+
+      {/* KEY COUNTS - Compressed summary row (not feature cards) */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="grid grid-cols-3 divide-x divide-gray-200 dark:divide-gray-700">
+            <div className="px-3 first:pl-0">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-gray-400" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">Integrations</span>
+              </div>
+              <div className="text-xl font-bold mt-1">{activeIntegrationCount}</div>
+              {!addonsLoading &&
+               subscription.maxIntegrations !== -1 &&
+               activeIntegrationCount >= subscription.maxIntegrations &&
+               !hasAddon('additional_integration_pro') &&
+               !hasAddon('additional_integration_starter') && (
+                <Link to="/account/plan" className="text-xs text-amber-600 hover:underline">
+                  Limit reached
+                </Link>
+              )}
+            </div>
+            <div className="px-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-400" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">Team</span>
+              </div>
+              <div className="text-xl font-bold mt-1">1</div>
+            </div>
+            <div className="px-3">
+              <div className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-gray-400" />
+                <span className="text-xs text-gray-500 dark:text-gray-400">Metrics</span>
+              </div>
+              <div className="text-xl font-bold mt-1">
+                {integrations.reduce((sum, i) => sum + i.metrics_count, 0)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Integration Context Selector - only show when user has connected integrations */}
       {hasConnectedIntegrations && integrations.length > 0 && (
@@ -430,116 +485,46 @@ export function Dashboard() {
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Integrations</CardTitle>
-            <Layers className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeIntegrationCount}</div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Max: {subscription.maxIntegrations === -1 ? 'Unlimited' : subscription.maxIntegrations}
-            </p>
-            {/* Prompt 2a: Integration Limit Reached */}
-            {!addonsLoading &&
-             subscription.maxIntegrations !== -1 &&
-             activeIntegrationCount >= subscription.maxIntegrations &&
-             !hasAddon('additional_integration_pro') &&
-             !hasAddon('additional_integration_starter') && (
-              <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
-                <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="h-3 w-3" />
-                  <span>You've reached your plan limit.</span>
-                </div>
-                <Link 
-                  to="/account/plan" 
-                  className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  Expand with Add-Ons
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Contextual Micro CTA - deferred below primary signals */}
+      {!addonsLoading && 
+       hasConnectedIntegrations && 
+       sessionData?.last_login && 
+       sessionData.last_login !== 'Never' &&
+       (!hasAddon('premium_analytics') || !hasAddon('advanced_fusion_ai')) && (
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          <Link 
+            to="/account/plan" 
+            className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            <span className="flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              Advanced features available
+            </span>
+          </Link>
+        </div>
+      )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-            <Users className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Max: {subscription.maxUsers === -1 ? 'Unlimited' : subscription.maxUsers}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Metrics Tracked</CardTitle>
-            <Bot className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {integrations.reduce((sum, i) => sum + i.metrics_count, 0)}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Max per integration: {subscription.maxMetricsPerIntegration === -1 ? 'Unlimited' : subscription.maxMetricsPerIntegration}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <TrendingUp className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">Healthy</div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">All systems operational</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Prompt 1: First Integration - Unlock deeper insights */}
-      {/* Trigger: activeIntegrationCount === 1 */}
-      {/* Disappears when user owns premium_analytics add-on */}
+      {/* Prompt 1: First Integration - Unlock deeper insights - compact */}
       {!addonsLoading &&
        activeIntegrationCount === 1 &&
        hasConnectedIntegrations &&
        !hasAddon('premium_analytics') && (
-        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    Unlock deeper insights
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Advanced Analytics can unlock deeper performance insights from your integration.
-                  </p>
-                </div>
-              </div>
-              <Link to="/account/plan">
-                <Button variant="outline" size="sm">
-                  View Advanced Analytics Add-On
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            <span className="text-sm text-gray-700 dark:text-gray-300">Unlock deeper insights with Advanced Analytics</span>
+          </div>
+          <Link to="/account/plan">
+            <Button variant="outline" size="sm" className="text-xs">View Add-On</Button>
+          </Link>
+        </div>
       )}
 
-      {/* Fusion Efficiency Overview Widget - only show when user has connected integrations */}
+      {/* Fusion Efficiency Overview - collapsed by default for empty/partial state */}
       {hasConnectedIntegrations && (
         <>
           <FusionOverviewWidget />
-          {/* Locked Insight Teaser - Observe tier only */}
-          {isObserveTier && <LockedInsightTeaser className="mt-2" />}
+          {isObserveTier && <LockedInsightTeaser className="mt-1" />}
         </>
       )}
 
@@ -559,25 +544,11 @@ export function Dashboard() {
       {/* Intelligence Dashboard Modules - only show when feature flag is enabled */}
       {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
 
-      {/* Analytics sections - only show when user has connected integrations */}
-      {/* Flattened grid: each panel is a direct grid child to eliminate blank space from unequal column heights */}
+      {/* Analytics sections - restructured for executive hierarchy */}
       {hasConnectedIntegrations ? (
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Row 1: Fusion Gauge (1 col) + System Signal Summary (2 cols) */}
-          <div className="lg:col-span-1">
-            {selectedIntegration ? (
-              <FusionGauge 
-                score={selectedIntegration.fusion_score || 0} 
-                trend={selectedIntegration.trend_direction || 'stable'} 
-                integrationName={selectedIntegration.integration_name}
-                globalScore={globalScore}
-                fusionContribution={calculateFusionContribution()}
-              />
-            ) : (
-              <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
-            )}
-          </div>
-          <div className="lg:col-span-2">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Row 1: System Signal Summary (full width) */}
+          <div className="lg:col-span-3">
             <SystemSignalSummary
               isComputed={isComputed}
               integrations={integrations}
@@ -618,13 +589,13 @@ export function Dashboard() {
           <div className="lg:col-span-2">
             {selectedIntegration && ['professional', 'enterprise'].includes(subscription.tier) && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-purple-600" />
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Bot className="h-4 w-4 text-purple-600" />
                     Ask AI about {selectedIntegration.integration_name}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <IntegrationScopedAIQuery 
                     integration={selectedIntegration}
                     recentMetrics={integrationMetrics}
@@ -635,20 +606,20 @@ export function Dashboard() {
             )}
             {!selectedIntegration && ['professional', 'enterprise'].includes(subscription.tier) && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-purple-600" />
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Bot className="h-4 w-4 text-purple-600" />
                     Ask Core314 AI
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <AIQuickQuery />
                 </CardContent>
               </Card>
             )}
           </div>
 
-          {/* Row 4: Intelligence Readiness (1 col) + empty/spacer (2 cols - will auto-collapse) */}
+          {/* Row 4: Intelligence Readiness (1 col) */}
           <div className="lg:col-span-1">
             <IntelligenceReadinessPanel
               scoreOrigin={systemStatus?.score_origin}
@@ -659,25 +630,37 @@ export function Dashboard() {
             />
           </div>
 
-          {/* Row 5: System Learning (1 col) */}
-          <div className="lg:col-span-1">
-            <SystemLearningPanel
-              learningStates={learningStates}
-              globalSummary={globalSummary}
-              loading={learningLoading}
-            />
-          </div>
-
-          {/* Row 6: Learning Timeline (1 col) */}
-          <div className="lg:col-span-1">
-            <LearningTimeline
-              events={learningEvents}
-              loading={learningLoading}
-            />
+          {/* EDUCATIONAL/GUIDANCE CONTENT - Collapsed by default, visually de-emphasized */}
+          <div className="lg:col-span-3 mt-2">
+            <Collapsible open={learningExpanded} onOpenChange={setLearningExpanded}>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 px-3 rounded border border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
+                {learningExpanded ? (
+                  <ChevronDown className="h-3 w-3 text-gray-400" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-gray-400" />
+                )}
+                <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                  System Learning & Timeline
+                </span>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <SystemLearningPanel
+                    learningStates={learningStates}
+                    globalSummary={globalSummary}
+                    loading={learningLoading}
+                  />
+                  <LearningTimeline
+                    events={learningEvents}
+                    loading={learningLoading}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {/* Link to System Intelligence Overview */}
-          <div className="lg:col-span-1 pt-2">
+          <div className="lg:col-span-3 pt-1">
             <Link 
               to="/system-intelligence" 
               className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
@@ -688,17 +671,17 @@ export function Dashboard() {
         </div>
       ) : (
         <Card>
-          <CardContent className="py-12">
+          <CardContent className="py-8">
             <div className="text-center">
-              <Layers className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <Layers className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">
                 Connect your first integration to begin analysis
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
                 Integration performance data, fusion scores, and AI insights will appear here once you connect your first service.
               </p>
               <Link to="/integration-hub">
-                <Button>
+                <Button size="sm">
                   <Layers className="h-4 w-4 mr-2" />
                   Open Integration Hub
                 </Button>
@@ -758,56 +741,68 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Fusion Trend Snapshot - only show when user has connected integrations */}
+      {/* Fusion Trend Snapshot - collapsed by default, visually de-emphasized */}
       {hasConnectedIntegrations && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Fusion Trend Snapshot (7 Days)</CardTitle>
-              <div className="flex items-center gap-2">
-                <ExportDataButton
-                  data={trendSnapshot}
-                  filename="fusion-trend"
-                  headers={['date', 'score']}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/visualizations'}
-                >
-                  View Full Visualization
-                </Button>
-              </div>
+        <Collapsible open={trendExpanded} onOpenChange={setTrendExpanded}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full py-2 px-3 rounded border border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
+            <div className="flex items-center gap-2">
+              {trendExpanded ? (
+                <ChevronDown className="h-3 w-3 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-gray-400" />
+              )}
+              <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                Fusion Trend Snapshot (7 Days)
+              </span>
             </div>
-          </CardHeader>
-          <CardContent>
-            {trendSnapshot.length > 0 ? (
-              <ResponsiveContainer width="100%" height={120}>
-                <LineChart data={trendSnapshot}>
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Tooltip />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-center text-gray-600 py-4 text-sm">
-                No trend data available. Visit Visualizations to generate analytics.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-1">
+              <ExportDataButton
+                data={trendSnapshot}
+                filename="fusion-trend"
+                headers={['date', 'score']}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-6 px-2 text-gray-500"
+                onClick={(e) => { e.stopPropagation(); window.location.href = '/visualizations'; }}
+              >
+                View Full
+              </Button>
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <Card className="border-gray-100 dark:border-gray-800">
+              <CardContent className="py-2">
+                {trendSnapshot.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={80}>
+                    <LineChart data={trendSnapshot}>
+                      <Line
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Tooltip />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-gray-400 py-2 text-xs">
+                    No trend data available
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
-      {/* Integration Performance - only show when user has connected integrations */}
+      {/* Integration Performance - compact layout */}
       {hasConnectedIntegrations && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {selectedIntegration ? `${selectedIntegration.integration_name} Performance` : 'Integration Performance'}
             </h2>
             <ExportDataButton
@@ -821,7 +816,7 @@ export function Dashboard() {
               headers={['integration_name', 'fusion_score', 'trend_direction', 'metrics_count']}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(selectedIntegration ? [selectedIntegration] : integrations).map(integration => (
               <IntegrationCard key={integration.id} integration={integration} />
             ))}
@@ -829,29 +824,20 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Session Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Last Login</p>
-                <p className="font-medium">
-                  {sessionData?.last_login && sessionData.last_login !== 'Never' 
-                    ? new Date(sessionData.last_login).toLocaleString() 
-                    : 'Never'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Active Sessions</p>
-                <p className="font-medium">{sessionData?.active_sessions || 0}</p>
-              </div>
+      {/* Session Activity - compact */}
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Session Activity</span>
+            <div className="flex items-center gap-4 text-xs text-gray-500">
+              <span>Last login: {sessionData?.last_login && sessionData.last_login !== 'Never' 
+                ? new Date(sessionData.last_login).toLocaleDateString() 
+                : 'Never'}</span>
+              <span>Active: {sessionData?.active_sessions || 0}</span>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add-On CTA Footer */}
       <AddOnCTA type="dashboard_footer" />
