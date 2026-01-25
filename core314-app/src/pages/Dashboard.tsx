@@ -560,10 +560,11 @@ export function Dashboard() {
       {isIntelligenceDashboardEnabled && <IntelligenceDashboard />}
 
       {/* Analytics sections - only show when user has connected integrations */}
-      {/* flex-1 allows this section to grow and fill available vertical space */}
+      {/* Flattened grid: each panel is a direct grid child to eliminate blank space from unequal column heights */}
       {hasConnectedIntegrations ? (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-4">
+          {/* Row 1: Fusion Gauge (1 col) + System Signal Summary (2 cols) */}
+          <div className="lg:col-span-1">
             {selectedIntegration ? (
               <FusionGauge 
                 score={selectedIntegration.fusion_score || 0} 
@@ -575,68 +576,25 @@ export function Dashboard() {
             ) : (
               <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
             )}
-            
-            {/* System Explainability Panel - Why Core314 Sees This */}
-            {/* Visible for both baseline and computed users when logged in */}
-            <SystemExplainabilityPanel
-              scoreOrigin={systemStatus?.score_origin}
-              integrations={integrations}
-              globalScore={globalScore}
-            />
-            
-            {/* System Trajectory Panel - Predictive Signal Framing */}
-            {/* Visible ONLY for computed users */}
-            <SystemTrajectoryPanel
-              isComputed={isComputed}
-              integrations={integrations}
-              trendSnapshot={trendSnapshot}
-              globalTrend={globalTrend}
-            />
-            
-                                            {/* Intelligence Readiness Panel - Readiness Signaling */}
-                                            {/* Visible for BOTH baseline and computed users */}
-                                            <IntelligenceReadinessPanel
-                                              scoreOrigin={systemStatus?.score_origin}
-                                              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
-                                              integrations={integrations}
-                                              trendSnapshot={trendSnapshot}
-                                              globalTrend={globalTrend}
-                                            />
-            
-                                  {/* System Learning Panel - Learning Evidence (Non-Actionable) */}
-                                  {/* Visible for BOTH baseline and computed users */}
-                                  <SystemLearningPanel
-                                    learningStates={learningStates}
-                                    globalSummary={globalSummary}
-                                    loading={learningLoading}
-                                  />
-            
-                                  {/* Learning Timeline - What Core314 Has Learned */}
-                                  {/* Visible for BOTH baseline and computed users */}
-                                  <LearningTimeline
-                                    events={learningEvents}
-                                    loading={learningLoading}
-                                  />
-            
-                                            {/* Link to System Intelligence Overview */}
-                      <div className="pt-2">
-                        <Link 
-                          to="/system-intelligence" 
-                          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                        >
-                          View full System Intelligence Overview
-                        </Link>
-                      </div>
-                    </div>
-          <div className="lg:col-span-2 space-y-6">
-            {/* System Signal Summary - computed users only, below Fusion Score, above AI panels */}
+          </div>
+          <div className="lg:col-span-2">
             <SystemSignalSummary
               isComputed={isComputed}
               integrations={integrations}
               globalScore={globalScore}
               trendSnapshot={trendSnapshot}
             />
-            
+          </div>
+
+          {/* Row 2: System Explainability (1 col) + AI Insights Panel (2 cols) */}
+          <div className="lg:col-span-1">
+            <SystemExplainabilityPanel
+              scoreOrigin={systemStatus?.score_origin}
+              integrations={integrations}
+              globalScore={globalScore}
+            />
+          </div>
+          <div className="lg:col-span-2">
             {selectedIntegration ? (
               <AIInsightsPanel 
                 hasAccess={subscription.hasAIInsights || false} 
@@ -646,8 +604,18 @@ export function Dashboard() {
             ) : (
               <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
             )}
-            
-            {/* Integration-scoped AI Query - show when integration is selected */}
+          </div>
+
+          {/* Row 3: System Trajectory (1 col) + AI Query (2 cols) */}
+          <div className="lg:col-span-1">
+            <SystemTrajectoryPanel
+              isComputed={isComputed}
+              integrations={integrations}
+              trendSnapshot={trendSnapshot}
+              globalTrend={globalTrend}
+            />
+          </div>
+          <div className="lg:col-span-2">
             {selectedIntegration && ['professional', 'enterprise'].includes(subscription.tier) && (
               <Card>
                 <CardHeader>
@@ -665,8 +633,6 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             )}
-            
-            {/* Global AI Query - show when viewing all integrations */}
             {!selectedIntegration && ['professional', 'enterprise'].includes(subscription.tier) && (
               <Card>
                 <CardHeader>
@@ -680,6 +646,44 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             )}
+          </div>
+
+          {/* Row 4: Intelligence Readiness (1 col) + empty/spacer (2 cols - will auto-collapse) */}
+          <div className="lg:col-span-1">
+            <IntelligenceReadinessPanel
+              scoreOrigin={systemStatus?.score_origin}
+              hasEfficiencyMetrics={integrations.reduce((sum, i) => sum + (i.metrics_count || 0), 0) > 0}
+              integrations={integrations}
+              trendSnapshot={trendSnapshot}
+              globalTrend={globalTrend}
+            />
+          </div>
+
+          {/* Row 5: System Learning (1 col) */}
+          <div className="lg:col-span-1">
+            <SystemLearningPanel
+              learningStates={learningStates}
+              globalSummary={globalSummary}
+              loading={learningLoading}
+            />
+          </div>
+
+          {/* Row 6: Learning Timeline (1 col) */}
+          <div className="lg:col-span-1">
+            <LearningTimeline
+              events={learningEvents}
+              loading={learningLoading}
+            />
+          </div>
+
+          {/* Link to System Intelligence Overview */}
+          <div className="lg:col-span-1 pt-2">
+            <Link 
+              to="/system-intelligence" 
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+            >
+              View full System Intelligence Overview
+            </Link>
           </div>
         </div>
       ) : (
