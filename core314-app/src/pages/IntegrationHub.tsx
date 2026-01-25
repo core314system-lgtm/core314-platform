@@ -181,26 +181,6 @@ function TrustReassuranceNote() {
   );
 }
 
-// Recommended First Integrations guidance component
-function RecommendedIntegrationsGuidance() {
-  return (
-    <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base font-medium text-gray-900 dark:text-white flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-amber-600" />
-          Recommended First Integrations
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Tools like <strong>Slack</strong>, <strong>Microsoft Teams</strong>, or <strong>Jira</strong> typically unlock early value. 
-          These integrations provide rich operational signals that enable Core314 to surface alerts, health signals, and actionable insights faster.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
 // Integration Connect Modal - Reusable modal for integration connection flow
 interface IntegrationConnectModalProps {
   open: boolean;
@@ -764,9 +744,6 @@ export default function IntegrationHub() {
 
       {/* Pre-connection context - only show if no integrations connected */}
       {enabledCount === 0 && <PreConnectionContext />}
-
-      {/* Recommended First Integrations guidance - static guidance block */}
-      <RecommendedIntegrationsGuidance />
 
       {/* First connection success state */}
       {showFirstConnectionSuccess && (

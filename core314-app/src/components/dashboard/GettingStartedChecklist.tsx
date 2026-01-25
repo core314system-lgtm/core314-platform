@@ -7,14 +7,13 @@ import { CheckCircle, Circle, X, Zap, BarChart3, Bell } from 'lucide-react';
 /**
  * Getting Started Checklist
  * 
- * A dismissible checklist panel that appears only for first-time users
- * (users with no connected integrations).
+ * A dismissible checklist panel that is visible by default for all users.
  * 
  * Rules:
  * - Does NOT block usage
- * - Is dismissible
+ * - Is dismissible (user-controlled)
  * - Dismissal persists via localStorage
- * - No new logic or gating
+ * - No logic tied to "first login only"
  * - Deep-links to existing routes only
  */
 
@@ -30,13 +29,13 @@ interface ChecklistItem {
 }
 
 interface GettingStartedChecklistProps {
-  hasConnectedIntegrations: boolean;
+  hasConnectedIntegrations?: boolean;
   hasViewedFusionScore?: boolean;
   hasCreatedAlert?: boolean;
 }
 
 export function GettingStartedChecklist({
-  hasConnectedIntegrations,
+  hasConnectedIntegrations = false,
   hasViewedFusionScore = false,
   hasCreatedAlert = false,
 }: GettingStartedChecklistProps) {
@@ -44,8 +43,8 @@ export function GettingStartedChecklist({
     return localStorage.getItem(CHECKLIST_DISMISSED_KEY) === 'true';
   });
 
-  // Don't show if dismissed or if user has connected integrations (not a new user)
-  if (isDismissed || hasConnectedIntegrations) {
+  // Only hide if user has explicitly dismissed - visible by default
+  if (isDismissed) {
     return null;
   }
 
