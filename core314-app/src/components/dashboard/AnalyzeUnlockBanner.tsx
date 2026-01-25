@@ -98,6 +98,9 @@ export function AnalyzeUnlockBanner({ isComputed }: AnalyzeUnlockBannerProps) {
         <p>
           Core314 has accumulated sufficient stable data to begin reliable analysis. Intelligence panels now reflect real system behavior rather than baseline observation.
         </p>
+        <p className="text-xs text-slate-600 dark:text-slate-400">
+          This means Core314 has collected enough data from your connected systems to provide reliable analysis.
+        </p>
       </div>
 
       <div className="flex items-center gap-4">
