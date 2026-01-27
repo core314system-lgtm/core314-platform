@@ -18,9 +18,15 @@ interface FormData {
   primary_industry: string;
   how_advises_orgs: string;
   how_core314_fits: string;
+  firm_type: string;
+  typical_client_profile: string;
+  tooling_decision_frequency: string;
+  how_introduce_core314: string;
   not_influencer_marketer: boolean;
   will_not_misrepresent_ai: boolean;
   understands_decision_intelligence: boolean;
+  understands_not_affiliate: boolean;
+  agrees_rules_of_engagement: boolean;
   ack_not_agent: boolean;
   ack_no_misrepresent: boolean;
   ack_no_entitlement: boolean;
@@ -35,9 +41,15 @@ const initialFormData: FormData = {
   primary_industry: '',
   how_advises_orgs: '',
   how_core314_fits: '',
+  firm_type: '',
+  typical_client_profile: '',
+  tooling_decision_frequency: '',
+  how_introduce_core314: '',
   not_influencer_marketer: false,
   will_not_misrepresent_ai: false,
   understands_decision_intelligence: false,
+  understands_not_affiliate: false,
+  agrees_rules_of_engagement: false,
   ack_not_agent: false,
   ack_no_misrepresent: false,
   ack_no_entitlement: false,
@@ -279,12 +291,16 @@ export default function PartnersPage() {
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.push('Invalid email format');
     }
-    if (!formData.company.trim()) errors.push('Company is required');
+    if (!formData.company.trim()) errors.push('Firm name is required');
     if (!formData.role_title.trim()) errors.push('Role/title is required');
     if (!formData.years_experience) errors.push('Years of experience is required');
     if (!formData.primary_industry.trim()) errors.push('Primary industry is required');
+    if (!formData.firm_type) errors.push('Firm type is required');
+    if (!formData.typical_client_profile.trim()) errors.push('Typical client profile is required');
+    if (!formData.tooling_decision_frequency) errors.push('Tooling decision frequency is required');
     if (!formData.how_advises_orgs.trim()) errors.push('Description of advisory work is required');
     if (!formData.how_core314_fits.trim()) errors.push('Description of how Core314 fits is required');
+    if (!formData.how_introduce_core314.trim()) errors.push('Description of how you would introduce Core314 is required');
 
     if (!formData.not_influencer_marketer) {
       errors.push('You must confirm you are not an influencer, marketer, or traffic-based promoter');
@@ -294,6 +310,12 @@ export default function PartnersPage() {
     }
     if (!formData.understands_decision_intelligence) {
       errors.push('You must confirm you understand Core314 provides decision intelligence, not decisions');
+    }
+    if (!formData.understands_not_affiliate) {
+      errors.push('You must confirm you understand this is NOT an affiliate program');
+    }
+    if (!formData.agrees_rules_of_engagement) {
+      errors.push('You must agree to Core314 Rules of Engagement');
     }
 
     if (!formData.ack_not_agent) {
@@ -876,6 +898,25 @@ export default function PartnersPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                      <label htmlFor="firm_type" className="block text-sm font-medium text-slate-700 mb-2">
+                        Firm Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="firm_type"
+                        name="firm_type"
+                        value={formData.firm_type}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all text-slate-900"
+                      >
+                        <option value="">Select firm type...</option>
+                        <option value="advisor">Advisor</option>
+                        <option value="integrator">Integrator</option>
+                        <option value="consultant">Consultant</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
                       <label htmlFor="years_experience" className="block text-sm font-medium text-slate-700 mb-2">
                         Years of Professional Experience <span className="text-red-500">*</span>
                       </label>
@@ -891,6 +932,9 @@ export default function PartnersPage() {
                         placeholder="e.g., 10"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label htmlFor="primary_industry" className="block text-sm font-medium text-slate-700 mb-2">
                         Primary Industry <span className="text-red-500">*</span>
@@ -906,6 +950,41 @@ export default function PartnersPage() {
                         placeholder="e.g., Healthcare, Financial Services, GovTech"
                       />
                     </div>
+                    <div>
+                      <label htmlFor="tooling_decision_frequency" className="block text-sm font-medium text-slate-700 mb-2">
+                        How often do operational or tooling decisions arise? <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="tooling_decision_frequency"
+                        name="tooling_decision_frequency"
+                        value={formData.tooling_decision_frequency}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all text-slate-900"
+                      >
+                        <option value="">Select frequency...</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="rarely">Rarely</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="typical_client_profile" className="block text-sm font-medium text-slate-700 mb-2">
+                      Typical Client Profile <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="typical_client_profile"
+                      name="typical_client_profile"
+                      value={formData.typical_client_profile}
+                      onChange={handleInputChange}
+                      required
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all text-slate-900 resize-none"
+                      placeholder="Describe your typical clients: size, industry, complexity, decision-making structure..."
+                    />
                   </div>
 
                   <div>
@@ -940,6 +1019,22 @@ export default function PartnersPage() {
                     />
                   </div>
 
+                  <div>
+                    <label htmlFor="how_introduce_core314" className="block text-sm font-medium text-slate-700 mb-2">
+                      How would you introduce Core314 to a client? <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="how_introduce_core314"
+                      name="how_introduce_core314"
+                      value={formData.how_introduce_core314}
+                      onChange={handleInputChange}
+                      required
+                      rows={4}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all text-slate-900 resize-none"
+                      placeholder="Describe how you would explain Core314's value proposition to a potential client in your own words..."
+                    />
+                  </div>
+
                   {/* Disqualification Questions */}
                   <div className="border-t border-slate-200 pt-8">
                     <h3 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'Poppins, sans-serif' }}>
@@ -953,7 +1048,9 @@ export default function PartnersPage() {
                       {[
                         { name: 'not_influencer_marketer', label: 'I am not an influencer, marketer, or traffic-based promoter' },
                         { name: 'will_not_misrepresent_ai', label: 'I will not represent Core314 as autonomous AI or outcome-guaranteed' },
-                        { name: 'understands_decision_intelligence', label: 'I understand Core314 provides decision intelligence, not decisions' }
+                        { name: 'understands_decision_intelligence', label: 'I understand Core314 provides decision intelligence, not decisions' },
+                        { name: 'understands_not_affiliate', label: 'I understand this is NOT an affiliate program' },
+                        { name: 'agrees_rules_of_engagement', label: 'I agree to Core314 Rules of Engagement' }
                       ].map(({ name, label }) => (
                         <div key={name} className="p-4 bg-slate-50 rounded-lg">
                           <p className="text-slate-700 mb-3">{label}</p>
