@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
 
-const REWARDFUL_SIGNUP_URL = 'https://core314.rewardful.com/signup';
-
 export default function AffiliatePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -15,14 +13,11 @@ export default function AffiliatePage() {
               Core<span className="text-sky-400">314</span>
             </span>
           </Link>
-          <a
-            href={REWARDFUL_SIGNUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white font-medium rounded-lg transition-colors text-sm"
+          <span
+            className="px-4 py-2 bg-sky-500/50 text-white/70 font-medium rounded-lg text-sm cursor-not-allowed"
           >
             Apply Now
-          </a>
+          </span>
         </div>
       </header>
 
@@ -46,14 +41,14 @@ export default function AffiliatePage() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href={REWARDFUL_SIGNUP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-8 py-4 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-lg transition-all text-lg shadow-lg shadow-sky-500/25 hover:shadow-sky-400/30 hover:-translate-y-0.5"
-            >
-              Join the Affiliate Program
-            </a>
+            <div className="flex flex-col items-center">
+              <span
+                className="px-8 py-4 bg-sky-500/50 text-white/70 font-semibold rounded-lg text-lg cursor-not-allowed"
+              >
+                Join the Affiliate Program
+              </span>
+              <span className="text-slate-500 text-sm mt-3">Affiliate enrollment opens soon.</span>
+            </div>
             <a
               href="#how-it-works"
               className="px-6 py-4 text-slate-300 hover:text-white font-medium transition-colors"
@@ -400,14 +395,12 @@ export default function AffiliatePage() {
             <span className="text-sky-400">Grow With Core314.</span>
           </h2>
           
-          <a
-            href={REWARDFUL_SIGNUP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block px-10 py-5 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-lg transition-all text-lg shadow-lg shadow-sky-500/25 hover:shadow-sky-400/30 hover:-translate-y-0.5"
+          <span
+            className="inline-block px-10 py-5 bg-sky-500/50 text-white/70 font-semibold rounded-lg text-lg cursor-not-allowed"
           >
             Apply to Join the Affiliate Program
-          </a>
+          </span>
+          <p className="text-slate-500 text-sm mt-4">Affiliate enrollment opens soon.</p>
         </div>
       </section>
 
