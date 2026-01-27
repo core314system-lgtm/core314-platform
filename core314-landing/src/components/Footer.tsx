@@ -10,6 +10,9 @@ export default function Footer() {
           <img src="/logo-icon.svg" alt="Core314" className="h-10 w-10" />
           
           <nav className="flex flex-wrap justify-center gap-6 text-sm">
+            <Link to="/partners" className="text-slate-500 hover:text-sky-600 transition-colors">
+              Partners
+            </Link>
             <Link to="/privacy" className="text-slate-500 hover:text-sky-600 transition-colors">
               Privacy Policy
             </Link>
