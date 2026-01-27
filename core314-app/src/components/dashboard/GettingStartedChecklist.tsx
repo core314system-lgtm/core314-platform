@@ -43,8 +43,10 @@ export function GettingStartedChecklist({
     return localStorage.getItem(CHECKLIST_DISMISSED_KEY) === 'true';
   });
 
-  // Only hide if user has explicitly dismissed - visible by default
-  if (isDismissed) {
+  // Hide if:
+  // 1. User has explicitly dismissed
+  // 2. User has connected integrations (no longer first-time user)
+  if (isDismissed || hasConnectedIntegrations) {
     return null;
   }
 
@@ -58,7 +60,7 @@ export function GettingStartedChecklist({
       id: 'connect-integration',
       label: 'Connect your first integration',
       description: 'Link a tool like Slack, Teams, or Jira to start collecting signals',
-      route: '/integrations',
+      route: '/integration-hub',
       icon: <Zap className="h-4 w-4" />,
       isComplete: hasConnectedIntegrations,
     },
@@ -66,7 +68,7 @@ export function GettingStartedChecklist({
       id: 'review-fusion-score',
       label: 'Review your Fusion Score',
       description: 'See how Core314 measures your operational health',
-      route: '/dashboard',
+      route: '/fusion-details',
       icon: <BarChart3 className="h-4 w-4" />,
       isComplete: hasViewedFusionScore,
     },
@@ -74,7 +76,7 @@ export function GettingStartedChecklist({
       id: 'create-alert',
       label: 'Create your first alert',
       description: 'Set up notifications for important system changes',
-      route: '/alerts',
+      route: '/notifications',
       icon: <Bell className="h-4 w-4" />,
       isComplete: hasCreatedAlert,
     },

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../ui/button';
-import { Sparkles, X, ArrowRight, ExternalLink } from 'lucide-react';
+import { Sparkles, X, ArrowRight } from 'lucide-react';
 
 /**
  * Beta Onboarding Panel
@@ -63,13 +63,31 @@ export function BetaOnboardingPanel({ hasConnectedIntegrations }: BetaOnboarding
       </div>
 
       {/* Body content */}
-      <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300 mb-6">
+      <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300 mb-4">
         <p>
           Core314 continuously observes your connected systems, analyzes operational signals, and—when confidence is high—provides predictive insights to help you act earlier and smarter.
         </p>
         <p>
           During beta, you'll see how your system progresses from <span className="font-medium text-slate-800 dark:text-slate-200">Observe</span> → <span className="font-medium text-slate-800 dark:text-slate-200">Analyze</span> → <span className="font-medium text-slate-800 dark:text-slate-200">Predict</span> as more data is collected.
         </p>
+      </div>
+
+      {/* Sample AI Insight - Proof of Value */}
+      <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+        <div className="flex items-start gap-2">
+          <Sparkles className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-1">
+              Example Insight
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+              "Slack response times have improved 23% this week. Team coordination appears more efficient during morning hours."
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 italic">
+              This is an example of the insights Core314 generates from your connected tools.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* CTAs */}
@@ -81,12 +99,11 @@ export function BetaOnboardingPanel({ hasConnectedIntegrations }: BetaOnboarding
           </Button>
         </Link>
         <Link 
-          to="/how-it-works" 
-          target="_blank"
+          to="/fusion-details"
           className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
         >
           Learn how Core314 works
-          <ExternalLink className="h-3 w-3" />
+          <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
 
