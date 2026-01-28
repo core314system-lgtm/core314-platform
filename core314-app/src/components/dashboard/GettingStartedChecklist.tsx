@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { CheckCircle, Circle, X, Zap, BarChart3, Bell } from 'lucide-react';
+import { CheckCircle, Circle, X, Zap, BarChart3, Activity } from 'lucide-react';
 
 /**
  * Getting Started Checklist
@@ -65,19 +65,19 @@ export function GettingStartedChecklist({
       isComplete: hasConnectedIntegrations,
     },
     {
-      id: 'review-fusion-score',
-      label: 'Review your Fusion Score',
-      description: 'See how Core314 measures your operational health',
-      route: '/fusion-details',
-      icon: <BarChart3 className="h-4 w-4" />,
+      id: 'observe-signals',
+      label: 'Observe system signals',
+      description: 'View real-time signals from your connected integrations',
+      route: '/system-signals',
+      icon: <Activity className="h-4 w-4" />,
       isComplete: hasViewedFusionScore,
     },
     {
-      id: 'create-alert',
-      label: 'Create your first alert',
-      description: 'Set up notifications for important system changes',
-      route: '/notifications',
-      icon: <Bell className="h-4 w-4" />,
+      id: 'review-insights',
+      label: 'Review system insights',
+      description: 'Analyze your operational health and Fusion Score',
+      route: '/fusion-details',
+      icon: <BarChart3 className="h-4 w-4" />,
       isComplete: hasCreatedAlert,
     },
   ];
