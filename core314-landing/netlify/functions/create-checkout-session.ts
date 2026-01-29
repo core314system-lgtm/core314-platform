@@ -47,13 +47,10 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const planLookupKeys: Record<string, string> = {
-      starter: 'starter_monthly',
-      pro: 'pro_monthly',
-    };
-
-    const lookupKey = planLookupKeys[plan.toLowerCase()];
-    if (!lookupKey) {
+    const planLower = plan.toLowerCase();
+    
+    // Validate plan is supported
+    if (!['starter', 'pro'].includes(planLower)) {
       return {
         statusCode: 400,
         headers,
@@ -61,39 +58,52 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Fetch multiple prices to handle potential duplicates with same lookup_key
-    const prices = await stripe.prices.list({
-      lookup_keys: [lookupKey],
-      limit: 10,
-      active: true,
-    });
+    // Get expected amount for this plan (source of truth)
+    const expectedAmount = EXPECTED_PRICE_AMOUNTS[planLower];
+    
+    let selectedPrice: Stripe.Price | undefined;
+    let allPricesForDiagnostics: Stripe.Price[] = [];
 
-    if (!prices.data || prices.data.length === 0) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Price not found for plan' }),
-      };
+    if (planLower === 'starter') {
+      // STARTER: Use lookup_key (known to work in production)
+      const prices = await stripe.prices.list({
+        lookup_keys: ['starter_monthly'],
+        limit: 10,
+        active: true,
+      });
+      allPricesForDiagnostics = prices.data;
+      
+      // Find exact match: active + USD + monthly + $199
+      selectedPrice = prices.data.find(p => 
+        p.active &&
+        p.currency === 'usd' &&
+        p.recurring?.interval === 'month' &&
+        p.unit_amount === expectedAmount
+      );
+    } else if (planLower === 'pro') {
+      // PRO: Deterministic search by price attributes (lookup_key not set in Stripe)
+      // Fetch all active recurring prices and filter deterministically
+      const prices = await stripe.prices.list({
+        active: true,
+        type: 'recurring',
+        limit: 100,
+      });
+      allPricesForDiagnostics = prices.data;
+      
+      // Find exact match: active + USD + monthly + $999
+      // This is deterministic because there should be exactly one price matching all criteria
+      selectedPrice = prices.data.find(p => 
+        p.active &&
+        p.currency === 'usd' &&
+        p.recurring?.interval === 'month' &&
+        p.unit_amount === expectedAmount
+      );
     }
 
-    // Get expected amount for this plan
-    const expectedAmount = EXPECTED_PRICE_AMOUNTS[plan.toLowerCase()];
-    
-    // Find the correct price by matching:
-    // 1. Active status
-    // 2. USD currency
-    // 3. Monthly recurring interval
-    // 4. Expected unit_amount (if defined)
-    let selectedPrice = prices.data.find(p => 
-      p.active &&
-      p.currency === 'usd' &&
-      p.recurring?.interval === 'month' &&
-      (expectedAmount ? p.unit_amount === expectedAmount : true)
-    );
-
-    // If no exact match found, provide diagnostic info
+    // If no exact match found, log diagnostics and return error
     if (!selectedPrice) {
-      const diagnosticInfo = prices.data.map(p => ({
+      // Log full diagnostic info server-side only
+      const diagnosticInfo = allPricesForDiagnostics.map(p => ({
         id: p.id,
         unit_amount: p.unit_amount,
         currency: p.currency,
@@ -102,18 +112,20 @@ export const handler: Handler = async (event) => {
         livemode: p.livemode,
       }));
       
-      console.error('Price mismatch for plan:', plan, 'Expected amount:', expectedAmount, 'Found prices:', diagnosticInfo);
+      console.error(
+        'PRO PRICE RESOLUTION FAILED:',
+        'Plan:', planLower,
+        'Expected amount (cents):', expectedAmount,
+        'Total prices returned:', allPricesForDiagnostics.length,
+        'All prices:', JSON.stringify(diagnosticInfo, null, 2)
+      );
       
+      // Return user-safe error (no Stripe internals exposed)
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({ 
-          error: `No matching price found for ${plan} plan. Expected $${(expectedAmount || 0) / 100}/month.`,
-          diagnostic: {
-            plan,
-            expectedAmountCents: expectedAmount,
-            foundPrices: diagnosticInfo,
-          }
+          error: `Unable to load pricing for ${plan} plan. Please try again or contact support.`,
         }),
       };
     }
@@ -144,7 +156,7 @@ export const handler: Handler = async (event) => {
     }
 
     // Determine if this plan is eligible for a 14-day free trial
-    const planLower = plan.toLowerCase();
+    // (planLower already defined above)
     const isTrialEligible = TRIAL_ELIGIBLE_PLANS.includes(planLower);
 
     const session = await stripe.checkout.sessions.create({
