@@ -13,6 +13,10 @@ const EXPECTED_PRICE_AMOUNTS: Record<string, number> = {
   pro: 99900,     // $999/month
 };
 
+// Plans eligible for 14-day free trial
+// Both Starter and Pro get trials; Enterprise is custom/contact-sales
+const TRIAL_ELIGIBLE_PLANS = ['starter', 'pro'];
+
 export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -139,6 +143,10 @@ export const handler: Handler = async (event) => {
       }
     }
 
+    // Determine if this plan is eligible for a 14-day free trial
+    const planLower = plan.toLowerCase();
+    const isTrialEligible = TRIAL_ELIGIBLE_PLANS.includes(planLower);
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -148,7 +156,9 @@ export const handler: Handler = async (event) => {
       customer_email: email,
       client_reference_id: userId,
       subscription_data: {
-        trial_period_days: 14,
+        // 14-day free trial for Starter and Pro plans
+        // Stripe Checkout will show "14 days free" and "$0 due today"
+        ...(isTrialEligible && { trial_period_days: 14 }),
         metadata: {
           plan,
           userId: userId || '',
