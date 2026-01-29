@@ -5,6 +5,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 });
 
+// Expected price amounts in cents (source of truth: shared/pricing.ts)
+// Starter (Observe) = $199/month = 19900 cents
+// Pro (Analyze) = $999/month = 99900 cents
+const EXPECTED_PRICE_AMOUNTS: Record<string, number> = {
+  starter: 19900, // $199/month
+  pro: 99900,     // $999/month
+};
+
 export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -49,9 +57,11 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    // Fetch multiple prices to handle potential duplicates with same lookup_key
     const prices = await stripe.prices.list({
       lookup_keys: [lookupKey],
-      limit: 1,
+      limit: 10,
+      active: true,
     });
 
     if (!prices.data || prices.data.length === 0) {
@@ -62,7 +72,49 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const priceId = prices.data[0].id;
+    // Get expected amount for this plan
+    const expectedAmount = EXPECTED_PRICE_AMOUNTS[plan.toLowerCase()];
+    
+    // Find the correct price by matching:
+    // 1. Active status
+    // 2. USD currency
+    // 3. Monthly recurring interval
+    // 4. Expected unit_amount (if defined)
+    let selectedPrice = prices.data.find(p => 
+      p.active &&
+      p.currency === 'usd' &&
+      p.recurring?.interval === 'month' &&
+      (expectedAmount ? p.unit_amount === expectedAmount : true)
+    );
+
+    // If no exact match found, provide diagnostic info
+    if (!selectedPrice) {
+      const diagnosticInfo = prices.data.map(p => ({
+        id: p.id,
+        unit_amount: p.unit_amount,
+        currency: p.currency,
+        interval: p.recurring?.interval,
+        active: p.active,
+        livemode: p.livemode,
+      }));
+      
+      console.error('Price mismatch for plan:', plan, 'Expected amount:', expectedAmount, 'Found prices:', diagnosticInfo);
+      
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: `No matching price found for ${plan} plan. Expected $${(expectedAmount || 0) / 100}/month.`,
+          diagnostic: {
+            plan,
+            expectedAmountCents: expectedAmount,
+            foundPrices: diagnosticInfo,
+          }
+        }),
+      };
+    }
+
+    const priceId = selectedPrice.id;
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
