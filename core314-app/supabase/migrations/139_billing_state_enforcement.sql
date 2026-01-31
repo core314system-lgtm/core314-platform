@@ -73,7 +73,7 @@ CREATE OR REPLACE FUNCTION compute_access_state(
 )
 RETURNS access_state_enum
 LANGUAGE plpgsql
-IMMUTABLE
+STABLE
 AS $$
 DECLARE
     v_hours_since_failure NUMERIC;
