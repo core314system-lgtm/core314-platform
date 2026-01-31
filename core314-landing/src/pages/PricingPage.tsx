@@ -18,9 +18,9 @@ export default function PricingPage() {
     const plans = [
       {
         name: 'Observe',
-        label: 'System Calibration Phase',
+        label: 'Starter Plan',
         tierFraming: 'Awareness',
-        subtext: 'Required first step for all Core314 intelligence',
+        subtext: 'Read-only visibility mode for teams that prefer to start with system calibration',
       price: formatPrice(PRICING.starter.monthly),
       period: '/mo',
       description: 'Core314 connects to your tools and begins observing how your organization operates. Dashboards are generated automatically in preview mode while the system identifies metrics and relationships.',
@@ -48,7 +48,7 @@ export default function PricingPage() {
     },
         {
           name: 'Analyze',
-          label: 'Active System Intelligence',
+          label: 'Pro Plan — Recommended Starting Point',
           tierFraming: 'Understanding',
           price: formatPrice(PRICING.pro.monthly),
       period: '/mo',
@@ -137,7 +137,7 @@ export default function PricingPage() {
                   transition={{ duration: 0.8, delay: 0.2 }}
                   className="text-xl text-slate-600 mb-6 max-w-3xl mx-auto"
                 >
-                  Core314™ grows with your organization. Start observing, then unlock intelligence as your system matures.{' '}
+                  Core314™ grows with your organization. Most teams begin with Analyze (Pro), where operational intelligence is active. Teams that prefer read-only visibility may start with Observe (Starter).{' '}
                   <Link to="/how-it-works" className="text-sky-600 hover:text-sky-700 underline">Learn how it works</Link>.
                 </motion.p>
                 <motion.p
@@ -354,11 +354,11 @@ export default function PricingPage() {
               },
               {
                 q: 'Can I add more integrations?',
-                a: 'Absolutely! You can add integrations starting at $75/month each on the Observe tier or $50/month each on the Analyze tier. For more than 8 integrations, upgrading to Analyze provides the best long-term value.'
+                a: 'Absolutely! You can add integrations starting at $75/month each on the Observe (Starter) tier or $50/month each on the Analyze (Pro) tier. For more than 8 integrations, upgrading to Analyze (Pro) provides the best long-term value.'
               },
               {
-                q: 'Why does the Observe tier have limited AI features?',
-                a: 'The Observe tier is intentionally preparatory. Core314 needs time to discover your metrics, map relationships, and establish baselines before intelligence can be activated. This ensures AI insights are grounded in real data, not assumptions.'
+                q: 'Why does the Observe (Starter) tier have limited AI features?',
+                a: 'The Observe (Starter) tier is intentionally preparatory. Core314 needs time to discover your metrics, map relationships, and establish baselines before intelligence can be activated. This ensures AI insights are grounded in real data, not assumptions.'
               }
             ].map((faq, index) => (
               <motion.div
