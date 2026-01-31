@@ -207,6 +207,119 @@ async function logOpsEvent(
 }
 
 // =============================================================================
+// BILLING STATE ENFORCEMENT
+// Updates billing_state table for access enforcement
+// =============================================================================
+
+async function updateBillingState(
+  userId: string,
+  stripeCustomerId?: string,
+  stripeSubscriptionId?: string,
+  subscriptionStatus?: string,
+  paymentFailedAt?: Date | null,
+  clearPaymentFailed: boolean = false
+): Promise<void> {
+  try {
+    const { data, error } = await supabase.rpc('update_billing_state', {
+      p_user_id: userId,
+      p_stripe_customer_id: stripeCustomerId || null,
+      p_stripe_subscription_id: stripeSubscriptionId || null,
+      p_subscription_status: subscriptionStatus || null,
+      p_payment_failed_at: paymentFailedAt?.toISOString() || null,
+      p_clear_payment_failed: clearPaymentFailed,
+    });
+
+    if (error) {
+      console.error(`[BILLING_STATE] Error updating billing state for user ${userId}:`, error);
+      return;
+    }
+
+    const result = data as { old_access_state: string; new_access_state: string; state_changed: boolean };
+    if (result?.state_changed) {
+      console.log(`[BILLING_STATE] Access state changed for user ${userId}: ${result.old_access_state} -> ${result.new_access_state}`);
+      
+      // Log to ops_event_log for monitoring
+      await logOpsEvent(
+        'access_state_changed',
+        'netlify:stripe-webhook',
+        result.new_access_state === 'locked' ? 'warning' : 'info',
+        userId,
+        undefined,
+        undefined,
+        undefined,
+        {
+          old_access_state: result.old_access_state,
+          new_access_state: result.new_access_state,
+          subscription_status: subscriptionStatus,
+        }
+      );
+    } else {
+      console.log(`[BILLING_STATE] Updated billing state for user ${userId}, access_state: ${result?.new_access_state}`);
+    }
+  } catch (err) {
+    console.error(`[BILLING_STATE] Failed to update billing state for user ${userId}:`, err);
+  }
+}
+
+// Check for expired grace periods and cancel subscriptions
+async function checkAndCancelExpiredGracePeriods(): Promise<void> {
+  try {
+    const { data: expiredUsers, error } = await supabase.rpc('get_expired_grace_period_users');
+    
+    if (error) {
+      console.error('[BILLING_STATE] Error getting expired grace period users:', error);
+      return;
+    }
+
+    if (!expiredUsers || expiredUsers.length === 0) {
+      return;
+    }
+
+    console.log(`[BILLING_STATE] Found ${expiredUsers.length} users with expired grace periods`);
+
+    for (const user of expiredUsers) {
+      try {
+        // Cancel subscription via Stripe API
+        if (user.stripe_subscription_id) {
+          console.log(`[BILLING_STATE] Canceling subscription ${user.stripe_subscription_id} for user ${user.user_id} (${user.hours_since_failure}h since failure)`);
+          
+          await stripe.subscriptions.cancel(user.stripe_subscription_id);
+          
+          // Update billing state to locked
+          await updateBillingState(
+            user.user_id,
+            user.stripe_customer_id,
+            user.stripe_subscription_id,
+            'canceled',
+            null,
+            true // clear payment_failed_at
+          );
+
+          // Log the cancellation
+          await logOpsEvent(
+            'subscription_auto_canceled',
+            'netlify:stripe-webhook',
+            'warning',
+            user.user_id,
+            user.stripe_subscription_id,
+            'GRACE_PERIOD_EXPIRED',
+            `Subscription canceled after ${Math.round(user.hours_since_failure)}h past due`,
+            {
+              stripe_subscription_id: user.stripe_subscription_id,
+              hours_since_failure: user.hours_since_failure,
+            }
+          );
+        }
+      } catch (cancelErr) {
+        console.error(`[BILLING_STATE] Failed to cancel subscription for user ${user.user_id}:`, cancelErr);
+      }
+    }
+  } catch (err) {
+    console.error('[BILLING_STATE] Error in checkAndCancelExpiredGracePeriods:', err);
+  }
+}
+
+// =============================================================================
 // TIER-0: SYNC SUBSCRIPTION TO USER_SUBSCRIPTIONS TABLE
 // Ensures both profiles and user_subscriptions are updated consistently
 // =============================================================================
@@ -487,6 +600,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, eventId
     price_id: priceId,
     subscription_id: subscriptionId,
   });
+
+  // ==========================================================================
+  // BILLING STATE ENFORCEMENT: Update billing_state table
+  // ==========================================================================
+  await updateBillingState(
+    existingProfile.id,
+    customerId,
+    subscriptionId,
+    subscription.status,
+    null, // no payment failure
+    true  // clear any previous payment_failed_at
+  );
 
   // Mark event as successfully processed
   await updateWebhookEventStatus(eventId, 'success', undefined, existingProfile.id);
@@ -824,6 +949,22 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, even
     }
   }
 
+  // ==========================================================================
+  // BILLING STATE ENFORCEMENT: Update billing_state table
+  // Handles transitions: trialing -> active, active -> past_due, past_due -> active
+  // ==========================================================================
+  await updateBillingState(
+    profile.id,
+    customerId,
+    subscription.id,
+    subscription.status,
+    null, // payment_failed_at handled by invoice.payment_failed
+    subscription.status === 'active' // clear payment_failed_at if now active
+  );
+
+  // Check for any expired grace periods on each webhook
+  await checkAndCancelExpiredGracePeriods();
+
   await updateWebhookEventStatus(eventId, 'success', undefined, profile.id);
 }
 
@@ -931,6 +1072,18 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, even
         ? new Date(subscription.current_period_end * 1000).toISOString()
         : null,
     });
+
+    // ==========================================================================
+    // BILLING STATE ENFORCEMENT: Lock account on subscription deletion
+    // ==========================================================================
+    await updateBillingState(
+      profile.id,
+      customerId,
+      subscription.id,
+      'canceled',
+      null,
+      true // clear payment_failed_at
+    );
   }
 
   await updateWebhookEventStatus(eventId, 'success', undefined, profile?.id);
@@ -1012,6 +1165,28 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, eventId: string) 
         previous_status: profile.subscription_status,
         subscription_id: subscriptionId,
       });
+
+      // ==========================================================================
+      // BILLING STATE ENFORCEMENT: Clear payment_failed_at and restore full access
+      // ==========================================================================
+      await updateBillingState(
+        profile.id,
+        customerId,
+        subscriptionId,
+        'active',
+        null,
+        true // clear payment_failed_at
+      );
+    } else {
+      // Even if not recovering, ensure billing state is up to date
+      await updateBillingState(
+        profile.id,
+        customerId,
+        subscriptionId,
+        subscription.status,
+        null,
+        false
+      );
     }
 
     await updateWebhookEventStatus(eventId, 'success', undefined, profile.id);
@@ -1087,6 +1262,22 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, eventId: string) {
     await logLaunchEvent(profile.id, 'payment_failed', {
       subscription_id: subscriptionId,
     });
+
+    // ==========================================================================
+    // BILLING STATE ENFORCEMENT: Record payment_failed_at timestamp
+    // This starts the grace period clock (24h full, 24h-7d grace, >7d locked)
+    // ==========================================================================
+    await updateBillingState(
+      profile.id,
+      customerId,
+      subscriptionId || undefined,
+      'past_due',
+      new Date(), // payment_failed_at = now
+      false
+    );
+
+    // Check for any expired grace periods
+    await checkAndCancelExpiredGracePeriods();
   }
 
   await updateWebhookEventStatus(eventId, 'success', undefined, profile?.id);
