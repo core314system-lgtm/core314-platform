@@ -1,9 +1,24 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Prevent background scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
@@ -57,10 +72,18 @@ export default function Header() {
         </button>
       </div>
 
-      {/* Mobile Navigation Panel */}
+      {/* Mobile Navigation Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden absolute top-full left-0 right-0 bg-white/98 backdrop-blur-md border-b border-gray-200 shadow-lg">
-          <nav className="flex flex-col px-4 py-4 space-y-3">
+        <>
+          {/* Scrim - dims page content behind menu */}
+          <div 
+            className="lg:hidden fixed inset-0 bg-slate-900/40 z-40"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          {/* Mobile Navigation Panel */}
+          <div className="lg:hidden absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50">
+            <nav className="flex flex-col px-4 py-4 space-y-3">
             <Link 
               to="/product" 
               className="text-slate-600 hover:text-sky-600 transition-colors py-2 font-medium"
@@ -118,7 +141,8 @@ export default function Header() {
               Start Free Trial
             </Link>
           </nav>
-        </div>
+          </div>
+        </>
       )}
     </header>
   );
