@@ -310,14 +310,14 @@ export default function HowItWorksPage() {
             <div className="space-y-4 mb-8">
               <div className="bg-white border border-slate-200 rounded-xl p-5">
                 <p className="font-semibold text-slate-800">
-                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Observe</Link>
-                  <span className="text-slate-600 font-normal ml-2">— System calibration and discovery (required starting point)</span>
+                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Analyze (Pro)</Link>
+                  <span className="text-slate-600 font-normal ml-2">— Live intelligence, scoring, and AI explanations. Recommended starting point for most teams.</span>
                 </p>
               </div>
               <div className="bg-white border border-slate-200 rounded-xl p-5">
                 <p className="font-semibold text-slate-800">
-                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Analyze</Link>
-                  <span className="text-slate-600 font-normal ml-2">— Live intelligence, scoring, and AI explanations</span>
+                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Observe (Starter)</Link>
+                  <span className="text-slate-600 font-normal ml-2">— Read-only visibility mode for teams that prefer to start with system calibration before activating intelligence.</span>
                 </p>
               </div>
               <div className="bg-white border border-slate-200 rounded-xl p-5">
@@ -405,7 +405,7 @@ export default function HowItWorksPage() {
             className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Start with Observe. Connect your tools. Core314 learns your system before it acts.
+            Most teams begin with Analyze (Pro), where Core314's operational intelligence engine is active and continuously evaluating system health. Teams that prefer to start in read-only visibility mode may begin with Observe (Starter) before advancing into full analysis.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
