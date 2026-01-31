@@ -1,6 +1,7 @@
 import { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { checkBillingEnforcement } from './lib/billing-enforcement';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-11-20.acacia',
@@ -46,6 +47,15 @@ export const handler: Handler = async (event) => {
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: 'Method Not Allowed' };
+  }
+
+  // ==========================================================================
+  // BILLING ENFORCEMENT: Block mutations for grace/locked access states
+  // ==========================================================================
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  const billingBlocked = await checkBillingEnforcement(authHeader, 'create-addon-checkout');
+  if (billingBlocked) {
+    return { ...billingBlocked, headers };
   }
 
   try {
