@@ -45,16 +45,20 @@ const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }
     benefit: 'Accelerate sales cycles and improve conversion rates',
   },
   salesforce: {
-    dataAnalyzed: 'Opportunity stages, activity logs, forecast accuracy',
-    benefit: 'Enhance sales visibility and revenue predictability',
+    dataAnalyzed: 'Customer accounts, cases, and service activity',
+    benefit: 'Visibility into customer relationships and service demand',
   },
   stripe: {
     dataAnalyzed: 'Transaction volume, revenue trends, churn signals',
     benefit: 'Monitor financial health and identify growth opportunities',
   },
   quickbooks: {
-    dataAnalyzed: 'Cash flow patterns, expense trends, invoice cycles',
-    benefit: 'Improve financial planning and operational efficiency',
+    dataAnalyzed: 'Invoices, payments, expenses, and financial activity',
+    benefit: 'Visibility into operational financial signals',
+  },
+  xero: {
+    dataAnalyzed: 'Invoices, payments, expenses, and financial activity',
+    benefit: 'Visibility into operational financial signals',
   },
   zendesk: {
     dataAnalyzed: 'Ticket volume, status distribution, support activity',

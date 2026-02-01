@@ -15,6 +15,9 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
   'zoom': 'ZOOM',
   'google_calendar': 'GOOGLE',
+  'quickbooks': 'QUICKBOOKS',
+  'xero': 'XERO',
+  'salesforce': 'SALESFORCE',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -69,6 +72,8 @@ serve(withSentry(async (req) => {
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
+    // Provider-specific callback parameters
+    const realmId = url.searchParams.get('realmId'); // QuickBooks company ID
 
     if (error) {
       return new Response(JSON.stringify({ error: `OAuth error: ${error}` }), {
@@ -185,6 +190,23 @@ serve(withSentry(async (req) => {
       .eq('integration_type', integration.service_name)
       .single();
 
+    // Build provider-specific config
+    const integrationConfig: Record<string, unknown> = {
+      oauth_connected: true,
+      scope: tokenData.scope,
+      team: tokenData.team,
+    };
+    
+    // QuickBooks: store realmId (company ID)
+    if (realmId) {
+      integrationConfig.realm_id = realmId;
+    }
+    
+    // Salesforce: store instance_url from token response
+    if (tokenData.instance_url) {
+      integrationConfig.instance_url = tokenData.instance_url;
+    }
+
     const { data: userIntegration } = await supabase
       .from('user_integrations')
       .upsert({
@@ -193,11 +215,7 @@ serve(withSentry(async (req) => {
         provider_id: integration.id,
         added_by_user: true,
         status: 'active',
-        config: {
-          oauth_connected: true,
-          scope: tokenData.scope,
-          team: tokenData.team
-        }
+        config: integrationConfig
       }, {
         onConflict: 'user_id,integration_id'
       })
