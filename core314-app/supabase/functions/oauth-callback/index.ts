@@ -15,6 +15,7 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
   'zoom': 'ZOOM',
   'google_calendar': 'GOOGLE',
+  'quickbooks': 'QUICKBOOKS',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -69,6 +70,8 @@ serve(withSentry(async (req) => {
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
+    // QuickBooks-specific: realmId (company ID) is passed in callback URL
+    const realmId = url.searchParams.get('realmId');
 
     if (error) {
       return new Response(JSON.stringify({ error: `OAuth error: ${error}` }), {
@@ -196,7 +199,9 @@ serve(withSentry(async (req) => {
         config: {
           oauth_connected: true,
           scope: tokenData.scope,
-          team: tokenData.team
+          team: tokenData.team,
+          // QuickBooks-specific: store realmId (company ID) for API calls
+          realm_id: realmId || undefined,
         }
       }, {
         onConflict: 'user_id,integration_id'
