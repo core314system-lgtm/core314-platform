@@ -53,8 +53,8 @@ const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }
     benefit: 'Monitor financial health and identify growth opportunities',
   },
   quickbooks: {
-    dataAnalyzed: 'Cash flow patterns, expense trends, invoice cycles',
-    benefit: 'Improve financial planning and operational efficiency',
+    dataAnalyzed: 'Invoices, payments, expenses, and financial activity',
+    benefit: 'Visibility into operational financial signals',
   },
   zendesk: {
     dataAnalyzed: 'Ticket volume, status distribution, support activity',

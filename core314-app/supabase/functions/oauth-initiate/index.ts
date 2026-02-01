@@ -15,6 +15,7 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
   'zoom': 'ZOOM',
   'google_calendar': 'GOOGLE',
+  'quickbooks': 'QUICKBOOKS',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace

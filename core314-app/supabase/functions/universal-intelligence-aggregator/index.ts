@@ -48,6 +48,7 @@ const INTEGRATION_CATEGORIES: Record<string, string> = {
   miro: 'design',
   airtable: 'data',
   smartsheet: 'data',
+  quickbooks: 'financial',
 };
 
 interface IntegrationMetrics {
@@ -518,6 +519,22 @@ function computeMetrics(
       metrics.signals_used = ['record_count', 'table_count', 'base_count'];
       break;
 
+    case 'financial': {
+      metrics.raw_metrics = extractFinancialMetrics(serviceName, metadata);
+      const totalTransactions = (metrics.raw_metrics.invoice_count || 0) + 
+                               (metrics.raw_metrics.payment_count || 0) + 
+                               (metrics.raw_metrics.expense_count || 0);
+      const paidInvoices = metrics.raw_metrics.paid_invoices || 0;
+      const totalInvoices = metrics.raw_metrics.invoice_count || 0;
+      
+      metrics.activity_volume = normalizeToScale(totalTransactions, 0, 500);
+      metrics.participation_level = normalizeToScale(metrics.raw_metrics.account_count || 0, 0, 50);
+      metrics.throughput = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 50;
+      metrics.responsiveness = 100 - normalizeToScale(metrics.raw_metrics.overdue_invoices || 0, 0, 20);
+      metrics.signals_used = ['invoice_count', 'payment_count', 'expense_count', 'collection_rate'];
+      break;
+    }
+
     default:
       metrics.activity_volume = normalizeToScale(currentEvents.length, 0, 100);
       metrics.signals_used = ['event_count'];
@@ -638,6 +655,23 @@ function extractDataMetrics(serviceName: string, metadata: Record<string, unknow
   };
 }
 
+function extractFinancialMetrics(serviceName: string, metadata: Record<string, unknown>): Record<string, number> {
+  return {
+    invoice_count: (metadata.invoice_count as number) || 0,
+    invoice_total: (metadata.invoice_total as number) || 0,
+    open_invoices: (metadata.open_invoices as number) || 0,
+    paid_invoices: (metadata.paid_invoices as number) || 0,
+    overdue_invoices: (metadata.overdue_invoices as number) || 0,
+    payment_count: (metadata.payment_count as number) || 0,
+    payment_total: (metadata.payment_total as number) || 0,
+    expense_count: (metadata.expense_count as number) || 0,
+    expense_total: (metadata.expense_total as number) || 0,
+    account_count: (metadata.account_count as number) || 0,
+    bank_accounts: (metadata.bank_accounts as number) || 0,
+    credit_card_accounts: (metadata.credit_card_accounts as number) || 0,
+  };
+}
+
 /**
  * Normalize a value to 0-100 scale
  */
@@ -714,6 +748,7 @@ function getCategoryWeight(category: string): number {
     support: 0.10,
     design: 0.03,
     data: 0.02,
+    financial: 0.10,
     general: 0.05,
   };
   return weights[category] || 0.05;
@@ -765,6 +800,9 @@ function generateInsights(
       break;
     case 'data':
       insights.push(...generateDataInsights(displayName, metrics, weekOverWeekChange, trendDirection, latestMetadata));
+      break;
+    case 'financial':
+      insights.push(...generateFinancialInsights(displayName, metrics, weekOverWeekChange, trendDirection, latestMetadata));
       break;
     default:
       // Generic insight for unknown categories
@@ -1129,6 +1167,69 @@ function generateDataInsights(
       insight_text: `Data activity ${trendDirection === 'up' ? 'increased' : 'decreased'} ${Math.round(absChange)}% this week.`,
       severity: trendDirection === 'up' ? 'positive' : 'info',
       confidence: 0.65,
+      metadata: { change_pct: weekOverWeekChange },
+    });
+  }
+
+  return insights;
+}
+
+function generateFinancialInsights(
+  displayName: string,
+  metrics: IntegrationMetrics,
+  weekOverWeekChange: number,
+  trendDirection: string,
+  metadata: Record<string, unknown>
+): ComputedInsight[] {
+  const insights: ComputedInsight[] = [];
+  
+  const invoiceCount = (metadata.invoice_count as number) || 0;
+  const paymentCount = (metadata.payment_count as number) || 0;
+  const expenseCount = (metadata.expense_count as number) || 0;
+  const overdueInvoices = (metadata.overdue_invoices as number) || 0;
+  const paidInvoices = (metadata.paid_invoices as number) || 0;
+
+  const totalTransactions = invoiceCount + paymentCount + expenseCount;
+
+  if (totalTransactions > 0) {
+    insights.push({
+      insight_key: 'financial_activity',
+      insight_text: `${displayName} shows ${invoiceCount} invoices, ${paymentCount} payments, and ${expenseCount} expenses in the last 90 days.`,
+      severity: 'info',
+      confidence: 0.8,
+      metadata: { invoice_count: invoiceCount, payment_count: paymentCount, expense_count: expenseCount },
+    });
+  }
+
+  if (invoiceCount > 0 && overdueInvoices > 0) {
+    const overdueRate = (overdueInvoices / invoiceCount) * 100;
+    insights.push({
+      insight_key: 'overdue_invoices',
+      insight_text: `${overdueInvoices} of ${invoiceCount} invoices (${Math.round(overdueRate)}%) are overdue.`,
+      severity: overdueRate > 20 ? 'warning' : 'info',
+      confidence: 0.85,
+      metadata: { overdue_count: overdueInvoices, overdue_rate: overdueRate },
+    });
+  }
+
+  if (invoiceCount > 0 && paidInvoices > 0) {
+    const collectionRate = (paidInvoices / invoiceCount) * 100;
+    insights.push({
+      insight_key: 'collection_rate',
+      insight_text: `Collection rate: ${Math.round(collectionRate)}% of invoices paid (${paidInvoices} of ${invoiceCount}).`,
+      severity: collectionRate >= 80 ? 'positive' : 'info',
+      confidence: 0.85,
+      metadata: { paid_count: paidInvoices, collection_rate: collectionRate },
+    });
+  }
+
+  const absChange = Math.abs(weekOverWeekChange);
+  if (absChange > 15) {
+    insights.push({
+      insight_key: 'financial_trend',
+      insight_text: `Financial activity ${trendDirection === 'up' ? 'increased' : 'decreased'} ${Math.round(absChange)}% this week.`,
+      severity: trendDirection === 'up' ? 'positive' : 'info',
+      confidence: 0.7,
       metadata: { change_pct: weekOverWeekChange },
     });
   }
