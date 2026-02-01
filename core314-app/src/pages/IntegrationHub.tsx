@@ -33,11 +33,11 @@ const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }
     benefit: 'Detect workflow delays and communication breakdowns',
   },
   asana: {
-    dataAnalyzed: 'Task completion rates, project velocity, workload distribution',
+    dataAnalyzed: 'Task counts, completion status, project activity',
     benefit: 'Optimize team productivity and project timelines',
   },
   jira: {
-    dataAnalyzed: 'Issue throughput, sprint metrics, cycle time',
+    dataAnalyzed: 'Issue counts, status distribution, project activity',
     benefit: 'Improve development velocity and delivery predictability',
   },
   hubspot: {
@@ -57,7 +57,7 @@ const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }
     benefit: 'Improve financial planning and operational efficiency',
   },
   zendesk: {
-    dataAnalyzed: 'Ticket volume, resolution time, satisfaction scores',
+    dataAnalyzed: 'Ticket volume, status distribution, support activity',
     benefit: 'Enhance customer support quality and team efficiency',
   },
   zoom: {
@@ -65,11 +65,11 @@ const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }
     benefit: 'Optimize meeting culture and collaboration time',
   },
   trello: {
-    dataAnalyzed: 'Card movement, list throughput, board activity',
+    dataAnalyzed: 'Board counts, card totals, workspace activity',
     benefit: 'Streamline workflows and identify process bottlenecks',
   },
   notion: {
-    dataAnalyzed: 'Page activity, collaboration patterns, content updates',
+    dataAnalyzed: 'Page counts, database activity, workspace metrics',
     benefit: 'Improve knowledge sharing and documentation practices',
   },
   sendgrid: {
@@ -704,10 +704,15 @@ export default function IntegrationHub() {
   }, [integrations]);
 
   const filteredIntegrations = useMemo(() => {
+    // Hide Slack from Integration Hub - no inbound data ingestion exists (slack-poll not implemented)
+    // Only slack-alert exists which sends alerts TO Slack, not polling FROM Slack
+    const HIDDEN_INTEGRATIONS = ['slack'];
+    
     let filtered = integrations.filter(integration =>
-      integration.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      !HIDDEN_INTEGRATIONS.includes(integration.service_name.toLowerCase()) &&
+      (integration.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       integration.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.service_name.toLowerCase().includes(searchQuery.toLowerCase())
+      integration.service_name.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
     if (selectedCategory !== 'all') {
