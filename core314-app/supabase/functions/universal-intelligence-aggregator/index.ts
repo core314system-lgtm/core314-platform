@@ -48,6 +48,9 @@ const INTEGRATION_CATEGORIES: Record<string, string> = {
   miro: 'design',
   airtable: 'data',
   smartsheet: 'data',
+  quickbooks: 'financial',
+  xero: 'financial',
+  salesforce: 'crm',
 };
 
 interface IntegrationMetrics {
@@ -518,6 +521,38 @@ function computeMetrics(
       metrics.signals_used = ['record_count', 'table_count', 'base_count'];
       break;
 
+    case 'financial': {
+      metrics.raw_metrics = extractFinancialMetrics(serviceName, metadata);
+      const totalInvoices = metrics.raw_metrics.invoice_count || 0;
+      const paidInvoices = metrics.raw_metrics.paid_invoices || 0;
+      const overdueInvoices = metrics.raw_metrics.overdue_invoices || 0;
+      
+      metrics.activity_volume = normalizeToScale(totalInvoices + (metrics.raw_metrics.payment_count || 0), 0, 500);
+      metrics.participation_level = normalizeToScale(metrics.raw_metrics.account_count || 0, 0, 100);
+      metrics.throughput = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 50;
+      metrics.responsiveness = totalInvoices > 0 ? Math.max(0, 100 - (overdueInvoices / totalInvoices) * 100) : 50;
+      metrics.signals_used = ['invoice_count', 'payment_count', 'overdue_rate', 'account_count'];
+      break;
+    }
+
+    case 'crm': {
+      metrics.raw_metrics = extractCRMMetrics(serviceName, metadata);
+      const totalOpportunities = metrics.raw_metrics.opportunity_count || 0;
+      const wonOpportunities = metrics.raw_metrics.won_opportunities || 0;
+      const totalCases = metrics.raw_metrics.case_count || 0;
+      const closedCases = metrics.raw_metrics.closed_cases || 0;
+      
+      metrics.activity_volume = normalizeToScale(
+        (metrics.raw_metrics.account_count || 0) + totalOpportunities + totalCases, 
+        0, 1000
+      );
+      metrics.participation_level = normalizeToScale(metrics.raw_metrics.account_count || 0, 0, 500);
+      metrics.throughput = totalOpportunities > 0 ? (wonOpportunities / totalOpportunities) * 100 : 50;
+      metrics.responsiveness = totalCases > 0 ? (closedCases / totalCases) * 100 : 50;
+      metrics.signals_used = ['account_count', 'opportunity_count', 'case_count', 'win_rate'];
+      break;
+    }
+
     default:
       metrics.activity_volume = normalizeToScale(currentEvents.length, 0, 100);
       metrics.signals_used = ['event_count'];
@@ -638,6 +673,74 @@ function extractDataMetrics(serviceName: string, metadata: Record<string, unknow
   };
 }
 
+function extractFinancialMetrics(serviceName: string, metadata: Record<string, unknown>): Record<string, number> {
+  switch (serviceName) {
+    case 'quickbooks':
+      return {
+        invoice_count: (metadata.invoice_count as number) || 0,
+        invoice_total: (metadata.invoice_total as number) || 0,
+        open_invoices: (metadata.open_invoices as number) || 0,
+        paid_invoices: (metadata.paid_invoices as number) || 0,
+        overdue_invoices: (metadata.overdue_invoices as number) || 0,
+        payment_count: (metadata.payment_count as number) || 0,
+        payment_total: (metadata.payment_total as number) || 0,
+        expense_count: (metadata.expense_count as number) || 0,
+        expense_total: (metadata.expense_total as number) || 0,
+        account_count: (metadata.account_count as number) || 0,
+        bank_accounts: (metadata.bank_accounts as number) || 0,
+        credit_card_accounts: (metadata.credit_card_accounts as number) || 0,
+      };
+    case 'xero':
+      return {
+        invoice_count: (metadata.invoice_count as number) || 0,
+        invoice_total: (metadata.invoice_total as number) || 0,
+        draft_invoices: (metadata.draft_invoices as number) || 0,
+        authorised_invoices: (metadata.authorised_invoices as number) || 0,
+        paid_invoices: (metadata.paid_invoices as number) || 0,
+        overdue_invoices: (metadata.overdue_invoices as number) || 0,
+        payment_count: (metadata.payment_count as number) || 0,
+        payment_total: (metadata.payment_total as number) || 0,
+        account_count: (metadata.account_count as number) || 0,
+        bank_accounts: (metadata.bank_accounts as number) || 0,
+        revenue_accounts: (metadata.revenue_accounts as number) || 0,
+        expense_accounts: (metadata.expense_accounts as number) || 0,
+      };
+    default:
+      return {
+        invoice_count: (metadata.invoice_count as number) || 0,
+        payment_count: (metadata.payment_count as number) || 0,
+        account_count: (metadata.account_count as number) || 0,
+      };
+  }
+}
+
+function extractCRMMetrics(serviceName: string, metadata: Record<string, unknown>): Record<string, number> {
+  switch (serviceName) {
+    case 'salesforce':
+      return {
+        account_count: (metadata.account_count as number) || 0,
+        customer_accounts: (metadata.customer_accounts as number) || 0,
+        prospect_accounts: (metadata.prospect_accounts as number) || 0,
+        opportunity_count: (metadata.opportunity_count as number) || 0,
+        open_opportunities: (metadata.open_opportunities as number) || 0,
+        won_opportunities: (metadata.won_opportunities as number) || 0,
+        lost_opportunities: (metadata.lost_opportunities as number) || 0,
+        opportunity_value: (metadata.opportunity_value as number) || 0,
+        case_count: (metadata.case_count as number) || 0,
+        new_cases: (metadata.new_cases as number) || 0,
+        open_cases: (metadata.open_cases as number) || 0,
+        closed_cases: (metadata.closed_cases as number) || 0,
+        escalated_cases: (metadata.escalated_cases as number) || 0,
+      };
+    default:
+      return {
+        account_count: (metadata.account_count as number) || 0,
+        opportunity_count: (metadata.opportunity_count as number) || 0,
+        case_count: (metadata.case_count as number) || 0,
+      };
+  }
+}
+
 /**
  * Normalize a value to 0-100 scale
  */
@@ -714,6 +817,8 @@ function getCategoryWeight(category: string): number {
     support: 0.10,
     design: 0.03,
     data: 0.02,
+    financial: 0.10,
+    crm: 0.08,
     general: 0.05,
   };
   return weights[category] || 0.05;
@@ -765,6 +870,12 @@ function generateInsights(
       break;
     case 'data':
       insights.push(...generateDataInsights(displayName, metrics, weekOverWeekChange, trendDirection, latestMetadata));
+      break;
+    case 'financial':
+      insights.push(...generateFinancialInsights(displayName, metrics, weekOverWeekChange, trendDirection, latestMetadata));
+      break;
+    case 'crm':
+      insights.push(...generateCRMInsights(displayName, metrics, weekOverWeekChange, trendDirection, latestMetadata));
       break;
     default:
       // Generic insight for unknown categories
@@ -1129,6 +1240,119 @@ function generateDataInsights(
       insight_text: `Data activity ${trendDirection === 'up' ? 'increased' : 'decreased'} ${Math.round(absChange)}% this week.`,
       severity: trendDirection === 'up' ? 'positive' : 'info',
       confidence: 0.65,
+      metadata: { change_pct: weekOverWeekChange },
+    });
+  }
+
+  return insights;
+}
+
+function generateFinancialInsights(
+  displayName: string,
+  metrics: IntegrationMetrics,
+  weekOverWeekChange: number,
+  trendDirection: string,
+  metadata: Record<string, unknown>
+): ComputedInsight[] {
+  const insights: ComputedInsight[] = [];
+  
+  const invoiceCount = (metadata.invoice_count as number) || 0;
+  const paidInvoices = (metadata.paid_invoices as number) || 0;
+  const overdueInvoices = (metadata.overdue_invoices as number) || 0;
+  const paymentCount = (metadata.payment_count as number) || 0;
+  const paymentTotal = (metadata.payment_total as number) || 0;
+
+  if (invoiceCount > 0) {
+    const paidRate = Math.round((paidInvoices / invoiceCount) * 100);
+    insights.push({
+      insight_key: 'invoice_health',
+      insight_text: `${displayName} shows ${invoiceCount} invoices with ${paidRate}% paid — ${overdueInvoices > 0 ? `${overdueInvoices} overdue requiring attention` : 'healthy payment status'}.`,
+      severity: overdueInvoices > invoiceCount * 0.2 ? 'warning' : 'info',
+      confidence: 0.8,
+      metadata: { invoice_count: invoiceCount, paid_rate: paidRate, overdue: overdueInvoices },
+    });
+  }
+
+  if (paymentCount > 0) {
+    insights.push({
+      insight_key: 'payment_activity',
+      insight_text: `${paymentCount} payments processed totaling $${paymentTotal.toLocaleString()} in the last 90 days.`,
+      severity: 'info',
+      confidence: 0.85,
+      metadata: { payment_count: paymentCount, payment_total: paymentTotal },
+    });
+  }
+
+  const absChange = Math.abs(weekOverWeekChange);
+  if (absChange > 15) {
+    insights.push({
+      insight_key: 'financial_trend',
+      insight_text: `Financial activity ${trendDirection === 'up' ? 'increased' : 'decreased'} ${Math.round(absChange)}% this week.`,
+      severity: trendDirection === 'up' ? 'positive' : 'info',
+      confidence: 0.7,
+      metadata: { change_pct: weekOverWeekChange },
+    });
+  }
+
+  return insights;
+}
+
+function generateCRMInsights(
+  displayName: string,
+  metrics: IntegrationMetrics,
+  weekOverWeekChange: number,
+  trendDirection: string,
+  metadata: Record<string, unknown>
+): ComputedInsight[] {
+  const insights: ComputedInsight[] = [];
+  
+  const accountCount = (metadata.account_count as number) || 0;
+  const opportunityCount = (metadata.opportunity_count as number) || 0;
+  const openOpportunities = (metadata.open_opportunities as number) || 0;
+  const wonOpportunities = (metadata.won_opportunities as number) || 0;
+  const caseCount = (metadata.case_count as number) || 0;
+  const openCases = (metadata.open_cases as number) || 0;
+  const closedCases = (metadata.closed_cases as number) || 0;
+
+  if (accountCount > 0) {
+    insights.push({
+      insight_key: 'account_volume',
+      insight_text: `${displayName} manages ${accountCount} accounts with ${opportunityCount} opportunities in pipeline.`,
+      severity: 'info',
+      confidence: 0.85,
+      metadata: { account_count: accountCount, opportunity_count: opportunityCount },
+    });
+  }
+
+  if (opportunityCount > 0) {
+    const winRate = Math.round((wonOpportunities / opportunityCount) * 100);
+    insights.push({
+      insight_key: 'opportunity_health',
+      insight_text: `${openOpportunities} open opportunities with ${winRate}% win rate — ${openOpportunities > 50 ? 'strong pipeline activity' : 'steady deal flow'}.`,
+      severity: winRate < 20 ? 'warning' : 'info',
+      confidence: 0.75,
+      metadata: { open_opportunities: openOpportunities, win_rate: winRate },
+    });
+  }
+
+  if (caseCount > 0) {
+    const resolutionRate = Math.round((closedCases / caseCount) * 100);
+    insights.push({
+      insight_key: 'case_backlog',
+      insight_text: `${openCases} open cases with ${resolutionRate}% resolution rate — ${openCases > 100 ? 'elevated service demand' : 'manageable case load'}.`,
+      severity: openCases > caseCount * 0.5 ? 'warning' : 'info',
+      confidence: 0.8,
+      metadata: { open_cases: openCases, resolution_rate: resolutionRate },
+    });
+  }
+
+  const absChange = Math.abs(weekOverWeekChange);
+  if (absChange > 15) {
+    insights.push({
+      insight_key: 'crm_trend',
+      insight_text: `CRM activity ${trendDirection === 'up' ? 'increased' : 'decreased'} ${Math.round(absChange)}% this week.`,
+      severity: trendDirection === 'up' ? 'positive' : 'info',
+      confidence: 0.7,
       metadata: { change_pct: weekOverWeekChange },
     });
   }
