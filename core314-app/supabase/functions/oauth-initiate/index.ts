@@ -1,6 +1,22 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { encode as base64UrlEncode } from 'https://deno.land/std@0.168.0/encoding/base64url.ts';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+
+// PKCE (Proof Key for Code Exchange) helper functions
+// Required for Salesforce External Client Apps
+function generateCodeVerifier(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return base64UrlEncode(array);
+}
+
+async function generateCodeChallenge(verifier: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -188,12 +204,29 @@ serve(withSentry(async (req) => {
 
     const state = crypto.randomUUID();
     
+    // Generate PKCE code verifier and challenge for providers that require it (e.g., Salesforce)
+    const normalizedServiceNameForPkce = normalizeServiceName(service_name);
+    const requiresPkce = ['salesforce'].includes(normalizedServiceNameForPkce);
+    let codeVerifier: string | null = null;
+    let codeChallenge: string | null = null;
+    
+    if (requiresPkce) {
+      codeVerifier = generateCodeVerifier();
+      codeChallenge = await generateCodeChallenge(codeVerifier);
+      console.log('[oauth-initiate] PKCE enabled for', service_name, {
+        code_verifier_length: codeVerifier.length,
+        code_challenge_length: codeChallenge.length,
+      });
+    }
+    
     await supabase.from('oauth_states').insert({
       state,
       user_id: user.id,
       integration_registry_id: integration.id,
       redirect_uri: redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`,
-      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      // Store code_verifier for PKCE - will be used in token exchange
+      code_verifier: codeVerifier,
     });
 
     // Normalize service_name for consistent env var lookup
@@ -363,11 +396,18 @@ serve(withSentry(async (req) => {
       authUrl.searchParams.set('prompt', 'consent');
     }
     
-    // Salesforce-specific: request refresh token
+    // Salesforce-specific: request refresh token and add PKCE parameters
     if (normalizedServiceName === 'salesforce') {
       // Salesforce requires 'refresh_token' scope for offline access
       // Also add prompt=consent to ensure user sees the consent screen
       authUrl.searchParams.set('prompt', 'consent');
+      
+      // Add PKCE parameters - required for Salesforce External Client Apps
+      if (codeChallenge) {
+        authUrl.searchParams.set('code_challenge', codeChallenge);
+        authUrl.searchParams.set('code_challenge_method', 'S256');
+        console.log('[oauth-initiate] Salesforce: Added PKCE parameters to authorization URL');
+      }
     }
 
     return new Response(JSON.stringify({
