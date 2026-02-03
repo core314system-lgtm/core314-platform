@@ -184,6 +184,61 @@ function validateApiKeyConfigurations() {
   return { passed: errors.length === 0, errors, warnings };
 }
 
+/**
+ * Salesforce-specific validation
+ * Ensures Salesforce integration meets Core314 platform promise:
+ * - Core314 owns all OAuth configuration
+ * - Users never need to create Connected Apps
+ * - No user-side Salesforce setup required
+ */
+function validateSalesforceIntegration() {
+  const errors = [];
+  const warnings = [];
+
+  const salesforce = productionReady.find(i => i.serviceName === 'salesforce');
+  
+  if (!salesforce) {
+    // Salesforce not in production-ready list - this is acceptable if intentionally hidden
+    warnings.push('Salesforce integration is not marked as production-ready');
+    return { passed: true, errors, warnings };
+  }
+
+  // Verify Salesforce is OAuth2 (not API key - users should never configure anything)
+  if (salesforce.connectionType !== 'oauth2') {
+    errors.push(
+      'FAIL: Salesforce must use oauth2 connection type (Core314-owned Connected App)'
+    );
+  }
+
+  // Verify OAuth config exists
+  if (!salesforce.oauthConfig) {
+    errors.push(
+      'FAIL: Salesforce missing oauthConfig - Core314 must own OAuth credentials'
+    );
+  } else {
+    // Verify required env vars are defined
+    const requiredVars = ['SALESFORCE_CLIENT_ID', 'SALESFORCE_CLIENT_SECRET'];
+    for (const envVar of requiredVars) {
+      if (!salesforce.oauthConfig.requiredEnvVars?.includes(envVar)) {
+        errors.push(
+          `FAIL: Salesforce oauthConfig missing required env var: ${envVar}`
+        );
+      }
+    }
+  }
+
+  // Verify poll function exists
+  const functionsDir = path.join(__dirname, '..', 'core314-app', 'supabase', 'functions');
+  const pollFunctionPath = path.join(functionsDir, 'salesforce-poll', 'index.ts');
+  if (!fs.existsSync(pollFunctionPath)) {
+    errors.push(
+      'FAIL: Salesforce poll function not found at salesforce-poll/index.ts'
+    );
+  }
+
+  return { passed: errors.length === 0, errors, warnings };
+}
+
 function main() {
   console.log('='.repeat(70));
   console.log('INTEGRATION READINESS VALIDATION');
@@ -198,6 +253,7 @@ function main() {
     { name: 'Poll Functions Exist', fn: validatePollFunctionsExist },
     { name: 'OAuth Configurations', fn: validateOAuthConfigurations },
     { name: 'API Key Configurations', fn: validateApiKeyConfigurations },
+    { name: 'Salesforce Integration (Core314 Platform Promise)', fn: validateSalesforceIntegration },
   ];
 
   let allPassed = true;

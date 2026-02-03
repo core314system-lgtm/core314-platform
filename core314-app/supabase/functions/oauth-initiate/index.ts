@@ -274,7 +274,16 @@ serve(withSentry(async (req) => {
     
     console.log('[oauth-initiate] SUCCESS: Found credentials with prefix:', usedPrefix);
 
-    const authUrl = new URL(integration.oauth_authorize_url);
+    // Salesforce-specific: ALWAYS use login.salesforce.com for production OAuth
+    // This ensures Core314 owns the OAuth flow and users never need to configure anything
+    let oauthAuthorizeUrl = integration.oauth_authorize_url;
+    if (normalizedServiceName === 'salesforce') {
+      // Enforce production login domain - never sandbox unless explicitly configured
+      oauthAuthorizeUrl = 'https://login.salesforce.com/services/oauth2/authorize';
+      console.log('[oauth-initiate] Salesforce: Using production login domain:', oauthAuthorizeUrl);
+    }
+
+    const authUrl = new URL(oauthAuthorizeUrl);
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
     
@@ -283,7 +292,8 @@ serve(withSentry(async (req) => {
     // Google: space-delimited scopes + access_type=offline for refresh tokens
     // Slack: comma-delimited scopes
     // Zoom: space-delimited scopes
-    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'zoom'].includes(normalizedServiceName);
+    // Salesforce: space-delimited scopes
+    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'zoom', 'salesforce'].includes(normalizedServiceName);
     const scopeDelimiter = useSpaceDelimiter ? ' ' : ',';
     authUrl.searchParams.set('scope', integration.oauth_scopes.join(scopeDelimiter));
     authUrl.searchParams.set('state', state);
@@ -292,6 +302,13 @@ serve(withSentry(async (req) => {
     // Google-specific: request offline access for refresh tokens
     if (normalizedServiceName === 'google_calendar') {
       authUrl.searchParams.set('access_type', 'offline');
+      authUrl.searchParams.set('prompt', 'consent');
+    }
+    
+    // Salesforce-specific: request refresh token
+    if (normalizedServiceName === 'salesforce') {
+      // Salesforce requires 'refresh_token' scope for offline access
+      // Also add prompt=consent to ensure user sees the consent screen
       authUrl.searchParams.set('prompt', 'consent');
     }
 

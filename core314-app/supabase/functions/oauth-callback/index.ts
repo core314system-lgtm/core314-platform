@@ -202,9 +202,53 @@ serve(withSentry(async (req) => {
       integrationConfig.realm_id = realmId;
     }
     
-    // Salesforce: store instance_url from token response
+    // Salesforce: store instance_url from token response and perform post-auth verification
     if (tokenData.instance_url) {
       integrationConfig.instance_url = tokenData.instance_url;
+      
+      // Salesforce post-auth verification: validate token with a lightweight API call
+      if (normalizeServiceName(integration.service_name) === 'salesforce') {
+        console.log('[oauth-callback] Salesforce: Performing post-auth verification...');
+        try {
+          // Call the identity endpoint to verify the token and get org info
+          const identityResponse = await fetch(`${tokenData.instance_url}/services/oauth2/userinfo`, {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (!identityResponse.ok) {
+            console.error('[oauth-callback] Salesforce: Post-auth verification FAILED', {
+              status: identityResponse.status,
+              statusText: identityResponse.statusText,
+            });
+            return new Response(JSON.stringify({ 
+              error: 'Salesforce verification failed',
+              message: 'Unable to verify Salesforce connection. Please try again.',
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          const identityData = await identityResponse.json();
+          console.log('[oauth-callback] Salesforce: Post-auth verification SUCCESS', {
+            organization_id: identityData.organization_id,
+            user_id: identityData.user_id,
+          });
+          
+          // Store verified org info in config
+          integrationConfig.org_id = identityData.organization_id;
+          integrationConfig.salesforce_user_id = identityData.user_id;
+          integrationConfig.verified_at = new Date().toISOString();
+        } catch (verifyError) {
+          console.error('[oauth-callback] Salesforce: Post-auth verification error:', verifyError);
+          // Don't fail the entire flow, but log the issue
+          integrationConfig.verification_status = 'failed';
+          integrationConfig.verification_error = verifyError instanceof Error ? verifyError.message : 'Unknown error';
+        }
+      }
     }
 
     const { data: userIntegration } = await supabase

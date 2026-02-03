@@ -694,7 +694,8 @@ export default function IntegrationHub() {
                               response.status === 500;
         
         if (isSystemError) {
-          throw new Error(`System configuration error: ${providerName} integration is temporarily unavailable. Please contact support.`);
+          // User-friendly message that makes clear NO action is required by the user
+          throw new Error(`System Error — Core314 configuration issue. No action required by you. Our team has been notified.`);
         }
         throw new Error(data.error || `Failed to initiate OAuth for ${providerName}`);
       }
