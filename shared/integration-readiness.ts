@@ -660,15 +660,14 @@ export const INTEGRATION_READINESS: IntegrationReadinessConfig[] = [
   },
 
   // ============================================================
-  // NOT PRODUCTION READY - Missing poll function or incomplete
+  // Communication (OAuth2)
   // ============================================================
   {
     serviceName: 'slack',
     displayName: 'Slack',
     connectionType: 'oauth2',
     pollFunctionName: 'slack-poll',
-    isProductionReady: false,
-    readinessNotes: 'No inbound data ingestion exists. Only slack-alert (outbound) is implemented.',
+    isProductionReady: true,
     oauthConfig: {
       envVarPrefix: 'SLACK',
       requiredEnvVars: ['SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET'],

@@ -26,7 +26,7 @@ import {
 // Integration-specific copy for data analyzed and benefits
 const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }> = {
   slack: {
-    dataAnalyzed: 'Message volume, response time, channel activity',
+    dataAnalyzed: 'Message volume, channel activity, workspace metrics',
     benefit: 'Spot bottlenecks in communication and overloaded teams',
   },
   teams: {
