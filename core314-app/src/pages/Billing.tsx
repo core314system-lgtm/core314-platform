@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { PlanCard } from '../components/billing/PlanCard';
 import { UsageProgressBar } from '../components/billing/UsageProgressBar';
 import { AddOnManager } from '../components/billing/AddOnManager';
-import { Loader2, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink, Receipt, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { PRICING } from '../../../shared/pricing';
@@ -17,8 +17,13 @@ interface SubscriptionSummary {
     id?: string;
     plan_name: string;
     status: string;
+    current_period_start?: string;
     current_period_end?: string;
     stripe_subscription_id?: string;
+    stripe_customer_id?: string;
+    metadata?: {
+      billing_interval?: 'monthly' | 'annual';
+    };
   };
   plan_limits: {
     integration_limit: number;
@@ -298,13 +303,27 @@ export default function Billing() {
   const { subscription, plan_limits, active_addons } = subscriptionSummary;
   const isFreePlan = subscription.plan_name === 'Free';
   const isCanceled = subscription.status === 'canceled';
+  const billingInterval = subscription.metadata?.billing_interval || 'monthly';
+
+  const getPaymentStatusBadge = (status: string) => {
+    const variants: Record<string, { className: string; label: string }> = {
+      active: { className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100', label: 'Paid' },
+      trialing: { className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100', label: 'Trial' },
+      past_due: { className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100', label: 'Payment Failed' },
+      canceled: { className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100', label: 'Canceled' },
+      incomplete: { className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100', label: 'Pending' },
+      unpaid: { className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100', label: 'Unpaid' },
+    };
+    const variant = variants[status] || variants.canceled;
+    return <Badge className={variant.className}>{variant.label}</Badge>;
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-6">
       <div>
         <h1 className="text-3xl font-bold">Billing & Subscription</h1>
         <p className="text-muted-foreground">
-          Manage your subscription, view usage, and purchase add-ons
+          Manage your subscription, view invoices, and update payment methods
         </p>
       </div>
 
@@ -337,6 +356,34 @@ export default function Billing() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-gray-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Billing Interval</p>
+                <p className="font-medium capitalize">{billingInterval}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Receipt className="h-5 w-5 text-gray-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Next Invoice Date</p>
+                <p className="font-medium">
+                  {subscription.current_period_end && !isCanceled
+                    ? new Date(subscription.current_period_end).toLocaleDateString()
+                    : 'N/A'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5 text-gray-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Last Payment Status</p>
+                <div className="mt-1">{getPaymentStatusBadge(subscription.status)}</div>
+              </div>
+            </div>
+          </div>
+
           <UsageProgressBar
             used={integrationsUsed}
             limit={plan_limits.integration_limit}
@@ -363,16 +410,28 @@ export default function Billing() {
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex gap-2">
+        <CardFooter className="flex flex-wrap gap-2">
           {!isFreePlan && !isCanceled && (
-            <Button
-              variant="default"
-              onClick={handleManageBilling}
-              disabled={processingAction}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {processingAction ? 'Loading...' : 'Manage Billing'}
-            </Button>
+            <>
+              <Button
+                variant="default"
+                onClick={handleManageBilling}
+                disabled={processingAction}
+              >
+                <Receipt className="mr-2 h-4 w-4" />
+                {processingAction ? 'Loading...' : 'Manage Billing & Download Invoices'}
+                <ExternalLink className="ml-2 h-3 w-3" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleManageBilling}
+                disabled={processingAction}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Update Payment Method
+                <ExternalLink className="ml-2 h-3 w-3" />
+              </Button>
+            </>
           )}
           {isCanceled && (
             <Button onClick={() => handleUpgradePlan(subscription.plan_name)} disabled={processingAction}>
