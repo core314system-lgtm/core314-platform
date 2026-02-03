@@ -389,8 +389,39 @@ export default function IntegrationHub() {
   const [apiKeyValue, setApiKeyValue] = useState('');
   const [apiKeySubmitting, setApiKeySubmitting] = useState(false);
   
+  // State for OAuth readiness check - hide integrations that aren't properly configured
+  const [oauthNotReady, setOauthNotReady] = useState<string[]>([]);
+  
   // Toast hook for stub connection
   const { toast } = useToast();
+
+  // Check OAuth readiness on mount - hide integrations that aren't properly configured
+  useEffect(() => {
+    const checkOAuthReadiness = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-oauth-readiness`,
+          {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.notReady && data.notReady.length > 0) {
+            console.log('[IntegrationHub] OAuth integrations not ready (will be hidden):', data.notReady);
+            setOauthNotReady(data.notReady);
+          }
+        }
+      } catch (error) {
+        // Silently fail - don't block the UI if the check fails
+        console.error('[IntegrationHub] OAuth readiness check failed:', error);
+      }
+    };
+    
+    checkOAuthReadiness();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -741,19 +772,35 @@ export default function IntegrationHub() {
     // This ensures only production-ready integrations are visible to users
     const hiddenIntegrations = getHiddenIntegrations();
     
-    let filtered = integrations.filter(integration =>
-      !hiddenIntegrations.includes(integration.service_name.toLowerCase()) &&
-      (integration.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.service_name.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    let filtered = integrations.filter(integration => {
+      const serviceName = integration.service_name.toLowerCase();
+      
+      // Hide integrations that are not production-ready (from static config)
+      if (hiddenIntegrations.includes(serviceName)) {
+        return false;
+      }
+      
+      // RUNTIME GUARD: Hide OAuth integrations that don't have credentials configured
+      // This prevents users from seeing integrations that will fail on connect
+      if (oauthNotReady.includes(serviceName)) {
+        console.log(`[IntegrationHub] Hiding ${serviceName} - OAuth not configured`);
+        return false;
+      }
+      
+      // Apply search filter
+      return (
+        integration.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        integration.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        serviceName.includes(searchQuery.toLowerCase())
+      );
+    });
 
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(i => i.category === selectedCategory);
     }
 
     return filtered;
-  }, [integrations, searchQuery, selectedCategory]);
+  }, [integrations, searchQuery, selectedCategory, oauthNotReady]);
 
   if (loading) {
     return (

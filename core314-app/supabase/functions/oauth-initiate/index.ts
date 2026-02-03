@@ -205,7 +205,52 @@ serve(withSentry(async (req) => {
     
     // Log all env var keys at request time
     console.log('[oauth-initiate] ALL ENV VAR KEYS:', allEnvKeys);
-    console.log('[oauth-initiate] TEAMS/CORE314 RELATED KEYS:', teamsRelatedKeys);
+    
+    // Filter for service-specific env var keys
+    const serviceRelatedKeys = allEnvKeys.filter(k => 
+      k.includes('TEAMS') || k.includes('CORE314') || k.includes('SALESFORCE') || 
+      k.includes('SLACK') || k.includes('ZOOM') || k.includes('GOOGLE') ||
+      k.includes('QUICKBOOKS') || k.includes('XERO')
+    );
+    console.log('[oauth-initiate] OAuth-related ENV VAR KEYS:', serviceRelatedKeys);
+    
+    // SALESFORCE-SPECIFIC DIAGNOSTIC LOGGING (REQUIRED FOR PRODUCTION DEBUGGING)
+    if (normalizedServiceName === 'salesforce') {
+      const sfClientId = Deno.env.get('SALESFORCE_CLIENT_ID');
+      const sfClientSecret = Deno.env.get('SALESFORCE_CLIENT_SECRET');
+      const sfRedirectUri = Deno.env.get('SALESFORCE_REDIRECT_URI');
+      const core314SfClientId = Deno.env.get('CORE314_SALESFORCE_CLIENT_ID');
+      const core314SfClientSecret = Deno.env.get('CORE314_SALESFORCE_CLIENT_SECRET');
+      
+      console.log('[oauth-initiate] SALESFORCE OAUTH TRACE:', {
+        SALESFORCE_CLIENT_ID_present: sfClientId !== undefined && sfClientId !== '',
+        SALESFORCE_CLIENT_ID_length: sfClientId?.length ?? 0,
+        SALESFORCE_CLIENT_SECRET_present: sfClientSecret !== undefined && sfClientSecret !== '',
+        SALESFORCE_CLIENT_SECRET_length: sfClientSecret?.length ?? 0,
+        SALESFORCE_REDIRECT_URI_present: sfRedirectUri !== undefined && sfRedirectUri !== '',
+        SALESFORCE_REDIRECT_URI_value: sfRedirectUri ?? 'NOT SET',
+        CORE314_SALESFORCE_CLIENT_ID_present: core314SfClientId !== undefined && core314SfClientId !== '',
+        CORE314_SALESFORCE_CLIENT_SECRET_present: core314SfClientSecret !== undefined && core314SfClientSecret !== '',
+        authorize_url: 'https://login.salesforce.com/services/oauth2/authorize',
+        scopes: integration.oauth_scopes?.join(' ') ?? 'NOT SET',
+        redirect_uri_to_use: redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`,
+      });
+      
+      // HARD FAIL with specific Salesforce error if credentials missing
+      if ((!sfClientId || sfClientId === '') && (!core314SfClientId || core314SfClientId === '')) {
+        console.error('[oauth-initiate] SALESFORCE HARD FAIL: Missing SALESFORCE_CLIENT_ID');
+        console.error('[oauth-initiate] Required env vars: SALESFORCE_CLIENT_ID, SALESFORCE_CLIENT_SECRET');
+        return new Response(JSON.stringify({ 
+          error: 'Salesforce OAuth not configured',
+          message: 'SALESFORCE_CLIENT_ID is not set in the deployed environment. This is a Core314 configuration issue - no action required by the user.',
+          missing_env_vars: ['SALESFORCE_CLIENT_ID', 'SALESFORCE_CLIENT_SECRET'],
+          tried_prefixes: ['SALESFORCE', 'CORE314_SALESFORCE'],
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
     
     // Explicitly check for TEAMS_CLIENT_ID
     const teamsClientIdRaw = Deno.env.get('TEAMS_CLIENT_ID');
