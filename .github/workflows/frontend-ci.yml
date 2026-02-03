@@ -5,11 +5,15 @@ on:
     branches: [ main ]
     paths:
       - 'core314-app/**'
+      - 'shared/**'
+      - 'scripts/**'
       - '.github/workflows/frontend-ci.yml'
   push:
     branches: [ main ]
     paths:
       - 'core314-app/**'
+      - 'shared/**'
+      - 'scripts/**'
 
 jobs:
   lint-and-build-core314-app:
@@ -42,3 +46,19 @@ jobs:
           VITE_SUPABASE_URL: https://placeholder.invalid
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: npm run build
+
+  validate-integration-readiness:
+    name: Validate Integration Readiness
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Integration Readiness
+        run: node scripts/validate-integration-readiness.js

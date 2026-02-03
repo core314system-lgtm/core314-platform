@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Loader2, Search, Plus, Filter, Zap, BarChart3, Lightbulb, CheckCircle, ArrowRight, Shield, Lock, RefreshCw } from 'lucide-react';
+import { Loader2, Search, Plus, Filter, Zap, BarChart3, Lightbulb, CheckCircle, ArrowRight, Shield, Lock, RefreshCw, ExternalLink, Info } from 'lucide-react';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { addCustomIntegration } from '../services/addCustomIntegration';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
@@ -17,11 +17,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { useToast } from '../hooks/use-toast';
+import { 
+  getHiddenIntegrations, 
+  getApiKeySetupInstructions,
+  type ApiKeyConfig 
+} from '../../../shared/integration-readiness';
 
 // Integration-specific copy for data analyzed and benefits
 const INTEGRATION_COPY: Record<string, { dataAnalyzed: string; benefit: string }> = {
   slack: {
-    dataAnalyzed: 'Message volume, response time, channel activity',
+    dataAnalyzed: 'Message volume, channel activity, workspace metrics',
     benefit: 'Spot bottlenecks in communication and overloaded teams',
   },
   teams: {
@@ -708,12 +713,12 @@ export default function IntegrationHub() {
   }, [integrations]);
 
   const filteredIntegrations = useMemo(() => {
-    // Hide Slack from Integration Hub - no inbound data ingestion exists (slack-poll not implemented)
-    // Only slack-alert exists which sends alerts TO Slack, not polling FROM Slack
-    const HIDDEN_INTEGRATIONS = ['slack'];
+    // Use the centralized integration readiness config to determine which integrations to hide
+    // This ensures only production-ready integrations are visible to users
+    const hiddenIntegrations = getHiddenIntegrations();
     
     let filtered = integrations.filter(integration =>
-      !HIDDEN_INTEGRATIONS.includes(integration.service_name.toLowerCase()) &&
+      !hiddenIntegrations.includes(integration.service_name.toLowerCase()) &&
       (integration.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       integration.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       integration.service_name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -958,7 +963,7 @@ export default function IntegrationHub() {
 
       {/* API Key Connect Modal */}
       <Dialog open={apiKeyModalOpen} onOpenChange={handleApiKeyModalOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               {selectedIntegration?.logo_url && (
@@ -972,6 +977,37 @@ export default function IntegrationHub() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Step-by-step setup instructions from integration-readiness config */}
+            {selectedIntegration && (() => {
+              const setupInstructions = getApiKeySetupInstructions(selectedIntegration.service_name.toLowerCase());
+              if (!setupInstructions) return null;
+              
+              return (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    How to get your API key
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-1.5 text-sm text-gray-700 dark:text-gray-300 ml-1">
+                    {setupInstructions.setupInstructions.map((step, index) => (
+                      <li key={index} className="leading-relaxed">{step}</li>
+                    ))}
+                  </ol>
+                  {setupInstructions.deepLink && (
+                    <a
+                      href={setupInstructions.deepLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 mt-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {setupInstructions.deepLinkLabel || 'Open provider settings'}
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* What Core314 will analyze */}
             {selectedIntegration && (() => {
               const copy = INTEGRATION_COPY[selectedIntegration.service_name.toLowerCase()] || DEFAULT_INTEGRATION_COPY;

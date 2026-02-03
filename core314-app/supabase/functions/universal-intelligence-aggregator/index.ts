@@ -566,8 +566,9 @@ function extractCommunicationMetrics(serviceName: string, metadata: Record<strin
   switch (serviceName) {
     case 'slack':
       return {
-        message_volume: (metadata.chat_count as number) || 0,
-        channel_count: (metadata.channel_count as number) || 0,
+        message_volume: (metadata.message_count as number) || (metadata.chat_count as number) || 0,
+        channel_count: (metadata.total_channels as number) || (metadata.channel_count as number) || 0,
+        active_channels: (metadata.active_channels as number) || 0,
       };
     case 'microsoft_teams':
       return {
