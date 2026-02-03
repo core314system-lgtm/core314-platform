@@ -24,7 +24,8 @@ import {
   FileCheck,
   Headphones,
   User,
-  ChevronDown
+  ChevronDown,
+  CreditCard
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import {
@@ -42,7 +43,7 @@ interface NavItem {
   badge?: string;
 }
 
-const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionTier?: string): NavItem[] => {
+const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionTier?: string, canAccessBilling?: boolean): NavItem[] => {
   // Sidebar contains ONLY product features - account items are in top-right menu
   const baseItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
@@ -56,6 +57,11 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
     { path: '/notifications', label: 'Notifications', icon: Bell },
     { path: '/integration-hub', label: 'Integration Hub', icon: Layers },
   ];
+
+  // Billing is visible to Org Owners and Org Admins
+  if (canAccessBilling) {
+    baseItems.push({ path: '/billing', label: 'Billing', icon: CreditCard });
+  }
   
   if (subscriptionTier === 'professional' || subscriptionTier === 'enterprise') {
     baseItems.push(
@@ -105,9 +111,10 @@ export function MainLayout() {
   const { signOut, profile } = useAuth();
   const [integrationCount, setIntegrationCount] = useState<{ current: number; max: number }>({ current: 0, max: 0 });
   const [subscriptionTier, setSubscriptionTier] = useState<string>('none');
+  const [canAccessBilling, setCanAccessBilling] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchIntegrationCount = async () => {
+    const fetchUserData = async () => {
       if (!profile?.id) return;
       
       const { data, error } = await supabase
@@ -135,9 +142,21 @@ export function MainLayout() {
         const maxIntegrations = tierLimits[tier];
         setIntegrationCount({ current: data.length, max: maxIntegrations });
       }
+
+      // Check if user can access billing (org owner or admin)
+      const { data: memberData } = await supabase
+        .from('organization_members')
+        .select('role')
+        .eq('user_id', profile.id);
+
+      // User can access billing if they are owner or admin of any organization
+      // or if they have no organization (individual user)
+      const hasOrgAccess = memberData?.some(m => m.role === 'owner' || m.role === 'admin');
+      const hasNoOrg = !memberData || memberData.length === 0;
+      setCanAccessBilling(hasOrgAccess || hasNoOrg);
     };
 
-    fetchIntegrationCount();
+    fetchUserData();
   }, [profile?.id]);
 
   const handleSignOut = async () => {
@@ -149,7 +168,8 @@ export function MainLayout() {
       ? `${integrationCount.current}` 
       : `${integrationCount.current}/${integrationCount.max}`,
     profile?.role === 'admin',
-    subscriptionTier
+    subscriptionTier,
+    canAccessBilling
   );
 
   return (
