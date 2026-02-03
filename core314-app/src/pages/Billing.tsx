@@ -301,9 +301,9 @@ export default function Billing() {
   }
 
   const { subscription, plan_limits, active_addons } = subscriptionSummary;
-  const isFreePlan = subscription.plan_name === 'Free';
   const isCanceled = subscription.status === 'canceled';
   const billingInterval = subscription.metadata?.billing_interval || 'monthly';
+  const hasStripeCustomer = !!subscription.stripe_customer_id;
 
   const getPaymentStatusBadge = (status: string) => {
     const variants: Record<string, { className: string; label: string }> = {
@@ -411,7 +411,7 @@ export default function Billing() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2">
-          {!isFreePlan && !isCanceled && (
+          {hasStripeCustomer ? (
             <>
               <Button
                 variant="default"
@@ -431,12 +431,16 @@ export default function Billing() {
                 Update Payment Method
                 <ExternalLink className="ml-2 h-3 w-3" />
               </Button>
+              {isCanceled && (
+                <Button onClick={() => handleUpgradePlan(subscription.plan_name)} disabled={processingAction}>
+                  Reactivate Plan
+                </Button>
+              )}
             </>
-          )}
-          {isCanceled && (
-            <Button onClick={() => handleUpgradePlan(subscription.plan_name)} disabled={processingAction}>
-              Reactivate Plan
-            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Invoices and receipts will be available after your first successful payment.
+            </p>
           )}
         </CardFooter>
       </Card>
