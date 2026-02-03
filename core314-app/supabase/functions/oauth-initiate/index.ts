@@ -340,7 +340,20 @@ serve(withSentry(async (req) => {
     // Salesforce: space-delimited scopes
     const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'zoom', 'salesforce'].includes(normalizedServiceName);
     const scopeDelimiter = useSpaceDelimiter ? ' ' : ',';
-    authUrl.searchParams.set('scope', integration.oauth_scopes.join(scopeDelimiter));
+    
+    // Salesforce-specific: Use hardcoded scopes to ensure they match Connected App configuration
+    // This prevents issues with database scopes not matching what's enabled in the Salesforce app
+    let scopeString: string;
+    if (normalizedServiceName === 'salesforce') {
+      // These scopes must match exactly what's enabled in the Core314 Salesforce Connected App:
+      // - api: Access and manage your data
+      // - refresh_token: Perform requests at any time (offline access)
+      scopeString = 'api refresh_token';
+      console.log('[oauth-initiate] Salesforce: Using hardcoded scopes:', scopeString);
+    } else {
+      scopeString = integration.oauth_scopes.join(scopeDelimiter);
+    }
+    authUrl.searchParams.set('scope', scopeString);
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('redirect_uri', redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`);
     
