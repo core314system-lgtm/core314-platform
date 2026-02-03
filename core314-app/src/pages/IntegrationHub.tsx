@@ -100,29 +100,29 @@ function PreConnectionContext() {
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
           <Zap className="h-5 w-5 text-blue-600" />
-          What happens when you connect an integration?
+          Connect and authorize — no setup required
         </CardTitle>
         <CardDescription className="text-base">
-          After connecting an integration, Core314 begins securely analyzing operational signals to power dashboards, alerts, and AI insights.
+          Click Connect, authorize access, and Core314 does the rest. No developer setup, no app creation, no technical configuration needed.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+          <p className="flex items-start gap-2">
+            <span className="text-green-500 mt-0.5">•</span>
+            <span><strong>No developer setup</strong> — Core314 handles all OAuth configuration</span>
+          </p>
           <p className="flex items-start gap-2">
             <span className="text-blue-500 mt-0.5">•</span>
             <span>Core314 reads operational signals only — it never modifies your data</span>
           </p>
           <p className="flex items-start gap-2">
             <span className="text-blue-500 mt-0.5">•</span>
-            <span>Metrics and trends populate automatically</span>
+            <span>Metrics and trends populate automatically after connection</span>
           </p>
           <p className="flex items-start gap-2">
             <span className="text-blue-500 mt-0.5">•</span>
-            <span>Alerts and insights become available as patterns emerge</span>
-          </p>
-          <p className="flex items-start gap-2">
-            <span className="text-blue-500 mt-0.5">•</span>
-            <span>Integrations can be disconnected at any time</span>
+            <span>Disconnect anytime — you stay in full control</span>
           </p>
         </div>
       </CardContent>
@@ -223,11 +223,19 @@ function IntegrationConnectModal({
             Connect {providerName} to Core314
           </DialogTitle>
           <DialogDescription>
-            Once connected, Core314 will begin analyzing operational signals from {providerName} to power your dashboards, alerts, and AI insights.
+            Connect and authorize — no setup required. Core314 handles all the technical configuration.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* No setup required callout */}
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
+            <p className="text-sm text-green-800 dark:text-green-200 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 flex-shrink-0" />
+              <span><strong>No developer setup required.</strong> Just click authorize and you're done.</span>
+            </p>
+          </div>
+
           {/* What Core314 will analyze */}
           <div>
             <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
@@ -270,7 +278,7 @@ function IntegrationConnectModal({
             Cancel
           </Button>
           <Button onClick={() => onConnect(providerId, providerName)}>
-            Continue to Connect
+            Authorize {providerName}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -679,6 +687,15 @@ export default function IntegrationHub() {
       }
 
       if (!response.ok) {
+        // Check if this is a system configuration error (missing OAuth credentials)
+        // vs a user error - system errors should be clearly labeled as such
+        const isSystemError = data.error?.includes('OAuth client not configured') || 
+                              data.error?.includes('credentials') ||
+                              response.status === 500;
+        
+        if (isSystemError) {
+          throw new Error(`System configuration error: ${providerName} integration is temporarily unavailable. Please contact support.`);
+        }
         throw new Error(data.error || `Failed to initiate OAuth for ${providerName}`);
       }
 
@@ -693,9 +710,15 @@ export default function IntegrationHub() {
         providerId,
         providerName
       });
+      
+      // Determine if this is a system error vs user error
+      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+      const isSystemError = errorMessage.includes('System configuration error') || 
+                            errorMessage.includes('OAuth client not configured');
+      
       toast({
-        title: `Failed to connect ${providerName}`,
-        description: error instanceof Error ? error.message : 'Connection failed',
+        title: isSystemError ? 'System Error' : `Failed to connect ${providerName}`,
+        description: errorMessage,
         variant: 'destructive'
       });
       handleConnectModalOpenChange(false);
@@ -742,9 +765,9 @@ export default function IntegrationHub() {
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Connect Your Systems to Unlock Operational Insight</h1>
+        <h1 className="text-3xl font-bold mb-2">Connect Your Systems — No Setup Required</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Integrations allow Core314 to analyze real operational data across your tools. Once connected, Core314 can monitor performance, detect inefficiencies, and surface actionable insights automatically — without disrupting your existing workflows.
+          Click Connect, authorize access, and Core314 does the rest. No developer setup, no app creation, no technical configuration needed. Core314 analyzes operational data across your tools to surface actionable insights automatically.
         </p>
         <div className="mt-3 flex items-center gap-2">
           <Badge variant="outline">
