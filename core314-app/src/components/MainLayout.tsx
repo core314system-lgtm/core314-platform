@@ -25,7 +25,8 @@ import {
   Headphones,
   User,
   ChevronDown,
-  CreditCard
+  CreditCard,
+  Brain
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import {
@@ -47,6 +48,7 @@ const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionT
   // Sidebar contains ONLY product features - account items are in top-right menu
   const baseItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
+    { path: '/system-intelligence', label: 'System Intelligence', icon: Brain },
     { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
     { path: '/integration-performance', label: 'Integration Performance', icon: BarChart3 },
     { path: '/system-signals', label: 'System Signals', icon: Activity },

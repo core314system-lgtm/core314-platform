@@ -62,3 +62,19 @@ jobs:
 
       - name: Validate Integration Readiness
         run: node scripts/validate-integration-readiness.js
+
+  validate-core-navigation:
+    name: Validate Core Navigation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Core Navigation
+        run: node scripts/validate-core-navigation.js
