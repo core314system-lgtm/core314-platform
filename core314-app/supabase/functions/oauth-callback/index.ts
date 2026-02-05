@@ -23,9 +23,11 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
   'zoom': 'ZOOM',
   'google_calendar': 'GOOGLE',
+  'google_meet': 'GOOGLE',  // Google Meet uses same credentials as Google Calendar
   'quickbooks': 'QUICKBOOKS',
   'xero': 'XERO',
   'salesforce': 'SALESFORCE',
+  'planner': 'TEAMS',  // Microsoft Planner uses same credentials as Microsoft Teams
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace

@@ -22,8 +22,10 @@ const OAUTH_INTEGRATIONS = [
   { serviceName: 'slack', envPrefix: 'SLACK', fallbackPrefix: 'CORE314_SLACK' },
   { serviceName: 'zoom', envPrefix: 'ZOOM', fallbackPrefix: 'CORE314_ZOOM' },
   { serviceName: 'google_calendar', envPrefix: 'GOOGLE', fallbackPrefix: 'CORE314_GOOGLE' },
+  { serviceName: 'google_meet', envPrefix: 'GOOGLE', fallbackPrefix: 'CORE314_GOOGLE' },  // Uses same credentials as Google Calendar
   { serviceName: 'quickbooks', envPrefix: 'QUICKBOOKS', fallbackPrefix: 'CORE314_QUICKBOOKS' },
   { serviceName: 'xero', envPrefix: 'XERO', fallbackPrefix: 'CORE314_XERO' },
+  { serviceName: 'planner', envPrefix: 'TEAMS', fallbackPrefix: 'CORE314_TEAMS' },  // Uses same credentials as Microsoft Teams
 ];
 
 function checkOAuthReady(envPrefix: string, fallbackPrefix: string): boolean {
