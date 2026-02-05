@@ -155,16 +155,27 @@ serve(withSentry(async (req) => {
     
     console.log('[oauth-callback] SUCCESS: Found credentials with prefix:', usedPrefix);
 
+    // Build token exchange parameters
+    const tokenParams: Record<string, string> = {
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: stateData.redirect_uri,
+      grant_type: 'authorization_code'
+    };
+    
+    // PKCE: Add code_verifier for providers that require it
+    const normalizedServiceName = normalizeServiceName(integration.service_name);
+    const pkceProviders = ['salesforce'];
+    if (pkceProviders.includes(normalizedServiceName) && stateData.code_verifier) {
+      tokenParams.code_verifier = stateData.code_verifier;
+      console.log('[oauth-callback] PKCE: Including code_verifier in token exchange');
+    }
+
     const tokenResponse = await fetch(integration.oauth_token_url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: stateData.redirect_uri,
-        grant_type: 'authorization_code'
-      })
+      body: new URLSearchParams(tokenParams)
     });
 
     const tokenData = await tokenResponse.json();
