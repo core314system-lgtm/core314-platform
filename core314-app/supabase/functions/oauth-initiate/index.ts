@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
 // Cold start: Log credential presence for key OAuth providers (never log values)
@@ -196,12 +196,36 @@ serve(withSentry(async (req) => {
 
     const state = crypto.randomUUID();
     
+    // PKCE: Generate code_verifier (43-128 characters, URL-safe)
+    const codeVerifierArray = new Uint8Array(32);
+    crypto.getRandomValues(codeVerifierArray);
+    const codeVerifier = btoa(String.fromCharCode(...codeVerifierArray))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    // PKCE: Generate code_challenge = base64url(sha256(code_verifier))
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = new Uint8Array(hashBuffer);
+    const codeChallenge = btoa(String.fromCharCode(...hashArray))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    console.log('[oauth-initiate] PKCE generated:', {
+      codeVerifierLength: codeVerifier.length,
+      codeChallengeLength: codeChallenge.length,
+    });
+    
     await supabase.from('oauth_states').insert({
       state,
       user_id: user.id,
       integration_registry_id: integration.id,
       redirect_uri: redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`,
-      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      code_verifier: codeVerifier, // Store for token exchange
     });
 
     // Normalize service_name for consistent env var lookup
@@ -376,6 +400,15 @@ serve(withSentry(async (req) => {
       // Salesforce requires 'refresh_token' scope for offline access
       // Also add prompt=consent to ensure user sees the consent screen
       authUrl.searchParams.set('prompt', 'consent');
+    }
+    
+    // PKCE: Add code_challenge for providers that require it
+    // Salesforce requires PKCE for External Client Apps
+    const pkceProviders = ['salesforce'];
+    if (pkceProviders.includes(normalizedServiceName)) {
+      authUrl.searchParams.set('code_challenge', codeChallenge);
+      authUrl.searchParams.set('code_challenge_method', 'S256');
+      console.log('[oauth-initiate] PKCE enabled for:', normalizedServiceName);
     }
 
     return new Response(JSON.stringify({
