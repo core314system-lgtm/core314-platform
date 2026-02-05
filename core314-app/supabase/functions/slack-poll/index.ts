@@ -1,6 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Cold start: Log credential presence (never log values)
+const slackClientIdPresent = !!Deno.env.get('SLACK_CLIENT_ID');
+const slackClientSecretPresent = !!Deno.env.get('SLACK_CLIENT_SECRET');
+console.log('[slack-poll] Cold start - Credentials check:', {
+  SLACK_CLIENT_ID_present: slackClientIdPresent,
+  SLACK_CLIENT_SECRET_present: slackClientSecretPresent,
+});
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -217,6 +225,64 @@ serve(async (req) => {
           errors.push(`Token expired for user ${integration.user_id}`);
           continue;
         }
+
+        // HARD VERIFICATION: Call auth.test before any data collection
+        // This ensures the token is valid and the bot has proper access
+        console.log('[slack-poll] Performing auth.test verification for user:', integration.user_id);
+        const authTestResponse = await fetch('https://slack.com/api/auth.test', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        const authTestData = await authTestResponse.json();
+        
+        if (!authTestData.ok) {
+          console.error('[slack-poll] auth.test FAILED for user:', integration.user_id, {
+            error: authTestData.error,
+          });
+          
+          // Emit integration_auth_failed event
+          await supabase.from('integration_events').insert({
+            user_id: integration.user_id,
+            user_integration_id: integration.user_integration_id,
+            integration_registry_id: integration.integration_registry_id,
+            service_name: 'slack',
+            event_type: 'integration_auth_failed',
+            occurred_at: now.toISOString(),
+            source: 'slack_api_poll',
+            metadata: {
+              error: authTestData.error,
+              error_description: authTestData.error_description || null,
+              provider: 'slack',
+              poll_timestamp: now.toISOString(),
+            },
+          });
+          
+          // Update user_integrations status to error
+          await supabase
+            .from('user_integrations')
+            .update({ 
+              status: 'error',
+              config: {
+                error_code: authTestData.error,
+                error_message: authTestData.error_description || authTestData.error,
+                last_auth_check: now.toISOString(),
+              }
+            })
+            .eq('id', integration.user_integration_id);
+          
+          errors.push(`Auth failed for user ${integration.user_id}: ${authTestData.error}`);
+          continue; // Abort poll for this user
+        }
+        
+        console.log('[slack-poll] auth.test SUCCESS for user:', integration.user_id, {
+          team_id: authTestData.team_id,
+          team: authTestData.team,
+          bot_user_id: authTestData.bot_user_id,
+        });
 
         // Fetch Slack metrics
         const metrics = await fetchSlackMetrics(accessToken);

@@ -2,6 +2,14 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
+// Cold start: Log credential presence for key OAuth providers (never log values)
+console.log('[oauth-initiate] Cold start - Credentials check:', {
+  SLACK_CLIENT_ID_present: !!Deno.env.get('SLACK_CLIENT_ID'),
+  SLACK_CLIENT_SECRET_present: !!Deno.env.get('SLACK_CLIENT_SECRET'),
+  SALESFORCE_CLIENT_ID_present: !!Deno.env.get('SALESFORCE_CLIENT_ID'),
+  TEAMS_CLIENT_ID_present: !!Deno.env.get('TEAMS_CLIENT_ID'),
+});
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
