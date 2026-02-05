@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /**
  * QuickBooks Online Poll Function
@@ -226,6 +226,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const runStartTime = Date.now();
+  const runTimestamp = new Date().toISOString();
+  let recordsFetched = 0;
+  let recordsWritten = 0;
+  let usersProcessed = 0;
+  let usersSkipped = 0;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -279,6 +286,7 @@ serve(async (req) => {
         const now = new Date();
         if (state?.next_poll_after && new Date(state.next_poll_after) > now) {
           console.log('[quickbooks-poll] Skipping user (rate limited):', integration.user_id);
+          usersSkipped++;
           continue;
         }
 
@@ -322,6 +330,9 @@ serve(async (req) => {
         // Fetch metrics from QuickBooks API
         const metrics = await fetchQuickBooksMetrics(accessToken, realmId);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
+        
+        // Track records fetched
+        recordsFetched += metrics.invoiceCount + metrics.paymentCount + metrics.expenseCount + metrics.accountCount;
 
         // Insert integration event with financial metrics
         const hasData = metrics.invoiceCount > 0 || metrics.paymentCount > 0 || 
@@ -336,7 +347,7 @@ serve(async (req) => {
             event_type: 'quickbooks.financial_activity',
             occurred_at: eventTime,
             source: 'quickbooks_api_poll',
-            metadata: {
+            payload: {
               invoice_count: metrics.invoiceCount,
               invoice_total: metrics.invoiceTotal,
               open_invoices: metrics.openInvoices,
@@ -354,6 +365,7 @@ serve(async (req) => {
               poll_timestamp: now.toISOString(),
             },
           });
+          recordsWritten++;
         }
 
         // Update ingestion state with rate limiting (15 minute interval)
@@ -369,6 +381,7 @@ serve(async (req) => {
         }, { onConflict: 'user_id,user_integration_id,service_name' });
 
         processedCount++;
+        usersProcessed++;
         console.log('[quickbooks-poll] Processed user:', integration.user_id, {
           invoices: metrics.invoiceCount,
           payments: metrics.paymentCount,
@@ -382,10 +395,28 @@ serve(async (req) => {
       }
     }
 
+    // Log run metadata
+    const runDurationMs = Date.now() - runStartTime;
+    await supabase.from('poll_run_logs').insert({
+      integration_name: 'quickbooks',
+      run_timestamp: runTimestamp,
+      run_duration_ms: runDurationMs,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      users_processed: usersProcessed,
+      users_skipped: usersSkipped,
+      success: true,
+      error_message: errors.length > 0 ? errors.join('; ') : null,
+      metadata: { total_integrations: qbIntegrations.length, errors_count: errors.length },
+    });
+
     return new Response(JSON.stringify({
       success: true,
       processed: processedCount,
       total: qbIntegrations.length,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      run_duration_ms: runDurationMs,
       errors: errors.length > 0 ? errors : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -393,6 +424,24 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[quickbooks-poll] Error:', error);
+    
+    // Log failed run
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    await supabase.from('poll_run_logs').insert({
+      integration_name: 'quickbooks',
+      run_timestamp: runTimestamp,
+      run_duration_ms: Date.now() - runStartTime,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      users_processed: usersProcessed,
+      users_skipped: usersSkipped,
+      success: false,
+      error_message: errorMessage,
+    });
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
