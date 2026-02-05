@@ -185,6 +185,86 @@ function validateApiKeyConfigurations() {
 }
 
 /**
+ * Slack-specific validation
+ * Ensures Slack integration meets Core314 platform promise:
+ * - Core314 owns all OAuth configuration
+ * - Users never create their own Slack apps
+ * - auth.test verification is present in slack-poll
+ * - Post-OAuth verification is present in oauth-callback
+ */
+function validateSlackIntegration() {
+  const errors = [];
+  const warnings = [];
+
+  const slack = productionReady.find(i => i.serviceName === 'slack');
+  
+  if (!slack) {
+    // Slack not in production-ready list - this is acceptable if intentionally hidden
+    warnings.push('Slack integration is not marked as production-ready');
+    return { passed: true, errors, warnings };
+  }
+
+  // Verify Slack is OAuth2 (not API key - users should never configure anything)
+  if (slack.connectionType !== 'oauth2') {
+    errors.push(
+      'FAIL: Slack must use oauth2 connection type (Core314-owned Slack App)'
+    );
+  }
+
+  // Verify OAuth config exists
+  if (!slack.oauthConfig) {
+    errors.push(
+      'FAIL: Slack missing oauthConfig - Core314 must own OAuth credentials'
+    );
+  } else {
+    // Verify required env vars are defined
+    const requiredVars = ['SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET'];
+    for (const envVar of requiredVars) {
+      if (!slack.oauthConfig.requiredEnvVars?.includes(envVar)) {
+        errors.push(
+          `FAIL: Slack oauthConfig missing required env var: ${envVar}`
+        );
+      }
+    }
+  }
+
+  // Verify slack-poll function exists
+  const functionsDir = path.join(__dirname, '..', 'core314-app', 'supabase', 'functions');
+  const pollFunctionPath = path.join(functionsDir, 'slack-poll', 'index.ts');
+  if (!fs.existsSync(pollFunctionPath)) {
+    errors.push(
+      'FAIL: Slack poll function not found at slack-poll/index.ts'
+    );
+  } else {
+    // Verify auth.test verification is present in slack-poll
+    const pollContent = fs.readFileSync(pollFunctionPath, 'utf-8');
+    if (!pollContent.includes('auth.test')) {
+      errors.push(
+        'FAIL: slack-poll missing auth.test verification - required for self-healing'
+      );
+    }
+    if (!pollContent.includes('integration_auth_failed')) {
+      errors.push(
+        'FAIL: slack-poll missing integration_auth_failed event emission'
+      );
+    }
+  }
+
+  // Verify oauth-callback has Slack post-auth verification
+  const callbackPath = path.join(functionsDir, 'oauth-callback', 'index.ts');
+  if (fs.existsSync(callbackPath)) {
+    const callbackContent = fs.readFileSync(callbackPath, 'utf-8');
+    if (!callbackContent.includes("'slack'") || !callbackContent.includes('auth.test')) {
+      errors.push(
+        'FAIL: oauth-callback missing Slack auth.test post-OAuth verification'
+      );
+    }
+  }
+
+  return { passed: errors.length === 0, errors, warnings };
+}
+
+/**
  * Salesforce-specific validation
  * Ensures Salesforce integration meets Core314 platform promise:
  * - Core314 owns all OAuth configuration
@@ -253,6 +333,7 @@ function main() {
     { name: 'Poll Functions Exist', fn: validatePollFunctionsExist },
     { name: 'OAuth Configurations', fn: validateOAuthConfigurations },
     { name: 'API Key Configurations', fn: validateApiKeyConfigurations },
+    { name: 'Slack Integration (Core314 Platform Promise)', fn: validateSlackIntegration },
     { name: 'Salesforce Integration (Core314 Platform Promise)', fn: validateSalesforceIntegration },
   ];
 

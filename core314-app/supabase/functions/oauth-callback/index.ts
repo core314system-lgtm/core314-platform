@@ -2,6 +2,14 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 
+// Cold start: Log credential presence for key OAuth providers (never log values)
+console.log('[oauth-callback] Cold start - Credentials check:', {
+  SLACK_CLIENT_ID_present: !!Deno.env.get('SLACK_CLIENT_ID'),
+  SLACK_CLIENT_SECRET_present: !!Deno.env.get('SLACK_CLIENT_SECRET'),
+  SALESFORCE_CLIENT_ID_present: !!Deno.env.get('SALESFORCE_CLIENT_ID'),
+  TEAMS_CLIENT_ID_present: !!Deno.env.get('TEAMS_CLIENT_ID'),
+});
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -196,6 +204,77 @@ serve(withSentry(async (req) => {
       scope: tokenData.scope,
       team: tokenData.team,
     };
+    
+    // Slack: Perform post-auth verification using auth.test API
+    if (normalizeServiceName(integration.service_name) === 'slack') {
+      console.log('[oauth-callback] Slack: Performing post-auth verification via auth.test...');
+      try {
+        const authTestResponse = await fetch('https://slack.com/api/auth.test', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        const authTestData = await authTestResponse.json();
+        
+        if (!authTestData.ok) {
+          console.error('[oauth-callback] Slack: auth.test verification FAILED', {
+            error: authTestData.error,
+            error_description: authTestData.error_description,
+          });
+          
+          // Mark integration as error state
+          integrationConfig.verification_status = 'error';
+          integrationConfig.error_code = authTestData.error;
+          integrationConfig.error_message = authTestData.error_description || authTestData.error;
+          
+          // Still save the integration but with error status
+          const { data: errorUserIntegration } = await supabase
+            .from('user_integrations')
+            .upsert({
+              user_id: stateData.user_id,
+              integration_id: (await supabase.from('integrations_master').select('id').eq('integration_type', integration.service_name).single()).data?.id,
+              provider_id: integration.id,
+              added_by_user: true,
+              status: 'error',
+              config: integrationConfig
+            }, {
+              onConflict: 'user_id,integration_id'
+            })
+            .select()
+            .single();
+          
+          return new Response(null, {
+            status: 302,
+            headers: {
+              ...corsHeaders,
+              'Location': `${Deno.env.get('APP_URL') || 'http://localhost:5173'}/integrations?oauth_error=true&service=${integration.service_name}&error=verification_failed`
+            }
+          });
+        }
+        
+        console.log('[oauth-callback] Slack: auth.test verification SUCCESS', {
+          team_id: authTestData.team_id,
+          team: authTestData.team,
+          bot_user_id: authTestData.bot_user_id,
+          user_id: authTestData.user_id,
+        });
+        
+        // Store verified workspace info in config
+        integrationConfig.workspace_id = authTestData.team_id;
+        integrationConfig.workspace_name = authTestData.team;
+        integrationConfig.bot_user_id = authTestData.bot_user_id;
+        integrationConfig.slack_user_id = authTestData.user_id;
+        integrationConfig.verified_at = new Date().toISOString();
+        integrationConfig.verification_status = 'verified';
+      } catch (verifyError) {
+        console.error('[oauth-callback] Slack: auth.test verification error:', verifyError);
+        integrationConfig.verification_status = 'error';
+        integrationConfig.error_message = verifyError instanceof Error ? verifyError.message : 'Unknown error';
+      }
+    }
     
     // QuickBooks: store realmId (company ID)
     if (realmId) {
