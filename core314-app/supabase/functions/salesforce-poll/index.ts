@@ -185,6 +185,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const runStartTime = Date.now();
+  const runTimestamp = new Date().toISOString();
+  let recordsFetched = 0;
+  let recordsWritten = 0;
+  let usersProcessed = 0;
+  let usersSkipped = 0;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -238,23 +245,21 @@ serve(async (req) => {
         const now = new Date();
         if (state?.next_poll_after && new Date(state.next_poll_after) > now) {
           console.log('[salesforce-poll] Skipping user (rate limited):', integration.user_id);
+          usersSkipped++;
           continue;
         }
 
-        // Get access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Get access token from vault using RPC
+        const { data: decryptedToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[salesforce-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !decryptedToken) {
+          console.error('[salesforce-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
-        const accessToken = tokenData.decrypted_secret;
+        const accessToken = decryptedToken;
 
         // Check token expiration
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -281,6 +286,9 @@ serve(async (req) => {
         // Fetch metrics from Salesforce API
         const metrics = await fetchSalesforceMetrics(accessToken, instanceUrl);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
+        
+        // Track records fetched
+        recordsFetched += metrics.accountCount + metrics.opportunityCount + metrics.caseCount;
 
         // Insert integration event with CRM metrics
         const hasData = metrics.accountCount > 0 || metrics.opportunityCount > 0 || metrics.caseCount > 0;
@@ -317,6 +325,7 @@ serve(async (req) => {
               poll_timestamp: now.toISOString(),
             },
           });
+          recordsWritten++;
         }
 
         // Update ingestion state with rate limiting (15 minute interval)
@@ -332,6 +341,7 @@ serve(async (req) => {
         }, { onConflict: 'user_id,user_integration_id,service_name' });
 
         processedCount++;
+        usersProcessed++;
         console.log('[salesforce-poll] Processed user:', integration.user_id, {
           accounts: metrics.accountCount,
           opportunities: metrics.opportunityCount,
@@ -344,10 +354,28 @@ serve(async (req) => {
       }
     }
 
+    // Log run metadata
+    const runDurationMs = Date.now() - runStartTime;
+    await supabase.from('poll_run_logs').insert({
+      integration_name: 'salesforce',
+      run_timestamp: runTimestamp,
+      run_duration_ms: runDurationMs,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      users_processed: usersProcessed,
+      users_skipped: usersSkipped,
+      success: true,
+      error_message: errors.length > 0 ? errors.join('; ') : null,
+      metadata: { total_integrations: sfIntegrations.length, errors_count: errors.length },
+    });
+
     return new Response(JSON.stringify({
       success: true,
       processed: processedCount,
       total: sfIntegrations.length,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      run_duration_ms: runDurationMs,
       errors: errors.length > 0 ? errors : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -355,6 +383,24 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[salesforce-poll] Error:', error);
+    
+    // Log failed run
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    await supabase.from('poll_run_logs').insert({
+      integration_name: 'salesforce',
+      run_timestamp: runTimestamp,
+      run_duration_ms: Date.now() - runStartTime,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      users_processed: usersProcessed,
+      users_skipped: usersSkipped,
+      success: false,
+      error_message: errorMessage,
+    });
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

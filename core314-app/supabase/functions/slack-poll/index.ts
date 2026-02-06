@@ -1,6 +1,19 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+// Run metadata tracking
+interface RunMetadata {
+  integration_name: string;
+  run_timestamp: string;
+  records_fetched: number;
+  records_written: number;
+  users_processed: number;
+  users_skipped: number;
+  success: boolean;
+  error_message?: string;
+  run_duration_ms?: number;
+}
+
 // Cold start: Log credential presence (never log values)
 const slackClientIdPresent = !!Deno.env.get('SLACK_CLIENT_ID');
 const slackClientSecretPresent = !!Deno.env.get('SLACK_CLIENT_SECRET');
@@ -148,6 +161,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const runStartTime = Date.now();
+  const runTimestamp = new Date().toISOString();
+  let recordsFetched = 0;
+  let recordsWritten = 0;
+  let usersProcessed = 0;
+  let usersSkipped = 0;
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -201,23 +221,21 @@ serve(async (req) => {
         const now = new Date();
         if (state?.next_poll_after && new Date(state.next_poll_after) > now) {
           console.log('[slack-poll] Skipping user (rate limited):', integration.user_id);
+          usersSkipped++;
           continue;
         }
 
-        // Retrieve access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Retrieve access token from vault using RPC
+        const { data: decryptedToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[slack-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !decryptedToken) {
+          console.error('[slack-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
-        const accessToken = tokenData.decrypted_secret;
+        const accessToken = decryptedToken;
 
         // Note: Slack tokens don't expire unless revoked, but check anyway
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -287,10 +305,13 @@ serve(async (req) => {
         // Fetch Slack metrics
         const metrics = await fetchSlackMetrics(accessToken);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
+        
+        // Track records fetched
+        recordsFetched += metrics.messageCount + metrics.channelCount + (metrics.workspaceInfo.teamId ? 1 : 0);
 
         // Insert message activity event
         if (metrics.messageCount > 0) {
-          await supabase.from('integration_events').insert({
+          const { error: msgErr } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -304,11 +325,13 @@ serve(async (req) => {
               poll_timestamp: now.toISOString(),
             },
           });
+          if (msgErr) console.error('[slack-poll] Error inserting message event:', msgErr);
+          else recordsWritten++;
         }
 
         // Insert channel activity event
         if (metrics.channelCount > 0) {
-          await supabase.from('integration_events').insert({
+          const { error: chanErr } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -322,11 +345,13 @@ serve(async (req) => {
               poll_timestamp: now.toISOString(),
             },
           });
+          if (chanErr) console.error('[slack-poll] Error inserting channel event:', chanErr);
+          else recordsWritten++;
         }
 
         // Insert workspace activity event
         if (metrics.workspaceInfo.teamId) {
-          await supabase.from('integration_events').insert({
+          const { error: wsErr } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -340,6 +365,8 @@ serve(async (req) => {
               poll_timestamp: now.toISOString(),
             },
           });
+          if (wsErr) console.error('[slack-poll] Error inserting workspace event:', wsErr);
+          else recordsWritten++;
         }
 
         // Update ingestion state with 15-minute rate limiting
@@ -355,6 +382,7 @@ serve(async (req) => {
         }, { onConflict: 'user_id,user_integration_id,service_name' });
 
         processedCount++;
+        usersProcessed++;
         console.log('[slack-poll] Processed user:', integration.user_id, metrics);
       } catch (userError: unknown) {
         const errorMessage = userError instanceof Error ? userError.message : String(userError);
@@ -363,10 +391,31 @@ serve(async (req) => {
       }
     }
 
+    // Log run metadata
+    const runDurationMs = Date.now() - runStartTime;
+    await supabase.from('poll_run_logs').insert({
+      integration_name: 'slack',
+      run_timestamp: runTimestamp,
+      run_duration_ms: runDurationMs,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      users_processed: usersProcessed,
+      users_skipped: usersSkipped,
+      success: true,
+      error_message: errors.length > 0 ? errors.join('; ') : null,
+      metadata: {
+        total_integrations: slackIntegrations.length,
+        errors_count: errors.length,
+      },
+    });
+
     return new Response(JSON.stringify({
       success: true,
       processed: processedCount,
       total: slackIntegrations.length,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      run_duration_ms: runDurationMs,
       errors: errors.length > 0 ? errors : undefined,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -374,6 +423,24 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[slack-poll] Error:', error);
+    
+    // Log failed run
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    await supabase.from('poll_run_logs').insert({
+      integration_name: 'slack',
+      run_timestamp: runTimestamp,
+      run_duration_ms: Date.now() - runStartTime,
+      records_fetched: recordsFetched,
+      records_written: recordsWritten,
+      users_processed: usersProcessed,
+      users_skipped: usersSkipped,
+      success: false,
+      error_message: errorMessage,
+    });
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
