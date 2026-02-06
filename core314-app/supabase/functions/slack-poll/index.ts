@@ -225,20 +225,17 @@ serve(async (req) => {
           continue;
         }
 
-        // Retrieve access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Retrieve access token from vault using RPC
+        const { data: decryptedToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[slack-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !decryptedToken) {
+          console.error('[slack-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
-        const accessToken = tokenData.decrypted_secret;
+        const accessToken = decryptedToken;
 
         // Note: Slack tokens don't expire unless revoked, but check anyway
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -314,7 +311,7 @@ serve(async (req) => {
 
         // Insert message activity event
         if (metrics.messageCount > 0) {
-          await supabase.from('integration_events').insert({
+          const { error: msgErr } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -322,18 +319,19 @@ serve(async (req) => {
             event_type: 'slack.message_activity',
             occurred_at: eventTime,
             source: 'slack_api_poll',
-            payload: {
+            metadata: {
               message_count: metrics.messageCount,
               channels_sampled: Math.min(metrics.activeChannels, 5),
               poll_timestamp: now.toISOString(),
             },
           });
-          recordsWritten++;
+          if (msgErr) console.error('[slack-poll] Error inserting message event:', msgErr);
+          else recordsWritten++;
         }
 
         // Insert channel activity event
         if (metrics.channelCount > 0) {
-          await supabase.from('integration_events').insert({
+          const { error: chanErr } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -341,18 +339,19 @@ serve(async (req) => {
             event_type: 'slack.channel_activity',
             occurred_at: eventTime,
             source: 'slack_api_poll',
-            payload: {
+            metadata: {
               total_channels: metrics.channelCount,
               active_channels: metrics.activeChannels,
               poll_timestamp: now.toISOString(),
             },
           });
-          recordsWritten++;
+          if (chanErr) console.error('[slack-poll] Error inserting channel event:', chanErr);
+          else recordsWritten++;
         }
 
         // Insert workspace activity event
         if (metrics.workspaceInfo.teamId) {
-          await supabase.from('integration_events').insert({
+          const { error: wsErr } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -360,13 +359,14 @@ serve(async (req) => {
             event_type: 'slack.workspace_activity',
             occurred_at: eventTime,
             source: 'slack_api_poll',
-            payload: {
+            metadata: {
               team_id: metrics.workspaceInfo.teamId,
               team_name: metrics.workspaceInfo.teamName,
               poll_timestamp: now.toISOString(),
             },
           });
-          recordsWritten++;
+          if (wsErr) console.error('[slack-poll] Error inserting workspace event:', wsErr);
+          else recordsWritten++;
         }
 
         // Update ingestion state with 15-minute rate limiting

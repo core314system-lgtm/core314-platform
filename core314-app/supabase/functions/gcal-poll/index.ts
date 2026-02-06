@@ -166,19 +166,16 @@ serve(async (req) => {
           continue;
         }
 
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        const { data: decryptedToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[gcal-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !decryptedToken) {
+          console.error('[gcal-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
-        const accessToken = tokenData.decrypted_secret;
+        const accessToken = decryptedToken;
 
         if (integration.expires_at && new Date(integration.expires_at) < now) {
           console.log('[gcal-poll] Token expired for user:', integration.user_id);
@@ -201,7 +198,7 @@ serve(async (req) => {
             event_type: 'gcal.calendar_activity',
             occurred_at: eventTime,
             source: 'gcal_api_poll',
-            payload: {
+            metadata: {
               event_count: metrics.eventCount,
               meeting_count: metrics.meetingCount,
               total_duration_minutes: metrics.totalDuration,

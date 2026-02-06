@@ -290,20 +290,17 @@ serve(async (req) => {
           continue;
         }
 
-        // Get access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Get access token from vault using RPC
+        const { data: decryptedToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[quickbooks-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !decryptedToken) {
+          console.error('[quickbooks-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
-        const accessToken = tokenData.decrypted_secret;
+        const accessToken = decryptedToken;
 
         // Check token expiration
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -347,7 +344,7 @@ serve(async (req) => {
             event_type: 'quickbooks.financial_activity',
             occurred_at: eventTime,
             source: 'quickbooks_api_poll',
-            payload: {
+            metadata: {
               invoice_count: metrics.invoiceCount,
               invoice_total: metrics.invoiceTotal,
               open_invoices: metrics.openInvoices,
