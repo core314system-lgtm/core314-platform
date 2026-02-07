@@ -29,9 +29,10 @@ export function FusionGauge({
   const isIntegrationScoped = !!integrationName;
   
   // Determine if this is an early signal / low activity state
-  // Early signal: few metrics OR low score with limited data
-  const isEarlySignal = metricsCount < 5 || (score < 40 && metricsCount < 10);
-  const isLimitedActivity = metricsCount > 0 && metricsCount < 10;
+  // Early signal: few metrics OR low score (regardless of metrics count)
+  // A score below 40 always warrants explanation to prevent user confusion
+  const isEarlySignal = metricsCount < 5 || score < 40;
+  const isLimitedActivity = metricsCount > 0 && metricsCount < 20;
   const hasNoData = metricsCount === 0 && score === 0;
   
   const getTrendIcon = () => {
