@@ -20,8 +20,6 @@ import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel';
 import { AIQuickQuery } from '../components/dashboard/AIQuickQuery';
 import { FusionOverviewWidget } from '../components/dashboard/FusionOverviewWidget';
 import { IntelligenceDashboard } from '../components/intelligence/IntelligenceDashboard';
-import { IntegrationContextSelector } from '../components/dashboard/IntegrationContextSelector';
-import { IntegrationScopedAIQuery } from '../components/dashboard/IntegrationScopedAIQuery';
 import { IntelligencePreviewPanels } from '../components/dashboard/IntelligencePreviewPanels';
 import { CalibrationCompletionBanner } from '../components/dashboard/CalibrationCompletionBanner';
 import { LockedInsightTeaser } from '../components/dashboard/LockedInsightTeaser';
@@ -36,7 +34,7 @@ import { SystemLearningPanel } from '../components/dashboard/SystemLearningPanel
 import { LearningTimeline } from '../components/dashboard/LearningTimeline';
 import { AddOnCTA } from '../components/AddOnCTA';
 import { ExportDataButton } from '../components/ExportDataButton';
-import { IntegrationWithScore, FusionScore, ActionLog, FusionMetric, FusionInsight } from '../types';
+import { IntegrationWithScore, FusionScore, ActionLog } from '../types';
 import { syncIntegrationMetrics } from '../services/integrationDataSync';
 import { updateFusionScore } from '../services/fusionEngine';
 import { format } from 'date-fns';
@@ -75,10 +73,6 @@ export function Dashboard() {
   }[]>([]);
   const [sessionData, setSessionData] = useState<{ last_login: string; active_sessions: number } | null>(null);
   
-  // Integration Context Selector state
-  const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('all');
-  const [integrationMetrics, setIntegrationMetrics] = useState<FusionMetric[]>([]);
-  const [integrationInsights, setIntegrationInsights] = useState<FusionInsight[]>([]);
 
   // Collapsible section state for educational/guidance content
   const [learningExpanded, setLearningExpanded] = useState(false);
@@ -294,56 +288,6 @@ export function Dashboard() {
     }
   };
 
-  // Fetch integration-specific data when an integration is selected
-  useEffect(() => {
-    const fetchIntegrationData = async () => {
-      if (!profile?.id || selectedIntegrationId === 'all') {
-        setIntegrationMetrics([]);
-        setIntegrationInsights([]);
-        return;
-      }
-
-      // Fetch recent metrics for the selected integration
-      const { data: metrics } = await supabase
-        .from('fusion_metrics')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('integration_id', selectedIntegrationId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      setIntegrationMetrics(metrics || []);
-
-      // Fetch recent insights for the selected integration
-      const { data: insights } = await supabase
-        .from('fusion_insights')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('integration_id', selectedIntegrationId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      setIntegrationInsights(insights || []);
-    };
-
-    fetchIntegrationData();
-  }, [profile?.id, selectedIntegrationId]);
-
-  // Get the selected integration object
-  const selectedIntegration = selectedIntegrationId !== 'all' 
-    ? integrations.find(i => i.id === selectedIntegrationId) 
-    : null;
-
-  // Calculate fusion contribution percentage for selected integration
-  const calculateFusionContribution = () => {
-    if (!selectedIntegration || !selectedIntegration.fusion_score || integrations.length === 0) {
-      return undefined;
-    }
-    const totalScore = integrations.reduce((sum, i) => sum + (i.fusion_score || 0), 0);
-    if (totalScore === 0) return 0;
-    return (selectedIntegration.fusion_score / totalScore) * 100;
-  };
-
   // Derive isComputed from systemStatus - true when score_origin is 'computed'
   const isComputed = systemStatus?.score_origin === 'computed';
 
@@ -410,17 +354,13 @@ export function Dashboard() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              {selectedIntegration ? (
-                <FusionGauge 
-                  score={selectedIntegration.fusion_score || 0} 
-                  trend={selectedIntegration.trend_direction || 'stable'} 
-                  integrationName={selectedIntegration.integration_name}
-                  globalScore={globalScore}
-                  fusionContribution={calculateFusionContribution()}
-                />
-              ) : (
-                <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
-              )}
+              <FusionGauge 
+                score={globalScore} 
+                trend={globalTrend} 
+                showIntelligenceLabel={isIntelligenceDashboardEnabled}
+                metricsCount={integrations.reduce((sum, i) => sum + i.metrics_count, 0)}
+                activeIntegrationCount={activeIntegrationCount}
+              />
             </div>
             <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
               <CardContent className="p-4 flex flex-col justify-center h-full">
@@ -510,14 +450,6 @@ export function Dashboard() {
               </Card>
             )}
 
-            {/* Integration Context Selector - only show when user has connected integrations */}
-            {hasConnectedIntegrations && integrations.length > 0 && (
-              <IntegrationContextSelector
-                integrations={integrations}
-                selectedIntegrationId={selectedIntegrationId}
-                onSelectionChange={setSelectedIntegrationId}
-        />
-      )}
 
       {/* Contextual Micro CTA - deferred below primary signals */}
       {!addonsLoading && 
@@ -590,15 +522,7 @@ export function Dashboard() {
             />
           </div>
           <div className="lg:col-span-2">
-            {selectedIntegration ? (
-              <AIInsightsPanel 
-                hasAccess={subscription.hasAIInsights || false} 
-                integrationId={selectedIntegration.id}
-                integrationName={selectedIntegration.integration_name}
-              />
-            ) : (
-              <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
-            )}
+            <AIInsightsPanel hasAccess={subscription.hasAIInsights || false} />
           </div>
 
           {/* Row 3: System Trajectory (1 col) + AI Query (2 cols) */}
@@ -611,24 +535,7 @@ export function Dashboard() {
             />
           </div>
           <div className="lg:col-span-2">
-            {selectedIntegration && ['professional', 'enterprise'].includes(subscription.tier) && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Bot className="h-4 w-4 text-purple-600" />
-                    Ask AI about {selectedIntegration.integration_name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <IntegrationScopedAIQuery 
-                    integration={selectedIntegration}
-                    recentMetrics={integrationMetrics}
-                    recentInsights={integrationInsights}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {!selectedIntegration && ['professional', 'enterprise'].includes(subscription.tier) && (
+            {['professional', 'enterprise'].includes(subscription.tier) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">

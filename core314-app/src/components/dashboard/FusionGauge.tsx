@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info, Activity, Zap } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { Link } from 'react-router-dom';
 
 interface FusionGaugeProps {
   score: number;
@@ -10,6 +11,9 @@ interface FusionGaugeProps {
   integrationName?: string;
   globalScore?: number;
   fusionContribution?: number;
+  // Props for early signal / low activity detection
+  metricsCount?: number;
+  activeIntegrationCount?: number;
 }
 
 export function FusionGauge({ 
@@ -19,8 +23,18 @@ export function FusionGauge({
   integrationName,
   globalScore,
   fusionContribution,
+  metricsCount = 0,
+  activeIntegrationCount = 0,
 }: FusionGaugeProps) {
   const isIntegrationScoped = !!integrationName;
+  
+  // Determine if this is an early signal / low activity state
+  // Early signal: few metrics OR low score (regardless of metrics count)
+  // A score below 40 always warrants explanation to prevent user confusion
+  const isEarlySignal = metricsCount < 5 || score < 40;
+  const isLimitedActivity = metricsCount > 0 && metricsCount < 20;
+  const hasNoData = metricsCount === 0 && score === 0;
+  
   const getTrendIcon = () => {
     switch (trend) {
       case 'up':
@@ -56,14 +70,22 @@ export function FusionGauge({
                       <Info className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-xs">
-                    <p className="text-sm">
-                      <strong>What is the Fusion Score?</strong>
+                  <TooltipContent side="right" className="max-w-xs p-3">
+                    <p className="text-sm font-semibold">
+                      What is the Fusion Score?
                     </p>
-                    <p className="text-xs mt-1 text-gray-600 dark:text-gray-300">
-                      The Fusion Score represents your operational health based on signals from connected integrations. 
-                      It improves as your integrations provide more data over time. 
-                      This score is derived from verified system signals, not estimates.
+                    <p className="text-xs mt-1.5 text-gray-600 dark:text-gray-300">
+                      The Fusion Score reflects observed operational activity from your connected integrations. 
+                      It is calculated from verified system signals, not estimates.
+                    </p>
+                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <strong>Low score?</strong> This indicates limited activity, not failure. 
+                        The score increases as your systems generate more data.
+                      </p>
+                    </div>
+                    <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
+                      View Integration Dashboards to see contributing metrics.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -84,7 +106,17 @@ export function FusionGauge({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          {/* Early Signal / Low Activity Indicator */}
+          {isEarlySignal && !isIntegrationScoped && (
+            <div className="mb-3 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-full flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                {hasNoData ? 'Awaiting Data' : isLimitedActivity ? 'Limited Activity Observed' : 'Early Signal Detected'}
+              </span>
+            </div>
+          )}
+          
           <div className="relative w-48 h-48">
             <svg className="transform -rotate-90 w-48 h-48">
               <circle
@@ -112,10 +144,30 @@ export function FusionGauge({
                 <div className={`text-4xl font-bold ${getScoreColor()}`}>
                   {score.toFixed(0)}
                 </div>
-                <div className="text-sm text-gray-600">/ 100</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">/ 100</div>
               </div>
             </div>
           </div>
+          
+          {/* Contextual message for early/low activity states */}
+          {isEarlySignal && !isIntegrationScoped && (
+            <div className="mt-4 text-center max-w-xs">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {hasNoData 
+                  ? 'System is working and ready to ingest data from your integrations.'
+                  : 'Score will evolve as more activity is observed from your connected systems.'}
+              </p>
+              <Link 
+                to="/integration-hub" 
+                className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <Zap className="h-3 w-3" />
+                {activeIntegrationCount < 2 
+                  ? 'Connect more integrations to strengthen signal'
+                  : 'View Integration Dashboards'}
+              </Link>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
