@@ -419,7 +419,13 @@ export function Dashboard() {
                   fusionContribution={calculateFusionContribution()}
                 />
               ) : (
-                <FusionGauge score={globalScore} trend={globalTrend} showIntelligenceLabel={isIntelligenceDashboardEnabled} />
+                <FusionGauge 
+                  score={globalScore} 
+                  trend={globalTrend} 
+                  showIntelligenceLabel={isIntelligenceDashboardEnabled}
+                  metricsCount={integrations.reduce((sum, i) => sum + i.metrics_count, 0)}
+                  activeIntegrationCount={activeIntegrationCount}
+                />
               )}
             </div>
             <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
