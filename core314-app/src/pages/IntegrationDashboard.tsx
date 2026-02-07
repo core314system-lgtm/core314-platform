@@ -96,7 +96,7 @@ export function IntegrationDashboard(){
       const integrations = data
         .filter(d => d.integrations_master)
         .map(d => {
-          const master = d.integrations_master as { id: string; integration_type: string; integration_name: string } | null;
+          const master = d.integrations_master as unknown as { id: string; integration_type: string; integration_name: string } | null;
           return {
             id: d.id,
             integration_type: master?.integration_type || '',
