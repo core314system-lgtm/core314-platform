@@ -18,6 +18,7 @@ interface MetricDefinition {
   description: string | null;
   metric_unit: string | null;
   aggregation_type: string;
+  source_field_path: string;
   is_primary: boolean;
   display_order: number;
   chart_type: string;
@@ -94,12 +95,15 @@ export function IntegrationDashboard(){
     if (data) {
       const integrations = data
         .filter(d => d.integrations_master)
-        .map(d => ({
-          id: d.id,
-          integration_type: (d.integrations_master as { integration_type: string }).integration_type,
-          integration_name: (d.integrations_master as { integration_name: string }).integration_name,
-          status: d.status
-        }));
+        .map(d => {
+          const master = d.integrations_master as { id: string; integration_type: string; integration_name: string } | null;
+          return {
+            id: d.id,
+            integration_type: master?.integration_type || '',
+            integration_name: master?.integration_name || '',
+            status: d.status
+          };
+        });
       setConnectedIntegrations(integrations);
     }
   }, [profile?.id]);
