@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { IntegrationWithScore } from '../../types';
-import { Layers } from 'lucide-react';
+import { Layers, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface IntegrationContextSelectorProps {
   integrations: IntegrationWithScore[];
@@ -13,7 +14,19 @@ export function IntegrationContextSelector({
   selectedIntegrationId,
   onSelectionChange,
 }: IntegrationContextSelectorProps) {
+  const navigate = useNavigate();
   const selectedIntegration = integrations.find(i => i.id === selectedIntegrationId);
+  
+  const handleSelectionChange = (value: string) => {
+    if (value === 'all') {
+      onSelectionChange(value);
+    } else {
+      const integration = integrations.find(i => i.id === value);
+      if (integration) {
+        navigate(`/dashboard/${integration.integration_type}`);
+      }
+    }
+  };
   
   return (
     <div className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -21,7 +34,7 @@ export function IntegrationContextSelector({
         <Layers className="h-4 w-4" />
         <span className="font-medium">Viewing:</span>
       </div>
-      <Select value={selectedIntegrationId} onValueChange={onSelectionChange}>
+      <Select value={selectedIntegrationId} onValueChange={handleSelectionChange}>
         <SelectTrigger className="w-[220px]">
           <SelectValue>
             {selectedIntegrationId === 'all' ? (
@@ -60,6 +73,7 @@ export function IntegrationContextSelector({
                   />
                 )}
                 <span>{integration.integration_name}</span>
+                <ExternalLink className="h-3 w-3 text-gray-400 ml-auto" />
               </div>
             </SelectItem>
           ))}

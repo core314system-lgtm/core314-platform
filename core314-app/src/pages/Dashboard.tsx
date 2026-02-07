@@ -12,7 +12,7 @@ import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../components/ui/collapsible';
-import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle, ChevronDown, ChevronRight, LayoutDashboard } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -480,12 +480,42 @@ export function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Integration Context Selector - only show when user has connected integrations */}
-      {hasConnectedIntegrations && integrations.length > 0 && (
-        <IntegrationContextSelector
-          integrations={integrations}
-          selectedIntegrationId={selectedIntegrationId}
-          onSelectionChange={setSelectedIntegrationId}
+            {/* Integration Dashboards Quick Access */}
+            {hasConnectedIntegrations && integrations.length > 0 && (
+              <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-900/10">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <LayoutDashboard className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <h3 className="font-medium text-gray-900 dark:text-white">Integration Dashboards</h3>
+                        <p className="text-xs text-gray-500">View detailed metrics for each connected integration</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-wrap justify-end">
+                      {integrations.map(int => (
+                        <Button
+                          key={int.id}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/dashboard/${int.integration_type || int.integration_name?.toLowerCase().replace(/\s+/g, '_')}`)}
+                          className="text-xs"
+                        >
+                          {int.integration_name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Integration Context Selector - only show when user has connected integrations */}
+            {hasConnectedIntegrations && integrations.length > 0 && (
+              <IntegrationContextSelector
+                integrations={integrations}
+                selectedIntegrationId={selectedIntegrationId}
+                onSelectionChange={setSelectedIntegrationId}
         />
       )}
 

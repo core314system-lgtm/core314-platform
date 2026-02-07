@@ -241,20 +241,15 @@ serve(async (req) => {
           continue;
         }
 
-        // Get access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Get access token from vault using RPC function
+        const { data: accessToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[salesforce-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !accessToken) {
+          console.error('[salesforce-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
-
-        const accessToken = tokenData.decrypted_secret;
 
         // Check token expiration
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -282,42 +277,40 @@ serve(async (req) => {
         const metrics = await fetchSalesforceMetrics(accessToken, instanceUrl);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
-        // Insert integration event with CRM metrics
-        const hasData = metrics.accountCount > 0 || metrics.opportunityCount > 0 || metrics.caseCount > 0;
-
-        if (hasData) {
-          await supabase.from('integration_events').insert({
-            user_id: integration.user_id,
-            user_integration_id: integration.user_integration_id,
-            integration_registry_id: integration.integration_registry_id,
-            service_name: 'salesforce',
-            event_type: 'salesforce.crm_activity',
-            occurred_at: eventTime,
-            source: 'salesforce_api_poll',
-            metadata: {
-              // Accounts
-              account_count: metrics.accountCount,
-              customer_accounts: metrics.customerAccounts,
-              prospect_accounts: metrics.prospectAccounts,
-              // Opportunities
-              opportunity_count: metrics.opportunityCount,
-              open_opportunities: metrics.openOpportunities,
-              won_opportunities: metrics.wonOpportunities,
-              lost_opportunities: metrics.lostOpportunities,
-              opportunity_value: metrics.opportunityValue,
-              // Cases
-              case_count: metrics.caseCount,
-              new_cases: metrics.newCases,
-              open_cases: metrics.openCases,
-              closed_cases: metrics.closedCases,
-              escalated_cases: metrics.escalatedCases,
-              // Metadata
-              org_name: metrics.orgName,
-              data_range_days: 90,
-              poll_timestamp: now.toISOString(),
-            },
-          });
-        }
+        // Insert integration event with CRM metrics (always write, even with 0 data)
+        // This ensures the dashboard can display metrics even for empty/new orgs
+        await supabase.from('integration_events').insert({
+          user_id: integration.user_id,
+          user_integration_id: integration.user_integration_id,
+          integration_registry_id: integration.integration_registry_id,
+          service_name: 'salesforce',
+          event_type: 'salesforce.crm_activity',
+          occurred_at: eventTime,
+          source: 'salesforce_api_poll',
+          metadata: {
+            // Accounts (matching integration_metric_definitions source_field_path)
+            account_count: metrics.accountCount,
+            customer_accounts: metrics.customerAccounts,
+            prospect_accounts: metrics.prospectAccounts,
+            // Opportunities
+            opportunity_count: metrics.opportunityCount,
+            open_opportunities: metrics.openOpportunities,
+            won_opportunities: metrics.wonOpportunities,
+            lost_opportunities: metrics.lostOpportunities,
+            opportunity_value: metrics.opportunityValue,
+            pipeline_value: metrics.opportunityValue, // Alias for dashboard
+            // Cases
+            case_count: metrics.caseCount,
+            new_cases: metrics.newCases,
+            open_cases: metrics.openCases,
+            closed_cases: metrics.closedCases,
+            escalated_cases: metrics.escalatedCases,
+            // Metadata
+            org_name: metrics.orgName,
+            data_range_days: 90,
+            poll_timestamp: now.toISOString(),
+          },
+        });
 
         // Update ingestion state with rate limiting (15 minute interval)
         await supabase.from('integration_ingestion_state').upsert({

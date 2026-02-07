@@ -204,20 +204,15 @@ serve(async (req) => {
           continue;
         }
 
-        // Retrieve access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Retrieve access token from vault using RPC function
+        const { data: accessToken, error: tokenError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[slack-poll] No access token found for user:', integration.user_id);
+        if (tokenError || !accessToken) {
+          console.error('[slack-poll] No access token found for user:', integration.user_id, tokenError);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
-
-        const accessToken = tokenData.decrypted_secret;
 
         // Note: Slack tokens don't expire unless revoked, but check anyway
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -288,59 +283,33 @@ serve(async (req) => {
         const metrics = await fetchSlackMetrics(accessToken);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
-        // Insert message activity event
-        if (metrics.messageCount > 0) {
-          await supabase.from('integration_events').insert({
-            user_id: integration.user_id,
-            user_integration_id: integration.user_integration_id,
-            integration_registry_id: integration.integration_registry_id,
-            service_name: 'slack',
-            event_type: 'slack.message_activity',
-            occurred_at: eventTime,
-            source: 'slack_api_poll',
-            metadata: {
-              message_count: metrics.messageCount,
-              channels_sampled: Math.min(metrics.activeChannels, 5),
-              poll_timestamp: now.toISOString(),
-            },
-          });
-        }
-
-        // Insert channel activity event
-        if (metrics.channelCount > 0) {
-          await supabase.from('integration_events').insert({
-            user_id: integration.user_id,
-            user_integration_id: integration.user_integration_id,
-            integration_registry_id: integration.integration_registry_id,
-            service_name: 'slack',
-            event_type: 'slack.channel_activity',
-            occurred_at: eventTime,
-            source: 'slack_api_poll',
-            metadata: {
-              total_channels: metrics.channelCount,
-              active_channels: metrics.activeChannels,
-              poll_timestamp: now.toISOString(),
-            },
-          });
-        }
-
-        // Insert workspace activity event
-        if (metrics.workspaceInfo.teamId) {
-          await supabase.from('integration_events').insert({
-            user_id: integration.user_id,
-            user_integration_id: integration.user_integration_id,
-            integration_registry_id: integration.integration_registry_id,
-            service_name: 'slack',
-            event_type: 'slack.workspace_activity',
-            occurred_at: eventTime,
-            source: 'slack_api_poll',
-            metadata: {
-              team_id: metrics.workspaceInfo.teamId,
-              team_name: metrics.workspaceInfo.teamName,
-              poll_timestamp: now.toISOString(),
-            },
-          });
-        }
+        // Insert consolidated workspace activity event with ALL metrics
+        // This event is used by the dashboard to display metrics
+        await supabase.from('integration_events').insert({
+          user_id: integration.user_id,
+          user_integration_id: integration.user_integration_id,
+          integration_registry_id: integration.integration_registry_id,
+          service_name: 'slack',
+          event_type: 'slack.workspace_activity',
+          occurred_at: eventTime,
+          source: 'slack_api_poll',
+          metadata: {
+            // Metrics for dashboard (matching integration_metric_definitions source_field_path)
+            message_count: metrics.messageCount,
+            active_channels: metrics.activeChannels,
+            total_channels: metrics.channelCount,
+            total_members: 0, // TODO: Add users.list API call
+            active_members: 0, // TODO: Add presence tracking
+            files_shared: 0, // TODO: Add files.list API call
+            reactions_count: 0, // TODO: Add reactions tracking
+            // Workspace info
+            team_id: metrics.workspaceInfo.teamId,
+            team_name: metrics.workspaceInfo.teamName,
+            // Poll metadata
+            channels_sampled: Math.min(metrics.activeChannels, 5),
+            poll_timestamp: now.toISOString(),
+          },
+        });
 
         // Update ingestion state with 15-minute rate limiting
         await supabase.from('integration_ingestion_state').upsert({
