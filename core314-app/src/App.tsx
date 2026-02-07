@@ -12,6 +12,7 @@ import { AccountLayout } from './components/AccountLayout';
 import { Integrations } from './pages/Integrations';
 import DashboardBuilder from './pages/DashboardBuilder';
 import DashboardView from './pages/DashboardView';
+import IntegrationDashboard from './pages/IntegrationDashboard';
 import Goals from './pages/Goals';
 import GoalCreate from './pages/GoalCreate';
 import Notifications from './pages/Notifications';
@@ -165,6 +166,7 @@ function App() {
             <Route path="visualizations" element={<Visualizations />} />
             <Route path="dashboard-builder" element={<DashboardBuilder />} />
             <Route path="dashboards/:id" element={<DashboardView />} />
+            <Route path="dashboard/:integration" element={<IntegrationDashboard />} />
             <Route path="goals" element={<Goals />} />
             <Route path="goals/create" element={<GoalCreate />} />
             <Route path="notifications" element={<Notifications />} />
