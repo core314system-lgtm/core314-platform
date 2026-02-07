@@ -486,13 +486,15 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Fusion Efficiency Overview - collapsed by default for empty/partial state */}
+      {/* Fusion Efficiency Overview - HIDDEN: Future-phase capability, not MVP
+         Uncomment when efficiency analysis is ready for production
       {hasConnectedIntegrations && (
         <>
           <FusionOverviewWidget />
           {isObserveTier && <LockedInsightTeaser className="mt-1" />}
         </>
       )}
+      */}
 
       {/* Intelligence Preview Panels - Observe tier only */}
       {hasConnectedIntegrations && isObserveTier && (
