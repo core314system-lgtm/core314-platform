@@ -261,14 +261,26 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
                 <SelectItem value="summary">Summaries</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              size="sm"
-              onClick={handleRunAnalysis}
-              disabled={analyzing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-1 ${analyzing ? 'animate-spin' : ''}`} />
-              Run Analysis
-            </Button>
+            {/* Run Analysis button disabled until backend analysis pipeline is fully implemented */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      size="sm"
+                      disabled={true}
+                      className="opacity-50 cursor-not-allowed"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Run Analysis
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Analysis will be available once more system activity is observed</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </CardHeader>
@@ -277,7 +289,7 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
           <p className="text-center py-8 text-gray-600">Loading insights...</p>
         ) : insights.length === 0 ? (
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            No insights available. Click "Run Analysis" to generate AI insights from your integration data.
+            AI Insights will become available as more system activity is observed. Core314 is currently learning from your integration patterns.
           </p>
         ) : (
           <div className="space-y-4">
