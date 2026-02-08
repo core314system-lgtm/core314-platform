@@ -397,56 +397,106 @@ Deno.serve(withSentry(async (req) => {
     // END QUERY ROUTER - Non-fact queries proceed to LLM below
     // ============================================================
 
-    // Build strict grounding system prompt - Intelligence Contract v1.1
-    let systemContent = `You are Core314 AI, an intelligent assistant for the Core314 business operations platform.
+    // ============================================================
+    // AUTHORITATIVE CONTEXT VALIDATION (MANDATORY)
+    // If authoritative context is missing, refuse to answer
+    // ============================================================
+    const systemStatus = body.system_status;
+    const dataContext = body.data_context;
+    
+    // Extract authoritative values that AI MUST NOT contradict
+    const authoritativeFusionScore = systemStatus?.global_fusion_score ?? 
+      (dataContext?.global_fusion_score as number) ?? null;
+    const authoritativeSystemHealth = systemStatus?.system_health ?? 
+      (dataContext?.system_health as string) ?? null;
+    const authoritativeIntegrations = systemStatus?.connected_integrations ?? [];
+    
+    // FAIL-CLOSED: If authoritative context is missing, refuse to answer
+    if (authoritativeFusionScore === null || authoritativeSystemHealth === null) {
+      console.log('DATA AUTHORITY: Insufficient authoritative context - refusing to answer');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reply: 'Insufficient system data to generate an authoritative response. Please ensure your integrations are connected and data is being collected.',
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
-=== INTELLIGENCE CONTRACT v1.1 - CRITICAL RULES ===
+    // Build strict grounding system prompt - Intelligence Contract v2.0 (DATA AUTHORITY)
+    let systemContent = `You are Core314 AI, a READ-ONLY INTERPRETER for the Core314 business operations platform.
 
-GROUNDING RULES (NON-NEGOTIABLE):
-1. You may ONLY answer using the data provided below. Do NOT infer, assume, or fabricate any information.
-2. Connected integrations are FACTS. If an integration exists in the data below, it MUST be acknowledged BY NAME.
-3. You may NEVER claim "there are no integrations" if integrations exist in the SYSTEM INTELLIGENCE SNAPSHOT below.
-4. CRITICAL SEPARATION: Integration EXISTENCE is a FACT. Metric AVAILABILITY is a STATE. These are different things.
-5. Missing or low-activity data is a SIGNAL, not absence. Express uncertainty as CONFIDENCE LEVEL, not "missing data."
-6. End every response with a provenance line stating which integration(s) your answer is based on.
+=== DATA AUTHORITY CONTRACT v2.0 - ABSOLUTE RULES ===
 
-REFUSAL RULES:
-- You may ONLY refuse to answer if there are ZERO connected integrations in the snapshot.
-- You may NOT refuse due to sparse metrics, low confidence, or emerging/dormant status.
-- If data is limited, explain what IS known and what is still stabilizing.
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ AUTHORITATIVE VALUES - YOU MUST NOT CONTRADICT THESE UNDER ANY CIRCUMSTANCES ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║ FUSION SCORE: ${authoritativeFusionScore}                                    ║
+║ SYSTEM HEALTH: ${authoritativeSystemHealth.toUpperCase()}                    ║
+║ CONNECTED INTEGRATIONS: ${authoritativeIntegrations.length}                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-FORBIDDEN RESPONSE PATTERNS (HARD FAIL - NEVER USE THESE):
-- "There may be no integrations"
-- "Either no integrations exist OR..."
-- "You may need to configure integrations"
-- "The system does not know which integrations are active"
-- "No data is available" (without naming integrations first)
-- Any language suggesting integrations might not exist when they are listed below
+HARD AUTHORITY RULES (NON-NEGOTIABLE - VIOLATION = IMMEDIATE FAILURE):
 
-MANDATORY 4-STEP RESPONSE PATTERN (when integrations exist):
-ALL responses MUST follow this order:
+1. YOU MAY NOT STATE A DIFFERENT FUSION SCORE THAN ${authoritativeFusionScore}
+   - If asked about the score, you MUST say it is ${authoritativeFusionScore}
+   - You may NOT say the score is 0, critical, or any other value
 
-1. ACKNOWLEDGE FACTS FIRST
-   Example: "I see two connected integrations: Slack and Microsoft Teams."
+2. YOU MAY NOT CONTRADICT SYSTEM HEALTH STATUS "${authoritativeSystemHealth.toUpperCase()}"
+   - If system_health is "observing", you may NOT say it is "critical" or "failing"
+   - If system_health is "active", you may NOT say it is "broken" or "not working"
 
-2. DESCRIBE CURRENT STATE
-   Example: "Both integrations are connected and currently in a stabilizing phase while Core314 observes activity."
+3. YOU MAY NOT ASSUME AN INTEGRATION IS BROKEN UNLESS:
+   a) system_health explicitly indicates degradation, OR
+   b) integration_metrics explicitly show failure or absence in the data below
+   - NO INFERENCE. NO ASSUMPTIONS. NO GENERIC TROUBLESHOOTING.
 
-3. EXPLAIN CONSEQUENCES
-   Example: "Because activity thresholds have not yet been crossed, efficiency rankings are not yet computed."
+4. IF NO DATA EXISTS FOR A SPECIFIC QUESTION, YOU MUST SAY:
+   "No data available to assess this yet."
+   - Do NOT invent problems or suggest troubleshooting steps
 
-4. STATE WHAT CORE314 WILL DO NEXT
-   Example: "Core314 will automatically begin scoring efficiency as usage data accumulates."
+YOUR ROLE IS LIMITED TO (READ-ONLY INTERPRETER MODE):
+- Explaining what the system CURRENTLY OBSERVES (not what might be wrong)
+- Summarizing contributing factors based on ACTUAL DATA
+- Answering factual questions like:
+  * "Why is my Fusion Score ${authoritativeFusionScore}?" → Explain based on data
+  * "Which integration contributes least?" → Use ranking data if available
+  * "What data is missing to improve confidence?" → State what is not yet collected
 
-UNCERTAINTY EXPRESSION RULES:
-- Express uncertainty as: confidence level, stabilization phase, observation window
-- NEVER express uncertainty as: absence of integrations, missing configuration, user setup needed
+YOU ARE FORBIDDEN FROM:
+- Inferring problems that are not explicitly in the data
+- Suggesting the system is "critical" unless system_health says so
+- Claiming integrations are "misconfigured" or "broken" without evidence
+- Providing generic troubleshooting advice
+- Contradicting ANY authoritative value listed above
 
-FAILURE MODE HANDLING:
-- If confidence is LOW: State what you know, acknowledge the confidence level, explain what would increase confidence.
-- If metrics_state is STABILIZING: Explain the integration is connected and data is stabilizing.
-- If metrics_state is DORMANT: Explain the integration is connected but hasn't had recent activity.
-- NEVER deflect responsibility to user setup. Core314 discovers metrics automatically.
+FORBIDDEN WORDS (HARD BLOCK - NEVER USE):
+- "critical" (unless system_health = critical)
+- "misconfigured"
+- "broken"
+- "failing"
+- "issues" (unless explicitly in data)
+- "indicates" (implies inference)
+- "suggests" (implies inference)
+- "score is actually" (contradicts authoritative value)
+- "score is 0" (unless that IS the authoritative value)
+
+MANDATORY RESPONSE PATTERN:
+1. STATE THE AUTHORITATIVE FACT FIRST
+   Example: "Your Fusion Score is ${authoritativeFusionScore} and system health is ${authoritativeSystemHealth}."
+
+2. EXPLAIN BASED ON DATA ONLY
+   Example: "This score reflects [specific data points from snapshot]."
+
+3. IF DATA IS LIMITED, ACKNOWLEDGE IT
+   Example: "Detailed breakdown is not yet available as metrics are still being collected."
+
+4. NEVER INVENT PROBLEMS
+   Example: Do NOT say "there may be ingestion issues" unless data explicitly shows this.
 
 SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
 
@@ -612,9 +662,9 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
     let reply = openaiData.choices[0]?.message?.content || 'No response generated';
 
     // ============================================================
-    // TRUST RESTORATION FIX - HARD BLOCK VALIDATOR
-    // If AI output differs from SystemStatus, replace with EXACT fixed template
-    // AI must NEVER use forbidden words or contradict system state
+    // DATA AUTHORITY VALIDATOR v2.0 - HARD BLOCK
+    // If AI output contradicts authoritative values, replace with fixed template
+    // AI must NEVER contradict fusion_score, system_health, or integration existence
     // ============================================================
     
     // Check for FORBIDDEN WORDS in AI response
@@ -633,56 +683,98 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
       /you haven't connected any integrations/i,
       /please connect.*integrations/i,
       /no data is available(?! for)/i,
+      /ingestion.*fail/i,
+      /data.*not.*being.*collected/i,
+      /broken/i,
+      /misconfigured/i,
     ];
     
     const hasPatternViolation = forbiddenPatterns.some(pattern => pattern.test(reply));
     
-    // HARD BLOCK: Replace AI output with EXACT fixed template if violation detected
-    const systemStatus = body.system_status;
-    if (systemStatus && systemStatus.connected_integrations.length > 0 && (hasForbiddenWord || hasPatternViolation)) {
-      console.log('TRUST RESTORATION: HARD BLOCK triggered - replacing AI output with fixed template');
+    // DATA AUTHORITY CHECK: Detect if AI contradicts the authoritative fusion score
+    // Look for patterns like "score is 0", "score of 0", "fusion score: 0" when actual score is different
+    const scoreContradictionPatterns = [
+      /score\s+(?:is|of|:)\s*0(?!\d)/i,  // "score is 0", "score of 0", "score: 0"
+      /fusion\s+score\s*(?:is|of|:)?\s*0(?!\d)/i,  // "fusion score is 0"
+      /0\s*(?:out of|\/)\s*100/i,  // "0 out of 100", "0/100"
+    ];
+    
+    const hasScoreContradiction = authoritativeFusionScore !== 0 && 
+      scoreContradictionPatterns.some(pattern => pattern.test(reply));
+    
+    // DATA AUTHORITY CHECK: Detect if AI says "critical" when system_health is not critical
+    const hasCriticalContradiction = authoritativeSystemHealth !== 'critical' && 
+      /\bcritical\b/i.test(reply);
+    
+    // DATA AUTHORITY CHECK: Detect if AI infers failures without evidence
+    const hasInferredFailure = [
+      /may\s+(?:be|have)\s+(?:failing|broken|issues)/i,
+      /could\s+(?:be|have)\s+(?:failing|broken|issues)/i,
+      /might\s+(?:be|have)\s+(?:failing|broken|issues)/i,
+      /appears?\s+to\s+(?:be|have)\s+(?:failing|broken|issues)/i,
+      /seems?\s+to\s+(?:be|have)\s+(?:failing|broken|issues)/i,
+    ].some(pattern => pattern.test(reply));
+    
+    // Combine all violation checks
+    const hasDataAuthorityViolation = hasForbiddenWord || hasPatternViolation || 
+      hasScoreContradiction || hasCriticalContradiction || hasInferredFailure;
+    
+    if (hasDataAuthorityViolation) {
+      console.log('DATA AUTHORITY: Violation detected', {
+        hasForbiddenWord,
+        hasPatternViolation,
+        hasScoreContradiction,
+        hasCriticalContradiction,
+        hasInferredFailure,
+        authoritativeFusionScore,
+        authoritativeSystemHealth,
+      });
+    }
+    
+    // HARD BLOCK: Replace AI output with EXACT fixed template if ANY data authority violation detected
+    if (systemStatus && authoritativeIntegrations.length > 0 && hasDataAuthorityViolation) {
+      console.log('DATA AUTHORITY: HARD BLOCK triggered - replacing AI output with authoritative template');
       
-      const integrations = systemStatus.connected_integrations;
-      const integrationNames = integrations.map(i => i.name).join(', ');
+      const integrationNames = authoritativeIntegrations.map(i => i.name).join(', ');
       
-      // Use EXACT FIXED TEMPLATE - NO VARIATION ALLOWED
+      // Use EXACT FIXED TEMPLATE with AUTHORITATIVE values - NO VARIATION ALLOWED
       if (!systemStatus.has_efficiency_metrics) {
-        reply = `You have the following integrations connected: ${integrationNames}.\n`;
+        reply = `Your Fusion Score is ${authoritativeFusionScore} and system health is ${authoritativeSystemHealth}.\n\n`;
+        reply += `You have the following integrations connected: ${integrationNames}.\n`;
         reply += `Core314 is currently observing these integrations.\n`;
         reply += `Efficiency metrics are not yet available.\n`;
-        reply += `Your Global Fusion Score is ${systemStatus.global_fusion_score}.\n`;
         reply += `Core314 will begin scoring automatically as activity data is collected.`;
-      } else if (systemStatus.system_health === 'active') {
-        reply = `You have the following integrations connected: ${integrationNames}.\n`;
+      } else if (authoritativeSystemHealth === 'active') {
+        reply = `Your Fusion Score is ${authoritativeFusionScore} and system health is ${authoritativeSystemHealth}.\n\n`;
+        reply += `You have the following integrations connected: ${integrationNames}.\n`;
         reply += `Core314 is actively tracking these integrations.\n`;
         reply += `Efficiency metrics are being collected.\n`;
-        reply += `Your Global Fusion Score is ${systemStatus.global_fusion_score}.\n`;
         reply += `All connected integrations are contributing to your score.`;
       } else {
-        reply = `You have the following integrations connected: ${integrationNames}.\n`;
+        reply = `Your Fusion Score is ${authoritativeFusionScore} and system health is ${authoritativeSystemHealth}.\n\n`;
+        reply += `You have the following integrations connected: ${integrationNames}.\n`;
         reply += `Core314 is currently observing these integrations.\n`;
         reply += `Some efficiency metrics are available.\n`;
-        reply += `Your Global Fusion Score is ${systemStatus.global_fusion_score}.\n`;
         reply += `Core314 will begin scoring automatically as activity data is collected.`;
       }
-    } else if (!systemStatus && connectedIntegrations.length > 0 && (hasForbiddenWord || hasPatternViolation)) {
+    } else if (!systemStatus && connectedIntegrations.length > 0 && hasDataAuthorityViolation) {
       // Legacy fallback HARD BLOCK
-      console.log('TRUST RESTORATION: HARD BLOCK triggered (legacy) - replacing AI output with fixed template');
+      console.log('DATA AUTHORITY: HARD BLOCK triggered (legacy) - replacing AI output with authoritative template');
       
       const integrationNames = connectedIntegrations.map(i => i.name).join(', ');
       const hasAnyScores = connectedIntegrations.some(i => i.fusion_score !== null);
       
       if (hasAnyScores) {
-        reply = `You have the following integrations connected: ${integrationNames}.\n`;
+        reply = `Your Fusion Score is ${authoritativeFusionScore} and system health is ${authoritativeSystemHealth}.\n\n`;
+        reply += `You have the following integrations connected: ${integrationNames}.\n`;
         reply += `Core314 is actively tracking these integrations.\n`;
         reply += `Efficiency metrics are being collected.\n`;
-        reply += `Your Global Fusion Score is ${globalFusionScore}.\n`;
         reply += `All connected integrations are contributing to your score.`;
       } else {
-        reply = `You have the following integrations connected: ${integrationNames}.\n`;
+        reply = `Your Fusion Score is ${authoritativeFusionScore} and system health is ${authoritativeSystemHealth}.\n\n`;
+        reply += `You have the following integrations connected: ${integrationNames}.\n`;
         reply += `Core314 is currently observing these integrations.\n`;
         reply += `Efficiency metrics are not yet available.\n`;
-        reply += `Your Global Fusion Score is ${globalFusionScore}.\n`;
         reply += `Core314 will begin scoring automatically as activity data is collected.`;
       }
     }
