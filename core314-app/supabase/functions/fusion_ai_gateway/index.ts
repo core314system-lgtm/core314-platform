@@ -192,7 +192,7 @@ Deno.serve(withSentry(async (req) => {
     const normalizedQuery = latestUserQuery.toLowerCase().replace(/[?!.,]/g, '').trim();
     
     // SYSTEM_FACT_QUERY patterns - whitelist approach (broad to maximize recall)
-    // These queries ask about integration existence, count, or names
+    // These queries ask about integration existence, count, names, Fusion Score, or system health
     const SYSTEM_FACT_PATTERNS = [
       // Integration existence queries
       /what integrations? (?:are |is )?connected/i,
@@ -214,6 +214,17 @@ Deno.serve(withSentry(async (req) => {
       // General existence queries
       /(?:what|which) (?:apps?|tools?|services?) (?:are |is )?connected/i,
       /(?:what|which) (?:apps?|tools?|services?) do i have/i,
+      // Fusion Score queries (CRITICAL - must use authoritative values)
+      /(?:what is |what's )(?:my |the )?(?:current )?fusion score/i,
+      /(?:tell me |show me )(?:my |the )?(?:current )?fusion score/i,
+      /fusion score/i,
+      // System health queries (CRITICAL - must use authoritative values)
+      /(?:what is |what's )(?:my |the )?(?:current )?system health/i,
+      /(?:tell me |show me )(?:my |the )?(?:current )?system health/i,
+      /system health/i,
+      // Combined Fusion Score and system health queries
+      /fusion score (?:and|&) (?:system )?health/i,
+      /(?:system )?health (?:and|&) fusion score/i,
     ];
     
     // Check if query matches any SYSTEM_FACT_PATTERN
@@ -318,43 +329,47 @@ Deno.serve(withSentry(async (req) => {
     if (isSystemFactQuery) {
       console.log('TRUST RESTORATION: System fact query detected, bypassing LLM');
       
-      // Use SystemStatus if available (CANONICAL), otherwise fall back to legacy data_context
-      const systemStatus = body.system_status;
-      
+      // systemStatus is already declared at top level (line 150) - use it directly
       // Generate deterministic response using EXACT FIXED TEMPLATE (NO VARIATION ALLOWED)
       let deterministicResponse = '';
       
       if (systemStatus) {
-        // USE SystemStatus (CANONICAL OBJECT)
+        // USE SystemStatus (CANONICAL OBJECT) - AUTHORITATIVE VALUES
         const integrations = systemStatus.connected_integrations;
         const integrationNames = integrations.map(i => i.name).join(', ');
+        
+        // AUTHORITATIVE VALUES - These MUST match the dashboard DISPLAY exactly
+        // Dashboard rounds score to integer and displays "Healthy" for "active" state
+        const authFusionScore = Math.round(systemStatus.global_fusion_score);
+        // Map backend state to dashboard display label
+        const authSystemHealth = systemStatus.system_health === 'active' ? 'Healthy' : 
+                                 systemStatus.system_health === 'observing' ? 'Observing' : 
+                                 systemStatus.system_health;
         
         if (integrations.length === 0) {
           deterministicResponse = 'You currently have no integrations connected to your Core314 account.\n';
           deterministicResponse += 'To get started, visit the Integration Hub to connect your first integration.';
         } else {
-          // EXACT FIXED TEMPLATE - NO VARIATION ALLOWED
+          // EXACT FIXED TEMPLATE - ALWAYS include Fusion Score AND System Health
+          // These values MUST match what the dashboard displays
+          deterministicResponse = `Your current Fusion Score is ${authFusionScore} and your system health is ${authSystemHealth}.\n\n`;
+          deterministicResponse += `You have the following integrations connected: ${integrationNames}.\n`;
+          
           if (!systemStatus.has_efficiency_metrics) {
             // Template for: has_efficiency_metrics === false
-            deterministicResponse = `You have the following integrations connected: ${integrationNames}.\n`;
             deterministicResponse += `Core314 is currently observing these integrations.\n`;
             deterministicResponse += `Efficiency metrics are not yet available.\n`;
-            deterministicResponse += `Your Global Fusion Score is ${systemStatus.global_fusion_score}.\n`;
             deterministicResponse += `Core314 will begin scoring automatically as activity data is collected.`;
-          } else if (systemStatus.system_health === 'active') {
-            // Template for: system_health === 'active'
-            deterministicResponse = `You have the following integrations connected: ${integrationNames}.\n`;
+          } else if (authSystemHealth === 'Healthy' || authSystemHealth === 'active') {
+            // Template for: system_health === 'Healthy' or 'active'
             deterministicResponse += `Core314 is actively tracking these integrations.\n`;
             deterministicResponse += `Efficiency metrics are being collected.\n`;
-            deterministicResponse += `Your Global Fusion Score is ${systemStatus.global_fusion_score}.\n`;
             deterministicResponse += `All connected integrations are contributing to your score.`;
           } else {
-            // Template for: has_efficiency_metrics === true but system_health === 'observing'
-            deterministicResponse = `You have the following integrations connected: ${integrationNames}.\n`;
+            // Template for: other system_health values
             deterministicResponse += `Core314 is currently observing these integrations.\n`;
             deterministicResponse += `Some efficiency metrics are available.\n`;
-            deterministicResponse += `Your Global Fusion Score is ${systemStatus.global_fusion_score}.\n`;
-            deterministicResponse += `Core314 will begin scoring automatically as activity data is collected.`;
+            deterministicResponse += `Core314 will continue monitoring as activity data is collected.`;
           }
         }
       } else if (connectedIntegrations.length === 0) {
@@ -400,8 +415,8 @@ Deno.serve(withSentry(async (req) => {
     // ============================================================
     // AUTHORITATIVE CONTEXT VALIDATION (MANDATORY)
     // If authoritative context is missing, refuse to answer
+    // systemStatus is already declared at top level (line 150) - use it directly
     // ============================================================
-    const systemStatus = body.system_status;
     const dataContext = body.data_context;
     
     // Extract authoritative values that AI MUST NOT contradict
