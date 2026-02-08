@@ -8,7 +8,7 @@ import { useSupabaseClient } from '../../contexts/SupabaseClientContext';
 import { getSupabaseFunctionUrl } from '../../lib/supabase';
 import { FusionInsight } from '../../types';
 import { useToast } from '../../hooks/use-toast';
-import { RefreshCw, TrendingUp, AlertTriangle, TrendingDown, BarChart3, Info, X, Shield } from 'lucide-react';
+import { RefreshCw, TrendingUp, AlertTriangle, TrendingDown, BarChart3, Info, X, Shield, Lock, Eye, Search, Lightbulb, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { INTELLIGENCE_TOOLTIP_COPY } from '../../hooks/useIntegrationIntelligence';
 import {
@@ -18,9 +18,132 @@ import {
   TooltipTrigger,
 } from '../ui/tooltip';
 import { HowToAskGuidance } from './AIInteractionHelpers';
+import { useSystemStatus, type AIInsightPhase, type PhaseMetadata } from '../../hooks/useSystemStatus';
 
 // Storage key for first AI Insight explanation dismissal
 const AI_INSIGHT_EXPLAINED_KEY = 'core314_ai_insight_explained';
+
+// Phase display configuration
+const PHASE_CONFIG: Record<AIInsightPhase, {
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline';
+  color: string;
+}> = {
+  locked: {
+    label: 'Locked',
+    description: 'AI Insights will unlock after 7 days of stable integration activity',
+    icon: <Lock className="h-4 w-4" />,
+    badgeVariant: 'secondary',
+    color: 'text-gray-500',
+  },
+  descriptive: {
+    label: 'Observational',
+    description: 'AI can describe what it observes in your data',
+    icon: <Eye className="h-4 w-4" />,
+    badgeVariant: 'outline',
+    color: 'text-blue-500',
+  },
+  diagnostic: {
+    label: 'Diagnostic',
+    description: 'AI can explain why patterns are occurring',
+    icon: <Search className="h-4 w-4" />,
+    badgeVariant: 'outline',
+    color: 'text-purple-500',
+  },
+  prescriptive: {
+    label: 'Advisory',
+    description: 'AI can suggest options for you to consider',
+    icon: <Lightbulb className="h-4 w-4" />,
+    badgeVariant: 'default',
+    color: 'text-amber-500',
+  },
+  predictive: {
+    label: 'Predictive',
+    description: 'AI can forecast trends based on historical patterns',
+    icon: <Sparkles className="h-4 w-4" />,
+    badgeVariant: 'default',
+    color: 'text-green-500',
+  },
+};
+
+// Phase Label Component
+function PhaseLabel({ phase, phaseMetadata }: { phase: AIInsightPhase; phaseMetadata?: PhaseMetadata }) {
+  const config = PHASE_CONFIG[phase];
+  
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-2">
+            <Badge variant={config.badgeVariant} className={`flex items-center gap-1 ${config.color}`}>
+              {config.icon}
+              <span>{config.label}</span>
+            </Badge>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{config.description}</p>
+            {phaseMetadata && phaseMetadata.next_phase && (
+              <div className="text-xs text-gray-400 border-t pt-2 mt-2">
+                <p className="font-medium mb-1">To unlock {PHASE_CONFIG[phaseMetadata.next_phase].label}:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  {phaseMetadata.next_phase_requirements.map((req, i) => (
+                    <li key={i}>{req}</li>
+                  ))}
+                </ul>
+                {phaseMetadata.days_until_unlock_estimate && (
+                  <p className="mt-1 italic">Estimated: ~{phaseMetadata.days_until_unlock_estimate} days</p>
+                )}
+              </div>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// Locked Phase Message Component
+function LockedPhaseMessage({ phaseMetadata }: { phaseMetadata?: PhaseMetadata }) {
+  return (
+    <div className="text-center py-8 px-4">
+      <div className="flex justify-center mb-4">
+        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+          <Lock className="h-8 w-8 text-gray-400" />
+        </div>
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        AI Insights Not Yet Available
+      </h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
+        {phaseMetadata?.phase_reason || 'Core314 is still collecting data to enable AI insights. Keep your integrations connected and active.'}
+      </p>
+      {phaseMetadata?.next_phase_requirements && phaseMetadata.next_phase_requirements.length > 0 && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 max-w-md mx-auto">
+          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+            To unlock {phaseMetadata.next_phase ? PHASE_CONFIG[phaseMetadata.next_phase].label : 'Observational'} insights:
+          </p>
+          <ul className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+            {phaseMetadata.next_phase_requirements.map((req, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-blue-500 mt-0.5">•</span>
+                <span>{req}</span>
+              </li>
+            ))}
+          </ul>
+          {phaseMetadata.days_until_unlock_estimate && (
+            <p className="text-xs text-gray-400 mt-2 italic">
+              Estimated unlock: ~{phaseMetadata.days_until_unlock_estimate} days
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // First AI Insight Explainability Component
 function FirstAIInsightExplainer({ onDismiss }: { onDismiss: () => void }) {
@@ -109,6 +232,11 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'trend' | 'prediction' | 'anomaly' | 'summary'>('all');
+  
+  // Fetch system status for AI Insight Phase information
+  const { systemStatus, loading: systemStatusLoading } = useSystemStatus();
+  const aiInsightPhase = systemStatus?.ai_insight_phase || 'locked';
+  const phaseMetadata = systemStatus?.phase_metadata;
   
   // State for first AI Insight explainer visibility
   const [showExplainer, setShowExplainer] = useState(() => {
@@ -247,14 +375,19 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>{integrationName ? `${integrationName} Insights` : 'AI Insights'}</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle>{integrationName ? `${integrationName} Insights` : 'AI Insights'}</CardTitle>
+            {!systemStatusLoading && <PhaseLabel phase={aiInsightPhase} phaseMetadata={phaseMetadata} />}
+          </div>
           {/* Filter and Run Analysis controls removed - AI Insights is now passive until backend pipeline is ready
               Filter dropdown and handleRunAnalysis function preserved in code for future enablement */}
         </div>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {loading || systemStatusLoading ? (
           <p className="text-center py-8 text-gray-600">Loading insights...</p>
+        ) : aiInsightPhase === 'locked' ? (
+          <LockedPhaseMessage phaseMetadata={phaseMetadata} />
         ) : insights.length === 0 ? (
           <p className="text-sm text-gray-600 dark:text-gray-400">
             AI Insights will become available as more system activity is observed. Core314 is currently learning from your integration patterns.

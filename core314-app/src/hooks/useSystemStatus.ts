@@ -21,9 +21,29 @@ export type ScoreOrigin = 'baseline' | 'computed';
 export type SystemHealth = 'observing' | 'active';
 export type IntegrationMetricsState = 'observing' | 'active';
 
+// AI Insight Phase - Determines what level of AI insights are available
+export type AIInsightPhase = 'locked' | 'descriptive' | 'diagnostic' | 'prescriptive' | 'predictive';
+
 export interface ConnectedIntegration {
   name: string;
   metrics_state: IntegrationMetricsState;
+}
+
+// Phase metadata - explains why user is at current phase and what's needed for next
+export interface PhaseMetadata {
+  current_phase: AIInsightPhase;
+  phase_reason: string;
+  next_phase: AIInsightPhase | null;
+  next_phase_requirements: string[];
+  days_until_unlock_estimate: number | null;
+  // Raw metrics used for phase calculation (for auditing)
+  metrics_count: number;
+  active_integrations_count: number;
+  days_since_first_integration: number;
+  successful_poll_cycles: number;
+  fusion_score_recalculations: number;
+  variance_stability_percent: number;
+  system_health_stable_days: number;
 }
 
 export interface SystemStatus {
@@ -32,6 +52,9 @@ export interface SystemStatus {
   system_health: SystemHealth;
   has_efficiency_metrics: boolean;
   connected_integrations: ConnectedIntegration[];
+  // AI Insight Phase - NEW
+  ai_insight_phase: AIInsightPhase;
+  phase_metadata: PhaseMetadata;
 }
 
 export interface UseSystemStatusResult {
