@@ -248,40 +248,8 @@ export function AIInsightsPanel({ hasAccess, integrationId, integrationName }: A
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>{integrationName ? `${integrationName} Insights` : 'AI Insights'}</CardTitle>
-          <div className="flex items-center gap-2">
-            <Select value={filter} onValueChange={(value) => setFilter(value as 'all' | 'trend' | 'prediction' | 'anomaly' | 'summary')}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="trend">Trends</SelectItem>
-                <SelectItem value="prediction">Predictions</SelectItem>
-                <SelectItem value="anomaly">Anomalies</SelectItem>
-                <SelectItem value="summary">Summaries</SelectItem>
-              </SelectContent>
-            </Select>
-            {/* Run Analysis button disabled until backend analysis pipeline is fully implemented */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button
-                      size="sm"
-                      disabled={true}
-                      className="opacity-50 cursor-not-allowed"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Run Analysis
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Analysis will be available once more system activity is observed</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          {/* Filter and Run Analysis controls removed - AI Insights is now passive until backend pipeline is ready
+              Filter dropdown and handleRunAnalysis function preserved in code for future enablement */}
         </div>
       </CardHeader>
       <CardContent>
