@@ -6,8 +6,14 @@ import {
   deriveExecutionMode, 
   getBaselineChatResponse,
   BASELINE_RESPONSE_TEXT,
+  getPhaseAuthorityContract,
+  checkPhaseViolations,
+  getPhaseRefusalMessage,
+  PHASE_AUTHORITY_CONTRACTS,
   type SystemStatus,
-  type ExecutionMode 
+  type ExecutionMode,
+  type AIInsightPhase,
+  type PhaseMetadata
 } from '../_shared/execution_mode.ts';
 
 interface ChatMessage {
@@ -162,11 +168,46 @@ Deno.serve(withSentry(async (req) => {
         }
       );
     }
+
+    // ============================================================
+    // AI INSIGHT PHASE GATING - PHASE-BASED AI AUTHORITY CONTRACT
+    // Check the user's AI insight phase and enforce phase-based restrictions
+    // ============================================================
+    const aiInsightPhase: AIInsightPhase = systemStatus?.ai_insight_phase || 'locked';
+    const phaseMetadata: PhaseMetadata | undefined = systemStatus?.phase_metadata;
+    const phaseContract = getPhaseAuthorityContract(aiInsightPhase);
+    
+    console.log(`[AI Insight Phase] Phase: ${aiInsightPhase}, Max inference depth: ${phaseContract.max_inference_depth}`);
+    
+    // LOCKED PHASE: AI cannot respond at all - return refusal message
+    if (aiInsightPhase === 'locked') {
+      const refusalMessage = getPhaseRefusalMessage('locked', phaseMetadata);
+      console.log('[AI Insight Phase] LOCKED - returning refusal message');
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          reply: refusalMessage,
+          usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          phase_info: {
+            current_phase: aiInsightPhase,
+            phase_reason: phaseMetadata?.phase_reason || 'Insufficient data for AI insights',
+            next_phase: phaseMetadata?.next_phase || 'descriptive',
+            next_phase_requirements: phaseMetadata?.next_phase_requirements || [],
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
     
     // ============================================================
     // AI ALLOWED: All conditions met (computed score, has metrics, active integration)
+    // Phase is at least DESCRIPTIVE - proceed with phase-appropriate AI
     // ============================================================
-    console.log('AI ALLOWED: All conditions met - proceeding to OpenAI');
+    console.log(`AI ALLOWED: Phase ${aiInsightPhase} - proceeding to OpenAI with phase restrictions`);
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     const openaiEndpoint = Deno.env.get('CORE314_AI_ENDPOINT') || 'https://api.openai.com/v1/chat/completions';
@@ -442,8 +483,44 @@ Deno.serve(withSentry(async (req) => {
       );
     }
 
-    // Build strict grounding system prompt - Intelligence Contract v2.0 (DATA AUTHORITY)
+    // Build strict grounding system prompt - Intelligence Contract v2.0 (DATA AUTHORITY) + Phase Authority Contract
     let systemContent = `You are Core314 AI, a READ-ONLY INTERPRETER for the Core314 business operations platform.
+
+=== AI INSIGHT PHASE AUTHORITY CONTRACT ===
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ CURRENT PHASE: ${aiInsightPhase.toUpperCase()}                               ║
+║ MAX INFERENCE DEPTH: ${phaseContract.max_inference_depth.toUpperCase()}      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+PHASE-SPECIFIC RULES FOR ${aiInsightPhase.toUpperCase()}:
+${aiInsightPhase === 'descriptive' ? `
+- You may ONLY observe and describe what you see in the data
+- You may NOT explain WHY something is happening (no causality)
+- You may NOT suggest actions or recommendations
+- You may NOT make predictions
+- ALLOWED: "The data shows...", "Currently...", "There are X integrations..."
+- FORBIDDEN: "because", "caused by", "you should", "I recommend", "will likely"
+` : aiInsightPhase === 'diagnostic' ? `
+- You may observe, describe, AND explain causality
+- You may explain WHY something is happening based on data
+- You may NOT suggest specific actions or recommendations
+- You may NOT make predictions about the future
+- ALLOWED: "This is because...", "The cause is...", "This correlates with..."
+- FORBIDDEN: "you should", "I recommend", "consider doing", "will likely"
+` : aiInsightPhase === 'prescriptive' ? `
+- You may observe, describe, explain causality, AND suggest options
+- You may offer alternatives for the user to consider
+- You may NOT make predictions about outcomes
+- You may NOT use directive language (must, should, need to)
+- ALLOWED: "You might consider...", "One option is...", "Alternatives include..."
+- FORBIDDEN: "you must", "you should", "will definitely", "guaranteed to"
+` : aiInsightPhase === 'predictive' ? `
+- You have full AI capabilities including predictions
+- You may observe, describe, explain, suggest, AND predict
+- You may NOT guarantee outcomes or use absolute certainty language
+- ALLOWED: "Based on patterns, expect...", "Trends suggest...", "Likely to..."
+- FORBIDDEN: "guaranteed", "certain", "definitely will", "100%"
+` : ''}
 
 === DATA AUTHORITY CONTRACT v2.0 - ABSOLUTE RULES ===
 
@@ -744,6 +821,26 @@ SYSTEM INTELLIGENCE SNAPSHOT (AUTHORITATIVE SOURCE):`;
         authoritativeFusionScore,
         authoritativeSystemHealth,
       });
+    }
+
+    // ============================================================
+    // PHASE AUTHORITY VALIDATOR - Check for phase-specific violations
+    // AI must not exceed its phase permissions
+    // ============================================================
+    const phaseViolations = checkPhaseViolations(reply, aiInsightPhase);
+    const hasPhaseViolation = phaseViolations.length > 0;
+    
+    if (hasPhaseViolation) {
+      console.log(`[AI Insight Phase] VIOLATION DETECTED in phase ${aiInsightPhase}:`, {
+        violations: phaseViolations,
+        phase: aiInsightPhase,
+        userId,
+      });
+      
+      // Log the violation for safety auditing (TODO: Add to safety_logs table when created)
+      // For now, we'll replace the response with a phase-appropriate message
+      const phaseWarning = `\n\n---\n*Note: Some parts of this response may have exceeded the current AI insight phase (${aiInsightPhase}). Core314 is still collecting data to unlock more advanced insights.*`;
+      reply = reply + phaseWarning;
     }
     
     // HARD BLOCK: Replace AI output with EXACT fixed template if ANY data authority violation detected

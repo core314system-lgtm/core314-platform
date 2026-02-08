@@ -30,9 +30,33 @@ export type SystemHealth = 'observing' | 'active';
 export type ScoreOrigin = 'baseline' | 'computed';
 export type IntegrationMetricsState = 'observing' | 'active';
 
+// AI Insight Phase - Determines what level of AI insights are available
+// LOCKED: AI cannot respond at all (insufficient data)
+// DESCRIPTIVE: AI can only observe/describe (no causality inference)
+// DIAGNOSTIC: AI can explain causality using metrics
+// PRESCRIPTIVE: AI can suggest options (no directives)
+// PREDICTIVE: AI can make predictions based on patterns
+export type AIInsightPhase = 'locked' | 'descriptive' | 'diagnostic' | 'prescriptive' | 'predictive';
+
 export interface ConnectedIntegration {
   name: string;
   metrics_state: IntegrationMetricsState;
+}
+
+// Phase metadata - explains why user is at current phase and what's needed for next
+export interface PhaseMetadata {
+  current_phase: AIInsightPhase;
+  phase_reason: string;
+  next_phase: AIInsightPhase | null;
+  next_phase_requirements: string[];
+  days_until_unlock_estimate: number | null;
+  metrics_count: number;
+  active_integrations_count: number;
+  days_since_first_integration: number;
+  successful_poll_cycles: number;
+  fusion_score_recalculations: number;
+  variance_stability_percent: number;
+  system_health_stable_days: number;
 }
 
 export interface SystemStatus {
@@ -41,6 +65,109 @@ export interface SystemStatus {
   system_health: SystemHealth;
   has_efficiency_metrics: boolean;
   connected_integrations: ConnectedIntegration[];
+  // AI Insight Phase - NEW
+  ai_insight_phase: AIInsightPhase;
+  phase_metadata: PhaseMetadata;
+}
+
+// ============================================================
+// AI INSIGHT PHASE AUTHORITY CONTRACT
+// Defines allowed and forbidden verbs/actions per phase
+// ============================================================
+
+export interface PhaseAuthorityContract {
+  phase: AIInsightPhase;
+  allowed_verbs: string[];
+  forbidden_verbs: string[];
+  response_template: string;
+  max_inference_depth: 'none' | 'observation' | 'causality' | 'suggestion' | 'prediction';
+}
+
+export const PHASE_AUTHORITY_CONTRACTS: Record<AIInsightPhase, PhaseAuthorityContract> = {
+  locked: {
+    phase: 'locked',
+    allowed_verbs: [],
+    forbidden_verbs: ['observe', 'describe', 'explain', 'suggest', 'predict', 'recommend', 'analyze'],
+    response_template: 'AI Insights are not yet available. {reason}. {next_phase_info}',
+    max_inference_depth: 'none',
+  },
+  descriptive: {
+    phase: 'descriptive',
+    allowed_verbs: ['observe', 'describe', 'list', 'show', 'report', 'summarize'],
+    forbidden_verbs: ['explain why', 'because', 'caused by', 'suggest', 'recommend', 'predict', 'will', 'should'],
+    response_template: 'Based on current observations: {observation}. Note: Causal analysis will be available after more data is collected.',
+    max_inference_depth: 'observation',
+  },
+  diagnostic: {
+    phase: 'diagnostic',
+    allowed_verbs: ['observe', 'describe', 'explain', 'analyze', 'because', 'caused by', 'correlates with'],
+    forbidden_verbs: ['suggest', 'recommend', 'should', 'predict', 'will', 'forecast'],
+    response_template: '{observation}. This is {explanation}. Note: Recommendations will be available after more data stability.',
+    max_inference_depth: 'causality',
+  },
+  prescriptive: {
+    phase: 'prescriptive',
+    allowed_verbs: ['observe', 'describe', 'explain', 'suggest', 'consider', 'option', 'alternative'],
+    forbidden_verbs: ['must', 'should', 'will', 'predict', 'forecast', 'guarantee'],
+    response_template: '{observation}. {explanation}. You might consider: {suggestions}. Note: These are options, not directives.',
+    max_inference_depth: 'suggestion',
+  },
+  predictive: {
+    phase: 'predictive',
+    allowed_verbs: ['observe', 'describe', 'explain', 'suggest', 'predict', 'forecast', 'trend', 'expect'],
+    forbidden_verbs: ['guarantee', 'certain', 'definitely', 'must'],
+    response_template: '{observation}. {explanation}. {suggestions}. Based on patterns, {prediction}.',
+    max_inference_depth: 'prediction',
+  },
+};
+
+/**
+ * Get the authority contract for a given phase
+ */
+export function getPhaseAuthorityContract(phase: AIInsightPhase): PhaseAuthorityContract {
+  return PHASE_AUTHORITY_CONTRACTS[phase];
+}
+
+/**
+ * Check if a response contains forbidden verbs for the current phase
+ * Returns the list of violations found
+ */
+export function checkPhaseViolations(response: string, phase: AIInsightPhase): string[] {
+  const contract = PHASE_AUTHORITY_CONTRACTS[phase];
+  const violations: string[] = [];
+  const lowerResponse = response.toLowerCase();
+  
+  for (const verb of contract.forbidden_verbs) {
+    if (lowerResponse.includes(verb.toLowerCase())) {
+      violations.push(verb);
+    }
+  }
+  
+  return violations;
+}
+
+/**
+ * Generate a phase-appropriate refusal message
+ */
+export function getPhaseRefusalMessage(phase: AIInsightPhase, phaseMetadata?: PhaseMetadata): string {
+  const contract = PHASE_AUTHORITY_CONTRACTS[phase];
+  
+  let reason = 'Insufficient data for AI insights';
+  let nextPhaseInfo = '';
+  
+  if (phaseMetadata) {
+    reason = phaseMetadata.phase_reason;
+    if (phaseMetadata.next_phase && phaseMetadata.next_phase_requirements.length > 0) {
+      nextPhaseInfo = `To unlock ${phaseMetadata.next_phase} insights: ${phaseMetadata.next_phase_requirements.join(', ')}.`;
+      if (phaseMetadata.days_until_unlock_estimate) {
+        nextPhaseInfo += ` Estimated: ${phaseMetadata.days_until_unlock_estimate} days.`;
+      }
+    }
+  }
+  
+  return contract.response_template
+    .replace('{reason}', reason)
+    .replace('{next_phase_info}', nextPhaseInfo);
 }
 
 // ============================================================
