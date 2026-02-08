@@ -292,13 +292,26 @@ const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) =
     }
 
     // Compute global_fusion_score for UI display
-    // Dashboard computes: average of all fusion_scores for connected integrations
+    // Dashboard computes: average of fusion_scores ONLY for connected integrations (added_by_user=true)
     // If no valid scores, use BASELINE_SCORE (50)
     // NOTE: This does NOT affect score_origin - that is derived from fusion_metrics only
+    // 
+    // CRITICAL FIX: Must filter fusionScores to only include scores for integrations
+    // that are in userIntegrations (added_by_user=true). This matches Dashboard.tsx behavior.
     let globalFusionScore = BASELINE_SCORE;
     
+    // Get the set of integration_ids from userIntegrations (added_by_user=true)
+    const connectedIntegrationIds = new Set(
+      (userIntegrations || []).map(ui => ui.integration_id)
+    );
+    
     if (fusionScores && fusionScores.length > 0) {
-      const validScores = fusionScores.filter(s => s.fusion_score !== null && s.fusion_score !== undefined);
+      // Filter to only include scores for connected integrations (matches Dashboard.tsx)
+      const validScores = fusionScores.filter(s => 
+        s.fusion_score !== null && 
+        s.fusion_score !== undefined &&
+        connectedIntegrationIds.has(s.integration_id)
+      );
       if (validScores.length > 0) {
         globalFusionScore = validScores.reduce((sum, s) => sum + (s.fusion_score || 0), 0) / validScores.length;
       }
