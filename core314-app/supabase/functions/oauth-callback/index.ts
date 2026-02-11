@@ -366,6 +366,56 @@ serve(withSentry(async (req) => {
 
     await supabase.from('oauth_states').delete().eq('state', state);
 
+    // === INTEGRATION ARCHITECTURE V2.0: Post-OAuth Setup ===
+    // For event-driven integrations, register webhook subscriptions and initialize ingestion health
+    const normalizedService = normalizeServiceName(integration.service_name);
+    
+    // Initialize ingestion health tracking
+    await supabase.rpc('init_ingestion_health', {
+      p_user_id: stateData.user_id,
+      p_integration_type: normalizedService
+    });
+    console.log('[oauth-callback] Initialized ingestion health for:', normalizedService);
+
+    // For Slack: Register webhook subscription and trigger initial backfill
+    if (normalizedService === 'slack' && userIntegration?.id) {
+      // Register webhook subscription
+      const { error: webhookError } = await supabase.from('webhook_subscriptions').upsert({
+        user_id: stateData.user_id,
+        user_integration_id: userIntegration.id,
+        integration_type: 'slack',
+        webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/slack-events`,
+        event_types: ['message', 'reaction_added', 'channel_created', 'member_joined_channel'],
+        status: 'active',
+        registered_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id,integration_type'
+      });
+
+      if (webhookError) {
+        console.error('[oauth-callback] Failed to register webhook subscription:', webhookError);
+      } else {
+        console.log('[oauth-callback] Registered Slack webhook subscription');
+      }
+
+      // Trigger initial backfill via slack-poll function
+      // This ensures metrics are populated immediately after OAuth
+      try {
+        const pollResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/slack-poll`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const pollResult = await pollResponse.json();
+        console.log('[oauth-callback] Triggered Slack backfill:', pollResult);
+      } catch (pollError) {
+        console.error('[oauth-callback] Failed to trigger Slack backfill:', pollError);
+        // Don't fail the OAuth flow if backfill fails
+      }
+    }
+
     return new Response(null, {
       status: 302,
       headers: {
