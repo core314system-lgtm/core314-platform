@@ -201,7 +201,17 @@ export function IntegrationDashboard(){
     
     setRefreshing(true);
     try {
-      // Call the calculate_integration_metrics function
+      // First, trigger the poll function to fetch fresh data from the integration
+      const pollFunctionName = `${integration}-poll`;
+      try {
+        await supabase.functions.invoke(pollFunctionName);
+        console.log(`[IntegrationDashboard] Triggered ${pollFunctionName}`);
+      } catch (pollErr) {
+        // Poll function may not exist for all integrations, continue anyway
+        console.log(`[IntegrationDashboard] Poll function ${pollFunctionName} not available:`, pollErr);
+      }
+      
+      // Then call the calculate_integration_metrics function to process the data
       await supabase.rpc('calculate_integration_metrics', {
         p_user_id: profile.id,
         p_integration_type: integration
