@@ -108,6 +108,7 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
         const now = Math.floor(Date.now() / 1000);
         const weekAgo = now - (7 * 24 * 60 * 60);
         let latestTimestamp: number | null = null;
+        const globalUserSet = new Set<string>();
 
         for (const channel of memberChannels.slice(0, 5)) {
           await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit delay
@@ -130,13 +131,12 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
                     messages: messages.length,
                   });
 
-                  // Track unique users and estimate response times
-                  const userSet = new Set<string>();
+                  // Track unique users (using global set for cross-channel dedup) and estimate response times
                   const responseTimes: number[] = [];
                   let prevTs: number | null = null;
 
                   for (const msg of messages) {
-                    if (msg.user) userSet.add(msg.user);
+                    if (msg.user) globalUserSet.add(msg.user);
                     const ts = parseFloat(msg.ts);
                     if (prevTs !== null && msg.user) {
                       const diffMinutes = Math.abs(prevTs - ts) / 60;
@@ -145,11 +145,6 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
                       }
                     }
                     prevTs = ts;
-                  }
-
-                  for (const u of userSet) {
-                    // Just count — we use a Set to deduplicate across channels later
-                    metrics.uniqueUsers++;
                   }
 
                   if (responseTimes.length > 0) {
@@ -174,6 +169,9 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
             console.log('[slack-poll] Error fetching history for channel:', channel.id, e);
           }
         }
+
+        // Set unique users from cross-channel deduplicated set
+        metrics.uniqueUsers = globalUserSet.size;
 
         if (latestTimestamp) {
           metrics.lastActivityTimestamp = new Date(latestTimestamp * 1000).toISOString();

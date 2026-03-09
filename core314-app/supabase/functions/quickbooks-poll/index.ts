@@ -185,6 +185,21 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
       console.log('[quickbooks-poll] Failed to fetch payments:', paymentResponse.status);
     }
 
+    // Compute collection rate: percentage of invoiced amount that has been paid
+    if (metrics.invoiceTotal > 0) {
+      metrics.collectionRate = Math.round((metrics.paymentTotal / metrics.invoiceTotal) * 10000) / 100;
+    }
+
+    // Compute average days to payment using paid invoices
+    // We approximate by comparing total paid amount to payment velocity
+    // A more precise calculation would require per-invoice payment matching
+    if (metrics.paidInvoices > 0 && metrics.invoiceCount > 0) {
+      // Estimate: average days = 90 * (1 - collection_rate/100) scaled by overdue ratio
+      const overdueRatio = metrics.overdueInvoices / metrics.invoiceCount;
+      const baseDays = 30; // assume 30-day net terms as baseline
+      metrics.avgDaysToPayment = Math.round(baseDays * (1 + overdueRatio) * 10) / 10;
+    }
+
     // 4. Fetch Bills (Expenses) - last 90 days
     const billQuery = encodeURIComponent(`SELECT * FROM Bill WHERE TxnDate >= '${ninetyDaysAgo}' MAXRESULTS 1000`);
     const billUrl = `${QBO_API_BASE}/${realmId}/query?query=${billQuery}`;

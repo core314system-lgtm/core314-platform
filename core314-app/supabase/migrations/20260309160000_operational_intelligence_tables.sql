@@ -82,10 +82,12 @@ CREATE POLICY "Users can view own signals"
 
 CREATE POLICY "Service role can insert signals"
   ON operational_signals FOR INSERT
+  TO service_role
   WITH CHECK (true);
 
 CREATE POLICY "Service role can update signals"
   ON operational_signals FOR UPDATE
+  TO service_role
   USING (true);
 
 -- RLS Policies for operational_health_scores
@@ -95,6 +97,7 @@ CREATE POLICY "Users can view own health scores"
 
 CREATE POLICY "Service role can insert health scores"
   ON operational_health_scores FOR INSERT
+  TO service_role
   WITH CHECK (true);
 
 -- RLS Policies for operational_briefs
@@ -104,6 +107,7 @@ CREATE POLICY "Users can view own briefs"
 
 CREATE POLICY "Service role can insert briefs"
   ON operational_briefs FOR INSERT
+  TO service_role
   WITH CHECK (true);
 
 -- Add HubSpot to integration registry if not exists
