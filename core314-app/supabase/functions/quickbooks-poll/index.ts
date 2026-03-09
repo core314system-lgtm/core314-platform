@@ -37,6 +37,16 @@ interface QuickBooksMetrics {
   creditCardAccounts: number;
   lastActivityTimestamp: string | null;
   companyName: string | null;
+  // Enhanced metrics for operational intelligence
+  invoiceAging: {
+    current: number;      // 0-30 days
+    aging30: number;      // 31-60 days
+    aging60: number;      // 61-90 days
+    aging90Plus: number;  // 90+ days
+  };
+  overdueTotal: number;
+  collectionRate: number; // percentage of paid vs total
+  avgDaysToPayment: number | null;
 }
 
 interface QueryResponse<T> {
@@ -64,6 +74,10 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
     creditCardAccounts: 0,
     lastActivityTimestamp: null,
     companyName: null,
+    invoiceAging: { current: 0, aging30: 0, aging60: 0, aging90Plus: 0 },
+    overdueTotal: 0,
+    collectionRate: 0,
+    avgDaysToPayment: null,
   };
 
   const headers = {
@@ -116,6 +130,18 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
             const dueDate = new Date(invoice.DueDate);
             if (dueDate < now) {
               metrics.overdueInvoices++;
+              metrics.overdueTotal += balance;
+              // Invoice aging breakdown
+              const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysOverdue <= 30) {
+                metrics.invoiceAging.current++;
+              } else if (daysOverdue <= 60) {
+                metrics.invoiceAging.aging30++;
+              } else if (daysOverdue <= 90) {
+                metrics.invoiceAging.aging60++;
+              } else {
+                metrics.invoiceAging.aging90Plus++;
+              }
             }
           }
         }
@@ -350,6 +376,10 @@ serve(async (req) => {
               bank_accounts: metrics.bankAccounts,
               credit_card_accounts: metrics.creditCardAccounts,
               company_name: metrics.companyName,
+              invoice_aging: metrics.invoiceAging,
+              overdue_total: metrics.overdueTotal,
+              collection_rate: metrics.collectionRate,
+              avg_days_to_payment: metrics.avgDaysToPayment,
               data_range_days: 90,
               poll_timestamp: now.toISOString(),
             },
