@@ -46,13 +46,14 @@ function parseJsonObject<T>(value: unknown, fallback: T): T {
 }
 
 function normalizeHealthScore(raw: Record<string, unknown>): HealthScoreData {
-  const defaultBreakdown = { base_score: 0, signal_penalties: [], integration_coverage: 0, data_freshness_bonus: 0 };
+  const defaultBreakdown = { base_score: 0, signal_penalties: [] as { type: string; severity: string; penalty: number }[], integration_coverage: 0, data_freshness_bonus: 0 };
   const defaultCoverage = { connected: 0, fresh: 0 };
-  return {
+  const normalized = {
     ...raw,
     score_breakdown: parseJsonObject(raw.score_breakdown, defaultBreakdown),
     integration_coverage: parseJsonObject(raw.integration_coverage, defaultCoverage),
-  } as HealthScoreData;
+  };
+  return normalized as unknown as HealthScoreData;
 }
 
 export function HealthScore() {
