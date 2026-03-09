@@ -30,6 +30,31 @@ interface HealthScoreData {
   calculated_at: string;
 }
 
+// Safely parse JSONB fields that may be double-encoded as JSON strings
+function parseJsonObject<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'object' && !Array.isArray(value)) return value as T;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === 'object') return parsed as T;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+function normalizeHealthScore(raw: Record<string, unknown>): HealthScoreData {
+  const defaultBreakdown = { base_score: 0, signal_penalties: [], integration_coverage: 0, data_freshness_bonus: 0 };
+  const defaultCoverage = { connected: 0, fresh: 0 };
+  return {
+    ...raw,
+    score_breakdown: parseJsonObject(raw.score_breakdown, defaultBreakdown),
+    integration_coverage: parseJsonObject(raw.integration_coverage, defaultCoverage),
+  } as HealthScoreData;
+}
+
 export function HealthScore() {
   const { profile } = useAuth();
   const [currentScore, setCurrentScore] = useState<HealthScoreData | null>(null);
@@ -54,8 +79,9 @@ export function HealthScore() {
       .limit(20);
 
     if (!error && data && data.length > 0) {
-      setCurrentScore(data[0] as HealthScoreData);
-      setHistory(data as HealthScoreData[]);
+      const normalized = data.map(d => normalizeHealthScore(d as Record<string, unknown>));
+      setCurrentScore(normalized[0]);
+      setHistory(normalized);
     }
     setLoading(false);
   };
