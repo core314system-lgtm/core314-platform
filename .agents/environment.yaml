@@ -1,0 +1,18 @@
+# Core314 Platform Environment Configuration
+version: 1
+
+setup:
+  - name: Install core314-app dependencies
+    command: cd core314-app && npm install
+  - name: Install core314-landing dependencies
+    command: cd core314-landing && npm install
+  - name: Install core314-admin dependencies
+    command: cd core314-admin && npm install
+
+maintenance:
+  - name: Update core314-app dependencies
+    command: cd core314-app && npm install
+  - name: Update core314-landing dependencies
+    command: cd core314-landing && npm install
+  - name: Update core314-admin dependencies
+    command: cd core314-admin && npm install
