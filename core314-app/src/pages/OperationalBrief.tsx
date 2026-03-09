@@ -30,6 +30,29 @@ interface OperationalBriefData {
   created_at: string;
 }
 
+// Safely parse JSONB fields that may be double-encoded as JSON strings
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // not valid JSON, return as single-element array
+      return [value];
+    }
+  }
+  return [];
+}
+
+function normalizeBrief(raw: Record<string, unknown>): OperationalBriefData {
+  return {
+    ...raw,
+    detected_signals: parseJsonArray(raw.detected_signals),
+    recommended_actions: parseJsonArray(raw.recommended_actions),
+  } as OperationalBriefData;
+}
+
 export function OperationalBrief() {
   const { profile } = useAuth();
   const [brief, setBrief] = useState<OperationalBriefData | null>(null);
@@ -55,8 +78,8 @@ export function OperationalBrief() {
       .limit(6);
 
     if (!error && data && data.length > 0) {
-      setBrief(data[0] as OperationalBriefData);
-      setPastBriefs(data.slice(1) as OperationalBriefData[]);
+      setBrief(normalizeBrief(data[0] as Record<string, unknown>));
+      setPastBriefs(data.slice(1).map(d => normalizeBrief(d as Record<string, unknown>)));
     }
     setLoading(false);
   };
