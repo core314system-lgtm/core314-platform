@@ -7,8 +7,9 @@ import { PRICING } from '../../../../shared/pricing';
 interface BillingMetrics {
   mrr: number;
   activeSubscriptions: {
-    starter: number;
-    professional: number;
+    monitor: number;
+    intelligence: number;
+    commandCenter: number;
     enterprise: number;
   };
   failedPayments: number;
@@ -18,7 +19,7 @@ interface BillingMetrics {
 export function BillingOverview() {
   const [metrics, setMetrics] = useState<BillingMetrics>({
     mrr: 0,
-    activeSubscriptions: { starter: 0, professional: 0, enterprise: 0 },
+    activeSubscriptions: { monitor: 0, intelligence: 0, commandCenter: 0, enterprise: 0 },
     failedPayments: 0,
     trialConversions: 0,
   });
@@ -42,15 +43,17 @@ export function BillingOverview() {
         if (subscriptionsError) throw subscriptionsError;
 
         const activeSubscriptions = {
-          starter: subscriptions?.filter(s => s.plan_name === 'Starter').length || 0,
-          professional: subscriptions?.filter(s => s.plan_name === 'Pro').length || 0,
+          monitor: subscriptions?.filter(s => s.plan_name === 'Monitor').length || 0,
+          intelligence: subscriptions?.filter(s => s.plan_name === 'Intelligence').length || 0,
+          commandCenter: subscriptions?.filter(s => s.plan_name === 'Command Center').length || 0,
           enterprise: subscriptions?.filter(s => s.plan_name === 'Enterprise').length || 0,
         };
 
         // Use shared pricing config - single source of truth
         const mrr = (
-          (activeSubscriptions.starter * PRICING.starter.monthly) +
-          (activeSubscriptions.professional * PRICING.pro.monthly) +
+          (activeSubscriptions.monitor * PRICING.monitor.monthly) +
+          (activeSubscriptions.intelligence * PRICING.intelligence.monthly) +
+          (activeSubscriptions.commandCenter * PRICING.commandCenter.monthly) +
           (activeSubscriptions.enterprise * 0) // Enterprise is custom pricing
         );
 
@@ -113,8 +116,9 @@ export function BillingOverview() {
   }
 
   const totalSubscriptions =
-    metrics.activeSubscriptions.starter +
-    metrics.activeSubscriptions.professional +
+    metrics.activeSubscriptions.monitor +
+    metrics.activeSubscriptions.intelligence +
+    metrics.activeSubscriptions.commandCenter +
     metrics.activeSubscriptions.enterprise;
 
   return (
@@ -178,30 +182,43 @@ export function BillingOverview() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Starter Plan</CardTitle>
+            <CardTitle>Monitor Plan</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{metrics.activeSubscriptions.starter}</div>
+            <div className="text-3xl font-bold">{metrics.activeSubscriptions.monitor}</div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          ${(metrics.activeSubscriptions.starter * PRICING.starter.monthly).toLocaleString()} MRR
-                        </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              ${(metrics.activeSubscriptions.monitor * PRICING.monitor.monthly).toLocaleString()} MRR
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Professional Plan</CardTitle>
+            <CardTitle>Intelligence Plan</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{metrics.activeSubscriptions.professional}</div>
+            <div className="text-3xl font-bold">{metrics.activeSubscriptions.intelligence}</div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          ${(metrics.activeSubscriptions.professional * PRICING.pro.monthly).toLocaleString()} MRR
-                        </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              ${(metrics.activeSubscriptions.intelligence * PRICING.intelligence.monthly).toLocaleString()} MRR
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Command Center Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{metrics.activeSubscriptions.commandCenter}</div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              ${(metrics.activeSubscriptions.commandCenter * PRICING.commandCenter.monthly).toLocaleString()} MRR
+            </p>
           </CardContent>
         </Card>
 
@@ -212,9 +229,9 @@ export function BillingOverview() {
           <CardContent>
             <div className="text-3xl font-bold">{metrics.activeSubscriptions.enterprise}</div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                          $0 MRR (custom pricing)
-                        </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              $0 MRR (custom pricing)
+            </p>
           </CardContent>
         </Card>
       </div>
