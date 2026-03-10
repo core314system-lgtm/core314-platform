@@ -27,6 +27,7 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'quickbooks': 'QUICKBOOKS',
   'xero': 'XERO',
   'salesforce': 'SALESFORCE',
+  'hubspot': 'HUBSPOT',
   'planner': 'TEAMS',  // Microsoft Planner uses same credentials as Microsoft Teams
 };
 
