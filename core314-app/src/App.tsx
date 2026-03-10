@@ -128,9 +128,9 @@ function App() {
             <Route path="dashboard" element={<Navigate to="/brief" replace />} />
             
             {/* Kept routes for existing functionality */}
-            <Route path="integrations" element={<Integrations />} />
+            <Route path="integrations" element={<Navigate to="/integration-manager" replace />} />
             <Route path="notifications" element={<Notifications />} />
-            <Route path="integration-hub" element={<IntegrationHub />} />
+            {/* integration-hub hidden for Phase 1 — only 3 integrations active */}
             <Route path="integrations/slack/configure" element={<SlackConfigure />} />
             <Route path="integrations/microsoft_teams/configure" element={<TeamsConfigure />} />
           </Route>

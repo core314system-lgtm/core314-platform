@@ -253,7 +253,7 @@ serve(withSentry(async (req) => {
             status: 302,
             headers: {
               ...corsHeaders,
-              'Location': `${Deno.env.get('APP_URL') || 'http://localhost:5173'}/integrations?oauth_error=true&service=${integration.service_name}&error=verification_failed`
+              'Location': `${Deno.env.get('APP_URL') || 'http://localhost:5173'}/integration-manager?oauth_error=true&service=${integration.service_name}&error=verification_failed`
             }
           });
         }
@@ -371,7 +371,7 @@ serve(withSentry(async (req) => {
       status: 302,
       headers: {
         ...corsHeaders,
-        'Location': `${Deno.env.get('APP_URL') || 'http://localhost:5173'}/integrations?oauth_success=true&service=${integration.service_name}`
+        'Location': `${Deno.env.get('APP_URL') || 'http://localhost:5173'}/integration-manager?oauth_success=true&service=${integration.service_name}`
       }
     });
   } catch (error) {

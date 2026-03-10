@@ -27,7 +27,7 @@ export default function OAuthCallback() {
         setMessage(`Successfully connected to ${service}!`);
         
         setTimeout(() => {
-          navigate('/integrations');
+          navigate('/integration-manager');
         }, 2000);
       } else {
         setStatus('error');
@@ -52,7 +52,7 @@ export default function OAuthCallback() {
         </CardHeader>
         {status === 'error' && (
           <CardContent>
-            <Button onClick={() => navigate('/integrations')} className="w-full">
+            <Button onClick={() => navigate('/integration-manager')} className="w-full">
               Return to Integrations
             </Button>
           </CardContent>

@@ -31,7 +31,8 @@ interface IntegrationInfo {
 interface UserIntegration {
   id: string;
   user_id: string;
-  integration_registry_id: string;
+  integration_id: string;
+  provider_id: string | null;
   status: string;
   config: Record<string, unknown>;
   created_at: string;
@@ -59,15 +60,22 @@ export function IntegrationManager() {
   const [connecting, setConnecting] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
 
-  // Check for OAuth callback success
+  // Check for OAuth callback success (from Supabase oauth-callback or HubSpot Netlify callback)
   useEffect(() => {
+    const oauthSuccess = searchParams.get('oauth_success');
+    const oauthService = searchParams.get('service');
     const hubspotStatus = searchParams.get('hubspot');
-    if (hubspotStatus === 'connected') {
+
+    if (oauthSuccess === 'true' && oauthService) {
+      setConnectionSuccess(oauthService);
+      searchParams.delete('oauth_success');
+      searchParams.delete('service');
+      setSearchParams(searchParams, { replace: true });
+      setTimeout(() => setConnectionSuccess(null), 5000);
+    } else if (hubspotStatus === 'connected') {
       setConnectionSuccess('hubspot');
-      // Clean up URL params
       searchParams.delete('hubspot');
       setSearchParams(searchParams, { replace: true });
-      // Auto-dismiss after 5 seconds
       setTimeout(() => setConnectionSuccess(null), 5000);
     }
   }, [searchParams, setSearchParams]);
@@ -160,11 +168,11 @@ export function IntegrationManager() {
   };
 
   const isConnected = (registryId: string) => {
-    return userIntegrations.some(ui => ui.integration_registry_id === registryId);
+    return userIntegrations.some(ui => ui.provider_id === registryId);
   };
 
   const getConnectionDate = (registryId: string) => {
-    const ui = userIntegrations.find(u => u.integration_registry_id === registryId);
+    const ui = userIntegrations.find(u => u.provider_id === registryId);
     return ui?.created_at || null;
   };
 
@@ -201,7 +209,7 @@ export function IntegrationManager() {
             <div className="flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                {connectionSuccess === 'hubspot' ? 'HubSpot' : connectionSuccess} connected successfully! Core314 will begin analyzing your data shortly.
+                {connectionSuccess === 'hubspot' ? 'HubSpot' : connectionSuccess === 'quickbooks' ? 'QuickBooks Online' : connectionSuccess === 'slack' ? 'Slack' : connectionSuccess} connected successfully! Core314 will begin analyzing your data shortly.
               </p>
             </div>
           </CardContent>
