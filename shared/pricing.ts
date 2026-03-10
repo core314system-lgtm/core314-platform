@@ -1,10 +1,10 @@
 // ============================================================================
 // SINGLE SOURCE OF TRUTH FOR PRICING
-// Phase 14.1: Pricing Page Source-of-Truth Fix
-// 
+// Core314 Operational Intelligence Platform
+//
 // This file is the ONLY place where pricing amounts are defined.
 // Both core314-app and core314-landing must import from this file.
-// NO inline price literals ($99, $199, etc.) are allowed in JSX.
+// NO inline price literals ($99, $299, etc.) are allowed in JSX.
 //
 // To update pricing:
 // 1. Change the values in this file
@@ -13,55 +13,86 @@
 // ============================================================================
 
 export const PRICING = {
-  starter: {
-    monthly: 199,
-    annual: 1990,
-    name: 'Starter',
-    description: 'Serious operational visibility for small teams',
-    integrations: 3,
-    fusionContributors: 3,
-    historyDays: 30,
-    refreshMinutes: 60,
+  monitor: {
+    monthly: 99,
+    name: 'Monitor',
+    tagline: 'Early warning system for operational issues.',
+    description:
+      'Core314 continuously monitors connected systems and detects operational signals across sales, finance, and communication activity.',
+    features: [
+      'Slack Integration',
+      'HubSpot Integration',
+      'QuickBooks Integration',
+      'Operational Health Score',
+      'Signals Dashboard',
+      'AI Operational Briefs (10 / month)',
+      '30 Day Operational Brief Archive',
+      'Up to 5 Users',
+    ],
+    users: 5,
+    briefsPerMonth: 10,
+    archiveDays: 30,
   },
-  pro: {
-    monthly: 999,
-    annual: 9990,
-    name: 'Pro',
-    description: 'Organizational-scale intelligence and operational depth',
-    integrations: 10,
-    fusionContributors: 7,
-    historyDays: 90,
-    refreshMinutes: 15,
+  intelligence: {
+    monthly: 299,
+    name: 'Intelligence',
+    tagline: 'Understand what is happening inside your business and why.',
+    description:
+      'Core314 analyzes operational patterns across your business systems and generates AI-powered Operational Briefs explaining what is happening and what actions leadership should take.',
+    features: [
+      'Everything in Monitor plus:',
+      'Unlimited AI Operational Briefs',
+      'Command Center Dashboard',
+      'Signal Trend Analysis',
+      'Executive Brief Delivery (Slack + Email)',
+      'Full Operational Brief Archive',
+      'Up to 10 Users',
+    ],
+    users: 10,
+    briefsPerMonth: -1, // unlimited
+    archiveDays: -1, // unlimited
+  },
+  commandCenter: {
+    monthly: 799,
+    name: 'Command Center',
+    tagline: 'Continuous operational intelligence for scaling organizations.',
+    description:
+      'A full operational intelligence command center for leadership teams that need continuous monitoring and deeper signal analytics.',
+    features: [
+      'Everything in Intelligence plus:',
+      'Unlimited Users',
+      'Advanced Signal Analytics',
+      'Operational Pattern Detection',
+      'Executive Weekly Operational Reports',
+      'Integration Event History',
+      'Early Access to New Integrations',
+    ],
+    users: -1, // unlimited
+    briefsPerMonth: -1,
+    archiveDays: -1,
   },
   enterprise: {
     custom: true,
     name: 'Enterprise',
-    description: 'Full operational command for large organizations',
-    integrations: -1, // unlimited
-    fusionContributors: -1, // unlimited
-    historyDays: -1, // unlimited
-    refreshMinutes: 5,
-  },
-} as const;
-
-export const ADDONS = {
-  integrations: {
-    starter: { monthly: 75, description: 'Additional Integration (Starter)' },
-    pro: { monthly: 50, description: 'Additional Integration (Pro)' },
-    custom: { setup: 500, description: 'Custom Integration' },
-  },
-  analytics: {
-    premium: { monthly: 199, description: 'Premium Analytics' },
-    dataExport: { monthly: 99, description: 'Data Export' },
-  },
-  ai: {
-    advancedFusion: { monthly: 299, description: 'Advanced Fusion AI' },
-    predictive: { monthly: 399, description: 'Predictive Analytics' },
+    tagline: 'Operational intelligence infrastructure for large organizations.',
+    description:
+      'For organizations requiring deeper operational intelligence, custom integrations, and dedicated support.',
+    features: [
+      'Everything in Command Center plus:',
+      'Dedicated onboarding',
+      'Custom integrations',
+      'Priority signal processing',
+      'Executive operational reporting',
+      'Dedicated success manager',
+      'SLA uptime guarantees',
+    ],
+    users: -1,
+    briefsPerMonth: -1,
+    archiveDays: -1,
   },
 } as const;
 
 export type PlanId = keyof typeof PRICING;
-export type AddonCategory = keyof typeof ADDONS;
 
 // Formatting helpers
 export const formatPrice = (amount: number): string => {
@@ -70,8 +101,4 @@ export const formatPrice = (amount: number): string => {
 
 export const formatMonthlyPrice = (amount: number): string => {
   return `${formatPrice(amount)}/mo`;
-};
-
-export const formatAnnualPrice = (amount: number): string => {
-  return `${formatPrice(amount)}/year`;
 };
