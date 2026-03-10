@@ -6,7 +6,6 @@ import { Badge } from '../components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { PlanCard } from '../components/billing/PlanCard';
 import { UsageProgressBar } from '../components/billing/UsageProgressBar';
-import { AddOnManager } from '../components/billing/AddOnManager';
 import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink, Receipt, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -43,29 +42,6 @@ interface SubscriptionSummary {
   }>;
 }
 
-const AVAILABLE_ADDONS = [
-  {
-    name: 'Advanced Analytics',
-    category: 'analytics',
-    description: 'Unlock detailed analytics dashboards and custom reports',
-    price: 49,
-    stripePriceId: 'price_analytics_monthly',
-  },
-  {
-    name: 'AI Insights Pro',
-    category: 'ai',
-    description: 'Enhanced AI-powered recommendations and predictions',
-    price: 99,
-    stripePriceId: 'price_ai_insights_monthly',
-  },
-  {
-    name: 'Additional Integration Pack',
-    category: 'integration',
-    description: 'Add 5 more integrations to your plan',
-    price: 29,
-    stripePriceId: 'price_integration_pack_monthly',
-  },
-];
 
 const PLAN_FEATURES = {
   Monitor: [
@@ -215,63 +191,6 @@ export default function Billing() {
     }
   };
 
-  const handlePurchaseAddOn = async (addOn: typeof AVAILABLE_ADDONS[0]) => {
-    setProcessingAction(true);
-    try {
-      const response = await fetch('/api/create-addon-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          addonName: addOn.name,
-          addonCategory: addOn.category,
-          priceId: addOn.stripePriceId,
-          userId: user?.id,
-        }),
-      });
-
-      const { url } = await response.json();
-      window.location.href = url;
-    } catch (error) {
-      console.error('Error purchasing add-on:', error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to purchase add-on. Please try again.',
-      });
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  const handleCancelAddOn = async (addOnId: string) => {
-    if (!confirm('Are you sure you want to cancel this add-on?')) return;
-
-    setProcessingAction(true);
-    try {
-      const { error } = await supabase
-        .from('user_addons')
-        .update({
-          status: 'canceled',
-          expires_at: new Date().toISOString(),
-        })
-        .eq('id', addOnId);
-
-      if (error) throw error;
-
-      setNotification({
-        type: 'success',
-        message: 'Add-on canceled successfully.',
-      });
-      fetchSubscriptionData();
-    } catch (error) {
-      console.error('Error canceling add-on:', error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to cancel add-on. Please try again.',
-      });
-    } finally {
-      setProcessingAction(false);
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { className: string; label: string }> = {
@@ -486,16 +405,6 @@ export default function Billing() {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Add-Ons</h2>
-        <AddOnManager
-          activeAddOns={active_addons}
-          availableAddOns={AVAILABLE_ADDONS}
-          onPurchaseAddOn={handlePurchaseAddOn}
-          onCancelAddOn={handleCancelAddOn}
-          loading={processingAction}
-        />
-      </div>
     </div>
   );
 }
