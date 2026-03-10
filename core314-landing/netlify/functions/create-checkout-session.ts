@@ -15,16 +15,25 @@ const supabase = createClient(
 );
 
 // Expected price amounts in cents (source of truth: shared/pricing.ts)
-// Starter (Observe) = $199/month = 19900 cents
-// Pro (Analyze) = $999/month = 99900 cents
+// Monitor = $99/month = 9900 cents
+// Intelligence = $299/month = 29900 cents
+// Command Center = $799/month = 79900 cents
 const EXPECTED_PRICE_AMOUNTS: Record<string, number> = {
-  starter: 19900, // $199/month
-  pro: 99900,     // $999/month
+  monitor: 9900,         // $99/month
+  intelligence: 29900,   // $299/month
+  commandcenter: 79900,  // $799/month
 };
 
 // Plans eligible for 14-day free trial
-// Both Starter and Pro get trials; Enterprise is custom/contact-sales
-const TRIAL_ELIGIBLE_PLANS = ['starter', 'pro'];
+// Monitor, Intelligence, and Command Center get trials; Enterprise is custom/contact-sales
+const TRIAL_ELIGIBLE_PLANS = ['monitor', 'intelligence', 'commandcenter'];
+
+// Map plan names to Stripe lookup keys
+const PLAN_LOOKUP_KEYS: Record<string, string> = {
+  monitor: 'monitor_monthly',
+  intelligence: 'intelligence_monthly',
+  commandcenter: 'commandCenter_monthly',
+};
 
 // Trial abuse protection constants
 const MAX_TRIALS_PER_IP_30_DAYS = 2;
@@ -104,10 +113,11 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const planLower = plan.toLowerCase();
+    // Normalize plan name: 'commandCenter' -> 'commandcenter' for consistent lookups
+    const planLower = plan.toLowerCase().replace(/\s+/g, '');
     
     // Validate plan is supported
-    if (!['starter', 'pro'].includes(planLower)) {
+    if (!['monitor', 'intelligence', 'commandcenter'].includes(planLower)) {
       return {
         statusCode: 400,
         headers,
@@ -261,34 +271,34 @@ export const handler: Handler = async (event) => {
     let selectedPrice: Stripe.Price | undefined;
     let allPricesForDiagnostics: Stripe.Price[] = [];
 
-    if (planLower === 'starter') {
-      // STARTER: Use lookup_key (known to work in production)
+    // Look up price using the plan's lookup key
+    const lookupKey = PLAN_LOOKUP_KEYS[planLower];
+    if (lookupKey) {
       const prices = await stripe.prices.list({
-        lookup_keys: ['starter_monthly'],
+        lookup_keys: [lookupKey],
         limit: 10,
         active: true,
       });
       allPricesForDiagnostics = prices.data;
       
-      // Find exact match: active + USD + monthly + $199
+      // Find exact match: active + USD + monthly + correct amount
       selectedPrice = prices.data.find(p => 
         p.active &&
         p.currency === 'usd' &&
         p.recurring?.interval === 'month' &&
         p.unit_amount === expectedAmount
       );
-    } else if (planLower === 'pro') {
-      // PRO: Deterministic search by price attributes (lookup_key not set in Stripe)
-      // Fetch all active recurring prices and filter deterministically
+    }
+
+    // Fallback: search all active recurring prices if lookup key didn't match
+    if (!selectedPrice) {
       const prices = await stripe.prices.list({
         active: true,
         type: 'recurring',
         limit: 100,
       });
-      allPricesForDiagnostics = prices.data;
+      allPricesForDiagnostics = [...allPricesForDiagnostics, ...prices.data];
       
-      // Find exact match: active + USD + monthly + $999
-      // This is deterministic because there should be exactly one price matching all criteria
       selectedPrice = prices.data.find(p => 
         p.active &&
         p.currency === 'usd' &&
@@ -363,7 +373,7 @@ export const handler: Handler = async (event) => {
       customer_email: email,
       client_reference_id: userId,
       subscription_data: {
-        // 14-day free trial for Starter and Pro plans
+        // 14-day free trial for Monitor, Intelligence, and Command Center plans
         // Stripe Checkout will show "14 days free" and "$0 due today"
         ...(isTrialEligible && { trial_period_days: 14 }),
         metadata: {

@@ -21,8 +21,9 @@ type PriceKind = 'base' | 'addon' | 'unknown';
 
 // Base plan prices (used in plan checkout)
 const BASE_PLAN_PRICE_IDS = [
-  process.env.VITE_STRIPE_PRICE_STARTER,
-  process.env.VITE_STRIPE_PRICE_PRO,
+  process.env.VITE_STRIPE_PRICE_MONITOR,
+  process.env.VITE_STRIPE_PRICE_INTELLIGENCE,
+  process.env.VITE_STRIPE_PRICE_COMMAND_CENTER,
   process.env.VITE_STRIPE_PRICE_ENTERPRISE,
 ].filter(Boolean) as string[];
 
@@ -43,9 +44,10 @@ function classifyPrice(priceId?: string | null): PriceKind {
 }
 
 // Map base plan price IDs to tier names
-const BASE_PLAN_TIER_MAP: Record<string, 'starter' | 'professional' | 'enterprise'> = {
-  [process.env.VITE_STRIPE_PRICE_STARTER!]: 'starter',
-  [process.env.VITE_STRIPE_PRICE_PRO!]: 'professional',
+const BASE_PLAN_TIER_MAP: Record<string, 'monitor' | 'intelligence' | 'commandCenter' | 'enterprise'> = {
+  [process.env.VITE_STRIPE_PRICE_MONITOR!]: 'monitor',
+  [process.env.VITE_STRIPE_PRICE_INTELLIGENCE!]: 'intelligence',
+  [process.env.VITE_STRIPE_PRICE_COMMAND_CENTER!]: 'commandCenter',
   [process.env.VITE_STRIPE_PRICE_ENTERPRISE!]: 'enterprise',
 };
 
@@ -355,8 +357,9 @@ async function syncToUserSubscriptions(
 
 // Map tier names to plan names for user_subscriptions table
 const TIER_TO_PLAN_NAME: Record<string, string> = {
-  starter: 'Starter',
-  professional: 'Pro',
+  monitor: 'Monitor',
+  intelligence: 'Intelligence',
+  commandCenter: 'Command Center',
   enterprise: 'Enterprise',
 };
 
@@ -716,9 +719,10 @@ async function handleAddonCheckoutCompleted(session: Stripe.Checkout.Session) {
 // Tier ranking for upgrade/downgrade detection
 const TIER_RANK: Record<string, number> = {
   none: 0,
-  starter: 1,
-  professional: 2,
-  enterprise: 3,
+  monitor: 1,
+  intelligence: 2,
+  commandCenter: 3,
+  enterprise: 4,
 };
 
 // =============================================================================
