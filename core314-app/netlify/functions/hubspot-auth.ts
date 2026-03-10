@@ -35,7 +35,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     const clientId = process.env.HUBSPOT_CLIENT_ID;
     const redirectUri =
       process.env.HUBSPOT_REDIRECT_URI ||
-      "https://core314.com/auth/hubspot/callback";
+      "https://app.core314.com/auth/hubspot/callback";
 
     if (!clientId) {
       console.error("[hubspot-auth] Missing HUBSPOT_CLIENT_ID env var");
