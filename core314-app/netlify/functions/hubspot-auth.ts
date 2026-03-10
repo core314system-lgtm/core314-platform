@@ -38,11 +38,14 @@ export const handler: Handler = async (event: HandlerEvent) => {
       "https://core314.com/auth/hubspot/callback";
 
     if (!clientId) {
-      console.error("[hubspot-auth] Missing HUBSPOT_CLIENT_ID");
+      console.error("[hubspot-auth] Missing HUBSPOT_CLIENT_ID env var");
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: "HubSpot integration not configured" }),
+        body: JSON.stringify({
+          error: "HubSpot integration not configured",
+          hint: "HUBSPOT_CLIENT_ID environment variable is not set",
+        }),
       };
     }
 
