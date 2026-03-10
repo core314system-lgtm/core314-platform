@@ -21,6 +21,17 @@
   to = "/.netlify/functions/system-integrations"
   status = 200
 
+# Stripe checkout and billing redirects
+[[redirects]]
+  from = "/api/create-checkout-session"
+  to = "/.netlify/functions/create-checkout-session"
+  status = 200
+
+[[redirects]]
+  from = "/api/create-portal-session"
+  to = "/.netlify/functions/create-portal-session"
+  status = 200
+
 # HubSpot OAuth flow redirects
 [[redirects]]
   from = "/auth/hubspot/callback"
