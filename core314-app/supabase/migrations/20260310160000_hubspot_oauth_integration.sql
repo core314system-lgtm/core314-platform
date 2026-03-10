@@ -4,7 +4,7 @@
 -- 1. Create hubspot_connections table for HubSpot portal-specific data
 CREATE TABLE IF NOT EXISTS hubspot_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   user_integration_id UUID REFERENCES user_integrations(id) ON DELETE SET NULL,
   hubspot_portal_id TEXT,
   access_token TEXT NOT NULL,
