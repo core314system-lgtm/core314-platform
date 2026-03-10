@@ -100,8 +100,9 @@ export const handler: Handler = async (event: HandlerEvent) => {
       };
     }
 
-    // Scopes required for CRM data access
+    // Scopes required for CRM data access (must match HubSpot app's required scopes)
     const scopes = [
+      "oauth",
       "crm.objects.contacts.read",
       "crm.objects.deals.read",
       "crm.objects.companies.read",
