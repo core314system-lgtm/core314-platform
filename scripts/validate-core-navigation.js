@@ -34,11 +34,15 @@ const path = require('path');
  * 1. Remove from MainLayout.tsx
  * 2. Remove from this array with a comment explaining why
  */
+// Phase 1 pivot: Core314 is now an Operational Intelligence platform.
+// Navigation simplified from 24+ items to 5 core items focused on
+// operational briefs, signals, health scoring, and integrations.
+// Previous items removed: Dashboard, System Intelligence, Integrations, Integration Hub
 const CORE_NAVIGATION_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', reason: 'Primary landing page for authenticated users' },
-  { path: '/system-intelligence', label: 'System Intelligence', reason: 'Core314 platform promise: continuous system evaluation and understanding' },
-  { path: '/integrations', label: 'Integrations', reason: 'User integration management' },
-  { path: '/integration-hub', label: 'Integration Hub', reason: 'Integration discovery and connection' },
+  { path: '/brief', label: 'Operational Brief', reason: 'Centerpiece of the Operational Intelligence platform — AI-generated business narratives' },
+  { path: '/signals', label: 'Signal Dashboard', reason: 'Real-time view of detected operational signals from connected integrations' },
+  { path: '/health', label: 'Health Score', reason: 'Composite operational health score with trend history' },
+  { path: '/integration-manager', label: 'Integrations', reason: 'Connect and manage Slack, HubSpot, and QuickBooks signal sources' },
 ];
 
 const mainLayoutPath = path.join(__dirname, '..', 'core314-app', 'src', 'components', 'MainLayout.tsx');

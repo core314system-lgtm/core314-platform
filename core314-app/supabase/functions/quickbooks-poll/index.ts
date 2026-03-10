@@ -37,6 +37,16 @@ interface QuickBooksMetrics {
   creditCardAccounts: number;
   lastActivityTimestamp: string | null;
   companyName: string | null;
+  // Enhanced metrics for operational intelligence
+  invoiceAging: {
+    current: number;      // 0-30 days
+    aging30: number;      // 31-60 days
+    aging60: number;      // 61-90 days
+    aging90Plus: number;  // 90+ days
+  };
+  overdueTotal: number;
+  collectionRate: number; // percentage of paid vs total
+  avgDaysToPayment: number | null;
 }
 
 interface QueryResponse<T> {
@@ -64,6 +74,10 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
     creditCardAccounts: 0,
     lastActivityTimestamp: null,
     companyName: null,
+    invoiceAging: { current: 0, aging30: 0, aging60: 0, aging90Plus: 0 },
+    overdueTotal: 0,
+    collectionRate: 0,
+    avgDaysToPayment: null,
   };
 
   const headers = {
@@ -116,6 +130,18 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
             const dueDate = new Date(invoice.DueDate);
             if (dueDate < now) {
               metrics.overdueInvoices++;
+              metrics.overdueTotal += balance;
+              // Invoice aging breakdown
+              const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysOverdue <= 30) {
+                metrics.invoiceAging.current++;
+              } else if (daysOverdue <= 60) {
+                metrics.invoiceAging.aging30++;
+              } else if (daysOverdue <= 90) {
+                metrics.invoiceAging.aging60++;
+              } else {
+                metrics.invoiceAging.aging90Plus++;
+              }
             }
           }
         }
@@ -157,6 +183,21 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
       }
     } else {
       console.log('[quickbooks-poll] Failed to fetch payments:', paymentResponse.status);
+    }
+
+    // Compute collection rate: percentage of invoiced amount that has been paid
+    if (metrics.invoiceTotal > 0) {
+      metrics.collectionRate = Math.round((metrics.paymentTotal / metrics.invoiceTotal) * 10000) / 100;
+    }
+
+    // Compute average days to payment using paid invoices
+    // We approximate by comparing total paid amount to payment velocity
+    // A more precise calculation would require per-invoice payment matching
+    if (metrics.paidInvoices > 0 && metrics.invoiceCount > 0) {
+      // Estimate: average days = 90 * (1 - collection_rate/100) scaled by overdue ratio
+      const overdueRatio = metrics.overdueInvoices / metrics.invoiceCount;
+      const baseDays = 30; // assume 30-day net terms as baseline
+      metrics.avgDaysToPayment = Math.round(baseDays * (1 + overdueRatio) * 10) / 10;
     }
 
     // 4. Fetch Bills (Expenses) - last 90 days
@@ -350,6 +391,10 @@ serve(async (req) => {
               bank_accounts: metrics.bankAccounts,
               credit_card_accounts: metrics.creditCardAccounts,
               company_name: metrics.companyName,
+              invoice_aging: metrics.invoiceAging,
+              overdue_total: metrics.overdueTotal,
+              collection_rate: metrics.collectionRate,
+              avg_days_to_payment: metrics.avgDaysToPayment,
               data_range_days: 90,
               poll_timestamp: now.toISOString(),
             },

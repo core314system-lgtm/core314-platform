@@ -24,6 +24,10 @@ interface SlackMetrics {
     teamId: string | null;
     teamName: string | null;
   };
+  // Enhanced metrics for operational intelligence
+  channelActivity: { name: string; messages: number }[];
+  avgResponseTimeMinutes: number | null;
+  uniqueUsers: number;
 }
 
 interface SlackChannel {
@@ -55,6 +59,9 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
       teamId: null,
       teamName: null,
     },
+    channelActivity: [],
+    avgResponseTimeMinutes: null,
+    uniqueUsers: 0,
   };
 
   const headers = {
@@ -101,6 +108,7 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
         const now = Math.floor(Date.now() / 1000);
         const weekAgo = now - (7 * 24 * 60 * 60);
         let latestTimestamp: number | null = null;
+        const globalUserSet = new Set<string>();
 
         for (const channel of memberChannels.slice(0, 5)) {
           await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit delay
@@ -114,22 +122,56 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
             if (historyResponse.ok) {
               const historyData = await historyResponse.json();
               if (historyData.ok && historyData.messages) {
-                const messages: SlackMessage[] = historyData.messages;
-                metrics.messageCount += messages.length;
+                  const messages: SlackMessage[] = historyData.messages;
+                  metrics.messageCount += messages.length;
 
-                // Track the most recent message timestamp
-                if (messages.length > 0) {
-                  const msgTimestamp = parseFloat(messages[0].ts);
-                  if (!latestTimestamp || msgTimestamp > latestTimestamp) {
-                    latestTimestamp = msgTimestamp;
+                  // Track per-channel activity
+                  metrics.channelActivity.push({
+                    name: channel.name,
+                    messages: messages.length,
+                  });
+
+                  // Track unique users (using global set for cross-channel dedup) and estimate response times
+                  const responseTimes: number[] = [];
+                  let prevTs: number | null = null;
+
+                  for (const msg of messages) {
+                    if (msg.user) globalUserSet.add(msg.user);
+                    const ts = parseFloat(msg.ts);
+                    if (prevTs !== null && msg.user) {
+                      const diffMinutes = Math.abs(prevTs - ts) / 60;
+                      if (diffMinutes < 120) { // Only count gaps < 2 hours as responses
+                        responseTimes.push(diffMinutes);
+                      }
+                    }
+                    prevTs = ts;
                   }
-                }
+
+                  if (responseTimes.length > 0) {
+                    const avgResp = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+                    if (metrics.avgResponseTimeMinutes === null) {
+                      metrics.avgResponseTimeMinutes = avgResp;
+                    } else {
+                      metrics.avgResponseTimeMinutes = (metrics.avgResponseTimeMinutes + avgResp) / 2;
+                    }
+                  }
+
+                  // Track the most recent message timestamp
+                  if (messages.length > 0) {
+                    const msgTimestamp = parseFloat(messages[0].ts);
+                    if (!latestTimestamp || msgTimestamp > latestTimestamp) {
+                      latestTimestamp = msgTimestamp;
+                    }
+                  }
               }
             }
           } catch (e) {
             console.log('[slack-poll] Error fetching history for channel:', channel.id, e);
           }
         }
+
+        // Set unique users from cross-channel deduplicated set
+        metrics.uniqueUsers = globalUserSet.size;
 
         if (latestTimestamp) {
           metrics.lastActivityTimestamp = new Date(latestTimestamp * 1000).toISOString();
@@ -298,10 +340,9 @@ serve(async (req) => {
             message_count: metrics.messageCount,
             active_channels: metrics.activeChannels,
             total_channels: metrics.channelCount,
-            total_members: 0, // TODO: Add users.list API call
-            active_members: 0, // TODO: Add presence tracking
-            files_shared: 0, // TODO: Add files.list API call
-            reactions_count: 0, // TODO: Add reactions tracking
+            unique_users: metrics.uniqueUsers,
+            avg_response_time_minutes: metrics.avgResponseTimeMinutes !== null ? Math.round(metrics.avgResponseTimeMinutes * 10) / 10 : null,
+            channel_activity: metrics.channelActivity,
             // Workspace info
             team_id: metrics.workspaceInfo.teamId,
             team_name: metrics.workspaceInfo.teamName,

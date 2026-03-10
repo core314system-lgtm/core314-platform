@@ -5,28 +5,15 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { supabase } from '../lib/supabase';
 import {
-  Home,
   Layers, 
-  Target,
-  Bell,
   Settings,
   LogOut,
-  BarChart3,
-  Building2,
-  Zap,
   FileText,
-  Sparkles,
   Activity,
-  Globe,
-  Shield,
-  TrendingUp,
-  Code,
-  FileCheck,
-  Headphones,
+  Heart,
   User,
   ChevronDown,
   CreditCard,
-  Brain
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import {
@@ -40,57 +27,22 @@ import {
 interface NavItem {
   path: string;
   label: string;
-  icon: typeof Home;
+  icon: typeof FileText;
   badge?: string;
 }
 
-const getNavItems = (integrationBadge?: string, isAdmin?: boolean, subscriptionTier?: string, canAccessBilling?: boolean): NavItem[] => {
-  // Sidebar contains ONLY product features - account items are in top-right menu
-  const baseItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: Home },
-    { path: '/system-intelligence', label: 'System Intelligence', icon: Brain },
-    { path: '/integrations', label: 'Integrations', icon: Layers, badge: integrationBadge },
-    { path: '/integration-performance', label: 'Integration Performance', icon: BarChart3 },
-    { path: '/system-signals', label: 'System Signals', icon: Activity },
-    { path: '/visualizations', label: 'Visualizations', icon: BarChart3 },
-    { path: '/fusion-details', label: 'Fusion Overview', icon: Zap },
-    // Dashboard Builder hidden from nav for launch - route preserved at /dashboard-builder
-    { path: '/goals', label: 'Goals & KPIs', icon: Target },
-    { path: '/notifications', label: 'Notifications', icon: Bell },
-    { path: '/integration-hub', label: 'Integration Hub', icon: Layers },
+const getNavItems = (_integrationBadge?: string, _isAdmin?: boolean, _subscriptionTier?: string, canAccessBilling?: boolean): NavItem[] => {
+  // Phase 1: Simplified Operational Intelligence navigation
+  const baseItems: NavItem[] = [
+    { path: '/brief', label: 'Operational Brief', icon: FileText },
+    { path: '/signals', label: 'Signal Dashboard', icon: Activity },
+    { path: '/health', label: 'Health Score', icon: Heart },
+    { path: '/integration-manager', label: 'Integrations', icon: Layers },
   ];
 
   // Billing is visible to Org Owners and Org Admins
   if (canAccessBilling) {
     baseItems.push({ path: '/billing', label: 'Billing', icon: CreditCard });
-  }
-  
-  if (subscriptionTier === 'professional' || subscriptionTier === 'enterprise') {
-    baseItems.push(
-      { path: '/advanced-analytics', label: 'Advanced Analytics', icon: TrendingUp },
-      { path: '/optimization-engine', label: 'Optimization Engine', icon: Zap }
-    );
-  }
-  
-  if (subscriptionTier === 'enterprise') {
-    baseItems.push(
-      { path: '/api-access', label: 'API Access', icon: Code },
-      { path: '/audit-trails', label: 'Audit Trails', icon: FileCheck },
-      { path: '/account-support', label: 'Account Support', icon: Headphones }
-    );
-  }
-  
-  if (isAdmin) {
-    baseItems.push(
-      { path: '/admin/automation-rules-manager', label: 'Automation Rules', icon: Zap },
-      { path: '/admin/automation-logs', label: 'Automation Logs', icon: FileText },
-      { path: '/admin/ai-narratives', label: 'AI Narratives', icon: Sparkles },
-      { path: '/admin/simulations', label: 'Simulations', icon: Zap },
-      { path: '/admin/optimizations', label: 'Optimizations', icon: Activity },
-      { path: '/admin/insight-hub', label: 'Global Insights', icon: Globe },
-      { path: '/admin/governance', label: 'AI Governance & Ethics', icon: Shield },
-      { path: '/admin/organizations', label: 'Organizations', icon: Building2 }
-    );
   }
   
   return baseItems;
@@ -185,7 +137,7 @@ export function MainLayout() {
                 Core<span className="text-sky-500">314</span>
               </h1>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 ml-11">Operations Control</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 ml-11">Operational Intelligence</p>
           </div>
           
           <nav className="flex-1 overflow-y-auto pb-4 px-3 py-4 space-y-1">
