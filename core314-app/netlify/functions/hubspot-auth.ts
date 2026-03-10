@@ -1,17 +1,18 @@
-const { createClient } = require("@supabase/supabase-js");
+import type { Handler, HandlerEvent } from "@netlify/functions";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * HubSpot OAuth Authorization Endpoint
  * Redirects user to HubSpot OAuth authorization screen.
  *
  * Query params:
- *   - user_id (required): The authenticated user's ID to associate the connection
+ *   - access_token: The user's Supabase session token (validated server-side)
  *
  * Environment variables:
  *   - HUBSPOT_CLIENT_ID
  *   - HUBSPOT_REDIRECT_URI (default: https://core314.com/auth/hubspot/callback)
  */
-exports.handler = async (event) => {
+export const handler: Handler = async (event: HandlerEvent) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -47,10 +48,9 @@ exports.handler = async (event) => {
 
     // Extract user_id securely: prefer access_token validation over raw user_id
     const params = event.queryStringParameters || {};
-    let userId = null;
+    let userId: string | null = null;
 
     // Priority 1: Validate access_token query param (passed from frontend redirect)
-    // This is the secure path - the frontend passes the Supabase session token
     const accessToken = params.access_token;
     if (accessToken) {
       const supabaseUrl =
@@ -91,7 +91,8 @@ exports.handler = async (event) => {
         statusCode: 401,
         headers,
         body: JSON.stringify({
-          error: "Authentication required. Provide a valid access_token or Bearer token.",
+          error:
+            "Authentication required. Provide a valid access_token or Bearer token.",
         }),
       };
     }

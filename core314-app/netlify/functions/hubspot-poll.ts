@@ -1,4 +1,5 @@
-const { createClient } = require("@supabase/supabase-js");
+import type { Handler, HandlerEvent } from "@netlify/functions";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * HubSpot Data Ingestion & Signal Mapping
@@ -14,9 +15,43 @@ const { createClient } = require("@supabase/supabase-js");
  *   - SUPABASE_SERVICE_ROLE_KEY
  */
 
+// ---- Types ----
+
+interface HubSpotConnection {
+  id: string;
+  user_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string;
+  user_integration_id: string | null;
+  hubspot_portal_id: string | null;
+  consecutive_failures?: number;
+}
+
+interface HubSpotObject {
+  id: string;
+  properties: Record<string, string | null>;
+}
+
+interface HubSpotListResponse {
+  results: HubSpotObject[];
+}
+
+interface SignalRecord {
+  user_id: string;
+  signal_type: string;
+  severity: string;
+  confidence: number;
+  description: string;
+  source_integration: string;
+  signal_data: string;
+  detected_at: string;
+  is_active: boolean;
+}
+
 // ---- Helpers ----
 
-function getSupabase() {
+function getSupabase(): SupabaseClient {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing Supabase configuration");
@@ -25,7 +60,10 @@ function getSupabase() {
   });
 }
 
-async function ensureFreshToken(supabase, connection) {
+async function ensureFreshToken(
+  supabase: SupabaseClient,
+  connection: HubSpotConnection
+): Promise<string> {
   const expiresAt = new Date(connection.token_expires_at);
   const now = new Date();
   // Refresh if expiring within 5 minutes
@@ -33,7 +71,9 @@ async function ensureFreshToken(supabase, connection) {
     return connection.access_token;
   }
 
-  console.log(`[hubspot-poll] Token expiring soon for user ${connection.user_id}, refreshing...`);
+  console.log(
+    `[hubspot-poll] Token expiring soon for user ${connection.user_id}, refreshing...`
+  );
 
   const clientId = process.env.HUBSPOT_CLIENT_ID;
   const clientSecret = process.env.HUBSPOT_CLIENT_SECRET;
@@ -58,7 +98,9 @@ async function ensureFreshToken(supabase, connection) {
   }
 
   const data = await res.json();
-  const newExpiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+  const newExpiresAt = new Date(
+    Date.now() + data.expires_in * 1000
+  ).toISOString();
 
   // Update both tables
   await supabase
@@ -86,7 +128,11 @@ async function ensureFreshToken(supabase, connection) {
   return data.access_token;
 }
 
-async function hubspotGet(accessToken, endpoint, params = {}) {
+async function hubspotGet(
+  accessToken: string,
+  endpoint: string,
+  params: Record<string, string | number> = {}
+): Promise<HubSpotListResponse> {
   const url = new URL(`https://api.hubapi.com${endpoint}`);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, String(v));
@@ -103,13 +149,20 @@ async function hubspotGet(accessToken, endpoint, params = {}) {
 
 // ---- Signal Detection Logic ----
 
-function detectDealSignals(deals, userId) {
-  const signals = [];
+function detectDealSignals(
+  deals: HubSpotObject[],
+  userId: string
+): SignalRecord[] {
+  const signals: SignalRecord[] = [];
   const now = new Date();
 
   // Group deals by stage
-  const stageGroups = {};
-  const stalledDeals = [];
+  const stageGroups: Record<string, HubSpotObject[]> = {};
+  const stalledDeals: Array<{
+    deal: HubSpotObject;
+    daysSinceUpdate: number;
+    amount: number;
+  }> = [];
   let totalValue = 0;
   let closedWonCount = 0;
   let totalDeals = 0;
@@ -121,7 +174,7 @@ function detectDealSignals(deals, userId) {
     if (!stageGroups[stage]) stageGroups[stage] = [];
     stageGroups[stage].push(deal);
 
-    const amount = parseFloat(props.amount) || 0;
+    const amount = parseFloat(props.amount || "0") || 0;
     totalValue += amount;
 
     if (stage === "closedwon") closedWonCount++;
@@ -130,11 +183,7 @@ function detectDealSignals(deals, userId) {
     const lastModified = props.hs_lastmodifieddate
       ? new Date(props.hs_lastmodifieddate)
       : null;
-    if (
-      lastModified &&
-      stage !== "closedwon" &&
-      stage !== "closedlost"
-    ) {
+    if (lastModified && stage !== "closedwon" && stage !== "closedlost") {
       const daysSinceUpdate =
         (now.getTime() - lastModified.getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceUpdate > 5) {
@@ -169,7 +218,8 @@ function detectDealSignals(deals, userId) {
 
   // Signal: Pipeline Slowdown (low close rate)
   if (totalDeals >= 5) {
-    const closeRate = totalDeals > 0 ? (closedWonCount / totalDeals) * 100 : 0;
+    const closeRate =
+      totalDeals > 0 ? (closedWonCount / totalDeals) * 100 : 0;
     if (closeRate < 20) {
       signals.push({
         user_id: userId,
@@ -196,8 +246,11 @@ function detectDealSignals(deals, userId) {
   return signals;
 }
 
-function detectContactSignals(contacts, userId) {
-  const signals = [];
+function detectContactSignals(
+  contacts: HubSpotObject[],
+  userId: string
+): SignalRecord[] {
+  const signals: SignalRecord[] = [];
   const now = new Date();
 
   // Check for recent contact surge (many contacts created recently)
@@ -231,8 +284,11 @@ function detectContactSignals(contacts, userId) {
   return signals;
 }
 
-function detectCompanySignals(companies, userId) {
-  const signals = [];
+function detectCompanySignals(
+  companies: HubSpotObject[],
+  userId: string
+): SignalRecord[] {
+  const signals: SignalRecord[] = [];
   const now = new Date();
 
   // Check for recently updated companies
@@ -268,8 +324,8 @@ function detectCompanySignals(companies, userId) {
 
 // ---- Main Handler ----
 
-exports.handler = async (event) => {
-  const headers = {
+export const handler: Handler = async (event: HandlerEvent) => {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -290,7 +346,8 @@ exports.handler = async (event) => {
 
   try {
     // Authentication: require either internal API key or valid user JWT
-    const authHeader = event.headers.authorization || event.headers.Authorization;
+    const authHeader =
+      event.headers.authorization || event.headers.Authorization;
     const internalApiKey = process.env.HUBSPOT_INTERNAL_API_KEY;
 
     let isAuthorized = false;
@@ -303,11 +360,15 @@ exports.handler = async (event) => {
     // Check for valid Supabase user JWT
     if (!isAuthorized && authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
-      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+      const supabaseUrl =
+        process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+      const supabaseAnonKey =
+        process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
       if (supabaseUrl && supabaseAnonKey) {
         const anonClient = createClient(supabaseUrl, supabaseAnonKey);
-        const { data: { user } } = await anonClient.auth.getUser(token);
+        const {
+          data: { user },
+        } = await anonClient.auth.getUser(token);
         if (user) isAuthorized = true;
       }
     }
@@ -323,7 +384,7 @@ exports.handler = async (event) => {
     const supabase = getSupabase();
 
     // Parse optional user_id filter
-    let targetUserId = null;
+    let targetUserId: string | null = null;
     try {
       const body = JSON.parse(event.body || "{}");
       targetUserId = body.user_id || null;
@@ -334,7 +395,9 @@ exports.handler = async (event) => {
     // Fetch active HubSpot connections
     let query = supabase
       .from("hubspot_connections")
-      .select("id, user_id, access_token, refresh_token, token_expires_at, user_integration_id, hubspot_portal_id");
+      .select(
+        "id, user_id, access_token, refresh_token, token_expires_at, user_integration_id, hubspot_portal_id"
+      );
 
     if (targetUserId) {
       query = query.eq("user_id", targetUserId);
@@ -347,7 +410,9 @@ exports.handler = async (event) => {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: "Failed to fetch HubSpot connections" }),
+        body: JSON.stringify({
+          error: "Failed to fetch HubSpot connections",
+        }),
       };
     }
 
@@ -366,9 +431,17 @@ exports.handler = async (event) => {
       `[hubspot-poll] Polling ${connections.length} HubSpot connection(s)`
     );
 
-    const results = [];
+    const results: Array<{
+      user_id: string;
+      success: boolean;
+      contacts?: number;
+      deals?: number;
+      companies?: number;
+      signals_detected?: number;
+      error?: string;
+    }> = [];
 
-    for (const conn of connections) {
+    for (const conn of connections as HubSpotConnection[]) {
       try {
         // Ensure token is fresh
         const accessToken = await ensureFreshToken(supabase, conn);
@@ -376,17 +449,23 @@ exports.handler = async (event) => {
         // Mark as syncing
         await supabase
           .from("hubspot_connections")
-          .update({ sync_status: "syncing", updated_at: new Date().toISOString() })
+          .update({
+            sync_status: "syncing",
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", conn.id);
 
         // Pull CRM data
-        console.log(`[hubspot-poll] Fetching CRM data for user ${conn.user_id}`);
+        console.log(
+          `[hubspot-poll] Fetching CRM data for user ${conn.user_id}`
+        );
 
         const [contactsRes, dealsRes, companiesRes] = await Promise.all([
           hubspotGet(accessToken, "/crm/v3/objects/contacts", { limit: 100 }),
           hubspotGet(accessToken, "/crm/v3/objects/deals", {
             limit: 100,
-            properties: "dealname,dealstage,amount,closedate,hs_lastmodifieddate,pipeline",
+            properties:
+              "dealname,dealstage,amount,closedate,hs_lastmodifieddate,pipeline",
           }),
           hubspotGet(accessToken, "/crm/v3/objects/companies", {
             limit: 100,
@@ -403,7 +482,13 @@ exports.handler = async (event) => {
         );
 
         // Store raw events in integration_events for the signal detection engine
-        const events = [];
+        const events: Array<{
+          user_id: string;
+          integration_id: string | null;
+          event_type: string;
+          event_data: string;
+          created_at: string;
+        }> = [];
 
         if (deals.length > 0) {
           events.push({
@@ -470,7 +555,7 @@ exports.handler = async (event) => {
           .eq("source_integration", "hubspot");
 
         // Detect new signals
-        const allSignals = [
+        const allSignals: SignalRecord[] = [
           ...detectDealSignals(deals, conn.user_id),
           ...detectContactSignals(contacts, conn.user_id),
           ...detectCompanySignals(companies, conn.user_id),
@@ -528,7 +613,8 @@ exports.handler = async (event) => {
           companies: companies.length,
           signals_detected: allSignals.length,
         });
-      } catch (err) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         console.error(
           `[hubspot-poll] Error polling for user ${conn.user_id}:`,
           err
@@ -539,7 +625,7 @@ exports.handler = async (event) => {
           .from("hubspot_connections")
           .update({
             sync_status: "error",
-            sync_error: err.message,
+            sync_error: message,
             updated_at: new Date().toISOString(),
           })
           .eq("id", conn.id);
@@ -548,7 +634,7 @@ exports.handler = async (event) => {
           await supabase
             .from("user_integrations")
             .update({
-              error_message: err.message,
+              error_message: message,
               last_error_at: new Date().toISOString(),
               consecutive_failures: (conn.consecutive_failures || 0) + 1,
               updated_at: new Date().toISOString(),
@@ -559,7 +645,7 @@ exports.handler = async (event) => {
         results.push({
           user_id: conn.user_id,
           success: false,
-          error: err.message,
+          error: message,
         });
       }
     }

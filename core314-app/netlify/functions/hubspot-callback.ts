@@ -1,4 +1,5 @@
-const { createClient } = require("@supabase/supabase-js");
+import type { Handler, HandlerEvent } from "@netlify/functions";
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * HubSpot OAuth Callback Handler
@@ -15,8 +16,8 @@ const { createClient } = require("@supabase/supabase-js");
  *   - SUPABASE_URL or VITE_SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
  */
-exports.handler = async (event) => {
-  const headers = {
+export const handler: Handler = async (event: HandlerEvent) => {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
   };
@@ -43,7 +44,7 @@ exports.handler = async (event) => {
     }
 
     // Decode state to get user_id
-    let stateData;
+    let stateData: { user_id?: string };
     try {
       stateData = JSON.parse(Buffer.from(state, "base64").toString("utf8"));
     } catch {
@@ -80,7 +81,9 @@ exports.handler = async (event) => {
     }
 
     // Exchange authorization code for tokens
-    console.log(`[hubspot-callback] Exchanging code for tokens, user: ${userId}`);
+    console.log(
+      `[hubspot-callback] Exchanging code for tokens, user: ${userId}`
+    );
 
     const tokenResponse = await fetch(
       "https://api.hubapi.com/oauth/v1/token",
@@ -129,7 +132,7 @@ exports.handler = async (event) => {
     ).toISOString();
 
     // Get HubSpot portal ID via access token info
-    let portalId = null;
+    let portalId: string | null = null;
     try {
       const tokenInfoRes = await fetch(
         `https://api.hubapi.com/oauth/v1/access-tokens/${access_token}`
@@ -138,8 +141,12 @@ exports.handler = async (event) => {
         const tokenInfo = await tokenInfoRes.json();
         portalId = tokenInfo.hub_id ? String(tokenInfo.hub_id) : null;
       }
-    } catch (err) {
-      console.warn("[hubspot-callback] Could not fetch portal ID:", err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        "[hubspot-callback] Could not fetch portal ID:",
+        message
+      );
     }
 
     // Initialize Supabase service client
@@ -189,7 +196,7 @@ exports.handler = async (event) => {
       .eq("integration_id", registryId)
       .maybeSingle();
 
-    let userIntegrationId;
+    let userIntegrationId: string;
 
     if (existingIntegration) {
       // Update existing integration
