@@ -16,14 +16,14 @@ const steps = [
     number: '02',
     icon: Eye,
     title: 'Core314 Monitors Continuously',
-    desc: 'Once connected, Core314 begins continuously monitoring your systems for operational signals. It watches deal velocity, communication patterns, financial activity, and more \u2014 without disrupting your team.',
+    desc: 'Once connected, Core314 begins continuously monitoring your systems for operational signals. It watches deal velocity, communication patterns, financial activity, and more — without disrupting your team.',
     details: ['Deal pipeline changes', 'Invoice and payment patterns', 'Team communication activity', 'Cross-system correlations'],
   },
   {
     number: '03',
     icon: Brain,
     title: 'Signals Are Detected',
-    desc: 'Core314 identifies meaningful operational signals across your connected systems. These are not generic alerts \u2014 they are specific patterns that indicate something important is happening inside your business.',
+    desc: 'Core314 identifies meaningful operational signals across your connected systems. These are not generic alerts — they are specific patterns that indicate something important is happening inside your business.',
     details: ['Stalled deals and pipeline risks', 'Invoice aging anomalies', 'Communication escalation patterns', 'Revenue velocity changes'],
   },
   {
@@ -31,7 +31,7 @@ const steps = [
     icon: FileText,
     title: 'Operational Briefs Are Generated',
     desc: 'Instead of raw data or dashboards, Core314 generates AI-powered Operational Briefs. Each brief explains what is happening, analyzes business impact, and provides specific recommended actions for leadership.',
-    details: ['Operational Health Score (0\u2013100)', 'Detected signals summary', 'Business impact narrative', 'Prioritized action items'],
+    details: ['Operational Health Score (0–100)', 'Detected signals summary', 'Business impact narrative', 'Prioritized action items'],
   },
   {
     number: '05',
