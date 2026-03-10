@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { createCheckoutSession } from '../services/stripe';
 import { Sparkles, TrendingUp, Zap, X } from 'lucide-react';
-import { ADDONS, formatMonthlyPrice } from '../../../shared/pricing';
+import { formatMonthlyPrice } from '../../../shared/pricing';
 
 interface AddOnCTAProps {
   type: 'integration_limit' | 'premium_analytics' | 'advanced_fusion_ai' | 'dashboard_footer';
@@ -64,11 +64,8 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
   }
 
   if (type === 'integration_limit') {
-    const isStarter = subscription.tier === 'starter';
-    const priceId = isStarter 
-      ? import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_STARTER_ADDON
-      : import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_PRO_ADDON;
-    const price = formatMonthlyPrice(isStarter ? ADDONS.integrations.starter.monthly : ADDONS.integrations.pro.monthly);
+    const priceId = import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_ADDON;
+    const price = formatMonthlyPrice(49);
 
     return (
       <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
@@ -132,7 +129,7 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatMonthlyPrice(ADDONS.analytics.premium.monthly)}</p>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatMonthlyPrice(99)}</p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Advanced reporting & insights</p>
             </div>
             <Button
@@ -173,7 +170,7 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatMonthlyPrice(ADDONS.ai.advancedFusion.monthly)}</p>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatMonthlyPrice(199)}</p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Enhanced AI capabilities</p>
             </div>
             <Button
