@@ -17,6 +17,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl } from '../lib/supabase';
+import { useSearchParams } from 'react-router-dom';
 
 interface IntegrationInfo {
   id: string;
@@ -51,10 +52,25 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
 
 export function IntegrationManager() {
   const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationInfo[]>([]);
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
+
+  // Check for OAuth callback success
+  useEffect(() => {
+    const hubspotStatus = searchParams.get('hubspot');
+    if (hubspotStatus === 'connected') {
+      setConnectionSuccess('hubspot');
+      // Clean up URL params
+      searchParams.delete('hubspot');
+      setSearchParams(searchParams, { replace: true });
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setConnectionSuccess(null), 5000);
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -96,6 +112,14 @@ export function IntegrationManager() {
     setConnecting(serviceName);
 
     try {
+      // HubSpot uses dedicated Netlify function for OAuth
+      if (serviceName === 'hubspot') {
+        // Redirect to HubSpot OAuth via Netlify function
+        window.location.href = `/.netlify/functions/hubspot-auth?user_id=${profile.id}`;
+        return;
+      }
+
+      // Other integrations use Supabase Edge Function
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) throw new Error('No session');
@@ -160,6 +184,20 @@ export function IntegrationManager() {
           Connect your business tools to enable operational intelligence
         </p>
       </div>
+
+      {/* Connection Success Banner */}
+      {connectionSuccess && (
+        <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                {connectionSuccess === 'hubspot' ? 'HubSpot' : connectionSuccess} connected successfully! Core314 will begin analyzing your data shortly.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Connection Status Summary */}
       <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200 dark:border-indigo-800">

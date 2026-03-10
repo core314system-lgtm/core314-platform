@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
-import { Layers } from 'lucide-react';
+import { Layers, Briefcase, RefreshCw, Clock, AlertCircle } from 'lucide-react';
 
 interface AdminIntegrationRecord {
   id: string;
@@ -34,14 +34,41 @@ interface IntegrationStats {
   pending: number;
 }
 
+interface HubSpotConnection {
+  id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string | null;
+  hubspot_portal_id: string | null;
+  sync_status: string;
+  sync_error: string | null;
+  last_sync_at: string | null;
+  contacts_synced: number;
+  deals_synced: number;
+  companies_synced: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface HubSpotStats {
+  total: number;
+  syncing: number;
+  success: number;
+  error: number;
+  pending: number;
+}
+
 export function IntegrationTracking() {
   const [integrations, setIntegrations] = useState<AdminIntegrationRecord[]>([]);
   const [stats, setStats] = useState<IntegrationStats>({ total: 0, active: 0, inactive: 0, error: 0, pending: 0 });
+  const [hubspotConnections, setHubspotConnections] = useState<HubSpotConnection[]>([]);
+  const [hubspotStats, setHubspotStats] = useState<HubSpotStats>({ total: 0, syncing: 0, success: 0, error: 0, pending: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchIntegrations();
+    fetchHubSpotConnections();
   }, []);
 
   const fetchIntegrations = async () => {
@@ -79,6 +106,29 @@ export function IntegrationTracking() {
     }
   };
 
+  const fetchHubSpotConnections = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch('/.netlify/functions/admin-hubspot-connections', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHubspotConnections(data.connections || []);
+        setHubspotStats(data.stats || { total: 0, syncing: 0, success: 0, error: 0, pending: 0 });
+      }
+    } catch (err) {
+      console.error('Error fetching HubSpot connections:', err);
+    }
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -89,6 +139,21 @@ export function IntegrationTracking() {
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'inactive':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    }
+  };
+
+  const getSyncBadgeColor = (status: string) => {
+    switch (status) {
+      case 'success':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'syncing':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'error':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
@@ -169,6 +234,84 @@ export function IntegrationTracking() {
           </CardContent>
         </Card>
       </div>
+
+      {/* HubSpot Connections Section */}
+      {hubspotConnections.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-orange-500" />
+              HubSpot Connections
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Connected Accounts</p>
+                <p className="text-xl font-bold">{hubspotStats.total}</p>
+              </div>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Syncing Successfully</p>
+                <p className="text-xl font-bold text-green-600">{hubspotStats.success}</p>
+              </div>
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Sync Errors</p>
+                <p className="text-xl font-bold text-red-600">{hubspotStats.error}</p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Pending Setup</p>
+                <p className="text-xl font-bold text-blue-600">{hubspotStats.pending}</p>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Portal ID</TableHead>
+                  <TableHead>Sync Status</TableHead>
+                  <TableHead>Last Sync</TableHead>
+                  <TableHead>Contacts</TableHead>
+                  <TableHead>Deals</TableHead>
+                  <TableHead>Companies</TableHead>
+                  <TableHead>Error</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {hubspotConnections.map((conn) => (
+                  <TableRow key={conn.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{conn.user_email}</div>
+                        {conn.user_name && (
+                          <div className="text-xs text-gray-500">{conn.user_name}</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{conn.hubspot_portal_id || '-'}</TableCell>
+                    <TableCell>
+                      <Badge className={getSyncBadgeColor(conn.sync_status)}>
+                        {conn.sync_status === 'syncing' && <RefreshCw className="h-3 w-3 mr-1 animate-spin" />}
+                        {conn.sync_status === 'success' && <Clock className="h-3 w-3 mr-1" />}
+                        {conn.sync_status === 'error' && <AlertCircle className="h-3 w-3 mr-1" />}
+                        {conn.sync_status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {conn.last_sync_at ? new Date(conn.last_sync_at).toLocaleString() : 'Never'}
+                    </TableCell>
+                    <TableCell>{conn.contacts_synced}</TableCell>
+                    <TableCell>{conn.deals_synced}</TableCell>
+                    <TableCell>{conn.companies_synced}</TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {conn.sync_error || '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
