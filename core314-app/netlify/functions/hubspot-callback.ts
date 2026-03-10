@@ -69,7 +69,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     const clientSecret = process.env.HUBSPOT_CLIENT_SECRET;
     const redirectUri =
       process.env.HUBSPOT_REDIRECT_URI ||
-      "https://core314.com/auth/hubspot/callback";
+      "https://app.core314.com/auth/hubspot/callback";
 
     if (!clientId || !clientSecret) {
       console.error("[hubspot-callback] Missing HubSpot OAuth credentials");
