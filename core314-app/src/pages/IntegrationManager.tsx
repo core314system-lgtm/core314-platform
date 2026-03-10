@@ -16,7 +16,7 @@ import {
   Plug,
   Clock,
 } from 'lucide-react';
-import { getSupabaseFunctionUrl } from '../lib/supabase';
+import { getSupabaseFunctionUrl, getSupabaseUrl } from '../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
 
 interface IntegrationInfo {
@@ -129,6 +129,11 @@ export function IntegrationManager() {
       if (!token) throw new Error('No session');
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
+      // Build redirect_uri pointing to the Supabase Edge Function callback,
+      // not the frontend URL. OAuth providers (QuickBooks, Slack, etc.) must
+      // have this exact URI whitelisted in their developer app settings.
+      const supabaseUrl = await getSupabaseUrl();
+      const callbackUri = `${supabaseUrl}/functions/v1/oauth-callback`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -137,7 +142,7 @@ export function IntegrationManager() {
         },
         body: JSON.stringify({
           service_name: serviceName,
-          redirect_uri: `${window.location.origin}/oauth-callback`,
+          redirect_uri: callbackUri,
         }),
       });
 
