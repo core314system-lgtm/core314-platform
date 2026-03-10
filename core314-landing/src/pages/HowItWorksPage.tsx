@@ -1,401 +1,288 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { ArrowRight, Plug, Eye, Brain, FileText, Zap, BarChart3, Shield } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
+const steps = [
+  {
+    number: '01',
+    icon: Plug,
+    title: 'Connect Your Systems',
+    desc: 'Link Core314 to the tools your team already uses. Secure OAuth connections mean no passwords, no agents to install, and no workflow changes. Core314 connects in minutes.',
+    details: ['HubSpot CRM', 'Slack', 'QuickBooks', 'More integrations coming soon'],
+  },
+  {
+    number: '02',
+    icon: Eye,
+    title: 'Core314 Monitors Continuously',
+    desc: 'Once connected, Core314 begins continuously monitoring your systems for operational signals. It watches deal velocity, communication patterns, financial activity, and more \u2014 without disrupting your team.',
+    details: ['Deal pipeline changes', 'Invoice and payment patterns', 'Team communication activity', 'Cross-system correlations'],
+  },
+  {
+    number: '03',
+    icon: Brain,
+    title: 'Signals Are Detected',
+    desc: 'Core314 identifies meaningful operational signals across your connected systems. These are not generic alerts \u2014 they are specific patterns that indicate something important is happening inside your business.',
+    details: ['Stalled deals and pipeline risks', 'Invoice aging anomalies', 'Communication escalation patterns', 'Revenue velocity changes'],
+  },
+  {
+    number: '04',
+    icon: FileText,
+    title: 'Operational Briefs Are Generated',
+    desc: 'Instead of raw data or dashboards, Core314 generates AI-powered Operational Briefs. Each brief explains what is happening, analyzes business impact, and provides specific recommended actions for leadership.',
+    details: ['Operational Health Score (0\u2013100)', 'Detected signals summary', 'Business impact narrative', 'Prioritized action items'],
+  },
+  {
+    number: '05',
+    icon: Zap,
+    title: 'Leadership Takes Action',
+    desc: 'Operational Briefs are delivered to the Command Center and optionally via Slack or email. Leadership reviews the brief, understands the current operational state, and takes action based on AI-generated recommendations.',
+    details: ['Command Center dashboard', 'Slack delivery', 'Email delivery', 'Brief history and trend tracking'],
+  },
+];
+
+const timeline = [
+  { time: 'Day 1', label: 'Connect integrations and begin monitoring', icon: Plug },
+  { time: 'Week 1', label: 'First operational signals detected across systems', icon: Eye },
+  { time: 'Week 2', label: 'AI begins generating Operational Briefs with recommendations', icon: Brain },
+  { time: 'Month 1', label: 'Signal trends and operational patterns become visible', icon: BarChart3 },
+  { time: 'Ongoing', label: 'Continuous intelligence improves as more data flows through', icon: Zap },
+];
+
 export default function HowItWorksPage() {
-  useEffect(() => {
-    document.title = 'How Core314 Works | System Intelligence, Not Guesswork';
-  }, []);
-  const lifecycleSteps = [
-    {
-      step: "1",
-      title: "Connect",
-      desc: "Secure, read-only connections to your existing tools. No disruption. No automation."
-    },
-    {
-      step: "2",
-      title: "Observe",
-      subtitle: "System Calibration Phase",
-      desc: "Core314 discovers metrics, maps relationships, and establishes behavioral baselines.",
-      note: "AI insights and scoring are intentionally locked."
-    },
-    {
-      step: "3",
-      title: "Analyze",
-      subtitle: "Active System Intelligence",
-      desc: "Metrics activate. Dashboards go live. The Global Fusion Score becomes dynamic. AI explanations are grounded in observed behavior."
-    },
-    {
-      step: "4",
-      title: "Predict",
-      desc: "Core314 identifies trends, risks, and early-warning indicators before issues occur."
-    },
-    {
-      step: "5",
-      title: "Act",
-      desc: "Governed automation, self-healing logic, and optimization with full auditability."
-    }
-  ];
-
-  const differentiators = [
-    "Cross-integration behavioral memory",
-    "Temporal learning over time",
-    "Causal understanding of system interactions",
-    "Governed automation with fail-closed safety",
-    "Intelligence that compounds, not resets"
-  ];
-
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
 
-      {/* Hero Section */}
-      <section className="pt-24 pb-16 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
+      {/* Hero */}
+      <section className="pt-32 pb-20 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
         <div className="max-w-5xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-6xl font-bold mb-4 text-slate-900"
+            className="text-5xl md:text-6xl font-bold mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            Core314 Is Not Installed — It's Learned
+            How Core314 Works
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-medium"
-            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
-          >
-            True system intelligence requires observation before optimization.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="mt-8 flex justify-center"
-          >
-            <div className="w-16 h-px bg-slate-300" />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* System Learning Timeline */}
-      <section className="py-12 px-4 bg-white">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-sm text-slate-500 text-center mb-8 uppercase tracking-wide" style={{ fontFamily: 'Inter, sans-serif' }}>
-            How Core314 Learns Your System
-          </p>
-          
-          {/* Desktop Timeline (horizontal) */}
-          <div className="hidden md:block">
-            <div className="flex items-center justify-between relative">
-              {/* Connecting line */}
-              <div className="absolute top-3 left-0 right-0 h-px bg-slate-200" />
-              
-              {[
-                { title: 'Connect', desc: 'Securely link your systems' },
-                { title: 'Observe', desc: 'Discover behavior and relationships' },
-                { title: 'Analyze', desc: 'Activate real intelligence' },
-                { title: 'Predict', desc: 'Identify risks and opportunities' },
-                { title: 'Act', desc: 'Execute governed optimization' }
-              ].map((step, index) => (
-                <div key={index} className="flex flex-col items-center relative z-10">
-                  <div className={`w-6 h-6 rounded-full border-2 ${index === 0 ? 'bg-sky-500 border-sky-500' : 'bg-white border-slate-300'}`} />
-                  <p className="mt-3 text-sm font-semibold text-slate-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {step.title}
-                  </p>
-                  <p className="text-xs text-slate-500 text-center max-w-[120px]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    {step.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile Timeline (vertical) */}
-          <div className="md:hidden">
-            <div className="relative pl-8">
-              {/* Connecting line */}
-              <div className="absolute top-0 bottom-0 left-3 w-px bg-slate-200" />
-              
-              {[
-                { title: 'Connect', desc: 'Securely link your systems' },
-                { title: 'Observe', desc: 'Discover behavior and relationships' },
-                { title: 'Analyze', desc: 'Activate real intelligence' },
-                { title: 'Predict', desc: 'Identify risks and opportunities' },
-                { title: 'Act', desc: 'Execute governed optimization' }
-              ].map((step, index) => (
-                <div key={index} className="flex items-start gap-4 mb-6 last:mb-0 relative">
-                  <div className={`absolute left-[-20px] w-6 h-6 rounded-full border-2 ${index === 0 ? 'bg-sky-500 border-sky-500' : 'bg-white border-slate-300'}`} />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {step.title}
-                    </p>
-                    <p className="text-xs text-slate-500" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      {step.desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Transition Bridge */}
-      <section className="pt-12 pb-8 px-4 bg-white">
-        <div className="max-w-3xl mx-auto">
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-lg text-slate-600 text-center"
+            className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Most platforms optimize before they understand. Core314 does the opposite.
+            From connection to intelligence in five steps. Core314 transforms raw business
+            data into clear, actionable Operational Briefs.
           </motion.p>
         </div>
       </section>
 
-      {/* The Problem Section */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
+      {/* Intelligence Lifecycle Steps */}
+      <section className="py-24 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            className="text-4xl font-bold text-center mb-16 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Most "AI Platforms" Fail
-            </h2>
-            <div className="space-y-6 text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              <p>
-                Organizations run on fragmented tools. Dashboards display numbers without context. Alerts fire after damage occurs. AI systems generate conclusions before understanding how a system actually operates.
-              </p>
-              <p className="font-semibold text-slate-800">
-                That is noise, not intelligence.
-              </p>
-              <p>
-                Core314 enforces system-level intelligence where most platforms fail.
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+            The Intelligence Lifecycle
+          </motion.h2>
 
-      {/* Intelligence Lifecycle Section */}
-      <section className="py-16 px-4 bg-slate-50">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              The Core314 Intelligence Lifecycle
-            </h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            {lifecycleSteps.map((item, index) => (
+          <div className="space-y-12">
+            {steps.map((step, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-shadow duration-300"
+                transition={{ delay: 0.1 }}
+                className="bg-slate-50 border border-slate-200 rounded-2xl p-8 md:p-10"
               >
-                <div className="bg-sky-500 text-white rounded-full w-10 h-10 flex items-center justify-center mb-4 text-lg font-bold">
-                  {item.step}
+                <div className="flex items-start gap-6">
+                  <div className="flex-shrink-0">
+                    <div className="bg-sky-500 text-white rounded-xl w-14 h-14 flex items-center justify-center font-bold text-lg"
+                      style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      {step.number}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-3 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                      {step.title}
+                    </h3>
+                    <p className="text-slate-600 leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
+                      {step.desc}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {step.details.map((detail, i) => (
+                        <span key={i} className="px-3 py-1 bg-sky-100 text-sky-700 rounded-full text-sm font-medium">
+                          {detail}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold mb-1 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  {item.title}
-                </h3>
-                {item.subtitle && (
-                  <p className="text-sky-600 text-sm font-medium mb-3">{item.subtitle}</p>
-                )}
-                <p className="text-slate-600 text-sm leading-relaxed mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
-                  {item.desc}
-                </p>
-                {item.note && (
-                  <p className="text-slate-500 text-xs italic">{item.note}</p>
-                )}
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Why Observe Is Required Section */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Core314 Does Not Guess
-            </h2>
-            <div className="space-y-6 text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              <p>
-                Most platforms skip calibration and generate insights immediately. Core314 refuses.
-              </p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 my-8">
-                <p className="font-semibold text-slate-800 mb-4">Until observation completes:</p>
-                <ul className="space-y-2 text-slate-600">
-                  <li className="flex items-center gap-3">
-                    <span className="text-slate-400">•</span>
-                    <span>AI insights remain locked</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="text-slate-400">•</span>
-                    <span>Scores remain at baseline</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="text-slate-400">•</span>
-                    <span>No predictions or optimizations execute</span>
-                  </li>
-                </ul>
-              </div>
-                    <p className="font-semibold text-slate-800">
-                      This is how Core314 protects organizations from false intelligence.
-                    </p>
-                    <p>
-                      Observation is the foundation. Not a limitation.
-                    </p>
-                    <p className="font-semibold text-slate-700 mt-4">
-                      Shortcut AI optimizes confidence — not correctness.
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-            </section>
-
-            {/* What You See During Observe */}
-            <section className="py-16 px-4 bg-slate-50">
-              <div className="max-w-3xl mx-auto">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                >
-                  <h2 className="text-3xl md:text-4xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-                    What You See During Observe
-                  </h2>
-                  <p className="text-lg text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    During the Observe phase, Core314 actively captures signals, establishes baselines, and begins identifying stability and variance. Progress is visible — conclusions are simply withheld until evidence is sufficient.
-                  </p>
-                </motion.div>
-              </div>
-            </section>
-
-            {/* Pricing Alignment Section */}
-      <section className="py-16 px-4 bg-slate-50">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Pricing Aligned to System Maturity
-            </h2>
-            <div className="space-y-4 mb-8">
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
-                <p className="font-semibold text-slate-800">
-                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Analyze (Pro)</Link>
-                  <span className="text-slate-600 font-normal ml-2">— Live intelligence, scoring, and AI explanations. Recommended starting point for most teams.</span>
-                </p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
-                <p className="font-semibold text-slate-800">
-                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Observe (Starter)</Link>
-                  <span className="text-slate-600 font-normal ml-2">— Read-only visibility mode for teams that prefer to start with system calibration before activating intelligence.</span>
-                </p>
-              </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
-                <p className="font-semibold text-slate-800">
-                  <Link to="/pricing" className="text-sky-600 hover:text-sky-700">Predict & Act</Link>
-                  <span className="text-slate-600 font-normal ml-2">— Forecasting, autonomous optimization, and governance</span>
-                </p>
-              </div>
-            </div>
-                        <div className="text-lg text-slate-600 leading-relaxed mb-6" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          <p className="mb-2">Core314 does not sell features.</p>
-                          <p className="font-semibold text-slate-800">Intelligence unlocks when your system is ready.</p>
-                        </div>
-                        <p className="text-base text-slate-500 mb-10" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          Lower tiers are intentionally observational to prevent premature conclusions.
-                        </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/pricing"
-                className="inline-block px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg font-semibold text-center transition-all duration-300 border border-slate-300"
-                style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
-              >
-                View Pricing
-              </Link>
-              <Link
-                to="/signup?plan=starter"
-                className="inline-block px-8 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-center shadow-lg hover:shadow-xl transition-all duration-300"
-                style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
-              >
-                Begin System Calibration
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Why Core314 Is Different Section */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Why Core314 Can't Be Replicated
-            </h2>
-            <div className="space-y-4">
-              {differentiators.map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center gap-4 text-lg text-slate-700"
-                  style={{ fontFamily: 'Inter, sans-serif' }}
-                >
-                  <div className="w-2 h-2 bg-sky-500 rounded-full flex-shrink-0" />
-                  <span>{item}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Final CTA Section */}
-      <section className="py-16 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
-        <div className="max-w-3xl mx-auto text-center">
+      {/* System Learning Timeline */}
+      <section className="py-24 px-4 bg-slate-50">
+        <div className="max-w-4xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold mb-4 text-slate-900"
+            className="text-4xl font-bold text-center mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            Ready to Begin?
+            System Learning Timeline
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-xl text-slate-600 text-center mb-16 max-w-2xl mx-auto"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            Core314 gets smarter over time. Here is what to expect as the system learns your operations.
+          </motion.p>
+
+          <div className="space-y-6">
+            {timeline.map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center gap-6 bg-white border border-slate-200 rounded-xl p-6"
+              >
+                <div className="bg-sky-100 rounded-xl w-12 h-12 flex items-center justify-center flex-shrink-0">
+                  <item.icon className="h-6 w-6 text-sky-600" />
+                </div>
+                <div>
+                  <span className="text-sky-600 font-bold text-sm uppercase tracking-wide">{item.time}</span>
+                  <p className="text-slate-700 font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>{item.label}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Alignment */}
+      <section className="py-24 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl font-bold text-center mb-6 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
+          >
+            Choose Your Intelligence Level
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-xl text-slate-600 text-center mb-16 max-w-2xl mx-auto"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            Each tier builds on the previous one, giving you deeper operational intelligence as your needs grow.
+          </motion.p>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[
+              {
+                icon: Eye,
+                name: 'Monitor',
+                price: '$99/mo',
+                focus: 'Early Warning',
+                desc: 'Connect your systems and start detecting operational signals. Get your first Operational Briefs and Health Score.',
+              },
+              {
+                icon: Brain,
+                name: 'Intelligence',
+                price: '$299/mo',
+                focus: 'Understand',
+                desc: 'Unlimited AI Operational Briefs, Command Center access, signal trend analysis, and executive brief delivery.',
+                popular: true,
+              },
+              {
+                icon: BarChart3,
+                name: 'Command Center',
+                price: '$799/mo',
+                focus: 'Continuous Intelligence',
+                desc: 'Advanced signal analytics, operational pattern detection, weekly executive reports, and early access to new integrations.',
+              },
+              {
+                icon: Shield,
+                name: 'Enterprise',
+                price: 'Custom',
+                focus: 'Infrastructure',
+                desc: 'Custom integrations, dedicated onboarding, priority signal processing, SLA guarantees, and a dedicated success manager.',
+              },
+            ].map((tier, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className={`rounded-2xl p-6 border ${tier.popular ? 'border-sky-400 bg-sky-50 shadow-lg' : 'border-slate-200 bg-white'}`}
+              >
+                {tier.popular && (
+                  <span className="inline-block px-3 py-1 bg-sky-500 text-white text-xs font-bold rounded-full mb-3">
+                    Most Popular
+                  </span>
+                )}
+                <div className="bg-sky-100 rounded-xl w-10 h-10 flex items-center justify-center mb-4">
+                  <tier.icon className="h-5 w-5 text-sky-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-1" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  {tier.name}
+                </h3>
+                <p className="text-sky-600 font-bold text-lg mb-1">{tier.price}</p>
+                <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-3">{tier.focus}</p>
+                <p className="text-slate-600 text-sm leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {tier.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <Link
+              to="/pricing"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+            >
+              View Full Pricing
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24 px-4 bg-gradient-to-br from-slate-50 via-sky-50/30 to-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl md:text-5xl font-bold mb-6 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
+          >
+            Ready to See Inside Your Operations?
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -405,7 +292,8 @@ export default function HowItWorksPage() {
             className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Most teams begin with Analyze (Pro), where Core314's operational intelligence engine is active and continuously evaluating system health. Teams that prefer to start in read-only visibility mode may begin with Observe (Starter) before advancing into full analysis.
+            Connect your systems and receive your first Operational Brief.
+            Trial begins after your first integration is connected.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -416,17 +304,18 @@ export default function HowItWorksPage() {
           >
             <Link
               to="/pricing"
-              className="inline-block px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-lg font-semibold transition-all duration-300 border border-slate-300"
+              className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
               style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
             >
-              View Pricing
+              Start Free Trial
+              <ArrowRight className="h-5 w-5" />
             </Link>
             <Link
-              to="/signup?plan=starter"
-              className="inline-block px-8 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+              to="/contact"
+              className="px-10 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg font-semibold text-lg shadow-sm hover:shadow-md transition-all duration-300"
               style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
             >
-              Begin System Calibration
+              Contact Sales
             </Link>
           </motion.div>
         </div>

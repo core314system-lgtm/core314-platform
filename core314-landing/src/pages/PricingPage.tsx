@@ -1,379 +1,476 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Check, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Check, X, ArrowRight, Zap, BarChart3, FileText, Users } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { PRICING, ADDONS, formatPrice } from '../config/pricing';
+import { PRICING, formatPrice } from '../config/pricing';
 
 // ============================================================================
-// PHASE 14.1: PRICING PAGE SOURCE-OF-TRUTH FIX
-// All pricing values are imported from shared/pricing.ts
-// NO inline price literals ($99, $199, etc.) are allowed in this file
+// Core314 Operational Intelligence — Pricing Page
+// All pricing values imported from shared/pricing.ts (single source of truth)
 // ============================================================================
 
 export default function PricingPage() {
-  const [expandedAddons, setExpandedAddons] = useState(false);
-
-    const plans = [
-      {
-        name: 'Observe',
-        label: 'Starter Plan',
-        tierFraming: 'Awareness',
-        subtext: 'Read-only visibility mode for teams that prefer to start with system calibration',
-      price: formatPrice(PRICING.starter.monthly),
-      period: '/mo',
-      description: 'Core314 connects to your tools and begins observing how your organization operates. Dashboards are generated automatically in preview mode while the system identifies metrics and relationships.',
-      features: [
-        `${PRICING.starter.integrations} integrations included`,
-        'Automatic dashboard generation',
-        'Metric discovery & relationship mapping',
-        'Global Fusion Score at baseline',
-        'Email support',
-        '14-day free trial'
-      ],
-      constraints: [
-        'AI analysis not yet active',
-        'Metrics are being discovered, not scored'
-      ],
-      lockedFeatures: [
-        'AI insights',
-        'Scoring variance',
-        'Predictive indicators',
-        'Optimization actions'
-      ],
-      cta: 'Begin System Calibration',
-      link: '/signup?plan=starter',
-      popular: false
+  const plans = [
+    {
+      key: 'monitor' as const,
+      popular: false,
+      isEnterprise: false,
     },
-        {
-          name: 'Analyze',
-          label: 'Pro Plan — Recommended Starting Point',
-          tierFraming: 'Understanding',
-          price: formatPrice(PRICING.pro.monthly),
-      period: '/mo',
-      description: 'Core314 activates real-time intelligence across your integrations. The Global Fusion Score becomes dynamic. Each integration receives its own active dashboard with live metrics and explanations.',
-      features: [
-        `${PRICING.pro.integrations} integrations included`,
-        'Dynamic Global Fusion Score',
-        'AI insights grounded in your data',
-        'Real-time KPI alerts',
-        'Per-integration active dashboards',
-        'Priority support',
-        '14-day free trial'
-      ],
-      constraints: [],
-      cta: 'Start Free Trial',
-      link: '/signup?plan=pro',
-      popular: true
+    {
+      key: 'intelligence' as const,
+      popular: true,
+      isEnterprise: false,
     },
-        {
-          name: 'Predict & Act',
-          label: 'Predictive Intelligence + Autonomous Optimization',
-          tierFraming: 'Confidence',
-          price: 'Custom',
-      period: '',
-      description: 'Core314 identifies trends, risks, and emerging inefficiencies before they impact performance. The system moves from insight to execution with corrective actions, optimizations, and self-healing logic.',
-      features: [
-        'Unlimited integrations',
-        'Forecasting & scenario modeling',
-        'Early-warning indicators',
-        'Autonomous optimization with governance',
-        'Full API access',
-        'Dedicated account manager',
-        'Custom SLA'
-      ],
-      constraints: [],
-      cta: 'Contact Sales',
-      link: '/contact?plan=enterprise',
-      popular: false
-    }
+    {
+      key: 'commandCenter' as const,
+      popular: false,
+      isEnterprise: false,
+    },
+    {
+      key: 'enterprise' as const,
+      popular: false,
+      isEnterprise: true,
+    },
   ];
 
-  const addons = [
-    {
-      category: 'Integrations',
-      items: [
-        { name: ADDONS.integrations.starter.description, price: `${formatPrice(ADDONS.integrations.starter.monthly)}/mo each`, description: 'Connect more business apps on Starter plan' },
-        { name: ADDONS.integrations.pro.description, price: `${formatPrice(ADDONS.integrations.pro.monthly)}/mo each`, description: 'Connect more business apps on Pro plan' },
-        { name: ADDONS.integrations.custom.description, price: `${formatPrice(ADDONS.integrations.custom.setup)} setup`, description: 'Build a custom connector' }
-      ]
-    },
-    {
-      category: 'Analytics',
-      items: [
-        { name: ADDONS.analytics.premium.description, price: `${formatPrice(ADDONS.analytics.premium.monthly)}/mo`, description: 'Advanced reporting and insights' },
-        { name: ADDONS.analytics.dataExport.description, price: `${formatPrice(ADDONS.analytics.dataExport.monthly)}/mo`, description: 'Export all your data anytime' }
-      ]
-    },
-    {
-      category: 'AI Modules',
-      items: [
-        { name: ADDONS.ai.advancedFusion.description, price: `${formatPrice(ADDONS.ai.advancedFusion.monthly)}/mo`, description: 'Enhanced AI capabilities' },
-        { name: ADDONS.ai.predictive.description, price: `${formatPrice(ADDONS.ai.predictive.monthly)}/mo`, description: 'Forecast future trends' }
-      ]
-    }
+  const upcomingIntegrations = [
+    { name: 'Salesforce', icon: '☁️' },
+    { name: 'Microsoft Teams', icon: '💬' },
+    { name: 'Jira', icon: '📋' },
+    { name: 'Stripe', icon: '💳' },
+    { name: 'Google Workspace', icon: '📧' },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <Header />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 bg-white">
-        <div className="max-w-7xl mx-auto text-center">
+      {/* ============================================================ */}
+      {/* SECTION 1 — HERO */}
+      {/* ============================================================ */}
+      <section className="pt-32 pb-16 px-4 bg-white">
+        <div className="max-w-4xl mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-5xl md:text-7xl font-bold mb-6 text-slate-900"
+            className="text-4xl md:text-6xl font-bold mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            System Maturity Tiers
+            AI Operational Intelligence for Growing Companies
           </motion.h1>
-                <motion.p
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
-                  className="text-xl text-slate-600 mb-6 max-w-3xl mx-auto"
-                >
-                  Core314™ grows with your organization. Most teams begin with Analyze (Pro), where operational intelligence is active. Teams that prefer read-only visibility may start with Observe (Starter).{' '}
-                  <Link to="/how-it-works" className="text-sky-600 hover:text-sky-700 underline">Learn how it works</Link>.
-                </motion.p>
-                <motion.p
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
-                  className="text-lg text-slate-500 mb-8 max-w-3xl mx-auto leading-relaxed"
-                >
-                  Core314 prices intelligence maturity deliberately. Each tier provides value, but conclusions are only unlocked when evidence supports them.
-                </motion.p>
-              </div>
-            </section>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed"
+          >
+            Core314 connects your business systems, detects operational signals, and generates
+            AI-powered Operational Briefs explaining what is happening inside your company.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          >
+            <Link
+              to="/signup"
+              className="px-8 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold text-lg"
+            >
+              Start 14-Day Operational Intelligence Trial
+            </Link>
+            <Link
+              to="/contact?demo=true"
+              className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 rounded-lg border border-slate-300 hover:border-sky-400 transition-all font-semibold text-lg"
+            >
+              Book Demo
+            </Link>
+          </motion.div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="mt-4 text-sm text-slate-500"
+          >
+            Trial begins after your first integration is connected.
+          </motion.p>
+        </div>
+      </section>
 
-      {/* Pricing Cards */}
+      {/* ============================================================ */}
+      {/* SECTION 2 — PRICING TABLE */}
+      {/* ============================================================ */}
       <section className="py-20 px-4 bg-slate-50">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {plans.map((plan, index) => (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.2, duration: 0.6 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-                className={`relative bg-white rounded-xl p-8 shadow-sm ${
-                  plan.popular 
-                    ? 'border-2 border-sky-500 shadow-lg' 
-                    : 'border border-slate-200'
-                } hover:border-sky-400 transition-all duration-300`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-sky-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </div>
-                )}
-                
-                                <div className="text-center mb-6">
-                                  <h3 className="text-2xl font-bold mb-1 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                                    {plan.name}
-                                  </h3>
-                                  {'tierFraming' in plan && plan.tierFraming && (
-                                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">
-                                      {plan.tierFraming}
-                                    </p>
-                                  )}
-                                  {'label' in plan && plan.label && (
-                                    <p className="text-sky-600 text-sm font-medium mb-1">
-                                      {plan.name === 'Observe' ? (
-                                        <Link to="/how-it-works" className="hover:underline">{plan.label}</Link>
-                                      ) : (
-                                        plan.label
-                                      )}
-                                    </p>
-                                  )}
-                                  {'subtext' in plan && plan.subtext && (
-                                    <p className="text-slate-400 text-xs mb-3">{plan.subtext}</p>
-                                  )}
-                  <p className="text-slate-500 text-sm mb-4">{plan.description}</p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-5xl font-bold text-slate-900">{plan.price}</span>
-                    <span className="text-slate-500">{plan.period}</span>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {plans.map((plan, index) => {
+              const tier = PRICING[plan.key];
+              const isPopular = plan.popular;
+              const isEnterprise = plan.isEnterprise;
+              const price = 'monthly' in tier ? formatPrice(tier.monthly) : 'Custom';
 
-                <ul className="space-y-4 mb-4">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <Check className="h-5 w-5 text-sky-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-slate-600">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {'constraints' in plan && plan.constraints && plan.constraints.length > 0 && (
-                  <div className="mb-4 pt-4 border-t border-slate-100">
-                    <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">This tier is intentionally preparatory:</p>
-                    <ul className="space-y-2">
-                      {plan.constraints.map((constraint: string, i: number) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-slate-500">
-                          <span className="text-slate-400">•</span>
-                          <span>{constraint}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {'lockedFeatures' in plan && plan.lockedFeatures && plan.lockedFeatures.length > 0 && (
-                  <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                    <p className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-2">
-                      <span>🔒</span>
-                      <span>Intelligence Locked Until Calibration Completes</span>
-                    </p>
-                    <ul className="space-y-1">
-                      {plan.lockedFeatures.map((feature: string, i: number) => (
-                        <li key={i} className="text-xs text-slate-400">
-                          • {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {plan.name === 'Observe' && (
-                  <div className="text-center mb-4">
-                    <p className="text-xs text-slate-400 mb-1">
-                      Observe is not intended for long-term use. Intelligence unlocks as calibration completes.
-                    </p>
-                    <p className="text-xs text-sky-600 font-medium">
-                      Most organizations activate Analyze once calibration completes.
-                    </p>
-                  </div>
-                )}
-
-                <Link
-                  to={plan.link}
-                  className={`block w-full py-3 rounded-lg font-semibold text-center transition-all ${
-                    plan.popular
-                      ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-md hover:shadow-lg'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300'
-                  }`}
+              return (
+                <motion.div
+                  key={plan.key}
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.15, duration: 0.6 }}
+                  whileHover={{ y: -5 }}
+                  className={`relative bg-white rounded-xl shadow-sm flex flex-col ${
+                    isPopular
+                      ? 'border-2 border-sky-500 shadow-lg lg:scale-105 lg:z-10'
+                      : 'border border-slate-200'
+                  } hover:border-sky-400 transition-all duration-300`}
                 >
-                  {plan.cta}
-                </Link>
-              </motion.div>
-            ))}
+                  {isPopular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-sky-500 text-white px-4 py-1 rounded-full text-sm font-semibold whitespace-nowrap">
+                      Most Popular
+                    </div>
+                  )}
+
+                  <div className="p-6 flex-1 flex flex-col">
+                    {/* Plan Name & Tagline */}
+                    <div className="text-center mb-6">
+                      <h3
+                        className="text-2xl font-bold mb-2 text-slate-900"
+                        style={{ fontFamily: 'Poppins, sans-serif' }}
+                      >
+                        {tier.name}
+                      </h3>
+                      <p className="text-slate-500 text-sm mb-4 min-h-[40px]">
+                        {tier.tagline}
+                      </p>
+                      <div className="flex items-baseline justify-center gap-1">
+                        <span className="text-4xl font-bold text-slate-900">{price}</span>
+                        {!isEnterprise && (
+                          <span className="text-slate-500">/ month</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                      {tier.description}
+                    </p>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8 flex-1">
+                      {tier.features.map((feature, i) => {
+                        const isHeader = feature.startsWith('Everything in');
+                        return (
+                          <li key={i} className={`flex items-start gap-3 ${isHeader ? 'mb-1' : ''}`}>
+                            {isHeader ? (
+                              <span className="text-sm font-semibold text-sky-600">{feature}</span>
+                            ) : (
+                              <>
+                                <Check className="h-5 w-5 text-sky-500 flex-shrink-0 mt-0.5" />
+                                <span className="text-slate-600 text-sm">{feature}</span>
+                              </>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <Link
+                      to={isEnterprise ? '/contact?plan=enterprise' : `/signup?plan=${plan.key}`}
+                      className={`block w-full py-3 rounded-lg font-semibold text-center transition-all ${
+                        isPopular
+                          ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-md hover:shadow-lg'
+                          : isEnterprise
+                          ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300'
+                      }`}
+                    >
+                      {isEnterprise ? 'Contact Sales' : 'Start Trial'}
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Add-ons Section */}
+      {/* ============================================================ */}
+      {/* SECTION 3 — UPCOMING INTEGRATIONS */}
+      {/* ============================================================ */}
       <section className="py-20 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              Customize Your Core
-            </h2>
-            <p className="text-xl text-slate-600">Expand your capabilities with powerful add-ons</p>
-          </motion.div>
-
-          <button
-            onClick={() => setExpandedAddons(!expandedAddons)}
-            className="w-full max-w-2xl mx-auto mb-8 px-6 py-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-sky-400 transition-all flex items-center justify-between"
-          >
-            <span className="text-lg font-semibold text-slate-900">View Available Add-ons</span>
-            <ChevronDown className={`h-6 w-6 text-slate-600 transition-transform ${expandedAddons ? 'rotate-180' : ''}`} />
-          </button>
-
-          {expandedAddons && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-8"
-            >
-              {addons.map((category, index) => (
-                <motion.div
-                  key={category.category}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-slate-50 border border-slate-200 rounded-xl p-6"
-                >
-                  <h3 className="text-xl font-bold mb-4 text-slate-900">{category.category}</h3>
-                  <div className="space-y-4">
-                    {category.items.map((item, i) => (
-                      <div key={i} className="border-t border-slate-200 pt-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <span className="font-semibold text-slate-900">{item.name}</span>
-                          <span className="text-sky-600 text-sm">{item.price}</span>
-                        </div>
-                        <p className="text-sm text-slate-500">{item.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-20 px-4 bg-slate-50">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto text-center">
           <motion.h2
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl font-bold text-center mb-12 text-slate-900"
+            className="text-3xl md:text-4xl font-bold mb-4 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
-            Frequently Asked Questions
+            Upcoming Integrations
           </motion.h2>
-          
-          <div className="space-y-6">
-            {[
-              {
-                q: 'Can I change plans later?',
-                a: 'Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.'
-              },
-              {
-                q: 'What happens after the free trial?',
-                a: 'After 14 days, you\'ll be charged for your selected plan. You can cancel anytime during the trial with no charges.'
-              },
-              {
-                q: 'Do you offer refunds?',
-                a: 'Yes. Refunds are calculated on a prorated basis according to the number of days and services used during your billing period. Any unused days of service are refunded at the appropriate prorated amount. During your 14-day free trial, you may cancel at any time without incurring charges.'
-              },
-              {
-                q: 'Can I add more integrations?',
-                a: 'Absolutely! You can add integrations starting at $75/month each on the Observe (Starter) tier or $50/month each on the Analyze (Pro) tier. For more than 8 integrations, upgrading to Analyze (Pro) provides the best long-term value.'
-              },
-              {
-                q: 'Why does the Observe (Starter) tier have limited AI features?',
-                a: 'The Observe (Starter) tier is intentionally preparatory. Core314 needs time to discover your metrics, map relationships, and establish baselines before intelligence can be activated. This ensures AI insights are grounded in real data, not assumptions.'
-              }
-            ].map((faq, index) => (
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-lg text-slate-600 mb-12 max-w-2xl mx-auto"
+          >
+            Core314 is expanding its operational intelligence platform with additional integrations.
+          </motion.p>
+
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            {upcomingIntegrations.map((integration, index) => (
               <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                key={integration.name}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white border border-slate-200 rounded-lg p-6 hover:border-sky-400 transition-all shadow-sm"
+                className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg px-5 py-3 hover:border-sky-400 transition-colors"
               >
-                <h3 className="text-lg font-semibold mb-2 text-slate-900">{faq.q}</h3>
-                <p className="text-slate-600">{faq.a}</p>
+                <span className="text-2xl">{integration.icon}</span>
+                <span className="font-medium text-slate-700">{integration.name}</span>
               </motion.div>
             ))}
           </div>
+
+          <p className="text-sm text-slate-500">
+            New integrations automatically enhance operational intelligence signals as they are released.
+          </p>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECTION 4 — BEFORE VS AFTER */}
+      {/* ============================================================ */}
+      <section className="py-20 px-4 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-bold text-center mb-16 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            How Companies Operate Before and After Core314
+          </motion.h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Without Core314 */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-white border border-slate-200 rounded-xl p-8"
+            >
+              <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <X className="h-6 w-6 text-red-500" />
+                Without Core314
+              </h3>
+              <ul className="space-y-4 mb-8">
+                {[
+                  'Sales pipeline issues discovered too late',
+                  'Financial signals buried in accounting reports',
+                  'Slack conversations hiding operational insight',
+                  'Leaders manually reviewing multiple dashboards',
+                  'Operational changes go unnoticed',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="text-red-400 mt-1">&#x2022;</span>
+                    <span className="text-slate-600">{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-slate-200 pt-4">
+                <p className="text-sm font-semibold text-red-600">
+                  Result: Leadership reacts to problems after they happen.
+                </p>
+              </div>
+            </motion.div>
+
+            {/* With Core314 */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-sky-50 border-2 border-sky-200 rounded-xl p-8"
+            >
+              <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Check className="h-6 w-6 text-sky-500" />
+                With Core314
+              </h3>
+              <ul className="space-y-4 mb-8">
+                {[
+                  'Detect stalled deals before revenue drops',
+                  'Identify financial anomalies early',
+                  'Monitor cross-team operational signals',
+                  'Automatically generate Operational Briefs',
+                  'Leadership receives clear recommendations',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <Check className="h-5 w-5 text-sky-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-slate-700">{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="border-t border-sky-200 pt-4">
+                <p className="text-sm font-semibold text-sky-700">
+                  Result: Leadership understands what is happening before problems escalate.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECTION 5 — VALUE EXPLANATION */}
+      {/* ============================================================ */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-bold text-center mb-16 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            What Core314 Actually Does
+          </motion.h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {[
+              {
+                icon: <Zap className="h-8 w-8 text-sky-500" />,
+                title: 'Detect Operational Signals',
+                description:
+                  'Core314 monitors events across your business systems and detects operational changes.',
+              },
+              {
+                icon: <BarChart3 className="h-8 w-8 text-sky-500" />,
+                title: 'Analyze Business Activity',
+                description:
+                  'The platform identifies patterns across sales, financial activity, and team communication.',
+              },
+              {
+                icon: <FileText className="h-8 w-8 text-sky-500" />,
+                title: 'Generate AI Operational Briefs',
+                description:
+                  'Core314 automatically generates operational briefings explaining what is happening.',
+              },
+              {
+                icon: <Users className="h-8 w-8 text-sky-500" />,
+                title: 'Help Leadership Act Faster',
+                description:
+                  'Leadership receives actionable insight instead of manually analyzing dashboards.',
+              },
+            ].map((block, index) => (
+              <motion.div
+                key={block.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-slate-50 border border-slate-200 rounded-xl p-8 hover:border-sky-400 transition-colors"
+              >
+                <div className="mb-4">{block.icon}</div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{block.title}</h3>
+                <p className="text-slate-600">{block.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECTION 6 — ROI */}
+      {/* ============================================================ */}
+      <section className="py-20 px-4 bg-slate-50">
+        <div className="max-w-3xl mx-auto text-center">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-bold mb-12 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            Why Companies Use Core314
+          </motion.h2>
+
+          <div className="space-y-4">
+            {[
+              'Detect stalled deals before revenue drops',
+              'Identify operational bottlenecks early',
+              'Monitor financial health automatically',
+              'Understand operational patterns across systems',
+              'Reduce time spent analyzing dashboards',
+            ].map((bullet, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center gap-4 bg-white border border-slate-200 rounded-lg px-6 py-4 text-left hover:border-sky-400 transition-colors"
+              >
+                <ArrowRight className="h-5 w-5 text-sky-500 flex-shrink-0" />
+                <span className="text-slate-700 font-medium">{bullet}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/* SECTION 7 — FINAL CTA */}
+      {/* ============================================================ */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-bold mb-8 text-slate-900"
+            style={{ fontFamily: 'Poppins, sans-serif' }}
+          >
+            Install Core314 and See What Your Business Is Telling You
+          </motion.h2>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
+          >
+            <Link
+              to="/signup"
+              className="px-8 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all font-semibold text-lg"
+            >
+              Start Trial
+            </Link>
+            <Link
+              to="/contact?demo=true"
+              className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 rounded-lg border border-slate-300 hover:border-sky-400 transition-all font-semibold text-lg"
+            >
+              Book Demo
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-slate-500"
+          >
+            <span>No per-user pricing.</span>
+            <span className="hidden sm:inline">&#x2022;</span>
+            <span>No long-term contracts.</span>
+            <span className="hidden sm:inline">&#x2022;</span>
+            <span>Cancel anytime.</span>
+          </motion.div>
         </div>
       </section>
 

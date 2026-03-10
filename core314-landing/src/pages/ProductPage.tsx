@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Database, Zap, BarChart3, Shield, Network, Eye, Brain, Lock } from 'lucide-react';
+import { Zap, BarChart3, Shield, Brain, FileText, Eye, ArrowRight, MessageSquare, Briefcase, DollarSign } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -19,7 +19,7 @@ export default function ProductPage() {
             className="text-5xl md:text-6xl font-bold mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            The Operations Platform
+            AI Operational Intelligence Platform
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -28,12 +28,14 @@ export default function ProductPage() {
             className="text-xl md:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Core314™ is a system hub that connects your business tools, monitors operations in real time, and helps you maintain control as you scale.
+            Core314 connects your business systems, detects operational signals, and generates
+            AI-powered Operational Briefs that explain what is happening inside your company.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link
               to="/pricing"
@@ -42,11 +44,18 @@ export default function ProductPage() {
             >
               Start Free Trial
             </Link>
+            <Link
+              to="/contact?demo=true"
+              className="px-10 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg font-semibold text-lg shadow-sm hover:shadow-md transition-all duration-300"
+              style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
+            >
+              Book Demo
+            </Link>
           </motion.div>
         </div>
       </section>
 
-      {/* Product Overview Section */}
+      {/* What Core314 Does */}
       <section className="py-24 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -55,56 +64,58 @@ export default function ProductPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-                          System Hub for Operations
-                        </h2>
-                        <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          Core314 acts as the central orchestration layer for your business operations. Instead of managing each tool separately, Core314 provides a unified control point where all your systems connect and communicate.
-                        </p>
-                        <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                          Core314 observes signals, behavioral patterns, and variance across connected systems to build intelligence over time.
-                        </p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+              Operational Intelligence, Not Another Dashboard
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Core314 is not a BI tool or monitoring platform. It is an AI-powered operational
+              intelligence layer that continuously observes your business systems and produces
+              clear, written explanations of what is happening.
+            </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-slate-50 border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
-                <Network className="h-7 w-7 text-sky-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Central Control Point
-              </h3>
-              <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Connect your CRM, support tools, billing systems, and other business applications to a single platform. Core314 normalizes data across tools and provides a unified view of your operations.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-slate-50 border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
-                <Zap className="h-7 w-7 text-sky-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Real-Time Data Flow
-              </h3>
-              <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Data flows between your connected systems in real time. When something changes in one tool, Core314 captures it immediately and makes that information available across your operational view.
-              </p>
-            </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Eye,
+                title: 'Continuous Monitoring',
+                desc: 'Core314 watches your connected systems around the clock, detecting changes in sales activity, financial patterns, and team communication without disrupting workflows.',
+              },
+              {
+                icon: Brain,
+                title: 'Signal Detection',
+                desc: 'The platform identifies operational signals \u2014 stalled deals, invoice anomalies, communication spikes \u2014 and correlates them across systems to build a complete operational picture.',
+              },
+              {
+                icon: FileText,
+                title: 'AI Operational Briefs',
+                desc: 'Instead of dashboards and charts, Core314 generates written Operational Briefs that explain what is happening, why it matters, and what leadership should do about it.',
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-slate-50 border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
+              >
+                <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
+                  <item.icon className="h-7 w-7 text-sky-600" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  {item.title}
+                </h3>
+                <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {item.desc}
+                </p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* How Core314 Connects Systems */}
+      {/* Connected Systems */}
       <section className="py-24 px-4 bg-slate-50">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -114,30 +125,30 @@ export default function ProductPage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              How Core314 Connects Systems
+              Your Business Systems, Connected
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              Core314 integrates with your existing tools through secure API connections. No data migration required.
+              Core314 ingests signals from the tools your team already uses. No migration, no workflow changes.
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                step: "1",
-                title: "Connect",
-                desc: "Authenticate your business tools through Core314's integration hub. Each connection is established through secure OAuth or API key authentication."
+                icon: Briefcase,
+                title: 'HubSpot CRM',
+                desc: 'Monitor pipeline velocity, detect stalled deals, track deal progression, and identify revenue risks before they impact the bottom line.',
               },
               {
-                step: "2",
-                title: "Sync",
-                desc: "Core314 begins monitoring data flow across your connected systems. It learns your operational patterns and establishes baselines for normal activity."
+                icon: MessageSquare,
+                title: 'Slack',
+                desc: 'Analyze team communication patterns, detect escalation signals, identify cross-department activity spikes, and surface buried operational insights.',
               },
               {
-                step: "3",
-                title: "Control",
-                desc: "View unified operational data, receive alerts when patterns change, and manage cross-system workflows from a single interface."
-              }
+                icon: DollarSign,
+                title: 'QuickBooks',
+                desc: 'Track invoice aging, detect payment anomalies, monitor cash flow patterns, and correlate financial signals with operational activity.',
+              },
             ].map((item, index) => (
               <motion.div
                 key={index}
@@ -147,9 +158,136 @@ export default function ProductPage() {
                 transition={{ delay: index * 0.1 }}
                 className="bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
               >
-                <div className="bg-sky-500 text-white rounded-full w-12 h-12 flex items-center justify-center mb-6 text-xl font-bold">
-                  {item.step}
+                <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
+                  <item.icon className="h-7 w-7 text-sky-600" />
                 </div>
+                <h3 className="text-xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  {item.title}
+                </h3>
+                <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {item.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center text-slate-500 mt-8 text-sm"
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            Upcoming: Salesforce, Microsoft Teams, Jira, Stripe, and Google Workspace.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* The Operational Brief */}
+      <section className="py-24 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+              The Operational Brief
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+              Not a dashboard. Not a chart. A clear, written explanation of what is happening
+              inside your business \u2014 generated by AI from real operational data.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {[
+              {
+                icon: Zap,
+                title: 'Detected Signals',
+                desc: 'Every brief starts with the operational signals Core314 has detected across your connected systems \u2014 stalled deals, payment delays, communication patterns, and more.',
+              },
+              {
+                icon: BarChart3,
+                title: 'Operational Health Score',
+                desc: 'A composite score (0\u2013100) reflecting the overall health of your operations, calculated from signals detected across all connected systems.',
+              },
+              {
+                icon: Brain,
+                title: 'Business Impact Analysis',
+                desc: 'AI-generated narrative explaining what the detected signals mean for your business, connecting dots across systems that would be invisible in isolated dashboards.',
+              },
+              {
+                icon: Shield,
+                title: 'Recommended Actions',
+                desc: 'Every brief includes specific, prioritized recommendations so leadership knows exactly what to do next \u2014 not just what happened.',
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-sky-50 border border-sky-200 rounded-2xl p-8"
+              >
+                <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
+                  <item.icon className="h-7 w-7 text-sky-600" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                  {item.title}
+                </h3>
+                <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {item.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Command Center */}
+      <section className="py-24 px-4 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
+              Command Center
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+              A single view of your entire operational landscape. See health scores, active signals,
+              and the latest Operational Briefs in one place.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                title: 'Operational Health Score',
+                desc: 'A real-time composite score reflecting the health of your operations across all connected systems. See at a glance whether things are running smoothly or need attention.',
+              },
+              {
+                title: 'Signal Dashboard',
+                desc: 'View all detected operational signals in one place \u2014 categorized by severity, source, and type. Track signal trends over time to identify recurring patterns.',
+              },
+              {
+                title: 'Brief History',
+                desc: 'Access current and past Operational Briefs. Compare how your operational landscape has changed over time and track whether recommended actions produced results.',
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
+              >
                 <h3 className="text-xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
                   {item.title}
                 </h3>
@@ -162,7 +300,7 @@ export default function ProductPage() {
         </div>
       </section>
 
-      {/* Operational Visibility & Monitoring */}
+      {/* Security & Architecture */}
       <section className="py-24 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -172,150 +310,30 @@ export default function ProductPage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-              Operational Visibility
+              Built for Security and Reliability
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-              See how work flows across your organization. Core314 provides continuous monitoring of your connected systems.
+              Core314 uses secure OAuth connections, encrypted data handling, and enterprise-grade infrastructure.
             </p>
           </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-sky-50 border border-sky-200 rounded-2xl p-8"
-            >
-              <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
-                <Eye className="h-7 w-7 text-sky-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Unified Dashboard
-              </h3>
-              <p className="text-slate-600 leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
-                View operational metrics from all connected systems in one place. Track key indicators across sales, support, fulfillment, and other business functions without switching between tools.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="bg-sky-50 border border-sky-200 rounded-2xl p-8"
-            >
-              <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
-                <BarChart3 className="h-7 w-7 text-sky-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Operational Scores
-              </h3>
-              <p className="text-slate-600 leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Core314 generates operational health scores based on data from your connected systems. These scores help you understand at a glance whether operations are running normally or require attention.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Intelligence & Insights */}
-      <section className="py-24 px-4 bg-slate-50">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-                      <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-                        Intelligence & Insights
-                      </h2>
-                      <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        Core314 analyzes operational data to surface patterns and potential issues.
-                      </p>
-                      <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        Intelligence strengthens as consistent patterns emerge across time and systems.
-                      </p>
-                      <p className="text-base text-slate-400 max-w-3xl mx-auto leading-relaxed font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        Integrations provide signals. Core314 provides understanding.
-                      </p>
-                    </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
-                <Brain className="h-7 w-7 text-sky-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Pattern Detection
-              </h3>
-              <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Core314 monitors operational data continuously and identifies when patterns deviate from established baselines. This helps surface potential issues before they escalate.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-white border border-slate-200 rounded-2xl p-8 hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="bg-sky-100 rounded-xl w-14 h-14 flex items-center justify-center mb-6">
-                <Database className="h-7 w-7 text-sky-600" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 text-slate-800" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                Cross-System Correlation
-              </h3>
-              <p className="text-slate-600 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                Because Core314 connects multiple systems, it can identify relationships between events that occur across different tools. This provides context that would be difficult to see when viewing each system in isolation.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Enterprise Architecture */}
-      <section className="py-24 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-                      <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}>
-                        Enterprise-Ready Architecture
-                      </h2>
-                      <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed mb-4" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        Core314 is built with security and reliability as foundational requirements.
-                      </p>
-                      <p className="text-lg text-slate-500 max-w-3xl mx-auto leading-relaxed font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
-                        Core314 prioritizes correctness over speed.
-                      </p>
-                    </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                icon: Lock,
-                title: "Secure by Design",
-                desc: "All data is encrypted in transit and at rest. Core314 uses industry-standard authentication protocols and maintains strict access controls."
-              },
-              {
                 icon: Shield,
-                title: "Compliance Ready",
-                desc: "Core314's architecture supports compliance requirements for data handling and privacy. Audit logs track all system access and changes."
+                title: 'Secure by Design',
+                desc: 'All integrations use OAuth 2.0 authentication. Data is encrypted in transit and at rest. No passwords stored.',
               },
               {
-                icon: Database,
-                title: "Reliable Infrastructure",
-                desc: "Built on cloud infrastructure with redundancy and failover capabilities. Core314 is designed for high availability and consistent performance."
-              }
+                icon: Eye,
+                title: 'Read-Only Access',
+                desc: 'Core314 observes your systems through read-only connections. It never modifies your data or disrupts your workflows.',
+              },
+              {
+                icon: BarChart3,
+                title: 'Reliable Infrastructure',
+                desc: 'Built on cloud infrastructure with redundancy and failover. Designed for consistent performance and high availability.',
+              },
             ].map((item, index) => (
               <motion.div
                 key={index}
@@ -350,7 +368,7 @@ export default function ProductPage() {
             className="text-4xl md:text-5xl font-bold mb-6 text-slate-900"
             style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800 }}
           >
-            Ready to Connect Your Operations?
+            See What Your Business Is Telling You
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -360,7 +378,8 @@ export default function ProductPage() {
             className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto"
             style={{ fontFamily: 'Inter, sans-serif' }}
           >
-            Start with a 14-day free trial. Connect your tools and see how Core314 can provide visibility across your operations.
+            Connect your tools and receive your first Operational Brief.
+            Trial begins after your first integration is connected.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -371,10 +390,11 @@ export default function ProductPage() {
           >
             <Link
               to="/pricing"
-              className="px-10 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+              className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
               style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}
             >
               Start Free Trial
+              <ArrowRight className="h-5 w-5" />
             </Link>
             <Link
               to="/contact"

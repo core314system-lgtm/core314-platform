@@ -8,7 +8,7 @@ import { PRICING, formatMonthlyPrice } from '../config/pricing';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
-  const selectedPlan = searchParams.get('plan') || 'pro';
+  const selectedPlan = searchParams.get('plan') || 'intelligence';
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -98,12 +98,13 @@ export default function SignupPage() {
     }
   };
 
-  // Plan display names aligned with pricing page (Observe, Analyze, Predict & Act)
+  // Plan display names aligned with pricing page (Monitor, Intelligence, Command Center, Enterprise)
   // Prices imported from shared/pricing.ts - single source of truth
   const plans = {
-    starter: { name: 'Observe', price: formatMonthlyPrice(PRICING.starter.monthly) },
-    pro: { name: 'Analyze', price: formatMonthlyPrice(PRICING.pro.monthly) },
-    enterprise: { name: 'Predict & Act', price: 'Custom' }
+    monitor: { name: 'Monitor', price: formatMonthlyPrice(PRICING.monitor.monthly) },
+    intelligence: { name: 'Intelligence', price: formatMonthlyPrice(PRICING.intelligence.monthly) },
+    commandCenter: { name: 'Command Center', price: formatMonthlyPrice(PRICING.commandCenter.monthly) },
+    enterprise: { name: 'Enterprise', price: 'Custom' }
   };
 
   return (
@@ -250,7 +251,7 @@ export default function SignupPage() {
             </button>
 
             <p className="text-center text-sm text-slate-500 mt-6">
-              14-day free trial • Cancel anytime
+              Trial begins after your first integration is connected
             </p>
           </motion.form>
         </div>

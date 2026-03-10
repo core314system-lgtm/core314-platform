@@ -6,7 +6,6 @@ import { Badge } from '../components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { PlanCard } from '../components/billing/PlanCard';
 import { UsageProgressBar } from '../components/billing/UsageProgressBar';
-import { AddOnManager } from '../components/billing/AddOnManager';
 import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink, Receipt, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -43,56 +42,40 @@ interface SubscriptionSummary {
   }>;
 }
 
-const AVAILABLE_ADDONS = [
-  {
-    name: 'Advanced Analytics',
-    category: 'analytics',
-    description: 'Unlock detailed analytics dashboards and custom reports',
-    price: 49,
-    stripePriceId: 'price_analytics_monthly',
-  },
-  {
-    name: 'AI Insights Pro',
-    category: 'ai',
-    description: 'Enhanced AI-powered recommendations and predictions',
-    price: 99,
-    stripePriceId: 'price_ai_insights_monthly',
-  },
-  {
-    name: 'Additional Integration Pack',
-    category: 'integration',
-    description: 'Add 5 more integrations to your plan',
-    price: 29,
-    stripePriceId: 'price_integration_pack_monthly',
-  },
-];
 
 const PLAN_FEATURES = {
-  Starter: [
-    { name: 'Basic Dashboard Access', included: true },
-    { name: 'Email Support', included: true },
-    { name: '3 Integrations', included: true },
-    { name: 'Proactive Optimization', included: true },
-    { name: 'Analytics', included: false },
-    { name: 'Advanced AI', included: false },
-    { name: 'API Access', included: false },
+  Monitor: [
+    { name: 'Slack Integration', included: true },
+    { name: 'HubSpot Integration', included: true },
+    { name: 'QuickBooks Integration', included: true },
+    { name: 'Operational Health Score', included: true },
+    { name: 'Signals Dashboard', included: true },
+    { name: 'AI Operational Briefs (10/mo)', included: true },
+    { name: 'Up to 5 Users', included: true },
   ],
-  Pro: [
-    { name: 'Priority Support', included: true },
-    { name: '10 Integrations', included: true },
-    { name: 'Proactive Optimization', included: true },
-    { name: 'Analytics Dashboard', included: true },
-    { name: 'API Access', included: true },
-    { name: 'Advanced AI', included: false },
+  Intelligence: [
+    { name: 'Everything in Monitor', included: true },
+    { name: 'Unlimited AI Briefs', included: true },
+    { name: 'Command Center Dashboard', included: true },
+    { name: 'Signal Trend Analysis', included: true },
+    { name: 'Executive Brief Delivery', included: true },
+    { name: 'Up to 10 Users', included: true },
+  ],
+  'Command Center': [
+    { name: 'Everything in Intelligence', included: true },
+    { name: 'Unlimited Users', included: true },
+    { name: 'Advanced Signal Analytics', included: true },
+    { name: 'Operational Pattern Detection', included: true },
+    { name: 'Weekly Executive Reports', included: true },
+    { name: 'Early Access to New Integrations', included: true },
   ],
   Enterprise: [
-    { name: 'Dedicated Support', included: true },
-    { name: 'Unlimited Integrations', included: true },
-    { name: 'Proactive Optimization', included: true },
-    { name: 'Analytics Dashboard', included: true },
-    { name: 'Advanced AI', included: true },
-    { name: 'API Access', included: true },
+    { name: 'Everything in Command Center', included: true },
+    { name: 'Dedicated Onboarding', included: true },
     { name: 'Custom Integrations', included: true },
+    { name: 'Priority Signal Processing', included: true },
+    { name: 'Dedicated Success Manager', included: true },
+    { name: 'SLA Uptime Guarantees', included: true },
   ],
 };
 
@@ -208,63 +191,6 @@ export default function Billing() {
     }
   };
 
-  const handlePurchaseAddOn = async (addOn: typeof AVAILABLE_ADDONS[0]) => {
-    setProcessingAction(true);
-    try {
-      const response = await fetch('/api/create-addon-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          addonName: addOn.name,
-          addonCategory: addOn.category,
-          priceId: addOn.stripePriceId,
-          userId: user?.id,
-        }),
-      });
-
-      const { url } = await response.json();
-      window.location.href = url;
-    } catch (error) {
-      console.error('Error purchasing add-on:', error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to purchase add-on. Please try again.',
-      });
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  const handleCancelAddOn = async (addOnId: string) => {
-    if (!confirm('Are you sure you want to cancel this add-on?')) return;
-
-    setProcessingAction(true);
-    try {
-      const { error } = await supabase
-        .from('user_addons')
-        .update({
-          status: 'canceled',
-          expires_at: new Date().toISOString(),
-        })
-        .eq('id', addOnId);
-
-      if (error) throw error;
-
-      setNotification({
-        type: 'success',
-        message: 'Add-on canceled successfully.',
-      });
-      fetchSubscriptionData();
-    } catch (error) {
-      console.error('Error canceling add-on:', error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to cancel add-on. Please try again.',
-      });
-    } finally {
-      setProcessingAction(false);
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { className: string; label: string }> = {
@@ -448,23 +374,28 @@ export default function Billing() {
       <div>
         <h2 className="text-2xl font-bold mb-4">Available Plans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {['Starter', 'Pro', 'Enterprise'].map((planName) => (
+          {['Monitor', 'Intelligence', 'Command Center', 'Enterprise'].map((planName) => (
             <PlanCard
               key={planName}
               planName={planName}
-              price={planName === 'Starter' ? PRICING.starter.monthly : planName === 'Pro' ? PRICING.pro.monthly : null}
+              price={
+                planName === 'Monitor' ? PRICING.monitor.monthly
+                : planName === 'Intelligence' ? PRICING.intelligence.monthly
+                : planName === 'Command Center' ? PRICING.commandCenter.monthly
+                : null
+              }
               billingPeriod="monthly"
               description={
-                planName === 'Starter'
-                  ? 'Perfect for small teams'
-                  : planName === 'Pro'
-                  ? 'Advanced features for growing businesses'
-                  : 'Enterprise-grade solutions'
+                planName === 'Monitor'
+                  ? PRICING.monitor.tagline
+                  : planName === 'Intelligence'
+                  ? PRICING.intelligence.tagline
+                  : planName === 'Command Center'
+                  ? PRICING.commandCenter.tagline
+                  : PRICING.enterprise.tagline
               }
               features={PLAN_FEATURES[planName as keyof typeof PLAN_FEATURES]}
-                            integrationLimit={
-                              planName === 'Starter' ? PRICING.starter.integrations : planName === 'Pro' ? PRICING.pro.integrations : PRICING.enterprise.integrations
-                            }
+              integrationLimit={-1}
               currentPlan={subscription.plan_name === planName}
               onSelectPlan={planName !== 'Enterprise' ? () => handleUpgradePlan(planName) : undefined}
               onContactSales={planName === 'Enterprise' ? () => navigate('/contact-sales') : undefined}
@@ -474,16 +405,6 @@ export default function Billing() {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Add-Ons</h2>
-        <AddOnManager
-          activeAddOns={active_addons}
-          availableAddOns={AVAILABLE_ADDONS}
-          onPurchaseAddOn={handlePurchaseAddOn}
-          onCancelAddOn={handleCancelAddOn}
-          loading={processingAction}
-        />
-      </div>
     </div>
   );
 }
