@@ -45,11 +45,28 @@ exports.handler = async (event) => {
       };
     }
 
-    // Extract user_id from query params or Authorization header
+    // Extract user_id securely: prefer access_token validation over raw user_id
     const params = event.queryStringParameters || {};
-    let userId = params.user_id;
+    let userId = null;
 
-    // If no user_id in query, try to extract from JWT
+    // Priority 1: Validate access_token query param (passed from frontend redirect)
+    // This is the secure path - the frontend passes the Supabase session token
+    const accessToken = params.access_token;
+    if (accessToken) {
+      const supabaseUrl =
+        process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+      const supabaseAnonKey =
+        process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser(accessToken);
+        if (user) userId = user.id;
+      }
+    }
+
+    // Priority 2: Check Authorization header (for API calls)
     if (!userId) {
       const authHeader =
         event.headers.authorization || event.headers.Authorization;
@@ -74,7 +91,7 @@ exports.handler = async (event) => {
         statusCode: 401,
         headers,
         body: JSON.stringify({
-          error: "Authentication required. Provide user_id or Bearer token.",
+          error: "Authentication required. Provide a valid access_token or Bearer token.",
         }),
       };
     }

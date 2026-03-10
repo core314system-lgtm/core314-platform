@@ -289,6 +289,37 @@ exports.handler = async (event) => {
   }
 
   try {
+    // Authentication: require either internal API key or valid user JWT
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    const internalApiKey = process.env.HUBSPOT_INTERNAL_API_KEY;
+
+    let isAuthorized = false;
+
+    // Check for internal API key (for cron/scheduled calls)
+    if (internalApiKey && authHeader === `Bearer ${internalApiKey}`) {
+      isAuthorized = true;
+    }
+
+    // Check for valid Supabase user JWT
+    if (!isAuthorized && authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+        const { data: { user } } = await anonClient.auth.getUser(token);
+        if (user) isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: "Authentication required" }),
+      };
+    }
+
     const supabase = getSupabase();
 
     // Parse optional user_id filter

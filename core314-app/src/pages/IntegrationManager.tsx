@@ -114,8 +114,12 @@ export function IntegrationManager() {
     try {
       // HubSpot uses dedicated Netlify function for OAuth
       if (serviceName === 'hubspot') {
-        // Redirect to HubSpot OAuth via Netlify function
-        window.location.href = `/.netlify/functions/hubspot-auth?user_id=${profile.id}`;
+        // Get Supabase session token for secure server-side validation
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error('No session');
+        // Redirect to HubSpot OAuth via Netlify function with validated token
+        window.location.href = `/.netlify/functions/hubspot-auth?access_token=${accessToken}`;
         return;
       }
 
