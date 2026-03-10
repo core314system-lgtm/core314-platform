@@ -21,6 +21,27 @@
   to = "/.netlify/functions/system-integrations"
   status = 200
 
+# HubSpot OAuth flow redirects
+[[redirects]]
+  from = "/auth/hubspot/callback"
+  to = "/.netlify/functions/hubspot-callback"
+  status = 200
+
+[[redirects]]
+  from = "/api/hubspot/auth"
+  to = "/.netlify/functions/hubspot-auth"
+  status = 200
+
+[[redirects]]
+  from = "/api/hubspot/refresh"
+  to = "/.netlify/functions/hubspot-refresh-token"
+  status = 200
+
+[[redirects]]
+  from = "/api/hubspot/poll"
+  to = "/.netlify/functions/hubspot-poll"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
