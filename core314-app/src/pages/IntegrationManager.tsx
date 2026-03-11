@@ -18,7 +18,7 @@ import {
   Unplug,
   AlertTriangle,
 } from 'lucide-react';
-import { getSupabaseFunctionUrl, getSupabaseUrl } from '../lib/supabase';
+import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
 
 interface IntegrationInfo {
@@ -212,10 +212,12 @@ export function IntegrationManager() {
       if (!token) throw new Error('No session');
 
       const url = await getSupabaseFunctionUrl('disconnect-integration');
+      const anonKey = await getSupabaseAnonKey();
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ integration_registry_id: registryId }),
