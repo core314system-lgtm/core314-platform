@@ -5,7 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * Disconnect Integration
  * 
  * Disconnects a user's integration by:
- * 1. Setting user_integrations.status to 'disconnected'
+ * 1. Setting user_integrations.status to 'inactive'
  * 2. Deleting the associated oauth_tokens record
  * 
  * Uses service role key to bypass RLS policies.
@@ -79,11 +79,11 @@ serve(async (req) => {
       });
     }
 
-    // Set status to 'disconnected' (soft delete — preserves history)
+    // Set status to 'inactive' (the DB check constraint only allows 'active'|'inactive'|'error'|'syncing')
     const { error: updateError } = await supabase
       .from('user_integrations')
       .update({
-        status: 'disconnected',
+        status: 'inactive',
         error_message: null,
         consecutive_failures: 0,
         updated_at: new Date().toISOString(),
