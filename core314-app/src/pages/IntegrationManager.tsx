@@ -15,6 +15,8 @@ import {
   DollarSign,
   Plug,
   Clock,
+  Unplug,
+  AlertTriangle,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl } from '../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
@@ -68,7 +70,9 @@ export function IntegrationManager() {
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
+  const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
   const [ingestionStates, setIngestionStates] = useState<IngestionState[]>([]);
 
   // Check for OAuth callback success (from Supabase oauth-callback or HubSpot Netlify callback)
@@ -186,6 +190,49 @@ export function IntegrationManager() {
       console.error('Error connecting:', err);
     } finally {
       setConnecting(null);
+    }
+  };
+
+  const handleDisconnect = async (serviceName: string, registryId: string) => {
+    if (!profile?.id) return;
+
+    // Require confirmation
+    if (disconnectConfirm !== registryId) {
+      setDisconnectConfirm(registryId);
+      return;
+    }
+
+    setDisconnecting(serviceName);
+    setDisconnectConfirm(null);
+
+    try {
+      // Find the user_integration record
+      const ui = userIntegrations.find(u => u.provider_id === registryId);
+      if (!ui) return;
+
+      // Set status to 'disconnected' (soft delete — preserves history)
+      await supabase
+        .from('user_integrations')
+        .update({
+          status: 'disconnected',
+          error_message: null,
+          consecutive_failures: 0,
+        })
+        .eq('id', ui.id);
+
+      // Remove the OAuth token record
+      await supabase
+        .from('oauth_tokens')
+        .delete()
+        .eq('user_id', profile.id)
+        .eq('integration_registry_id', registryId);
+
+      // Refresh the integrations list
+      await fetchIntegrations();
+    } catch (err) {
+      console.error('Error disconnecting:', err);
+    } finally {
+      setDisconnecting(null);
     }
   };
 
@@ -360,11 +407,51 @@ export function IntegrationManager() {
                     {/* Error message if any */}
                     {ui?.error_message && ui.consecutive_failures > 0 && (
                       <div className="flex items-center gap-2 text-xs text-red-500">
+                        <AlertTriangle className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate" title={ui.error_message}>
                           {ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}
                         </span>
                       </div>
                     )}
+                    {/* Disconnect button */}
+                    <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                      {disconnectConfirm === integration.id ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => handleDisconnect(integration.service_name, integration.id)}
+                            disabled={disconnecting === integration.service_name}
+                          >
+                            {disconnecting === integration.service_name ? (
+                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Unplug className="h-3 w-3 mr-1" />
+                            )}
+                            Confirm Disconnect
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => setDisconnectConfirm(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7 text-gray-400 hover:text-red-500"
+                          onClick={() => handleDisconnect(integration.service_name, integration.id)}
+                        >
+                          <Unplug className="h-3 w-3 mr-1" />
+                          Disconnect
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <Button
