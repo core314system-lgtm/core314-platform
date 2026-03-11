@@ -18,7 +18,7 @@ import {
   Unplug,
   AlertTriangle,
 } from 'lucide-react';
-import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
+import { getSupabaseFunctionUrl, getSupabaseUrl } from '../lib/supabase';
 import { useSearchParams } from 'react-router-dom';
 
 interface IntegrationInfo {
@@ -206,26 +206,19 @@ export function IntegrationManager() {
     setDisconnectConfirm(null);
 
     try {
-      // Call the disconnect Edge Function (uses service role to bypass RLS)
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error('No session');
-
-      const url = await getSupabaseFunctionUrl('disconnect-integration');
-      const anonKey = await getSupabaseAnonKey();
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ integration_registry_id: registryId }),
+      // Call the disconnect Edge Function via supabase client
+      // supabase.functions.invoke() automatically sends auth headers
+      const { data, error } = await supabase.functions.invoke('disconnect-integration', {
+        body: { integration_registry_id: registryId },
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        console.error('Disconnect error:', data.error);
+      if (error) {
+        console.error('Disconnect error:', error);
+        return;
+      }
+
+      if (data && !data.success) {
+        console.error('Disconnect failed:', data.error);
         return;
       }
 
