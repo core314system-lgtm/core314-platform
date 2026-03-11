@@ -31,11 +31,18 @@ interface HealthCheckResult {
   healthy: boolean;
   message: string;
   tokenRefreshed?: boolean;
+  tokenRefreshError?: string;
+  tokenExpired?: boolean;
+}
+
+interface TokenRefreshResult {
+  accessToken: string | null;
+  error?: string;
 }
 
 /**
  * Refresh an expired OAuth token using the stored refresh token.
- * Returns the new access token or null if refresh failed.
+ * Returns the new access token and any error details.
  */
 async function refreshToken(
   supabase: ReturnType<typeof createClient>,
@@ -48,10 +55,10 @@ async function refreshToken(
   },
   serviceName: string,
   tokenUrl: string
-): Promise<string | null> {
+): Promise<TokenRefreshResult> {
   if (!tokenRecord.refresh_token_secret_id) {
     console.log(`[health-check] No refresh token for ${serviceName}`);
-    return null;
+    return { accessToken: null, error: 'No refresh token stored' };
   }
 
   // Get refresh token from vault
@@ -60,7 +67,7 @@ async function refreshToken(
 
   if (refreshError || !refreshTokenData) {
     console.error(`[health-check] Failed to get refresh token for ${serviceName}:`, refreshError);
-    return null;
+    return { accessToken: null, error: `Failed to decrypt refresh token: ${refreshError?.message || 'no data returned'}` };
   }
 
   const envPrefix = serviceName.toUpperCase();
@@ -69,10 +76,10 @@ async function refreshToken(
 
   if (!clientId || !clientSecret) {
     console.error(`[health-check] Missing OAuth credentials for ${serviceName}`);
-    return null;
+    return { accessToken: null, error: `Missing ${envPrefix}_CLIENT_ID or ${envPrefix}_CLIENT_SECRET env vars` };
   }
 
-  console.log(`[health-check] Refreshing token for ${serviceName}...`);
+  console.log(`[health-check] Refreshing token for ${serviceName} using client ${clientId.substring(0, 8)}...`);
 
   const refreshResponse = await fetch(tokenUrl, {
     method: 'POST',
@@ -88,8 +95,9 @@ async function refreshToken(
   const tokenData = await refreshResponse.json();
 
   if (!refreshResponse.ok || !tokenData.access_token) {
-    console.error(`[health-check] Token refresh failed for ${serviceName}:`, tokenData);
-    return null;
+    const errorDetail = tokenData.error_description || tokenData.error || JSON.stringify(tokenData);
+    console.error(`[health-check] Token refresh failed for ${serviceName} (${refreshResponse.status}):`, tokenData);
+    return { accessToken: null, error: `Token refresh failed (${refreshResponse.status}): ${errorDetail}. This usually means the user needs to re-connect the integration.` };
   }
 
   // Store new access token in vault
@@ -122,7 +130,7 @@ async function refreshToken(
     .eq('id', tokenRecord.id);
 
   console.log(`[health-check] Token refreshed successfully for ${serviceName}`);
-  return tokenData.access_token;
+  return { accessToken: tokenData.access_token };
 }
 
 /**
@@ -285,16 +293,23 @@ serve(async (req) => {
         const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
         const isExpiredOrExpiringSoon = tokenExpiresAt && tokenExpiresAt < tenMinutesFromNow;
 
+        let tokenRefreshError: string | undefined;
+        const isAlreadyExpired = tokenExpiresAt ? tokenExpiresAt < now : false;
+
         if (isExpiredOrExpiringSoon) {
-          const isAlreadyExpired = tokenExpiresAt < now;
-          console.log(`[health-check] Token for ${serviceName} ${isAlreadyExpired ? 'EXPIRED at' : 'expires at'} ${tokenExpiresAt.toISOString()}, refreshing...`);
-          accessToken = await refreshToken(
+          console.log(`[health-check] Token for ${serviceName} ${isAlreadyExpired ? 'EXPIRED at' : 'expires at'} ${tokenExpiresAt!.toISOString()}, refreshing...`);
+          const refreshResult = await refreshToken(
             supabase,
             tokenRecord,
             serviceName,
             registry.oauth_token_url
           );
+          accessToken = refreshResult.accessToken;
           tokenRefreshed = !!accessToken;
+          tokenRefreshError = refreshResult.error;
+          if (tokenRefreshError) {
+            console.error(`[health-check] Token refresh error for ${serviceName}: ${tokenRefreshError}`);
+          }
         }
 
         // If we didn't refresh (or refresh failed), get current token
@@ -387,6 +402,8 @@ serve(async (req) => {
           healthy: checkResult.ok,
           message: checkResult.message,
           tokenRefreshed,
+          ...(tokenRefreshError ? { tokenRefreshError } : {}),
+          ...(isAlreadyExpired ? { tokenExpired: true } : {}),
         });
 
         // Small delay between checks to avoid rate limiting
