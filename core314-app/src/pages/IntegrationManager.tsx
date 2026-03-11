@@ -206,26 +206,26 @@ export function IntegrationManager() {
     setDisconnectConfirm(null);
 
     try {
-      // Find the user_integration record
-      const ui = userIntegrations.find(u => u.provider_id === registryId);
-      if (!ui) return;
+      // Call the disconnect Edge Function (uses service role to bypass RLS)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('No session');
 
-      // Set status to 'disconnected' (soft delete — preserves history)
-      await supabase
-        .from('user_integrations')
-        .update({
-          status: 'disconnected',
-          error_message: null,
-          consecutive_failures: 0,
-        })
-        .eq('id', ui.id);
+      const url = await getSupabaseFunctionUrl('disconnect-integration');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ integration_registry_id: registryId }),
+      });
 
-      // Remove the OAuth token record
-      await supabase
-        .from('oauth_tokens')
-        .delete()
-        .eq('user_id', profile.id)
-        .eq('integration_registry_id', registryId);
+      const data = await response.json();
+      if (!response.ok) {
+        console.error('Disconnect error:', data.error);
+        return;
+      }
 
       // Refresh the integrations list
       await fetchIntegrations();
