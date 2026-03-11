@@ -13,7 +13,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * Each poll function handles its own rate limiting via integration_ingestion_state.
  * 
  * Flow:
- *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers
+ *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers → signal-detector
  */
 
 const corsHeaders = {
@@ -117,7 +117,25 @@ serve(async (req) => {
       });
     }
 
-    // Step 3: Log scheduler run to a tracking table (for UI to query)
+    // Step 3: Run signal detector (analyzes integration_events → creates operational_signals)
+    const signalStart = Date.now();
+    console.log('[scheduler] Step 3: Running signal detector...');
+    const signalResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-detector');
+    results.push({
+      step: 'signal-detector',
+      success: signalResult.ok,
+      message: signalResult.ok
+        ? `Created ${signalResult.data.signals_created || 0} signals, deactivated ${signalResult.data.signals_deactivated || 0}`
+        : `Signal detection failed: ${signalResult.data.error || 'unknown error'}`,
+      duration_ms: Date.now() - signalStart,
+      details: signalResult.ok ? {
+        users_processed: signalResult.data.users_processed,
+        signals_created: signalResult.data.signals_created,
+        signals_deactivated: signalResult.data.signals_deactivated,
+      } : undefined,
+    });
+
+    // Step 4: Log scheduler run to a tracking table (for UI to query)
     const totalDuration = Date.now() - startTime;
     const allSuccess = results.every(r => r.success);
     const failedSteps = results.filter(r => !r.success).map(r => r.step);
