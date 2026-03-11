@@ -223,10 +223,10 @@ export function IntegrationManager() {
             <Plug className="h-8 w-8 text-indigo-500" />
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {userIntegrations.length} of 3 integrations connected
+                {integrations.filter(i => isConnected(i.id)).length} of {integrations.length} integrations connected
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {userIntegrations.length === 3
+                {integrations.filter(i => isConnected(i.id)).length === integrations.length
                   ? 'All signal sources active. Core314 is analyzing your full operational picture.'
                   : 'Connect more integrations for richer operational insights.'}
               </p>
@@ -236,7 +236,7 @@ export function IntegrationManager() {
           <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div
               className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(userIntegrations.length / 3) * 100}%` }}
+              style={{ width: `${(integrations.filter(i => isConnected(i.id)).length / Math.max(integrations.length, 1)) * 100}%` }}
             />
           </div>
         </CardContent>
