@@ -37,6 +37,16 @@ interface UserIntegration {
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  last_verified_at: string | null;
+  last_error_at: string | null;
+  error_message: string | null;
+  consecutive_failures: number;
+}
+
+interface IngestionState {
+  service_name: string;
+  last_polled_at: string | null;
+  next_poll_after: string | null;
 }
 
 const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
@@ -59,6 +69,7 @@ export function IntegrationManager() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
+  const [ingestionStates, setIngestionStates] = useState<IngestionState[]>([]);
 
   // Check for OAuth callback success (from Supabase oauth-callback or HubSpot Netlify callback)
   useEffect(() => {
@@ -104,12 +115,23 @@ export function IntegrationManager() {
     // Fetch user's connected integrations
     const { data: userIntData } = await supabase
       .from('user_integrations')
-      .select('*')
+      .select('id, user_id, integration_id, provider_id, status, config, created_at, updated_at, last_verified_at, last_error_at, error_message, consecutive_failures')
       .eq('user_id', profile.id)
       .eq('status', 'active');
 
     if (userIntData) {
       setUserIntegrations(userIntData as UserIntegration[]);
+    }
+
+    // Fetch ingestion state (last polled times)
+    const { data: stateData } = await supabase
+      .from('integration_ingestion_state')
+      .select('service_name, last_polled_at, next_poll_after')
+      .eq('user_id', profile.id)
+      .in('service_name', ['slack', 'hubspot', 'quickbooks']);
+
+    if (stateData) {
+      setIngestionStates(stateData as IngestionState[]);
     }
 
     setLoading(false);
@@ -174,6 +196,34 @@ export function IntegrationManager() {
   const getConnectionDate = (registryId: string) => {
     const ui = userIntegrations.find(u => u.provider_id === registryId);
     return ui?.created_at || null;
+  };
+
+  const getUserIntegration = (registryId: string) => {
+    return userIntegrations.find(u => u.provider_id === registryId) || null;
+  };
+
+  const getIngestionState = (serviceName: string) => {
+    return ingestionStates.find(s => s.service_name === serviceName) || null;
+  };
+
+  const formatTimeAgo = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const getHealthStatus = (ui: UserIntegration | null): { label: string; color: string } => {
+    if (!ui) return { label: 'Not connected', color: 'text-gray-400' };
+    if (ui.consecutive_failures >= 3) return { label: 'Error', color: 'text-red-600' };
+    if (ui.consecutive_failures > 0) return { label: 'Degraded', color: 'text-yellow-600' };
+    if (ui.last_verified_at) return { label: 'Verified', color: 'text-green-600' };
+    return { label: 'Connected', color: 'text-green-600' };
   };
 
   if (loading) {
@@ -249,6 +299,9 @@ export function IntegrationManager() {
           const connected = isConnected(integration.id);
           const connDate = getConnectionDate(integration.id);
           const description = SERVICE_DESCRIPTIONS[integration.service_name] || integration.description;
+          const ui = getUserIntegration(integration.id);
+          const state = getIngestionState(integration.service_name);
+          const health = getHealthStatus(ui);
 
           return (
             <Card
@@ -279,15 +332,39 @@ export function IntegrationManager() {
                 </p>
 
                 {connected ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <Clock className="h-3 w-3" />
                       Connected {connDate ? new Date(connDate).toLocaleDateString() : ''}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-green-600">
-                      <RefreshCw className="h-3 w-3" />
-                      Polling every 15 minutes
+                    {/* Health status */}
+                    <div className={`flex items-center gap-2 text-xs ${health.color}`}>
+                      <CheckCircle className="h-3 w-3" />
+                      {health.label}
+                      {ui?.last_verified_at && (
+                        <span className="text-gray-400">({formatTimeAgo(ui.last_verified_at)})</span>
+                      )}
                     </div>
+                    {/* Last polled */}
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <RefreshCw className={`h-3 w-3 ${state?.last_polled_at ? '' : 'text-gray-300'}`} />
+                      {state?.last_polled_at ? (
+                        <span>
+                          Last polled {formatTimeAgo(state.last_polled_at)}
+                          <span className="text-gray-400 ml-1">(every 15 min)</span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Awaiting first poll...</span>
+                      )}
+                    </div>
+                    {/* Error message if any */}
+                    {ui?.error_message && ui.consecutive_failures > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-red-500">
+                        <span className="truncate" title={ui.error_message}>
+                          {ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <Button
