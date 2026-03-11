@@ -252,7 +252,7 @@ serve(async (req) => {
         // Fetch OAuth token record
         const { data: tokenRecord } = await supabase
           .from('oauth_tokens')
-          .select('id, access_token_secret_id, refresh_token_secret_id, expires_at')
+          .select('id, access_token_secret_id, refresh_token_secret_id, expires_at, integration_registry_id')
           .eq('user_id', integration.user_id)
           .eq('integration_registry_id', registry.id)
           .single();
@@ -278,17 +278,19 @@ serve(async (req) => {
           continue;
         }
 
-        // Check if token needs refresh (expires within 10 minutes)
+        // Check if token needs refresh (already expired OR expires within 10 minutes)
         let accessToken: string | null = null;
         let tokenRefreshed = false;
         const tokenExpiresAt = tokenRecord.expires_at ? new Date(tokenRecord.expires_at) : null;
         const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+        const isExpiredOrExpiringSoon = tokenExpiresAt && tokenExpiresAt < tenMinutesFromNow;
 
-        if (tokenExpiresAt && tokenExpiresAt < tenMinutesFromNow) {
-          console.log(`[health-check] Token for ${serviceName} expires at ${tokenExpiresAt.toISOString()}, refreshing...`);
+        if (isExpiredOrExpiringSoon) {
+          const isAlreadyExpired = tokenExpiresAt < now;
+          console.log(`[health-check] Token for ${serviceName} ${isAlreadyExpired ? 'EXPIRED at' : 'expires at'} ${tokenExpiresAt.toISOString()}, refreshing...`);
           accessToken = await refreshToken(
             supabase,
-            tokenRecord as { id: string; access_token_secret_id: string; refresh_token_secret_id: string | null; expires_at: string | null; integration_registry_id: string },
+            tokenRecord,
             serviceName,
             registry.oauth_token_url
           );
