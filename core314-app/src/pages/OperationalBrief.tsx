@@ -15,8 +15,18 @@ import {
   Clock,
   ChevronRight,
   Sparkles,
+  AlertCircle,
+  ArrowUpCircle,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl } from '../lib/supabase';
+
+interface BriefUsage {
+  plan: string;
+  used: number;
+  limit: number; // -1 = unlimited
+  remaining: number; // -1 = unlimited
+}
 
 interface OperationalBriefData {
   id: string;
@@ -55,10 +65,14 @@ function normalizeBrief(raw: Record<string, unknown>): OperationalBriefData {
 
 export function OperationalBrief() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [brief, setBrief] = useState<OperationalBriefData | null>(null);
   const [pastBriefs, setPastBriefs] = useState<OperationalBriefData[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<BriefUsage | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -87,6 +101,8 @@ export function OperationalBrief() {
   const handleGenerateBrief = async () => {
     if (!profile?.id) return;
     setGenerating(true);
+    setError(null);
+    setLimitReached(false);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -103,11 +119,28 @@ export function OperationalBrief() {
         body: JSON.stringify({}),
       });
 
-      if (response.ok) {
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        if (result.usage) {
+          setUsage(result.usage);
+        }
         await fetchLatestBrief();
+      } else if (response.status === 429 && result.error === 'brief_limit_reached') {
+        setLimitReached(true);
+        setUsage({
+          plan: result.plan,
+          used: result.used,
+          limit: result.limit,
+          remaining: 0,
+        });
+        setError(result.message);
+      } else {
+        setError(result.error || 'Failed to generate brief. Please try again.');
       }
     } catch (err) {
       console.error('Error generating brief:', err);
+      setError('Failed to connect to the brief generator. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -159,15 +192,56 @@ export function OperationalBrief() {
             AI-generated analysis of your business operations
           </p>
         </div>
-        <Button onClick={handleGenerateBrief} disabled={generating}>
-          {generating ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-3">
+          {usage && usage.limit !== -1 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {usage.remaining === -1 ? 'Unlimited' : `${usage.remaining} of ${usage.limit} briefs remaining`}
+            </span>
           )}
-          {generating ? 'Generating...' : 'Generate New Brief'}
-        </Button>
+          {usage && usage.limit === -1 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Unlimited briefs ({usage.plan})
+            </span>
+          )}
+          <Button onClick={handleGenerateBrief} disabled={generating || limitReached}>
+            {generating ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {generating ? 'Generating...' : 'Generate New Brief'}
+          </Button>
+        </div>
       </div>
+
+      {/* Error / Limit Reached Banner */}
+      {error && (
+        <Card className={limitReached ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30' : 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30'}>
+          <CardContent className="py-4 flex items-start gap-3">
+            {limitReached ? (
+              <ArrowUpCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${limitReached ? 'text-amber-800 dark:text-amber-200' : 'text-red-800 dark:text-red-200'}`}>
+                {error}
+              </p>
+              {limitReached && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => navigate('/billing')}
+                >
+                  <ArrowUpCircle className="h-3.5 w-3.5 mr-1.5" />
+                  Upgrade Plan
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!brief ? (
         /* Empty State */
@@ -178,8 +252,9 @@ export function OperationalBrief() {
               No Operational Brief Yet
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              Connect your integrations (Slack, HubSpot, QuickBooks) and generate your first
-              AI-powered operational brief to understand what&apos;s happening in your business.
+              Generate your first AI-powered operational brief to understand what&apos;s happening
+              in your business. Core314 will analyze your connected integrations and provide
+              reasoning about your current operational state, even with limited data.
             </p>
             <Button onClick={handleGenerateBrief} disabled={generating}>
               <Sparkles className="h-4 w-4 mr-2" />
