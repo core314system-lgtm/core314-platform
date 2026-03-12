@@ -73,6 +73,18 @@ export function EditUserModal({
           throw new Error(data.error || 'Failed to update user');
         }
 
+        // Log to admin audit log
+        const { data: { session: auditSession } } = await supabase.auth.getSession();
+        if (auditSession) {
+          await supabase.from('admin_audit_logs').insert({
+            admin_id: auditSession.user.id,
+            action: 'user.update',
+            target_type: 'user',
+            target_id: user.id,
+            details: { email: user.email, changes: { role, subscriptionTier, status: status ? 'active' : 'inactive', twoFactorEnabled } },
+          }).then(() => {}, () => {}); // non-blocking
+        }
+
         onUserUpdated(data.user);
         onOpenChange(false);
       } catch (err) {
@@ -109,6 +121,18 @@ export function EditUserModal({
           if (softDeleteError) {
             throw new Error(softDeleteError.message || 'Failed to delete user');
           }
+        }
+
+        // Log to admin audit log
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.from('admin_audit_logs').insert({
+            admin_id: session.user.id,
+            action: 'user.delete',
+            target_type: 'user',
+            target_id: user.id,
+            details: { email: user.email, full_name: user.full_name },
+          }).then(() => {}, () => {}); // non-blocking
         }
 
         onUserDeleted?.(user.id);
