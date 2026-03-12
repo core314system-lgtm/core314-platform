@@ -88,28 +88,27 @@ export function EditUserModal({
       setDeleteError(null);
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          throw new Error('No active session');
-        }
+        // Delete directly from profiles table using the admin user's session
+        const { error: deleteError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', user.id);
 
-        const response = await fetch('/.netlify/functions/admin-delete-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            user_id: user.id,
-            mode: 'hard',
-            reason: 'Admin deletion via dashboard',
-          }),
-        });
+        if (deleteError) {
+          console.error('Profile delete error:', deleteError);
+          // If delete fails (e.g. RLS or FK constraints), fall back to soft delete
+          const { error: softDeleteError } = await supabase
+            .from('profiles')
+            .update({
+              deleted_at: new Date().toISOString(),
+              subscription_status: 'canceled',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id);
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to delete user');
+          if (softDeleteError) {
+            throw new Error(softDeleteError.message || 'Failed to delete user');
+          }
         }
 
         onUserDeleted?.(user.id);
