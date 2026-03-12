@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { User as SupabaseUser, SupabaseClient, AuthError } from '@supabase/supabase-js';
 import { initSupabaseClient, getSupabaseFunctionUrl } from '../lib/supabase';
 import { User } from '../types';
+import { logActivity } from '../lib/activity';
 
 /**
  * Helper to get the Supabase client, throwing a user-friendly error if unavailable.
@@ -100,6 +101,8 @@ export function useAuth() {
       } catch (e) {
         console.error('Failed to log session:', e);
       }
+      // Track login activity
+      logActivity('login', { method: 'password' });
     }
     
     return { data, error };
@@ -120,6 +123,8 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    // Track logout before clearing session
+    logActivity('logout');
     const supabase = await getClientOrThrow(supabaseRef);
     const { error } = await supabase.auth.signOut();
     if (!error) {

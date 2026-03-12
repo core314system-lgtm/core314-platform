@@ -3,7 +3,6 @@ import { AdminLogin } from './pages/auth/AdminLogin';
 import { AdminLayout } from './pages/admin/Layout';
 import { UserManagement } from './pages/admin/UserManagement';
 import { IntegrationTracking } from './pages/admin/IntegrationTracking';
-import { MetricsDashboard } from './pages/admin/MetricsDashboard';
 import { BillingOverview } from './pages/admin/BillingOverview';
 import { AILogs } from './pages/admin/AILogs';
 import { SystemHealth } from './pages/admin/SystemHealth';
@@ -45,6 +44,14 @@ import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { useAdminAuth } from './hooks/useAdminAuth';
 import { SentryTest } from './pages/SentryTest';
 import SentryVerify from './pages/SentryVerify';
+// New Phase 2 pages
+import { SignalIntelligence } from './pages/admin/SignalIntelligence';
+import { BriefTracker } from './pages/admin/BriefTracker';
+import { HealthScoreDashboard } from './pages/admin/HealthScoreDashboard';
+import { IntegrationHealthMonitor } from './pages/admin/IntegrationHealthMonitor';
+import { RealMetricsDashboard } from './pages/admin/RealMetricsDashboard';
+import { AdminAuditLog } from './pages/admin/AdminAuditLog';
+import { PlatformAlerts } from './pages/admin/PlatformAlerts';
 
 function App() {
   const { authStatus } = useAdminAuth();
@@ -77,7 +84,7 @@ function App() {
           <Route index element={<Navigate to="/users" replace />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="integrations" element={<IntegrationTracking />} />
-          <Route path="metrics" element={<MetricsDashboard />} />
+          <Route path="metrics" element={<RealMetricsDashboard />} />
           <Route path="billing" element={<BillingOverview />} />
           <Route path="ai-logs" element={<AILogs />} />
           <Route path="system-health" element={<SystemHealth />} />
@@ -114,6 +121,13 @@ function App() {
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="beta-feedback" element={<BetaFeedback />} />
           <Route path="beta-ops" element={<BetaOpsConsole />} />
+          {/* Phase 2: Operational Intelligence */}
+          <Route path="signal-intelligence" element={<SignalIntelligence />} />
+          <Route path="brief-tracker" element={<BriefTracker />} />
+          <Route path="health-scores" element={<HealthScoreDashboard />} />
+          <Route path="integration-health" element={<IntegrationHealthMonitor />} />
+          <Route path="admin-audit" element={<AdminAuditLog />} />
+          <Route path="platform-alerts" element={<PlatformAlerts />} />
           <Route path="sentry-test" element={<SentryTest />} />
           {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
             <Route path="sentry-verify" element={<SentryVerify />} />

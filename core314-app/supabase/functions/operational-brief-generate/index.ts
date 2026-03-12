@@ -381,6 +381,45 @@ Generate a JSON response with these exact fields:
 
     console.log('[operational-brief] Brief generated:', savedBrief?.id);
 
+    // ── Step 9: Persist health score to operational_health_scores ─────
+    // Calculate a health score based on available data and signal severity
+    const baseScore = 100;
+    const signalPenalties = activeSignals.reduce((penalty: number, s: { severity: string }) => {
+      if (s.severity === 'critical') return penalty + 20;
+      if (s.severity === 'high') return penalty + 10;
+      if (s.severity === 'medium') return penalty + 5;
+      if (s.severity === 'low') return penalty + 2;
+      return penalty;
+    }, 0);
+    const integrationCoverage = Math.round((connectedCount / 3) * 20); // max 20 points for 3 integrations
+    const dataFreshnessBonus = hasAnyData ? 5 : 0;
+    const calculatedScore = Math.max(0, Math.min(100, baseScore - signalPenalties + integrationCoverage - (3 - connectedCount) * 10 + dataFreshnessBonus));
+    const scoreLabel = calculatedScore >= 80 ? 'Healthy' : calculatedScore >= 60 ? 'Moderate' : calculatedScore >= 40 ? 'At Risk' : 'Critical';
+
+    try {
+      await supabase
+        .from('operational_health_scores')
+        .insert({
+          user_id: user.id,
+          organization_id: organizationId,
+          score: calculatedScore,
+          label: scoreLabel,
+          score_breakdown: {
+            base_score: baseScore,
+            signal_penalties: signalPenalties,
+            integration_coverage: integrationCoverage,
+            data_freshness_bonus: dataFreshnessBonus,
+            connected_integrations: connectedCount,
+            active_signals: activeSignals.length,
+          },
+          signal_count: activeSignals.length,
+          calculated_at: new Date().toISOString(),
+        });
+      console.log('[operational-brief] Health score persisted:', calculatedScore);
+    } catch (healthErr) {
+      console.error('[operational-brief] Health score insert error (non-fatal):', healthErr);
+    }
+
     const remaining = briefLimit === -1 ? -1 : briefLimit - (currentCount + 1);
 
     return new Response(JSON.stringify({ 

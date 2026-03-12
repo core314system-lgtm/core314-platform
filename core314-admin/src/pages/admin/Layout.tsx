@@ -13,42 +13,45 @@ import {
   Layers, 
   BarChart3, 
   DollarSign, 
-  Bot, 
   Activity, 
   Bell, 
   FileText,
-  Wrench,
-  Zap,
-  TrendingUp,
   AlertTriangle,
   Shield,
-  Gauge,
-  Brain,
-  Lightbulb,
-  Sparkles,
   Cpu,
   LogOut,
-  Workflow,
-  History,
-  Settings,
   FolderKanban,
   LineChart,
-  Sparkle,
   HeartPulse,
+  Radio,
+  Wifi,
+  Target,
   ClipboardList,
-  MessageSquare
+  MessageSquare,
+  ChevronRight
 } from 'lucide-react';
 
 const navGroups = [
   {
-    id: 'management',
-    label: 'Management',
+    id: 'operations',
+    label: 'Operations',
     icon: FolderKanban,
     items: [
       { path: '/users', label: 'User Management', icon: Users },
-      { path: '/integrations', label: 'Integration Tracking', icon: Layers },
       { path: '/billing', label: 'Billing Overview', icon: DollarSign },
-      { path: '/addon-purchases', label: 'Add-On Purchases', icon: DollarSign },
+      { path: '/subscriptions', label: 'Subscriptions', icon: Layers },
+      { path: '/integrations', label: 'Integration Tracking', icon: Layers },
+    ]
+  },
+  {
+    id: 'intelligence',
+    label: 'Intelligence',
+    icon: Radio,
+    items: [
+      { path: '/signal-intelligence', label: 'Signal Intelligence', icon: Radio },
+      { path: '/brief-tracker', label: 'Brief Tracker', icon: FileText },
+      { path: '/health-scores', label: 'Health Scores', icon: HeartPulse },
+      { path: '/integration-health', label: 'Integration Health', icon: Wifi },
     ]
   },
   {
@@ -56,53 +59,27 @@ const navGroups = [
     label: 'Analytics',
     icon: LineChart,
     items: [
-      { path: '/metrics', label: 'Metrics Dashboard', icon: BarChart3 },
-      { path: '/efficiency', label: 'Efficiency Index', icon: Gauge },
-      { path: '/fusion-efficiency', label: 'Fusion Efficiency', icon: Zap },
-      { path: '/behavioral-analytics', label: 'Behavioral Analytics', icon: Brain },
-      { path: '/predictive-insights', label: 'Predictive Insights', icon: Lightbulb },
+      { path: '/metrics', label: 'Platform Metrics', icon: BarChart3 },
     ]
   },
   {
-    id: 'ai-intelligence',
-    label: 'AI & System Intelligence',
-    icon: Sparkle,
+    id: 'system',
+    label: 'System',
+    icon: Shield,
     items: [
-      { path: '/ai-logs', label: 'AI Logs', icon: Bot },
-      { path: '/self-healing', label: 'Self-Healing Activity', icon: Wrench },
-      { path: '/adaptive-workflows', label: 'Adaptive Workflows', icon: Zap },
-      { path: '/fusion-risk-dashboard', label: 'Fusion Risk Dashboard', icon: TrendingUp },
-      { path: '/fusion-calibration', label: 'Fusion Calibration', icon: Sparkles },
-      { path: '/autonomous-oversight', label: 'Autonomous Oversight', icon: Shield },
-      { path: '/core-orchestrator', label: 'Core Orchestrator', icon: Cpu },
-      { path: '/insight-hub', label: 'Insight Hub', icon: Lightbulb },
-      { path: '/adaptive-policy', label: 'Policy Intelligence', icon: Shield },
-      { path: '/trust-graph', label: 'Trust Graph', icon: TrendingUp },
-      { path: '/governance-insights', label: 'Governance Insights', icon: Shield },
-      { path: '/automation-center', label: 'Automation Center', icon: Workflow },
-      { path: '/agent-activity', label: 'Agent Activity Log', icon: History },
-      { path: '/optimizations', label: 'Optimization Results', icon: Settings },
-      { path: '/reliability', label: 'Reliability Dashboard', icon: Activity },
+      { path: '/admin-audit', label: 'Admin Audit Log', icon: FileText },
+      { path: '/platform-alerts', label: 'Platform Alerts', icon: Bell },
+      { path: '/system-health', label: 'System Health', icon: Activity },
+      { path: '/system-intelligence', label: 'System Intelligence', icon: Cpu },
     ]
   },
-    {
-      id: 'system-health',
-      label: 'System Health',
-      icon: HeartPulse,
-      items: [
-        { path: '/system-intelligence', label: 'System Intelligence Summary', icon: Cpu },
-        { path: '/system-health', label: 'System Health', icon: Activity },
-        { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
-        { path: '/alerts', label: 'Alert Center', icon: Bell },
-        { path: '/notifications', label: 'Notification Center', icon: Bell },
-        { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
-      ]
-    },
   {
-    id: 'beta-operations',
-    label: 'Beta Operations',
+    id: 'legacy',
+    label: 'Legacy',
     icon: ClipboardList,
     items: [
+      { path: '/ai-logs', label: 'AI Logs', icon: Target },
+      { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
       { path: '/beta-feedback', label: 'Beta Feedback', icon: MessageSquare },
       { path: '/beta-ops', label: 'Beta Ops Console', icon: ClipboardList },
     ]
@@ -119,10 +96,10 @@ export function AdminLayout() {
       try {
         return JSON.parse(saved);
       } catch {
-        return ['management', 'analytics', 'ai-intelligence', 'system-health', 'beta-operations'];
+        return ['operations', 'intelligence', 'analytics', 'system', 'legacy'];
       }
     }
-    return ['management', 'analytics', 'ai-intelligence', 'system-health', 'beta-operations'];
+    return ['operations', 'intelligence', 'analytics', 'system'];
   });
 
   useEffect(() => {
