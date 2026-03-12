@@ -170,6 +170,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       profileMap.set(p.id, { email: p.email, full_name: p.full_name });
     }
 
+    // Phase 1 integrations only: Slack, HubSpot, QuickBooks
+    const PHASE1_SERVICES = ['slack', 'hubspot', 'quickbooks'];
+
     // Transform the data to a flat structure for the frontend
     const transformedIntegrations: AdminIntegrationRecord[] = (integrations || [])
       .filter((item) => item.integration_registry)
@@ -191,7 +194,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
           service_name: registry?.service_name || 'unknown',
           display_name: registry?.display_name || 'Unknown Integration',
         };
-      });
+      })
+      // Only show Phase 1 integrations (Slack, HubSpot, QuickBooks)
+      .filter((item) => PHASE1_SERVICES.includes(item.service_name));
 
     // Compute stats
     const stats = {
