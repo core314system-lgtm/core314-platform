@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { supabase } from '../../lib/supabase';
@@ -37,8 +36,6 @@ export function EditUserModal({
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(user.two_factor_enabled);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteMode, setDeleteMode] = useState<'soft' | 'hard'>('soft');
-  const [hardDeleteEmailConfirm, setHardDeleteEmailConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -87,11 +84,6 @@ export function EditUserModal({
     };
 
     const handleDelete = async () => {
-      if (deleteMode === 'hard' && hardDeleteEmailConfirm !== user.email) {
-        setDeleteError('Email does not match. Please type the exact email to confirm.');
-        return;
-      }
-
       setDeleting(true);
       setDeleteError(null);
 
@@ -109,15 +101,15 @@ export function EditUserModal({
           },
           body: JSON.stringify({
             user_id: user.id,
-            mode: deleteMode,
-            reason: `Admin deletion via dashboard`,
+            mode: 'hard',
+            reason: 'Admin deletion via dashboard',
           }),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || `Failed to ${deleteMode} delete user`);
+          throw new Error(data.error || 'Failed to delete user');
         }
 
         onUserDeleted?.(user.id);
@@ -133,8 +125,6 @@ export function EditUserModal({
 
     const resetDeleteState = () => {
       setShowDeleteConfirm(false);
-      setDeleteMode('soft');
-      setHardDeleteEmailConfirm('');
       setDeleteError(null);
     };
 
@@ -274,57 +264,9 @@ export function EditUserModal({
                 <Label className="text-red-600 dark:text-red-400 font-semibold text-lg">Confirm Deletion</Label>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    id="soft-delete"
-                    name="delete-mode"
-                    checked={deleteMode === 'soft'}
-                    onChange={() => setDeleteMode('soft')}
-                    className="h-4 w-4 text-red-600"
-                  />
-                  <label htmlFor="soft-delete" className="text-sm">
-                    <span className="font-medium">Soft Delete</span>
-                    <span className="text-gray-500 dark:text-gray-400 block text-xs">
-                      Deactivate account, cancel subscriptions, revoke sessions. Data is preserved.
-                    </span>
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    id="hard-delete"
-                    name="delete-mode"
-                    checked={deleteMode === 'hard'}
-                    onChange={() => setDeleteMode('hard')}
-                    className="h-4 w-4 text-red-600"
-                  />
-                  <label htmlFor="hard-delete" className="text-sm">
-                    <span className="font-medium">Hard Delete</span>
-                    <span className="text-gray-500 dark:text-gray-400 block text-xs">
-                      Permanently delete user, all data, and organization memberships. Cannot be undone.
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {deleteMode === 'hard' && (
-                <div className="space-y-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-                  <Label htmlFor="confirm-email" className="text-sm text-red-700 dark:text-red-300">
-                    Type the user's email to confirm: <span className="font-mono">{user.email}</span>
-                  </Label>
-                  <Input
-                    id="confirm-email"
-                    type="email"
-                    placeholder="Enter email to confirm"
-                    value={hardDeleteEmailConfirm}
-                    onChange={(e) => setHardDeleteEmailConfirm(e.target.value)}
-                    className="border-red-300 dark:border-red-700"
-                  />
-                </div>
-              )}
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Are you sure you want to permanently delete <span className="font-semibold">{user.email}</span>? This will remove the user, cancel any active subscriptions, and cannot be undone.
+              </p>
 
               {deleteError && (
                 <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
@@ -345,9 +287,10 @@ export function EditUserModal({
                   variant="destructive"
                   size="sm"
                   onClick={handleDelete}
-                  disabled={deleting || (deleteMode === 'hard' && hardDeleteEmailConfirm !== user.email)}
+                  disabled={deleting}
                 >
-                  {deleting ? 'Deleting...' : `Confirm ${deleteMode === 'hard' ? 'Hard' : 'Soft'} Delete`}
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleting ? 'Deleting...' : 'Confirm Delete'}
                 </Button>
               </div>
             </div>
