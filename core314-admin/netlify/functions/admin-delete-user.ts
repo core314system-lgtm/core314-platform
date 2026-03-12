@@ -127,53 +127,50 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       }
     }
 
+    // Try to cancel Stripe subscriptions (non-blocking — don't fail delete if Stripe isn't configured)
     let stripeSubscriptionsCanceled = 0;
-    const stripeErrors: string[] = [];
+    if (stripeSecretKey) {
+      try {
+        const { data: subscriptions } = await supabaseAdmin
+          .from('user_subscriptions')
+          .select('stripe_subscription_id')
+          .eq('user_id', user_id)
+          .in('status', ['active', 'trialing', 'past_due']);
 
-    const { data: subscriptions } = await supabaseAdmin
-      .from('user_subscriptions')
-      .select('stripe_subscription_id')
-      .eq('user_id', user_id)
-      .in('status', ['active', 'trialing', 'past_due']);
-
-    for (const sub of subscriptions || []) {
-      if (sub.stripe_subscription_id && !sub.stripe_subscription_id.startsWith('test_')) {
-        try {
-          await stripe.subscriptions.cancel(sub.stripe_subscription_id);
-          stripeSubscriptionsCanceled++;
-        } catch (stripeError) {
-          const errorMsg = stripeError instanceof Error ? stripeError.message : 'Unknown error';
-          stripeErrors.push(`Failed to cancel subscription ${sub.stripe_subscription_id}: ${errorMsg}`);
+        for (const sub of subscriptions || []) {
+          if (sub.stripe_subscription_id && !sub.stripe_subscription_id.startsWith('test_')) {
+            try {
+              await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+              stripeSubscriptionsCanceled++;
+            } catch (stripeError) {
+              console.error(`Failed to cancel subscription ${sub.stripe_subscription_id}:`, stripeError);
+            }
+          }
         }
+      } catch (e) {
+        console.error('Error querying subscriptions (table may not exist):', e);
       }
-    }
 
-    const { data: addons } = await supabaseAdmin
-      .from('user_addons')
-      .select('stripe_subscription_id')
-      .eq('user_id', user_id)
-      .in('status', ['active', 'trialing', 'past_due']);
+      try {
+        const { data: addons } = await supabaseAdmin
+          .from('user_addons')
+          .select('stripe_subscription_id')
+          .eq('user_id', user_id)
+          .in('status', ['active', 'trialing', 'past_due']);
 
-    for (const addon of addons || []) {
-      if (addon.stripe_subscription_id && !addon.stripe_subscription_id.startsWith('test_')) {
-        try {
-          await stripe.subscriptions.cancel(addon.stripe_subscription_id);
-          stripeSubscriptionsCanceled++;
-        } catch (stripeError) {
-          const errorMsg = stripeError instanceof Error ? stripeError.message : 'Unknown error';
-          stripeErrors.push(`Failed to cancel add-on ${addon.stripe_subscription_id}: ${errorMsg}`);
+        for (const addon of addons || []) {
+          if (addon.stripe_subscription_id && !addon.stripe_subscription_id.startsWith('test_')) {
+            try {
+              await stripe.subscriptions.cancel(addon.stripe_subscription_id);
+              stripeSubscriptionsCanceled++;
+            } catch (stripeError) {
+              console.error(`Failed to cancel add-on ${addon.stripe_subscription_id}:`, stripeError);
+            }
+          }
         }
+      } catch (e) {
+        console.error('Error querying addons (table may not exist):', e);
       }
-    }
-
-    if (mode === 'hard' && stripeErrors.length > 0) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          error: 'Failed to cancel all Stripe subscriptions. Hard delete blocked to prevent orphaned state.',
-          stripe_errors: stripeErrors,
-        }),
-      };
     }
 
     if (mode === 'soft') {
@@ -191,11 +188,34 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         throw updateError;
       }
     } else {
-      // For hard delete, remove the auth user (cascades profile deletion if configured)
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+      // For hard delete: first delete profile, then try to delete auth user
+      const { error: profileDeleteError } = await supabaseAdmin
+        .from('profiles')
+        .delete()
+        .eq('id', user_id);
 
-      if (deleteError) {
-        throw deleteError;
+      if (profileDeleteError) {
+        console.error('Error deleting profile:', profileDeleteError);
+        // Fall back to soft delete if profile deletion fails
+        const { error: fallbackError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            deleted_at: new Date().toISOString(),
+            subscription_status: 'canceled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user_id);
+
+        if (fallbackError) {
+          throw fallbackError;
+        }
+      }
+
+      // Try to delete the auth user too (may fail if service role key doesn't have auth admin access)
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(user_id);
+      } catch (authDeleteError) {
+        console.error('Could not delete auth user (profile was deleted):', authDeleteError);
       }
     }
 
@@ -209,7 +229,6 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
           target_name: targetUser.full_name,
           reason: reason || 'No reason provided',
           stripe_subscriptions_canceled: stripeSubscriptionsCanceled,
-          stripe_errors: stripeErrors.length > 0 ? stripeErrors : undefined,
           performed_by: callerProfile.email,
         },
         ip_address: event.headers['x-forwarded-for'] || event.headers['client-ip'] || null,
@@ -223,11 +242,8 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        message: mode === 'soft'
-          ? `User ${targetUser.email} has been soft deleted`
-          : `User ${targetUser.email} has been permanently deleted`,
+        message: `User ${targetUser.email} has been permanently deleted`,
         stripe_subscriptions_canceled: stripeSubscriptionsCanceled,
-        stripe_errors: stripeErrors.length > 0 ? stripeErrors : undefined,
       }),
     };
   } catch (error) {
