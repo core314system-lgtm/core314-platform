@@ -33,6 +33,14 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
   }
 
   try {
+    // Validate required environment variables
+    if (!supabaseServiceRoleKey) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY is not set' }),
+      };
+    }
+
     const authHeader = event.headers.authorization || event.headers.Authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
@@ -169,17 +177,11 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     }
 
     if (mode === 'soft') {
-      try {
-        await supabaseAdmin.auth.admin.signOut(user_id, 'global');
-      } catch (signOutError) {
-        console.error('Failed to revoke sessions:', signOutError);
-      }
-
+      // Update profile to mark as deleted/inactive
       const { error: updateError } = await supabaseAdmin
         .from('profiles')
         .update({
           deleted_at: new Date().toISOString(),
-          account_status: 'inactive',
           subscription_status: 'canceled',
           updated_at: new Date().toISOString(),
         })
@@ -189,12 +191,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         throw updateError;
       }
     } else {
-      try {
-        await supabaseAdmin.auth.admin.signOut(user_id, 'global');
-      } catch (signOutError) {
-        console.error('Failed to revoke sessions:', signOutError);
-      }
-
+      // For hard delete, remove the auth user (cascades profile deletion if configured)
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
 
       if (deleteError) {
