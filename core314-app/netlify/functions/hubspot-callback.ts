@@ -200,6 +200,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
 
     if (existingIntegration) {
       // Update existing integration
+      // provider_id is a UUID referencing integration_registry, NOT the HubSpot portal ID
       const { error: updateError } = await supabase
         .from("user_integrations")
         .update({
@@ -207,11 +208,12 @@ export const handler: Handler = async (event: HandlerEvent) => {
           access_token: access_token,
           refresh_token: refresh_token,
           token_expires_at: tokenExpiresAt,
-          provider_id: portalId,
+          provider_id: registryId,
           last_verified_at: new Date().toISOString(),
           error_message: null,
           consecutive_failures: 0,
           updated_at: new Date().toISOString(),
+          config: { hubspot_portal_id: portalId, oauth_connected: true },
         })
         .eq("id", existingIntegration.id);
 
@@ -232,6 +234,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
       );
     } else {
       // Create new integration record
+      // provider_id is a UUID referencing integration_registry, NOT the HubSpot portal ID
       const { data: newIntegration, error: insertError } = await supabase
         .from("user_integrations")
         .insert({
@@ -242,9 +245,10 @@ export const handler: Handler = async (event: HandlerEvent) => {
           access_token: access_token,
           refresh_token: refresh_token,
           token_expires_at: tokenExpiresAt,
-          provider_id: portalId,
+          provider_id: registryId,
           last_verified_at: new Date().toISOString(),
           date_added: new Date().toISOString(),
+          config: { hubspot_portal_id: portalId, oauth_connected: true },
         })
         .select("id")
         .single();
