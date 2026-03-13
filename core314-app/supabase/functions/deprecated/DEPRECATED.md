@@ -31,6 +31,7 @@ The following functions remain active and are deployed in production:
 | `calculate-user-score` | Calculate user quality scores | Admin Netlify function |
 | `check-oauth-readiness` | Verify OAuth readiness for integrations | IntegrationHub page |
 | `disconnect-integration` | Disconnect user integration (set inactive, delete tokens) | IntegrationManager page |
+| `calculate-operational-momentum` | Calculate momentum delta from health score history | On demand / brief-generate |
 | `health-score-calculator` | Calculate composite health score (0-100) | On demand / scheduler |
 | `hubspot-poll` | Poll HubSpot CRM data | pg_cron via integration-scheduler |
 | `integration-health-check` | Validate/refresh OAuth tokens | pg_cron every 5 min |
