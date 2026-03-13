@@ -288,36 +288,11 @@ serve(async (req) => {
       }
     }
 
-    // ── Step 5: Store correlated events for brief generation ─────────
-    // We store correlated events in the signal_data of a synthetic
-    // "meta" record in operational_signals, or pass them via a
-    // transient storage mechanism. Since we must not modify the DB
-    // schema, we store them in integration_ingestion_state as metadata
-    // keyed by user_id, similar to how the scheduler stores run results.
-
-    for (const event of correlatedEvents) {
-      await supabase.from('integration_ingestion_state').upsert({
-        user_id: event.user_id,
-        user_integration_id: '00000000-0000-0000-0000-000000000001', // Correlator system ID
-        service_name: 'signal-correlator',
-        last_polled_at: new Date().toISOString(),
-        last_event_timestamp: event.time_window_end,
-        next_poll_after: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        metadata: {
-          correlation_id: event.correlation_id,
-          organization_id: event.organization_id,
-          signal_ids: event.signal_ids,
-          integrations_involved: event.integrations_involved,
-          operational_categories: event.operational_categories,
-          time_window_start: event.time_window_start,
-          time_window_end: event.time_window_end,
-          combined_severity: event.combined_severity,
-          signals: event.signals,
-          correlated_at: new Date().toISOString(),
-        },
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,user_integration_id,service_name' });
-    }
+    // ── Step 5: Return correlated events ───────────────────────────────
+    // Correlated events are returned in the response body rather than
+    // stored in a DB table. The operational-brief-generate function
+    // invokes signal-correlator directly to retrieve fresh data,
+    // avoiding FK constraints on integration_ingestion_state.
 
     const duration = Date.now() - startTime;
     console.log(
