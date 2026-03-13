@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { fetchAdminData } from '../../lib/adminDataProxy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -39,14 +39,11 @@ export function HealthScoreDashboard() {
 
   const fetchScores = async () => {
     try {
-      const { data, error } = await supabase
-        .from('operational_health_scores')
-        .select(`*, profiles:user_id (full_name, email)`)
-        .order('calculated_at', { ascending: false })
-        .limit(500);
-
-      if (error) throw error;
-      setScores(data || []);
+      const result = await fetchAdminData<{ data: HealthScore[]; tableExists: boolean }>('health-scores');
+      if (!result.tableExists) {
+        console.warn('operational_health_scores table does not exist yet. Run migrations.');
+      }
+      setScores(result.data || []);
     } catch (error) {
       console.error('Error fetching health scores:', error);
     } finally {

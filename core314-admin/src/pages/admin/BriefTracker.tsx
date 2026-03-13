@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { fetchAdminData } from '../../lib/adminDataProxy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -25,19 +25,11 @@ export function BriefTracker() {
 
   const fetchBriefs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('operational_briefs')
-        .select(`id, user_id, title, confidence, health_score, brief_type, created_at, profiles:user_id (full_name, email)`)
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (error) throw error;
-      // Normalize profiles from array to single object
-      const normalized = (data || []).map(b => ({
-        ...b,
-        profiles: Array.isArray(b.profiles) ? b.profiles[0] || null : b.profiles,
-      }));
-      setBriefs(normalized);
+      const result = await fetchAdminData<{ data: Brief[]; tableExists: boolean }>('briefs');
+      if (!result.tableExists) {
+        console.warn('operational_briefs table does not exist yet. Run migrations.');
+      }
+      setBriefs(result.data || []);
     } catch (error) {
       console.error('Error fetching briefs:', error);
     } finally {
