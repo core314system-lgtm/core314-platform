@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { fetchAdminData } from '../../lib/adminDataProxy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -42,21 +42,12 @@ export function IntegrationHealthMonitor() {
 
   const fetchData = async () => {
     try {
-      const [intResult, logResult] = await Promise.all([
-        supabase
-          .from('user_integrations')
-          .select(`*, profiles:user_id (full_name, email)`)
-          .order('connected_at', { ascending: false }),
-        supabase
-          .from('integration_health_logs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100),
-      ]);
-
-      if (intResult.error) throw intResult.error;
-      setIntegrations(intResult.data || []);
-      setHealthLogs(logResult.data || []);
+      const result = await fetchAdminData<{ integrations: Integration[]; healthLogs: HealthLog[]; tableExists: boolean }>('integration-health');
+      if (!result.tableExists) {
+        console.warn('user_integrations table does not exist yet. Run migrations.');
+      }
+      setIntegrations(result.integrations || []);
+      setHealthLogs(result.healthLogs || []);
     } catch (error) {
       console.error('Error fetching integration data:', error);
     } finally {
