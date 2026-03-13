@@ -12,7 +12,7 @@ import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../components/ui/collapsible';
-import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle, ChevronDown, ChevronRight, LayoutDashboard } from 'lucide-react';
+import { Users, Layers, Bot, TrendingUp, RefreshCw, MessageSquare, CheckCircle, Sparkles, AlertTriangle, ChevronDown, ChevronRight, LayoutDashboard, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { FusionGauge } from '../components/dashboard/FusionGauge';
 import { IntegrationCard } from '../components/dashboard/IntegrationCard';
@@ -72,6 +72,8 @@ export function Dashboard() {
     score: number;
   }[]>([]);
   const [sessionData, setSessionData] = useState<{ last_login: string; active_sessions: number } | null>(null);
+  const [momentum, setMomentum] = useState<{ classification: string; delta: number; label: string } | null>(null);
+  const [latestHealthScore, setLatestHealthScore] = useState<{ score: number; label: string } | null>(null);
   
 
   // Collapsible section state for educational/guidance content
@@ -106,6 +108,7 @@ export function Dashboard() {
     if (profile?.id) {
       fetchDashboardData();
       fetchSessionData();
+      fetchMomentumAndHealth();
       
       const trackDashboard = async () => {
         try {
@@ -249,6 +252,57 @@ export function Dashboard() {
     }
   };
 
+  const fetchMomentumAndHealth = async () => {
+    if (!profile?.id) return;
+    try {
+      // Fetch momentum from latest brief's data_context
+      const { data: latestBrief } = await supabase
+        .from('operational_briefs')
+        .select('health_score, data_context')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latestBrief) {
+        const ctx = latestBrief.data_context as Record<string, unknown> | null;
+        const momentumData = ctx?.momentum as { classification: string; delta: number; label: string } | undefined;
+        if (momentumData) {
+          setMomentum(momentumData);
+        }
+        if (latestBrief.health_score !== null && latestBrief.health_score !== undefined) {
+          const score = latestBrief.health_score as number;
+          const label = score >= 80 ? 'Healthy' : score >= 60 ? 'Moderate' : score >= 40 ? 'At Risk' : 'Critical';
+          setLatestHealthScore({ score, label });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching momentum:', err);
+    }
+  };
+
+  const getMomentumArrow = (classification: string) => {
+    switch (classification) {
+      case 'strong_improvement': return { icon: ArrowUp, double: true, color: 'text-green-600' };
+      case 'improving': return { icon: ArrowUp, double: false, color: 'text-green-600' };
+      case 'stable': return { icon: ArrowRight, double: false, color: 'text-gray-500' };
+      case 'declining': return { icon: ArrowDown, double: false, color: 'text-orange-600' };
+      case 'critical_decline': return { icon: ArrowDown, double: true, color: 'text-red-600' };
+      default: return { icon: ArrowRight, double: false, color: 'text-gray-500' };
+    }
+  };
+
+  const getMomentumDisplayLabel = (classification: string) => {
+    const labels: Record<string, string> = {
+      'strong_improvement': 'Strong Improvement',
+      'improving': 'Improving',
+      'stable': 'Stable',
+      'declining': 'Declining',
+      'critical_decline': 'Critical Decline',
+    };
+    return labels[classification] || classification;
+  };
+
   const fetchSessionData = async () => {
     if (!profile?.id) return;
     
@@ -364,12 +418,42 @@ export function Dashboard() {
             </div>
             <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
               <CardContent className="p-4 flex flex-col justify-center h-full">
+                {/* Operational Health */}
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp className="h-5 w-5 text-green-600" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Health</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Operational Health</span>
                 </div>
-                <div className="text-3xl font-bold text-green-600">Healthy</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All systems operational</p>
+                {latestHealthScore ? (
+                  <div className="text-3xl font-bold text-green-600">
+                    {latestHealthScore.score} <span className="text-lg font-medium">— {latestHealthScore.label}</span>
+                  </div>
+                ) : (
+                  <div className="text-3xl font-bold text-green-600">Healthy</div>
+                )}
+
+                {/* Operational Momentum */}
+                {momentum ? (() => {
+                  const arrow = getMomentumArrow(momentum.classification);
+                  const ArrowIcon = arrow.icon;
+                  return (
+                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-green-200 dark:border-green-800">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Momentum:</span>
+                      <span className={`flex items-center gap-0.5 text-sm font-semibold ${arrow.color}`}>
+                        {arrow.double ? (
+                          <><ArrowIcon className="h-3.5 w-3.5" /><ArrowIcon className="h-3.5 w-3.5 -ml-2" /></>
+                        ) : (
+                          <ArrowIcon className="h-3.5 w-3.5" />
+                        )}
+                        {getMomentumDisplayLabel(momentum.classification)}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        ({momentum.delta >= 0 ? '+' : ''}{momentum.delta})
+                      </span>
+                    </div>
+                  );
+                })() : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">All systems operational</p>
+                )}
               </CardContent>
             </Card>
           </div>

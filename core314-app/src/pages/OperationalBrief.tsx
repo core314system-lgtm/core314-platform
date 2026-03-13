@@ -17,6 +17,9 @@ import {
   Sparkles,
   AlertCircle,
   ArrowUpCircle,
+  ArrowUp,
+  ArrowDown,
+  ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl } from '../lib/supabase';
@@ -26,6 +29,15 @@ interface BriefUsage {
   used: number;
   limit: number; // -1 = unlimited
   remaining: number; // -1 = unlimited
+}
+
+interface MomentumData {
+  classification: string;
+  delta: number;
+  label: string;
+  current_score?: number | null;
+  historical_average?: number | null;
+  scores_used?: number;
 }
 
 interface OperationalBriefData {
@@ -38,6 +50,10 @@ interface OperationalBriefData {
   confidence: number;
   health_score: number | null;
   created_at: string;
+  data_context?: {
+    momentum?: MomentumData;
+    [key: string]: unknown;
+  } | null;
 }
 
 // Safely parse JSONB fields that may be double-encoded as JSON strings
@@ -73,6 +89,7 @@ export function OperationalBrief() {
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<BriefUsage | null>(null);
   const [limitReached, setLimitReached] = useState(false);
+  const [momentum, setMomentum] = useState<MomentumData | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
@@ -92,8 +109,14 @@ export function OperationalBrief() {
       .limit(6);
 
     if (!error && data && data.length > 0) {
-      setBrief(normalizeBrief(data[0] as Record<string, unknown>));
+      const latestBrief = normalizeBrief(data[0] as Record<string, unknown>);
+      setBrief(latestBrief);
       setPastBriefs(data.slice(1).map(d => normalizeBrief(d as Record<string, unknown>)));
+      // Extract momentum from data_context
+      const ctx = (data[0] as Record<string, unknown>).data_context as Record<string, unknown> | null;
+      if (ctx?.momentum) {
+        setMomentum(ctx.momentum as MomentumData);
+      }
     }
     setLoading(false);
   };
@@ -124,6 +147,10 @@ export function OperationalBrief() {
       if (response.ok && result.success) {
         if (result.usage) {
           setUsage(result.usage);
+        }
+        // Capture momentum from the generate response
+        if (result.momentum) {
+          setMomentum(result.momentum as MomentumData);
         }
         await fetchLatestBrief();
       } else if (response.status === 429 && result.error === 'brief_limit_reached') {
@@ -166,6 +193,28 @@ export function OperationalBrief() {
     if (confidence >= 80) return { label: 'High Confidence', variant: 'default' as const };
     if (confidence >= 60) return { label: 'Moderate Confidence', variant: 'secondary' as const };
     return { label: 'Low Confidence', variant: 'outline' as const };
+  };
+
+  const getMomentumArrow = (classification: string) => {
+    switch (classification) {
+      case 'strong_improvement': return { icon: ArrowUp, double: true, color: 'text-green-600' };
+      case 'improving': return { icon: ArrowUp, double: false, color: 'text-green-600' };
+      case 'stable': return { icon: ArrowRight, double: false, color: 'text-gray-500' };
+      case 'declining': return { icon: ArrowDown, double: false, color: 'text-orange-600' };
+      case 'critical_decline': return { icon: ArrowDown, double: true, color: 'text-red-600' };
+      default: return { icon: ArrowRight, double: false, color: 'text-gray-500' };
+    }
+  };
+
+  const getMomentumDisplayLabel = (classification: string) => {
+    const labels: Record<string, string> = {
+      'strong_improvement': 'Strong Improvement',
+      'improving': 'Improving',
+      'stable': 'Stable',
+      'declining': 'Declining',
+      'critical_decline': 'Critical Decline',
+    };
+    return labels[classification] || classification;
   };
 
   if (loading) {
@@ -297,6 +346,23 @@ export function OperationalBrief() {
                     <div className={`text-xs font-medium ${getHealthColor(brief.health_score)}`}>
                       {getHealthLabel(brief.health_score)}
                     </div>
+                    {momentum && (() => {
+                      const arrow = getMomentumArrow(momentum.classification);
+                      const ArrowIcon = arrow.icon;
+                      return (
+                        <div className={`flex items-center justify-end gap-1 mt-1 text-xs font-medium ${arrow.color}`}>
+                          {arrow.double ? (
+                            <><ArrowIcon className="h-3 w-3" /><ArrowIcon className="h-3 w-3 -ml-1.5" /></>
+                          ) : (
+                            <ArrowIcon className="h-3 w-3" />
+                          )}
+                          {getMomentumDisplayLabel(momentum.classification)}
+                          <span className="text-gray-400 font-normal">
+                            ({momentum.delta >= 0 ? '+' : ''}{momentum.delta})
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
