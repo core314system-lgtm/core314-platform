@@ -97,18 +97,31 @@ function validatePollFunctionsExist() {
   const errors = [];
   const warnings = [];
   const functionsDir = path.join(__dirname, '..', 'core314-app', 'supabase', 'functions');
+  const deprecatedDir = path.join(functionsDir, 'deprecated');
 
   for (const integration of productionReady) {
     const pollFunctionPath = path.join(functionsDir, integration.pollFunctionName);
+    const deprecatedPath = path.join(deprecatedDir, integration.pollFunctionName);
     const indexPath = path.join(pollFunctionPath, 'index.ts');
+    const deprecatedIndexPath = path.join(deprecatedPath, 'index.ts');
 
-    if (!fs.existsSync(pollFunctionPath)) {
+    // Check active directory first, then deprecated directory
+    if (fs.existsSync(pollFunctionPath)) {
+      if (!fs.existsSync(indexPath)) {
+        errors.push(
+          `FAIL: ${integration.displayName} (${integration.serviceName}) - Poll function index.ts not found: ${integration.pollFunctionName}/index.ts`
+        );
+      }
+    } else if (fs.existsSync(deprecatedPath)) {
+      // Function exists in deprecated/ — valid but not active
+      if (!fs.existsSync(deprecatedIndexPath)) {
+        errors.push(
+          `FAIL: ${integration.displayName} (${integration.serviceName}) - Poll function index.ts not found: deprecated/${integration.pollFunctionName}/index.ts`
+        );
+      }
+    } else {
       errors.push(
         `FAIL: ${integration.displayName} (${integration.serviceName}) - Poll function directory not found: ${integration.pollFunctionName}/`
-      );
-    } else if (!fs.existsSync(indexPath)) {
-      errors.push(
-        `FAIL: ${integration.displayName} (${integration.serviceName}) - Poll function index.ts not found: ${integration.pollFunctionName}/index.ts`
       );
     }
   }
@@ -307,10 +320,11 @@ function validateSalesforceIntegration() {
     }
   }
 
-  // Verify poll function exists
+  // Verify poll function exists (check both active and deprecated directories)
   const functionsDir = path.join(__dirname, '..', 'core314-app', 'supabase', 'functions');
   const pollFunctionPath = path.join(functionsDir, 'salesforce-poll', 'index.ts');
-  if (!fs.existsSync(pollFunctionPath)) {
+  const deprecatedPollPath = path.join(functionsDir, 'deprecated', 'salesforce-poll', 'index.ts');
+  if (!fs.existsSync(pollFunctionPath) && !fs.existsSync(deprecatedPollPath)) {
     errors.push(
       'FAIL: Salesforce poll function not found at salesforce-poll/index.ts'
     );

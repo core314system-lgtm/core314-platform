@@ -48,8 +48,8 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
   const planName = subscription.items.data[0]?.price?.product 
-    ? (await stripe.products.retrieve(subscription.items.data[0].price.product as string)).metadata?.plan_name || "Starter"
-    : "Starter";
+    ? (await stripe.products.retrieve(subscription.items.data[0].price.product as string)).metadata?.plan_name || "Monitor"
+    : "Monitor";
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -106,8 +106,8 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
   const planName = subscription.items.data[0]?.price?.product 
-    ? (await stripe.products.retrieve(subscription.items.data[0].price.product as string)).metadata?.plan_name || "Starter"
-    : "Starter";
+    ? (await stripe.products.retrieve(subscription.items.data[0].price.product as string)).metadata?.plan_name || "Monitor"
+    : "Monitor";
 
   const { data: existingSub, error: findError } = await supabase
     .from("user_subscriptions")
