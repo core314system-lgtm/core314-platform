@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { getSignalCategory } from '../_shared/signal-classification.ts';
 
 /**
  * Operational Brief Generator
@@ -390,9 +391,18 @@ serve(async (req) => {
         ? 'QuickBooks is connected but no financial data has been collected yet. This typically means the first data sync has not completed or the QuickBooks account has no recent financial activity.'
         : 'QuickBooks is not connected. Financial data (invoices, payments, expenses) is not available for analysis.';
 
-    // Format signals for prompt
-    const signalSummary = activeSignals.length > 0
-      ? activeSignals.map(s => `- [${s.severity.toUpperCase()}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`).join('\n')
+    // Classify each signal and collect unique categories
+    const classifiedSignals = activeSignals.map(s => {
+      const signalData = (s.signal_data as Record<string, unknown>) || {};
+      const category = getSignalCategory(s.signal_type, s.source_integration, signalData);
+      return { ...s, category };
+    });
+
+    const signalCategoriesList = [...new Set(classifiedSignals.map(s => s.category))];
+
+    // Format signals for prompt — now includes category
+    const signalSummary = classifiedSignals.length > 0
+      ? classifiedSignals.map(s => `- [${s.severity.toUpperCase()}] [${s.category}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`).join('\n')
       : 'No active signals detected.';
 
     // Format correlated event context (if exists)
@@ -453,6 +463,8 @@ ${correlationContext}
 ALL ACTIVE SIGNALS:
 ${signalSummary}
 
+SIGNAL CATEGORIES PRESENT: ${signalCategoriesList.length > 0 ? signalCategoriesList.join(', ') : 'none'}
+
 RAW METRICS:
 CRM (HubSpot): ${crmSummary}
 Communication (Slack): ${commSummary}
@@ -490,6 +502,8 @@ ${integrationStatus}
 
 DETECTED OPERATIONAL SIGNALS:
 ${signalSummary}
+
+SIGNAL CATEGORIES PRESENT: ${signalCategoriesList.length > 0 ? signalCategoriesList.join(', ') : 'none'}
 
 RAW METRICS:
 CRM (HubSpot): ${crmSummary}
@@ -598,6 +612,7 @@ Generate a JSON response with these exact fields:
           communication: slackMeta,
           financial: qbMeta,
           signal_count: activeSignals.length,
+          signal_categories: signalCategoriesList,
           health_score: healthScore,
           health_label: healthLabel,
           connected_integrations: connectedServices,
