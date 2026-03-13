@@ -281,6 +281,57 @@ export const handler: Handler = async (event: HandlerEvent) => {
       );
     }
 
+    // Store tokens in Supabase Vault and create oauth_tokens record
+    // This is required for the integration-health-check Edge Function which reads from oauth_tokens
+    if (registryId) {
+      try {
+        // Store access token in vault
+        const { data: accessTokenSecretId, error: vaultAccessErr } = await supabase
+          .rpc('vault_create_secret', { secret: access_token });
+
+        if (vaultAccessErr) {
+          console.warn('[hubspot-callback] Failed to vault access token (non-fatal):', vaultAccessErr);
+        }
+
+        // Store refresh token in vault
+        let refreshTokenSecretId = null;
+        if (refresh_token) {
+          const { data: refreshSecretId, error: vaultRefreshErr } = await supabase
+            .rpc('vault_create_secret', { secret: refresh_token });
+          if (vaultRefreshErr) {
+            console.warn('[hubspot-callback] Failed to vault refresh token (non-fatal):', vaultRefreshErr);
+          }
+          refreshTokenSecretId = refreshSecretId;
+        }
+
+        // Upsert into oauth_tokens table (matches what oauth-callback Edge Function does for Slack/QB)
+        const { error: oauthTokenErr } = await supabase
+          .from('oauth_tokens')
+          .upsert({
+            user_id: userId,
+            integration_registry_id: registryId,
+            user_integration_id: userIntegrationId,
+            access_token_secret_id: accessTokenSecretId,
+            refresh_token_secret_id: refreshTokenSecretId,
+            token_type: 'bearer',
+            scope: 'crm.objects.contacts.read crm.objects.deals.read crm.objects.companies.read',
+            expires_at: tokenExpiresAt,
+            metadata: { hubspot_portal_id: portalId },
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,integration_registry_id'
+          });
+
+        if (oauthTokenErr) {
+          console.warn('[hubspot-callback] Failed to upsert oauth_tokens (non-fatal):', oauthTokenErr);
+        } else {
+          console.log(`[hubspot-callback] Successfully stored tokens in vault and oauth_tokens table`);
+        }
+      } catch (vaultErr) {
+        console.warn('[hubspot-callback] Vault/oauth_tokens error (non-fatal):', vaultErr);
+      }
+    }
+
     // Upsert hubspot_connections for portal-specific tracking
     const { error: connError } = await supabase
       .from("hubspot_connections")
