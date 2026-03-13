@@ -30,6 +30,13 @@ export const FAILURE_PATTERNS: FailurePattern[] = [
     base_confidence: 0.82,
   },
   {
+    name: 'revenue_pipeline_stagnation',
+    display_name: 'Revenue Pipeline Stagnation',
+    categories: ['communication', 'financial_activity'],
+    description: 'Communication decline paired with financial inactivity suggests revenue pipeline stagnation.',
+    base_confidence: 0.78,
+  },
+  {
     name: 'sales_coordination_breakdown',
     display_name: 'Sales Coordination Breakdown',
     categories: ['communication', 'sales_pipeline'],
