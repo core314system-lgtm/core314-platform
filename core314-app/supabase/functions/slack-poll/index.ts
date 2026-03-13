@@ -92,56 +92,61 @@ async function fetchSlackMetrics(accessToken: string, supabase: ReturnType<typeo
     // Strategy: Try public_channel + private_channel first; if missing_scope (groups:read not granted),
     // fall back to public_channel only so we still discover public channels.
     const allChannels: SlackChannel[] = [];
-    let cursor: string | undefined = undefined;
-    let pageCount = 0;
-    let channelTypes = 'public_channel,private_channel';
+    const typesToTry = ['public_channel,private_channel', 'public_channel'];
     
-    do {
-      const params = new URLSearchParams({
-        types: channelTypes,
-        exclude_archived: 'true',
-        limit: '1000',
-      });
-      if (cursor) params.set('cursor', cursor);
+    for (const channelTypes of typesToTry) {
+      let cursor: string | undefined = undefined;
+      let pageCount = 0;
+      let scopeError = false;
       
-      console.log('[slack-poll] Calling conversations.list with params:', {
-        types: channelTypes,
-        exclude_archived: 'true',
-        limit: '1000',
-        cursor: cursor || '(none)',
-        page: pageCount + 1,
-      });
+      do {
+        const params = new URLSearchParams({
+          types: channelTypes,
+          exclude_archived: 'true',
+          limit: '1000',
+        });
+        if (cursor) params.set('cursor', cursor);
+        
+        console.log('[slack-poll] Calling conversations.list with params:', {
+          types: channelTypes,
+          exclude_archived: 'true',
+          limit: '1000',
+          cursor: cursor || '(none)',
+          page: pageCount + 1,
+        });
 
-      const channelsResponse = await fetch(`https://slack.com/api/conversations.list?${params.toString()}`, {
-        method: 'GET',
-        headers,
-      });
+        const channelsResponse = await fetch(`https://slack.com/api/conversations.list?${params.toString()}`, {
+          method: 'GET',
+          headers,
+        });
 
-      if (channelsResponse.ok) {
-        const channelsData = await channelsResponse.json();
-        if (channelsData.ok && channelsData.channels) {
-          allChannels.push(...channelsData.channels);
-          cursor = channelsData.response_metadata?.next_cursor || undefined;
-          if (cursor === '') cursor = undefined;
-        } else if (channelsData.error === 'missing_scope' && channelTypes.includes('private_channel')) {
-          // Bot token lacks groups:read scope — fall back to public channels only
-          console.warn('[slack-poll] missing_scope for private_channel (needs groups:read). Falling back to public_channel only. needed:', channelsData.needed, 'provided:', channelsData.provided);
-          channelTypes = 'public_channel';
-          cursor = undefined;
-          pageCount = 0;
-          continue; // Retry with public_channel only
+        if (channelsResponse.ok) {
+          const channelsData = await channelsResponse.json();
+          if (channelsData.ok && channelsData.channels) {
+            allChannels.push(...channelsData.channels);
+            cursor = channelsData.response_metadata?.next_cursor || undefined;
+            if (cursor === '') cursor = undefined;
+          } else if (channelsData.error === 'missing_scope' && channelTypes.includes('private_channel')) {
+            // Bot token lacks groups:read scope — will retry with public_channel only
+            console.warn('[slack-poll] missing_scope for private_channel (needs groups:read). Will retry with public_channel only. needed:', channelsData.needed, 'provided:', channelsData.provided);
+            scopeError = true;
+            break;
+          } else {
+            console.error('[slack-poll] conversations.list returned ok=false:', channelsData.error, channelsData);
+            break;
+          }
         } else {
-          console.error('[slack-poll] conversations.list returned ok=false:', channelsData.error, channelsData);
+          console.error('[slack-poll] conversations.list HTTP error:', channelsResponse.status, await channelsResponse.text());
           break;
         }
-      } else {
-        console.error('[slack-poll] conversations.list HTTP error:', channelsResponse.status, await channelsResponse.text());
-        break;
-      }
-      pageCount++;
-      if (pageCount > 5) break; // Safety limit: max 5 pages (5000 channels)
-      if (cursor) await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit between pages
-    } while (cursor);
+        pageCount++;
+        if (pageCount > 5) break; // Safety limit: max 5 pages (5000 channels)
+        if (cursor) await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit between pages
+      } while (cursor);
+      
+      // If we got channels or didn't hit a scope error, stop trying
+      if (allChannels.length > 0 || !scopeError) break;
+    }
 
     console.log('Slack channels detected:', allChannels.length);
 
