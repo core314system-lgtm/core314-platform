@@ -212,6 +212,62 @@ serve(async (req) => {
       .limit(1)
       .single();
 
+    // ── Step 3b: Calculate Operational Momentum ─────────────────────────
+    // Fetch up to 4 recent health scores (1 current + up to 3 historical)
+    // and compute momentum_delta = current_score - average(previous scores)
+    let momentumDelta = 0;
+    let momentumClassification = 'stable';
+    let momentumLabel = 'Stable (no history)';
+    let momentumCurrentScore: number | null = null;
+    let momentumHistoricalAvg: number | null = null;
+    let momentumScoresUsed = 0;
+
+    try {
+      const { data: recentScores } = await supabase
+        .from('operational_health_scores')
+        .select('score, calculated_at')
+        .eq('user_id', user.id)
+        .order('calculated_at', { ascending: false })
+        .limit(4);
+
+      const scoreRows = recentScores || [];
+      momentumScoresUsed = scoreRows.length;
+
+      if (scoreRows.length >= 2) {
+        momentumCurrentScore = scoreRows[0].score;
+        const previousScores = scoreRows.slice(1);
+        momentumHistoricalAvg = Math.round(
+          previousScores.reduce((sum: number, s: { score: number }) => sum + s.score, 0) / previousScores.length
+        );
+        momentumDelta = momentumCurrentScore - momentumHistoricalAvg;
+
+        // Classify momentum
+        if (momentumDelta >= 8) momentumClassification = 'strong_improvement';
+        else if (momentumDelta >= 3) momentumClassification = 'improving';
+        else if (momentumDelta >= -2) momentumClassification = 'stable';
+        else if (momentumDelta >= -7) momentumClassification = 'declining';
+        else momentumClassification = 'critical_decline';
+
+        // Build display label
+        const sign = momentumDelta >= 0 ? '+' : '';
+        const classLabels: Record<string, string> = {
+          'strong_improvement': 'Strong Improvement',
+          'improving': 'Improving',
+          'stable': 'Stable',
+          'declining': 'Declining',
+          'critical_decline': 'Critical Decline',
+        };
+        momentumLabel = `${classLabels[momentumClassification]} (${sign}${momentumDelta} compared to recent cycles)`;
+      } else if (scoreRows.length === 1) {
+        momentumCurrentScore = scoreRows[0].score;
+        momentumLabel = 'Stable (initial score)';
+      }
+
+      console.log(`[operational-brief] Momentum: delta=${momentumDelta}, classification=${momentumClassification}, scores_used=${momentumScoresUsed}`);
+    } catch (momentumErr) {
+      console.error('[operational-brief] Momentum calculation error (non-fatal):', momentumErr);
+    }
+
     // ── Step 4: Fetch connected integrations ──────────────────────────
     const { data: connectedIntegrations } = await supabase
       .from('user_integrations')
@@ -388,6 +444,7 @@ Data availability: HubSpot ${hasHubspotData ? 'has data' : hasHubspot ? 'connect
 
 Date: ${today}
 Operational Health Score: ${healthScore !== null ? `${healthScore}/100 (${healthLabel})` : 'Not yet calculated'}
+Operational Momentum: ${momentumLabel}
 
 INTEGRATION STATUS:
 ${integrationStatus}
@@ -409,6 +466,7 @@ INSTRUCTIONS:
 - Write as if you are a senior business analyst presenting to the CEO
 - Be specific — use exact numbers from the data when available
 - Do NOT invent data that isn't provided above
+- Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
 
 Generate a JSON response with these exact fields:
 1. "title": Must begin with "Operational Event Detected" (e.g., "Operational Event Detected — Cross-Integration Pattern — ${today}")
@@ -425,6 +483,7 @@ Generate a JSON response with these exact fields:
 
 Date: ${today}
 Operational Health Score: ${healthScore !== null ? `${healthScore}/100 (${healthLabel})` : 'Not yet calculated'}
+Operational Momentum: ${momentumLabel}
 
 INTEGRATION STATUS:
 ${integrationStatus}
@@ -447,6 +506,7 @@ INSTRUCTIONS:
   - Provide reasoning about what the current state means (e.g., "No signals detected could mean operations are stable, or it could mean we lack sufficient data coverage")
   - Recommend specific next steps to improve data coverage and operational visibility
 - Focus on what the data MEANS for the business, not just what the numbers are
+- Explain the operational trend using the Momentum data — whether health is improving, stable, or declining compared to recent cycles
 - Identify patterns across data sources when possible
 - If this is a first brief with minimal data, frame it as an "Initial Operational Assessment" and focus on onboarding recommendations
 
@@ -552,6 +612,15 @@ Generate a JSON response with these exact fields:
           // New correlated event narrative fields
           event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
           operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
+          // Operational Momentum
+          momentum: {
+            classification: momentumClassification,
+            delta: momentumDelta,
+            label: momentumLabel,
+            current_score: momentumCurrentScore,
+            historical_average: momentumHistoricalAvg,
+            scores_used: momentumScoresUsed,
+          },
         },
       })
       .select()
@@ -608,6 +677,14 @@ Generate a JSON response with these exact fields:
     return new Response(JSON.stringify({ 
       success: true, 
       brief: savedBrief,
+      momentum: {
+        momentum_classification: momentumClassification,
+        momentum_delta: momentumDelta,
+        momentum_label: momentumLabel,
+        current_score: momentumCurrentScore,
+        historical_average: momentumHistoricalAvg,
+        scores_used: momentumScoresUsed,
+      },
       usage: {
         plan: planName,
         used: currentCount + 1,
