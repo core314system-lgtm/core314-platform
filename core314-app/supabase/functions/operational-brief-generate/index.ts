@@ -211,6 +211,7 @@ serve(async (req) => {
     // ── Step 5b: Fetch Slack integration config for channel/connection status ──
     // This provides channels_member, channels_total, oauth_connected from user_integrations.config
     // which is stored by slack-poll after each discovery run.
+    const hasSlack = connectedServices.includes('slack');
     let slackIntegrationConfig: Record<string, unknown> = {};
     if (hasSlack) {
       // Try to find the Slack user_integration row with config
@@ -240,7 +241,6 @@ serve(async (req) => {
 
     // Determine data availability
     const hasHubspot = connectedServices.includes('hubspot');
-    const hasSlack = connectedServices.includes('slack');
     const hasQuickbooks = connectedServices.includes('quickbooks');
     const hasHubspotData = !!hubspotEvents?.[0];
     const hasSlackData = !!slackEvents?.[0];
