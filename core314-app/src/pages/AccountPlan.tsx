@@ -39,87 +39,103 @@ const PLAN_CONFIG: Record<string, {
     aiLevel: 'None',
     features: [],
   },
-  starter: {
-    label: 'Starter',
+  monitor: {
+    label: 'Monitor',
     price: '$99/mo',
     priceValue: 99,
-    description: 'Perfect for small teams getting started',
-    integrations: '3 integrations included',
+    description: 'Early warning system for operational issues',
+    integrations: 'Unlimited integrations',
     users: 'Up to 5 users',
     aiLevel: 'Basic AI recommendations',
     features: [
       'Unified dashboards',
-      'Basic AI recommendations',
+      'Signal detection',
+      'Health score monitoring',
       'Email support',
-      '14-day free trial',
     ],
   },
-  professional: {
-    label: 'Pro',
-    price: '$999/mo',
-    priceValue: 999,
-    description: 'Advanced operations for growing businesses',
-    integrations: '10 integrations included',
-    users: 'Up to 25 users',
-    aiLevel: 'Advanced AI with Proactive Optimization',
+  intelligence: {
+    label: 'Intelligence',
+    price: '$299/mo',
+    priceValue: 299,
+    description: 'Understand what is happening inside your business and why',
+    integrations: 'Unlimited integrations',
+    users: 'Up to 10 users',
+    aiLevel: 'Advanced AI with trend analysis',
     features: [
-      'Proactive Optimization Engine',
-      'Real-time KPI alerts',
-      'Advanced analytics',
+      'Everything in Monitor',
+      'AI-powered insights',
+      'Trend analysis',
+      'Command center access',
       'Priority support',
+    ],
+  },
+  command_center: {
+    label: 'Command Center',
+    price: '$799/mo',
+    priceValue: 799,
+    description: 'Continuous operational intelligence for scaling organizations',
+    integrations: 'Unlimited integrations',
+    users: 'Unlimited users',
+    aiLevel: 'Full signal analytics & API access',
+    features: [
+      'Everything in Intelligence',
+      'Signal analytics',
       'API access',
+      'Advanced automation',
+      'Dedicated support',
     ],
   },
   enterprise: {
     label: 'Enterprise',
     price: 'Custom',
-    priceValue: 0, // Not used - Enterprise is Contact Sales only
+    priceValue: 0,
     description: 'Full-featured for large operations',
     integrations: 'Unlimited integrations',
     users: 'Unlimited users',
     aiLevel: 'Full AI orchestration',
     features: [
-      'Admin Analytics dashboard',
-      'Full API access',
-      'On-premise deployment option',
+      'Everything in Command Center',
+      'Custom integrations',
       'Dedicated account manager',
       'Custom SLA',
-      '24/7 support',
+      'On-premise deployment option',
     ],
   },
 };
 
 // Tier ranking for upgrade/addon eligibility logic
-type Tier = 'none' | 'starter' | 'professional' | 'enterprise';
+type Tier = 'none' | 'monitor' | 'intelligence' | 'command_center' | 'enterprise';
 const tierRank: Record<Tier, number> = {
   none: 0,
-  starter: 1,
-  professional: 2,
-  enterprise: 3,
+  monitor: 1,
+  intelligence: 2,
+  command_center: 3,
+  enterprise: 4,
 };
 
 // Add-ons configuration with eligibility rules
 const ADDONS = [
   {
-    id: 'additional_integration_starter',
-    name: 'Additional Integration (Starter)',
-    description: 'Expand your connected systems beyond the 3 included in your Starter plan. Each additional integration brings more data into your unified dashboard, enabling broader Fusion scoring and cross-system insights.',
+    id: 'additional_integration_monitor',
+    name: 'Additional Integration (Monitor)',
+    description: 'Expand your connected systems beyond your Monitor plan. Each additional integration brings more data into your unified dashboard, enabling broader Fusion scoring and cross-system insights.',
     benefit: 'Ideal for growing teams adding new tools over time. Connect Slack, Teams, Gmail, or any supported app to capture the full picture of your operations without upgrading your entire plan.',
     price: '$75/mo',
-    minTier: 'starter' as Tier,
-    maxTier: 'starter' as Tier,
-    compatibilityLabel: 'Starter plan only',
+    minTier: 'monitor' as Tier,
+    maxTier: 'monitor' as Tier,
+    compatibilityLabel: 'Monitor plan only',
     icon: Zap,
   },
   {
-    id: 'additional_integration_pro',
-    name: 'Additional Integration (Pro)',
-    description: 'Go beyond the 10 integrations included in your Pro plan. Each additional connection expands your operational visibility and strengthens your Fusion scoring accuracy across more data sources.',
+    id: 'additional_integration_intelligence',
+    name: 'Additional Integration (Intelligence)',
+    description: 'Expand your connected systems beyond your Intelligence plan. Each additional connection expands your operational visibility and strengthens your Fusion scoring accuracy across more data sources.',
     benefit: 'Ideal for scaling operations with diverse tooling. Capture data from every corner of your tech stack to ensure nothing falls through the cracks as your business grows.',
     price: '$50/mo',
-    minTier: 'professional' as Tier,
-    maxTier: 'professional' as Tier,
-    compatibilityLabel: 'Pro plan only',
+    minTier: 'intelligence' as Tier,
+    maxTier: 'intelligence' as Tier,
+    compatibilityLabel: 'Intelligence plan only',
     icon: Zap,
   },
   {
@@ -128,9 +144,9 @@ const ADDONS = [
     description: 'Unlock advanced dashboards with cross-integration analysis, trend detection, and KPI comparisons. Build custom views that surface the metrics that matter most to your leadership and operations teams.',
     benefit: 'Ideal for operations leaders and executives who need a single source of truth. Investigate anomalies, compare performance across time periods, and share polished reports with stakeholders.',
     price: '$199/mo',
-    minTier: 'starter' as Tier,
+    minTier: 'monitor' as Tier,
     maxTier: 'enterprise' as Tier,
-    compatibilityLabel: 'Available on Starter+',
+    compatibilityLabel: 'Available on Monitor+',
     icon: TrendingUp,
   },
   {
@@ -139,9 +155,9 @@ const ADDONS = [
     description: 'Elevate your AI capabilities with predictive signals and proactive optimization recommendations. The system learns your operational patterns and surfaces early warnings before inefficiencies impact your business.',
     benefit: 'Ideal for complex or scaling operations where early detection matters. Reduce firefighting by catching issues before they escalate, and receive actionable recommendations tailored to your workflow.',
     price: '$299/mo',
-    minTier: 'professional' as Tier,
+    minTier: 'intelligence' as Tier,
     maxTier: 'enterprise' as Tier,
-    compatibilityLabel: 'Available on Pro+',
+    compatibilityLabel: 'Available on Intelligence+',
     icon: Sparkles,
   },
   {
@@ -150,9 +166,9 @@ const ADDONS = [
     description: 'Export your operational data anytime in CSV, JSON, or PDF formats. Maintain full ownership of your data for compliance audits, external reporting, or offline analysis.',
     benefit: 'Ideal for regulated industries or reporting-heavy environments. Meet audit requirements, share data with external partners, and ensure you always have access to your information.',
     price: '$99/mo',
-    minTier: 'starter' as Tier,
+    minTier: 'monitor' as Tier,
     maxTier: 'enterprise' as Tier,
-    compatibilityLabel: 'Available on Starter+',
+    compatibilityLabel: 'Available on Monitor+',
     icon: TrendingUp,
   },
 ];
@@ -171,8 +187,9 @@ const getAvailableUpgrades = (currentTier: string | undefined): string[] => {
   const current = tierRank[(currentTier as Tier) ?? 'none'];
   const upgrades: string[] = [];
   
-  if (current < tierRank.starter) upgrades.push('starter');
-  if (current < tierRank.professional) upgrades.push('professional');
+  if (current < tierRank.monitor) upgrades.push('monitor');
+  if (current < tierRank.intelligence) upgrades.push('intelligence');
+  if (current < tierRank.command_center) upgrades.push('command_center');
   if (current < tierRank.enterprise) upgrades.push('enterprise');
   
   return upgrades;
@@ -440,8 +457,8 @@ export function AccountPlan() {
               const isEnterprise = tierKey === 'enterprise';
               
               return (
-                <Card key={tierKey} className={tierKey === 'professional' ? 'border-2 border-blue-500 relative' : ''}>
-                  {tierKey === 'professional' && (
+                <Card key={tierKey} className={tierKey === 'intelligence' ? 'border-2 border-blue-500 relative' : ''}>
+                  {tierKey === 'intelligence' && (
                     <div className="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 text-sm font-semibold rounded-bl-lg rounded-tr-lg">
                       Recommended
                     </div>
@@ -474,7 +491,7 @@ export function AccountPlan() {
                     </ul>
                     <Button
                       className="w-full"
-                      variant={tierKey === 'professional' ? 'default' : 'outline'}
+                      variant={tierKey === 'intelligence' ? 'default' : 'outline'}
                       onClick={handleContactSales}
                     >
                       {isEnterprise ? 'Contact Sales' : 'Upgrade'}

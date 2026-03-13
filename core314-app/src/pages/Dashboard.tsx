@@ -537,7 +537,7 @@ export function Dashboard() {
             />
           </div>
           <div className="lg:col-span-2">
-            {['professional', 'enterprise'].includes(subscription.tier) && (
+            {['intelligence', 'command_center', 'enterprise'].includes(subscription.tier) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">

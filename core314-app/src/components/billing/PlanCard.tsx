@@ -48,10 +48,12 @@ export const PlanCard: React.FC<PlanCardProps> = ({
     switch (plan.toLowerCase()) {
       case 'free':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
-      case 'starter':
+      case 'monitor':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
-      case 'pro':
+      case 'intelligence':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
+      case 'command center':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100';
       case 'enterprise':
         return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100';
       default:

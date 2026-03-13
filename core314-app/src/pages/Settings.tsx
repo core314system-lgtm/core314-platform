@@ -687,7 +687,7 @@ export function Settings() {
                   <Label>Plan</Label>
                   <div className="mt-1">
                     <Badge variant="secondary" className="capitalize">
-                      {currentOrganization?.plan || 'starter'}
+                      {currentOrganization?.plan || 'monitor'}
                     </Badge>
                   </div>
                 </div>

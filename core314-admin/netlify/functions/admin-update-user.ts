@@ -10,7 +10,7 @@ const supabaseAnon = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KE
 interface UpdateUserPayload {
   userId: string;
   role: 'admin' | 'manager' | 'user';
-  subscriptionTier: 'none' | 'starter' | 'professional' | 'enterprise';
+  subscriptionTier: 'none' | 'monitor' | 'intelligence' | 'command_center' | 'enterprise';
   subscriptionStatus: 'active' | 'inactive';
   twoFactorEnabled: boolean;
 }
@@ -72,10 +72,10 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       };
     }
 
-    if (!['none', 'starter', 'professional', 'enterprise'].includes(subscriptionTier)) {
+    if (!['none', 'monitor', 'intelligence', 'command_center', 'enterprise'].includes(subscriptionTier)) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Invalid subscription tier' }),
+        body: JSON.stringify({ error: 'Invalid subscription tier. Must be none, monitor, intelligence, command_center, or enterprise' }),
       };
     }
 
@@ -135,6 +135,72 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
     if (updateError) {
       throw updateError;
+    }
+
+    // Sync subscription tier to user_subscriptions table (used by billing page)
+    // Map profile tier names to plan_limits display names
+    const tierToPlanName: Record<string, string> = {
+      'monitor': 'Monitor',
+      'intelligence': 'Intelligence',
+      'command_center': 'Command Center',
+      'enterprise': 'Enterprise',
+    };
+
+    const effectiveTier = role === 'admin' ? 'none' : subscriptionTier;
+    const effectiveStatus = role === 'admin' ? 'inactive' : subscriptionStatus;
+
+    if (effectiveTier !== 'none' && effectiveStatus === 'active') {
+      const planName = tierToPlanName[effectiveTier];
+      if (planName) {
+        try {
+          // Check for existing subscription
+          const { data: existingSub } = await supabaseAdmin
+            .from('user_subscriptions')
+            .select('id')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingSub) {
+            await supabaseAdmin
+              .from('user_subscriptions')
+              .update({
+                plan_name: planName,
+                status: 'active',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existingSub.id);
+          } else {
+            await supabaseAdmin
+              .from('user_subscriptions')
+              .insert({
+                user_id: userId,
+                plan_name: planName,
+                status: 'active',
+                metadata: { source: 'admin_assigned', assigned_by: user.id },
+              });
+          }
+          console.log(`Synced user_subscriptions: ${userId} -> ${planName} (active)`);
+        } catch (subError) {
+          console.error('Failed to sync user_subscriptions (non-fatal):', subError);
+        }
+      }
+    } else {
+      // Deactivate any existing subscription when tier is none
+      try {
+        await supabaseAdmin
+          .from('user_subscriptions')
+          .update({
+            status: 'canceled',
+            canceled_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+          .in('status', ['active', 'trialing']);
+      } catch (subError) {
+        console.error('Failed to cancel user_subscriptions (non-fatal):', subError);
+      }
     }
 
     try {

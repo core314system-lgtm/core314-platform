@@ -88,8 +88,9 @@ export function Users() {
   const getTierBadgeColor = (tier: string) => {
     switch (tier) {
       case 'enterprise': return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'professional': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'starter': return 'bg-green-100 text-green-800 border-green-300';
+      case 'intelligence': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'command_center': return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+      case 'monitor': return 'bg-green-100 text-green-800 border-green-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };

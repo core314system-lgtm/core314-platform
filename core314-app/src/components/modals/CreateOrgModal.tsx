@@ -16,7 +16,7 @@ interface CreateOrgModalProps {
 export function CreateOrgModal({ open, onOpenChange, onSuccess }: CreateOrgModalProps) {
   const supabase = useSupabaseClient();
   const [name, setName] = useState('');
-  const [plan, setPlan] = useState('starter');
+  const [plan, setPlan] = useState('monitor');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +46,7 @@ export function CreateOrgModal({ open, onOpenChange, onSuccess }: CreateOrgModal
       if (!response.ok) throw new Error(data.error);
 
       setName('');
-      setPlan('starter');
+      setPlan('monitor');
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create organization');
@@ -82,9 +82,10 @@ export function CreateOrgModal({ open, onOpenChange, onSuccess }: CreateOrgModal
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="starter">Starter</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
+                <SelectItem value="monitor">Monitor ($99/mo)</SelectItem>
+                <SelectItem value="intelligence">Intelligence ($299/mo)</SelectItem>
+                <SelectItem value="command_center">Command Center ($799/mo)</SelectItem>
+                <SelectItem value="enterprise">Enterprise (Custom)</SelectItem>
               </SelectContent>
             </Select>
           </div>

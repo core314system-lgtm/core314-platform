@@ -182,7 +182,7 @@ export function UpgradeBenefitsPreview({ className = '' }: UpgradeBenefitsPrevie
     return null;
   }
   
-  const nextTier = benefits[0]?.to || 'professional';
+  const nextTier = benefits[0]?.to || 'intelligence';
   
   return (
     <Card className={`bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800 ${className}`}>

@@ -49,7 +49,7 @@ export interface TenantEntitlements {
   admin_visibility_scope: 'limited' | 'standard' | 'full';
   
   /** Plan tier for display purposes */
-  plan_tier: 'starter' | 'professional' | 'enterprise' | 'internal';
+  plan_tier: 'monitor' | 'intelligence' | 'command_center' | 'enterprise' | 'internal';
   
   /** Whether this is a beta/internal tenant with full access */
   is_beta_tenant: boolean;
@@ -85,27 +85,39 @@ const PLAN_ENTITLEMENTS: Record<string, TenantEntitlements> = {
     is_beta_tenant: false,
   },
   
-  // Professional tier - expanded access
-  professional: {
+  // Command Center tier - full operational intelligence
+  command_center: {
+    max_connected_integrations: -1,
+    max_fusion_contributors: -1,
+    intelligence_refresh_frequency: 5,
+    historical_depth_days: -1,
+    cross_integration_depth: 'full',
+    admin_visibility_scope: 'full',
+    plan_tier: 'command_center',
+    is_beta_tenant: false,
+  },
+  
+  // Intelligence tier - expanded access
+  intelligence: {
     max_connected_integrations: 10,
     max_fusion_contributors: 7,
     intelligence_refresh_frequency: 15,
     historical_depth_days: 90,
     cross_integration_depth: 'deep',
     admin_visibility_scope: 'standard',
-    plan_tier: 'professional',
+    plan_tier: 'intelligence',
     is_beta_tenant: false,
   },
   
-  // Starter tier - basic access
-  starter: {
+  // Monitor tier - basic access
+  monitor: {
     max_connected_integrations: 5,
     max_fusion_contributors: 3,
     intelligence_refresh_frequency: 60,
     historical_depth_days: 30,
     cross_integration_depth: 'basic',
     admin_visibility_scope: 'limited',
-    plan_tier: 'starter',
+    plan_tier: 'monitor',
     is_beta_tenant: false,
   },
   
@@ -117,7 +129,7 @@ const PLAN_ENTITLEMENTS: Record<string, TenantEntitlements> = {
     historical_depth_days: 7,
     cross_integration_depth: 'basic',
     admin_visibility_scope: 'limited',
-    plan_tier: 'starter',
+    plan_tier: 'monitor',
     is_beta_tenant: false,
   },
 };
@@ -126,20 +138,25 @@ const PLAN_ENTITLEMENTS: Record<string, TenantEntitlements> = {
  * What users gain by upgrading - used for upgrade UX
  */
 export const UPGRADE_BENEFITS: Record<string, { from: string; to: string; benefit: string }[]> = {
-  starter: [
-    { from: 'starter', to: 'professional', benefit: 'Connect up to 10 integrations (vs 5)' },
-    { from: 'starter', to: 'professional', benefit: '7 integrations contribute to Fusion Score (vs 3)' },
-    { from: 'starter', to: 'professional', benefit: 'Intelligence refreshes every 15 min (vs 60 min)' },
-    { from: 'starter', to: 'professional', benefit: '90 days of historical data (vs 30 days)' },
-    { from: 'starter', to: 'professional', benefit: 'Deep cross-integration analysis' },
+  monitor: [
+    { from: 'monitor', to: 'intelligence', benefit: 'Connect up to 10 integrations (vs 5)' },
+    { from: 'monitor', to: 'intelligence', benefit: '7 integrations contribute to Fusion Score (vs 3)' },
+    { from: 'monitor', to: 'intelligence', benefit: 'Intelligence refreshes every 15 min (vs 60 min)' },
+    { from: 'monitor', to: 'intelligence', benefit: '90 days of historical data (vs 30 days)' },
+    { from: 'monitor', to: 'intelligence', benefit: 'Deep cross-integration analysis' },
   ],
-  professional: [
-    { from: 'professional', to: 'enterprise', benefit: 'Unlimited integrations' },
-    { from: 'professional', to: 'enterprise', benefit: 'All integrations contribute to Fusion Score' },
-    { from: 'professional', to: 'enterprise', benefit: 'Real-time intelligence (5 min refresh)' },
-    { from: 'professional', to: 'enterprise', benefit: 'Unlimited historical data' },
-    { from: 'professional', to: 'enterprise', benefit: 'Full cross-integration analysis' },
-    { from: 'professional', to: 'enterprise', benefit: 'Full admin visibility' },
+  intelligence: [
+    { from: 'intelligence', to: 'command_center', benefit: 'Unlimited integrations' },
+    { from: 'intelligence', to: 'command_center', benefit: 'All integrations contribute to Fusion Score' },
+    { from: 'intelligence', to: 'command_center', benefit: 'Real-time intelligence (5 min refresh)' },
+    { from: 'intelligence', to: 'command_center', benefit: 'Unlimited historical data' },
+    { from: 'intelligence', to: 'command_center', benefit: 'Full cross-integration analysis' },
+    { from: 'intelligence', to: 'command_center', benefit: 'Full admin visibility' },
+  ],
+  command_center: [
+    { from: 'command_center', to: 'enterprise', benefit: 'Custom integrations and dedicated support' },
+    { from: 'command_center', to: 'enterprise', benefit: 'Dedicated account manager' },
+    { from: 'command_center', to: 'enterprise', benefit: 'Custom SLA and on-premise options' },
   ],
 };
 
