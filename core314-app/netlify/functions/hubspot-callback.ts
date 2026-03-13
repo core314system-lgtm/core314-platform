@@ -190,6 +190,17 @@ export const handler: Handler = async (event: HandlerEvent) => {
     const integrationId = masterData.id;
     console.log(`[hubspot-callback] Found HubSpot in integrations_master: ${integrationId}`);
 
+    // Also look up HubSpot in integration_registry for provider_id
+    // The frontend's isConnected() matches user_integrations.provider_id against integration_registry.id
+    const { data: registryData } = await supabase
+      .from("integration_registry")
+      .select("id")
+      .eq("service_name", "hubspot")
+      .maybeSingle();
+
+    const registryId = registryData?.id || null;
+    console.log(`[hubspot-callback] Found HubSpot in integration_registry: ${registryId}`);
+
     // Check if user already has a HubSpot integration
     const { data: existingIntegration } = await supabase
       .from("user_integrations")
@@ -209,6 +220,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
           access_token: access_token,
           refresh_token: refresh_token,
           token_expires_at: tokenExpiresAt,
+          provider_id: registryId,
           last_verified_at: new Date().toISOString(),
           error_message: null,
           consecutive_failures: 0,
@@ -244,6 +256,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
           access_token: access_token,
           refresh_token: refresh_token,
           token_expires_at: tokenExpiresAt,
+          provider_id: registryId,
           last_verified_at: new Date().toISOString(),
           date_added: new Date().toISOString(),
           config: { hubspot_portal_id: portalId, oauth_connected: true },
