@@ -151,27 +151,47 @@ serve(async (req) => {
       }
     }
 
-    // ── Step 1b: Fetch correlated events from signal-correlator ──────
+    // ── Step 1b: Invoke signal-correlator for fresh correlated events ──
     let correlatedEvent: Record<string, unknown> | null = null;
     try {
-      const { data: correlatorState } = await supabase
-        .from('integration_ingestion_state')
-        .select('metadata')
-        .eq('user_id', user.id)
-        .eq('service_name', 'signal-correlator')
-        .single();
-
-      if (correlatorState?.metadata) {
-        const meta = correlatorState.metadata as Record<string, unknown>;
-        const correlatedAt = meta.correlated_at as string;
-        // Only use if correlated within the last 60 minutes
-        if (correlatedAt && (Date.now() - new Date(correlatedAt).getTime()) < 60 * 60 * 1000) {
-          correlatedEvent = meta;
-          console.log('[operational-brief] Found correlated event:', meta.correlation_id);
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const svcKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const correlatorResp = await fetch(
+        `${supabaseUrl}/functions/v1/signal-correlator`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${svcKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      if (correlatorResp.ok) {
+        const correlatorData = await correlatorResp.json();
+        if (correlatorData.correlated_events > 0 && correlatorData.events?.length > 0) {
+          // Use the first (highest-priority) correlated event for this user
+          const userEvent = correlatorData.events.find(
+            (e: Record<string, unknown>) => e.user_id === user.id
+          );
+          if (userEvent) {
+            correlatedEvent = {
+              correlation_id: userEvent.correlation_id,
+              organization_id: userEvent.organization_id,
+              signal_ids: userEvent.signal_ids,
+              integrations_involved: userEvent.integrations_involved,
+              operational_categories: userEvent.operational_categories,
+              time_window_start: userEvent.time_window_start,
+              time_window_end: userEvent.time_window_end,
+              combined_severity: userEvent.combined_severity,
+              signals: userEvent.signals,
+              correlated_at: new Date().toISOString(),
+            };
+            console.log('[operational-brief] Found correlated event:', userEvent.correlation_id);
+          }
         }
       }
     } catch {
-      // No correlated events — proceed with standard brief
+      // Signal correlator unavailable — proceed with standard brief
     }
 
     // ── Step 2: Fetch active operational signals ──────────────────────
