@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { classifySignal } from '../_shared/signal-classification.ts';
 
 /**
  * Signal Detector
@@ -158,7 +159,7 @@ serve(async (req) => {
                 ? 'Slack OAuth connection is not active. Re-authorize the Slack integration to resume monitoring.'
                 : 'Slack is connected but no channels are accessible. The bot may need to be invited to channels for monitoring.',
               source_integration: 'slack',
-              signal_data: { total_channels: totalChannels, oauth_connected: configOauthConnected, channels_member: channelsMember },
+              signal_data: { category: classifySignal('integration_inactive', 'slack'), metric: 'integration_inactive', total_channels: totalChannels, oauth_connected: configOauthConnected, channels_member: channelsMember },
             });
           }
 
@@ -173,7 +174,7 @@ serve(async (req) => {
                 ? `Slack integration is active but limited communication activity was detected in monitored channels. ${channelsMember} channel${channelsMember > 1 ? 's' : ''} monitored across ${totalChannels} total.`
                 : `Only ${messageCount} Slack messages in the past 7 days across ${channelsMember} monitored channels. Communication volume is below typical thresholds.`,
               source_integration: 'slack',
-              signal_data: { message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels, channels_member: channelsMember },
+              signal_data: { category: classifySignal('low_communication', 'slack'), metric: 'low_communication', message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels, channels_member: channelsMember },
             });
           }
 
@@ -188,7 +189,7 @@ serve(async (req) => {
                 confidence: 75,
                 description: `Slack message volume surged from ${prevMessageCount} to ${messageCount} — a ${Math.round((messageCount / prevMessageCount - 1) * 100)}% increase. Investigate if this reflects a critical issue or high collaboration.`,
                 source_integration: 'slack',
-                signal_data: { current: messageCount, previous: prevMessageCount, change_pct: Math.round((messageCount / prevMessageCount - 1) * 100) },
+                signal_data: { category: classifySignal('communication_spike', 'slack'), metric: 'communication_spike', current: messageCount, previous: prevMessageCount, change_pct: Math.round((messageCount / prevMessageCount - 1) * 100) },
               });
             }
           }
@@ -201,7 +202,7 @@ serve(async (req) => {
               confidence: 70,
               description: `Average Slack response time is ${Math.round(avgResponseTime)} minutes. Teams responding slowly may indicate capacity or engagement issues.`,
               source_integration: 'slack',
-              signal_data: { avg_response_time_minutes: avgResponseTime },
+              signal_data: { category: classifySignal('slow_response', 'slack'), metric: 'slow_response', avg_response_time_minutes: avgResponseTime },
             });
           }
 
@@ -213,7 +214,7 @@ serve(async (req) => {
               confidence: 80,
               description: `No active Slack users detected despite ${totalChannels} channels existing. Team engagement may need attention.`,
               source_integration: 'slack',
-              signal_data: { unique_users: uniqueUsers, total_channels: totalChannels },
+              signal_data: { category: classifySignal('low_engagement', 'slack'), metric: 'low_engagement', unique_users: uniqueUsers, total_channels: totalChannels },
             });
           }
         }
@@ -240,7 +241,7 @@ serve(async (req) => {
               confidence: 95,
               description: `${overdueInvoices} overdue invoice${overdueInvoices > 1 ? 's' : ''} totaling $${overdueTotal.toLocaleString()}. ${invoiceAging?.aging90Plus ? `${invoiceAging.aging90Plus} are 90+ days overdue.` : 'Follow up to improve cash flow.'}`,
               source_integration: 'quickbooks',
-              signal_data: { overdue_invoices: overdueInvoices, overdue_total: overdueTotal, invoice_aging: invoiceAging },
+              signal_data: { category: classifySignal('overdue_invoices', 'quickbooks'), metric: 'overdue_invoices', overdue_invoices: overdueInvoices, overdue_total: overdueTotal, invoice_aging: invoiceAging },
             });
           }
 
@@ -252,7 +253,7 @@ serve(async (req) => {
               confidence: 85,
               description: `Collection rate is ${collectionRate}% — below the 70% healthy threshold. $${(invoiceTotal - paymentTotal).toLocaleString()} remains uncollected.`,
               source_integration: 'quickbooks',
-              signal_data: { collection_rate: collectionRate, invoice_total: invoiceTotal, payment_total: paymentTotal },
+              signal_data: { category: classifySignal('low_collection_rate', 'quickbooks'), metric: 'low_collection_rate', collection_rate: collectionRate, invoice_total: invoiceTotal, payment_total: paymentTotal },
             });
           }
 
@@ -264,7 +265,7 @@ serve(async (req) => {
               confidence: 80,
               description: `Expenses ($${expenseTotal.toLocaleString()}) are ${Math.round(expenseTotal / paymentTotal * 100)}% of revenue ($${paymentTotal.toLocaleString()}). Margins are tight.`,
               source_integration: 'quickbooks',
-              signal_data: { expense_total: expenseTotal, payment_total: paymentTotal, ratio: Math.round(expenseTotal / paymentTotal * 100) },
+              signal_data: { category: classifySignal('high_expense_ratio', 'quickbooks'), metric: 'high_expense_ratio', expense_total: expenseTotal, payment_total: paymentTotal, ratio: Math.round(expenseTotal / paymentTotal * 100) },
             });
           }
 
@@ -279,7 +280,7 @@ serve(async (req) => {
                 confidence: 70,
                 description: `Payment volume dropped from $${prevPaymentTotal.toLocaleString()} to $${paymentTotal.toLocaleString()} — a ${Math.round((1 - paymentTotal / prevPaymentTotal) * 100)}% decline.`,
                 source_integration: 'quickbooks',
-                signal_data: { current: paymentTotal, previous: prevPaymentTotal },
+                signal_data: { category: classifySignal('revenue_decline', 'quickbooks'), metric: 'revenue_decline', current: paymentTotal, previous: prevPaymentTotal },
               });
             }
           }
@@ -294,7 +295,7 @@ serve(async (req) => {
                 confidence: 90,
                 description: `QuickBooks is connected (${accountCount} accounts) but no invoices, payments, or expenses found in the last 90 days. This may be a new or inactive account.`,
                 source_integration: 'quickbooks',
-                signal_data: { account_count: accountCount },
+                signal_data: { category: classifySignal('no_financial_activity', 'quickbooks'), metric: 'no_financial_activity', account_count: accountCount },
               });
             }
           }
@@ -314,7 +315,7 @@ serve(async (req) => {
               confidence: 85,
               description: `${stalledDeals} deal${stalledDeals > 1 ? 's' : ''} stalled in the pipeline out of ${dealCount} total. Revenue at risk — review and take action.`,
               source_integration: 'hubspot',
-              signal_data: { stalled_deals: stalledDeals, total_deals: dealCount },
+              signal_data: { category: classifySignal('stalled_deals', 'hubspot'), metric: 'stalled_deals', stalled_deals: stalledDeals, total_deals: dealCount },
             });
           }
 
@@ -325,7 +326,7 @@ serve(async (req) => {
               confidence: 90,
               description: 'HubSpot is connected but no contacts or deals found. Add CRM data for operational intelligence.',
               source_integration: 'hubspot',
-              signal_data: { contact_count: contactCount, deal_count: dealCount },
+              signal_data: { category: classifySignal('no_crm_activity', 'hubspot'), metric: 'no_crm_activity', contact_count: contactCount, deal_count: dealCount },
             });
           }
         }

@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { getSignalCategory } from '../_shared/signal-classification.ts';
 
 /**
  * Signal Correlator
@@ -33,49 +34,11 @@ const corsHeaders = {
 };
 
 // ── Operational Category Inference ────────────────────────────────────
-// Maps signal_type patterns to broad operational categories.
-// This is integration-agnostic: any integration producing signals with
-// these types will be automatically categorized.
-
-const CATEGORY_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
-  // Communication patterns (no integration names — matches signal_type keywords only)
-  { pattern: /communication|message|chat|response_time|engagement|spike/i, category: 'communication_activity' },
-  // Revenue / pipeline patterns
-  { pattern: /deal|pipeline|revenue|sales|opportunity|stalled|velocity/i, category: 'revenue_pipeline' },
-  // Financial patterns
-  { pattern: /invoice|payment|expense|collection|financial|overdue|billing/i, category: 'financial_activity' },
-  // Operational system patterns
-  { pattern: /workflow|system|health|uptime|error|failure|outage/i, category: 'operational_systems' },
-  // Document / content patterns
-  { pattern: /document|file|content|backlog|approval/i, category: 'document_workflow' },
-  // Customer patterns
-  { pattern: /customer|contact|crm|ticket|support|churn/i, category: 'customer_activity' },
-  // Integration connectivity patterns
-  { pattern: /integration_inactive|connection|oauth|token/i, category: 'operational_systems' },
-];
-
-/**
- * Infer the operational category from signal_type and optional signal_data.
- * Falls back to 'operational_systems' if no pattern matches.
- */
-function inferCategory(signalType: string, signalData: Record<string, unknown>): string {
-  // Check signal_type against known patterns
-  for (const { pattern, category } of CATEGORY_PATTERNS) {
-    if (pattern.test(signalType)) {
-      return category;
-    }
-  }
-
-  // Check signal_data keys for hints
-  const dataKeys = Object.keys(signalData).join(' ');
-  for (const { pattern, category } of CATEGORY_PATTERNS) {
-    if (pattern.test(dataKeys)) {
-      return category;
-    }
-  }
-
-  return 'operational_systems'; // default fallback
-}
+// Uses the shared signal-classification module for unified categories.
+// The getSignalCategory() function first checks signal_data.category
+// (set by signal-detector), then falls back to pattern-based classification.
+// This ensures backwards compatibility with older signals that don't have
+// a category field in signal_data.
 
 // ── Correlation Types ────────────────────────────────────────────────
 
@@ -221,7 +184,7 @@ serve(async (req) => {
     // ── Step 2: Annotate each signal with its inferred category ───────
     const annotatedSignals = signals.map(s => ({
       ...s,
-      category: inferCategory(s.signal_type, (s.signal_data as Record<string, unknown>) || {}),
+      category: getSignalCategory(s.signal_type, s.source_integration, (s.signal_data as Record<string, unknown>) || {}),
     }));
 
     // ── Step 3: Group by user_id (and organization_id if available) ───
