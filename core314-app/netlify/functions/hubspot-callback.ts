@@ -167,17 +167,18 @@ export const handler: Handler = async (event: HandlerEvent) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Get HubSpot integration registry ID
-    const { data: registryData, error: registryError } = await supabase
-      .from("integration_registry")
+    // Get HubSpot integration ID from integrations_master
+    // user_integrations.integration_id has a foreign key to integrations_master, NOT integration_registry
+    const { data: masterData, error: masterError } = await supabase
+      .from("integrations_master")
       .select("id")
-      .eq("service_name", "hubspot")
+      .eq("integration_type", "hubspot")
       .single();
 
-    if (registryError || !registryData) {
+    if (masterError || !masterData) {
       console.error(
-        "[hubspot-callback] HubSpot not found in integration_registry:",
-        registryError
+        "[hubspot-callback] HubSpot not found in integrations_master:",
+        masterError
       );
       return {
         statusCode: 500,
@@ -186,21 +187,21 @@ export const handler: Handler = async (event: HandlerEvent) => {
       };
     }
 
-    const registryId = registryData.id;
+    const integrationId = masterData.id;
+    console.log(`[hubspot-callback] Found HubSpot in integrations_master: ${integrationId}`);
 
     // Check if user already has a HubSpot integration
     const { data: existingIntegration } = await supabase
       .from("user_integrations")
       .select("id")
       .eq("user_id", userId)
-      .eq("integration_id", registryId)
+      .eq("integration_id", integrationId)
       .maybeSingle();
 
     let userIntegrationId: string;
 
     if (existingIntegration) {
       // Update existing integration
-      // provider_id is a UUID referencing integration_registry, NOT the HubSpot portal ID
       const { error: updateError } = await supabase
         .from("user_integrations")
         .update({
@@ -208,7 +209,6 @@ export const handler: Handler = async (event: HandlerEvent) => {
           access_token: access_token,
           refresh_token: refresh_token,
           token_expires_at: tokenExpiresAt,
-          provider_id: registryId,
           last_verified_at: new Date().toISOString(),
           error_message: null,
           consecutive_failures: 0,
@@ -234,18 +234,16 @@ export const handler: Handler = async (event: HandlerEvent) => {
       );
     } else {
       // Create new integration record
-      // provider_id is a UUID referencing integration_registry, NOT the HubSpot portal ID
       const { data: newIntegration, error: insertError } = await supabase
         .from("user_integrations")
         .insert({
           user_id: userId,
-          integration_id: registryId,
+          integration_id: integrationId,
           added_by_user: true,
           status: "active",
           access_token: access_token,
           refresh_token: refresh_token,
           token_expires_at: tokenExpiresAt,
-          provider_id: registryId,
           last_verified_at: new Date().toISOString(),
           date_added: new Date().toISOString(),
           config: { hubspot_portal_id: portalId, oauth_connected: true },
