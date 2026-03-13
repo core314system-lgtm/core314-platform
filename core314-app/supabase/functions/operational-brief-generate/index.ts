@@ -208,6 +208,27 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1);
 
+    // ── Step 5b: Fetch Slack integration config for channel/connection status ──
+    // This provides channels_member, channels_total, oauth_connected from user_integrations.config
+    // which is stored by slack-poll after each discovery run.
+    let slackIntegrationConfig: Record<string, unknown> = {};
+    if (hasSlack) {
+      // Try to find the Slack user_integration row with config
+      const { data: slackIntRows } = await supabase
+        .from('user_integrations')
+        .select('config')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+
+      // Find the row that has Slack-specific config (channels_total field)
+      const slackRow = (slackIntRows || []).find(
+        (row: { config: Record<string, unknown> | null }) => row.config && typeof row.config === 'object' && 'channels_total' in (row.config as Record<string, unknown>)
+      );
+      if (slackRow?.config && typeof slackRow.config === 'object') {
+        slackIntegrationConfig = slackRow.config as Record<string, unknown>;
+      }
+    }
+
     // ── Step 6: Build context for GPT ─────────────────────────────────
     const activeSignals = signals || [];
     const healthScore = healthScoreData?.score ?? null;
@@ -234,12 +255,34 @@ serve(async (req) => {
         ? 'HubSpot is connected but no CRM data has been collected yet. This typically means the first data sync has not completed or the HubSpot account has no recent deal/contact activity.'
         : 'HubSpot is not connected. CRM data (deals, contacts, pipeline) is not available for analysis.';
 
-    // Build communication summary
-    const commSummary = hasSlackData && slackMeta.message_count !== undefined
-      ? `${slackMeta.message_count || 0} messages across ${slackMeta.active_channels || 0} active channels (${slackMeta.total_channels || 0} total)`
-      : hasSlack
-        ? 'Slack is connected but no communication data has been collected yet. This typically means the first data sync has not completed or there is minimal recent Slack activity.'
-        : 'Slack is not connected. Communication data (messages, channels, response times) is not available for analysis.';
+    // Build communication summary — use integration config for accurate connection status
+    const slackChannelsMember = (slackIntegrationConfig.channels_member as number) ?? 0;
+    const slackChannelsTotal = (slackIntegrationConfig.channels_total as number) ?? 0;
+    const slackOauthConnected = slackIntegrationConfig.oauth_connected as boolean ?? false;
+    const slackChannelNames = (slackIntegrationConfig.channel_names as string[]) ?? [];
+
+    // Determine Slack connection validity:
+    // - Valid: channels_member >= 1 (bot is actively monitoring at least one channel)
+    // - Issue: channels_total == 0 OR oauth_connected == false
+    const isSlackConnectionValid = slackChannelsMember >= 1;
+    const isSlackConnectionIssue = (slackChannelsTotal === 0 && !slackOauthConnected) || (!hasSlack);
+
+    let commSummary: string;
+    if (hasSlackData && slackMeta.message_count !== undefined && (slackMeta.message_count as number) > 0) {
+      // Has actual message data
+      commSummary = `${slackMeta.message_count || 0} messages across ${slackMeta.active_channels || 0} active channels (${slackChannelsTotal || slackMeta.total_channels || 0} total). Monitored channels: ${slackChannelNames.length > 0 ? slackChannelNames.map((n: string) => '#' + n).join(', ') : 'N/A'}`;
+    } else if (isSlackConnectionValid) {
+      // Connection is valid (channels_member >= 1) but no recent messages — NOT a connection issue
+      commSummary = `Slack integration is active and monitoring ${slackChannelsMember} channel${slackChannelsMember > 1 ? 's' : ''} (${slackChannelsTotal} total discovered)${slackChannelNames.length > 0 ? ': ' + slackChannelNames.map((n: string) => '#' + n).join(', ') : ''}. Limited communication activity was detected in monitored channels — this is NOT a connection issue, it simply means low message volume in the monitoring window.`;
+    } else if (hasSlack && slackOauthConnected && slackChannelsTotal > 0) {
+      // Connected but bot not in any channels
+      commSummary = `Slack is connected (${slackChannelsTotal} channels discovered) but the bot is not yet a member of any channels. Invite the bot to channels for monitoring. This is NOT a connection failure.`;
+    } else if (hasSlack) {
+      // Connected but no channels at all or oauth issue
+      commSummary = 'Slack is connected but no channels have been discovered yet. This typically means the first data sync has not completed or the bot needs to be invited to channels.';
+    } else {
+      commSummary = 'Slack is not connected. Communication data (messages, channels, response times) is not available for analysis.';
+    }
 
     // Build financial summary
     const financialSummary = hasQbData && qbMeta.invoice_count !== undefined
@@ -253,9 +296,17 @@ serve(async (req) => {
       ? activeSignals.map(s => `- [${s.severity.toUpperCase()}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`).join('\n')
       : 'No active signals detected.';
 
-    // Build integration status summary
+    // Build integration status summary — Slack status uses config-based connection check
+    const slackStatusLabel = isSlackConnectionIssue
+      ? 'connection issue'
+      : isSlackConnectionValid
+        ? `active (${slackChannelsMember} channels monitored)`
+        : hasSlack
+          ? 'connected, awaiting channel access'
+          : 'not connected';
+
     const integrationStatus = `Connected integrations: ${connectedCount > 0 ? connectedServices.join(', ') : 'None'}
-Data availability: HubSpot ${hasHubspotData ? 'has data' : hasHubspot ? 'connected, no data yet' : 'not connected'} | Slack ${hasSlackData ? 'has data' : hasSlack ? 'connected, no data yet' : 'not connected'} | QuickBooks ${hasQbData ? 'has data' : hasQuickbooks ? 'connected, no data yet' : 'not connected'}`;
+Data availability: HubSpot ${hasHubspotData ? 'has data' : hasHubspot ? 'connected, no data yet' : 'not connected'} | Slack ${hasSlackData ? 'has data' : slackStatusLabel} | QuickBooks ${hasQbData ? 'has data' : hasQuickbooks ? 'connected, no data yet' : 'not connected'}`;
 
     // ── Step 7: Generate narrative via GPT-4o ─────────────────────────
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });

@@ -105,25 +105,75 @@ serve(async (req) => {
           .limit(2);
 
         // --- Slack Signal Detection ---
+        // Fetch Slack integration config to check channels_member and oauth_connected
+        const { data: slackIntegration } = await supabase
+          .from('user_integrations')
+          .select('config')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .like('service_name', '%slack%')
+          .limit(1)
+          .maybeSingle();
+
+        // If no direct match, try via integration_registry join
+        let slackConfig = (slackIntegration?.config as Record<string, unknown>) || null;
+        if (!slackConfig) {
+          const { data: slackViaRegistry } = await supabase
+            .from('user_integrations')
+            .select('config, integrations_master!inner(integration_type)')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .eq('integrations_master.integration_type', 'slack')
+            .limit(1)
+            .maybeSingle();
+          slackConfig = (slackViaRegistry?.config as Record<string, unknown>) || null;
+        }
+
+        const configChannelsMember = (slackConfig?.channels_member as number) ?? 0;
+        const configChannelsTotal = (slackConfig?.channels_total as number) ?? 0;
+        const configOauthConnected = slackConfig?.oauth_connected as boolean ?? false;
+
         if (slackEvents && slackEvents.length > 0) {
           const latest = slackEvents[0].metadata as Record<string, number | string | null>;
           const messageCount = (latest.message_count as number) ?? 0;
           const activeChannels = (latest.active_channels as number) ?? 0;
-          const totalChannels = (latest.total_channels as number) ?? 0;
+          const totalChannels = (latest.total_channels as number) ?? configChannelsTotal;
           const uniqueUsers = (latest.unique_users as number) ?? 0;
           const avgResponseTime = latest.avg_response_time_minutes as number | null;
+          const channelsMember = activeChannels > 0 ? activeChannels : configChannelsMember;
 
-          // Signal: Low communication activity
-          if (messageCount < 5 && totalChannels > 0) {
+          // Determine Slack connection validity:
+          // - Valid: channels_member >= 1 (bot is in at least one channel)
+          // - Issue: channels_total == 0 OR oauth_connected == false
+          const isSlackConnectionValid = channelsMember >= 1 || configChannelsMember >= 1;
+          const isSlackConnectionIssue = (totalChannels === 0 && configChannelsTotal === 0) || !configOauthConnected;
+
+          // Signal: Slack connection issue (only when truly disconnected)
+          if (isSlackConnectionIssue) {
+            signals.push({
+              signal_type: 'integration_inactive',
+              severity: 'medium',
+              confidence: 90,
+              description: !configOauthConnected
+                ? 'Slack OAuth connection is not active. Re-authorize the Slack integration to resume monitoring.'
+                : 'Slack is connected but no channels are accessible. The bot may need to be invited to channels for monitoring.',
+              source_integration: 'slack',
+              signal_data: { total_channels: totalChannels, oauth_connected: configOauthConnected, channels_member: channelsMember },
+            });
+          }
+
+          // Signal: Low communication activity — only when connection is valid
+          // If channels_member >= 1 but no recent messages, this is "active but limited" (not a connection issue)
+          if (isSlackConnectionValid && !isSlackConnectionIssue && messageCount < 5 && totalChannels > 0) {
             signals.push({
               signal_type: 'low_communication',
-              severity: messageCount === 0 ? 'medium' : 'low',
-              confidence: 85,
+              severity: 'low',
+              confidence: 75,
               description: messageCount === 0
-                ? `No Slack messages detected in the past 7 days across ${totalChannels} channels. Team communication may be stalled.`
-                : `Only ${messageCount} Slack messages in the past 7 days. Communication volume is below typical thresholds.`,
+                ? `Slack integration is active but limited communication activity was detected in monitored channels. ${channelsMember} channel${channelsMember > 1 ? 's' : ''} monitored across ${totalChannels} total.`
+                : `Only ${messageCount} Slack messages in the past 7 days across ${channelsMember} monitored channels. Communication volume is below typical thresholds.`,
               source_integration: 'slack',
-              signal_data: { message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels },
+              signal_data: { message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels, channels_member: channelsMember },
             });
           }
 
@@ -155,8 +205,8 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Low team engagement (zero unique users but channels exist)
-          if (uniqueUsers === 0 && totalChannels > 0) {
+          // Signal: Low team engagement (zero unique users but valid connection)
+          if (isSlackConnectionValid && !isSlackConnectionIssue && uniqueUsers === 0 && totalChannels > 0 && messageCount >= 5) {
             signals.push({
               signal_type: 'low_engagement',
               severity: 'medium',
@@ -164,18 +214,6 @@ serve(async (req) => {
               description: `No active Slack users detected despite ${totalChannels} channels existing. Team engagement may need attention.`,
               source_integration: 'slack',
               signal_data: { unique_users: uniqueUsers, total_channels: totalChannels },
-            });
-          }
-
-          // Signal: Workspace connected but inactive (no channels accessible)
-          if (totalChannels === 0) {
-            signals.push({
-              signal_type: 'integration_inactive',
-              severity: 'low',
-              confidence: 90,
-              description: 'Slack is connected but no channels are accessible. The bot may need to be invited to channels for monitoring.',
-              source_integration: 'slack',
-              signal_data: { total_channels: 0, message_count: messageCount },
             });
           }
         }
