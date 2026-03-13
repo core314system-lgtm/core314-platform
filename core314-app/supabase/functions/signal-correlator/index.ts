@@ -223,7 +223,11 @@ serve(async (req) => {
         const severities = cluster.map(s => s.severity);
 
         // ── Detect failure pattern from signal categories ──────────────
+        console.log(`[signal-correlator] Detecting pattern for categories: [${uniqueCategories.join(', ')}]`);
         const detectedPattern = detectFailurePattern(uniqueCategories);
+        console.log(`[signal-correlator] detectFailurePattern() returned:`, detectedPattern
+          ? `pattern=${detectedPattern.pattern}, title=${detectedPattern.display_name}, confidence=${detectedPattern.confidence}`
+          : 'null (no pattern matched)');
 
         const event: CorrelatedEvent = {
           correlation_id: crypto.randomUUID(),

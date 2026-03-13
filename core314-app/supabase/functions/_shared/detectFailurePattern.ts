@@ -37,7 +37,10 @@ export interface DetectedPattern {
  * @returns The detected pattern with confidence, or null
  */
 export function detectFailurePattern(signalCategories: string[]): DetectedPattern | null {
+  console.log(`[detectFailurePattern] Input categories: [${signalCategories?.join(', ') || 'empty'}]`);
+
   if (!signalCategories || signalCategories.length === 0) {
+    console.log('[detectFailurePattern] No categories provided, returning null');
     return null;
   }
 
@@ -47,6 +50,7 @@ export function detectFailurePattern(signalCategories: string[]): DetectedPatter
   for (const pattern of FAILURE_PATTERNS) {
     // Check if ALL required categories are present
     const allPresent = pattern.categories.every(c => categorySet.has(c));
+    console.log(`[detectFailurePattern] Pattern "${pattern.name}" requires [${pattern.categories.join(', ')}] — ${allPresent ? 'MATCH' : 'no match'}`);
     if (!allPresent) continue;
 
     // Compute confidence
@@ -60,7 +64,10 @@ export function detectFailurePattern(signalCategories: string[]): DetectedPatter
     matches.push({ pattern, confidence });
   }
 
+  console.log(`[detectFailurePattern] Total matches: ${matches.length}`);
+
   if (matches.length === 0) {
+    console.log('[detectFailurePattern] No patterns matched, returning null');
     return null;
   }
 
@@ -68,11 +75,13 @@ export function detectFailurePattern(signalCategories: string[]): DetectedPatter
   matches.sort((a, b) => b.confidence - a.confidence);
   const best = matches[0];
 
-  return {
+  const result = {
     pattern: best.pattern.name,
     display_name: best.pattern.display_name,
     confidence: Math.round(best.confidence * 100) / 100,
     description: best.pattern.description,
     matched_categories: best.pattern.categories,
   };
+  console.log(`[detectFailurePattern] Best match: pattern=${result.pattern}, display_name=${result.display_name}, confidence=${result.confidence}`);
+  return result;
 }
