@@ -36,6 +36,7 @@ import { OperationalBrief } from './pages/OperationalBrief';
 import { SignalDashboard } from './pages/SignalDashboard';
 import { HealthScore } from './pages/HealthScore';
 import { IntegrationManager } from './pages/IntegrationManager';
+import { TeamMembers } from './pages/TeamMembers';
 
 // Feature flag to enable/disable AI Support widget
 // Disabled by default until backend Edge Functions are properly deployed
@@ -123,6 +124,7 @@ function App() {
             <Route path="signals" element={<SignalDashboard />} />
             <Route path="health" element={<HealthScore />} />
             <Route path="integration-manager" element={<IntegrationManager />} />
+            <Route path="team-members" element={<TeamMembers />} />
             
             {/* Legacy dashboard redirect */}
             <Route path="dashboard" element={<Navigate to="/brief" replace />} />

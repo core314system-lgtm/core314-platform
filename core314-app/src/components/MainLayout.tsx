@@ -12,6 +12,7 @@ import {
   Activity,
   Heart,
   User,
+  Users,
   ChevronDown,
   CreditCard,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ const getNavItems = (_integrationBadge?: string, _isAdmin?: boolean, _subscripti
     { path: '/signals', label: 'Signal Dashboard', icon: Activity },
     { path: '/health', label: 'Health Score', icon: Heart },
     { path: '/integration-manager', label: 'Integrations', icon: Layers },
+    { path: '/team-members', label: 'Team Members', icon: Users },
   ];
 
   // Billing is visible to Org Owners and Org Admins
