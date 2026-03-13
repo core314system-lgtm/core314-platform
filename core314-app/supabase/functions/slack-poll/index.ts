@@ -89,20 +89,23 @@ async function fetchSlackMetrics(accessToken: string, supabase: ReturnType<typeo
 
     // 2. Get list of channels using explicit types parameter
     // IMPORTANT: Do not rely on Slack defaults — conversations.list may return empty without explicit types
+    // Strategy: Try public_channel + private_channel first; if missing_scope (groups:read not granted),
+    // fall back to public_channel only so we still discover public channels.
     const allChannels: SlackChannel[] = [];
     let cursor: string | undefined = undefined;
     let pageCount = 0;
+    let channelTypes = 'public_channel,private_channel';
     
     do {
       const params = new URLSearchParams({
-        types: 'public_channel,private_channel',
+        types: channelTypes,
         exclude_archived: 'true',
         limit: '1000',
       });
       if (cursor) params.set('cursor', cursor);
       
       console.log('[slack-poll] Calling conversations.list with params:', {
-        types: 'public_channel,private_channel',
+        types: channelTypes,
         exclude_archived: 'true',
         limit: '1000',
         cursor: cursor || '(none)',
@@ -120,6 +123,13 @@ async function fetchSlackMetrics(accessToken: string, supabase: ReturnType<typeo
           allChannels.push(...channelsData.channels);
           cursor = channelsData.response_metadata?.next_cursor || undefined;
           if (cursor === '') cursor = undefined;
+        } else if (channelsData.error === 'missing_scope' && channelTypes.includes('private_channel')) {
+          // Bot token lacks groups:read scope — fall back to public channels only
+          console.warn('[slack-poll] missing_scope for private_channel (needs groups:read). Falling back to public_channel only. needed:', channelsData.needed, 'provided:', channelsData.provided);
+          channelTypes = 'public_channel';
+          cursor = undefined;
+          pageCount = 0;
+          continue; // Retry with public_channel only
         } else {
           console.error('[slack-poll] conversations.list returned ok=false:', channelsData.error, channelsData);
           break;
