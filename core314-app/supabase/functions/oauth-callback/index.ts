@@ -210,6 +210,16 @@ serve(withSentry(async (req) => {
     
     // Slack: Perform post-auth verification using auth.test API
     if (normalizeServiceName(integration.service_name) === 'slack') {
+      // Verify this is a Bot OAuth token (xoxb-)
+      const tokenPrefix = tokenData.access_token.substring(0, 5);
+      console.log('[oauth-callback] Slack: Token type check:', {
+        token_prefix: tokenPrefix,
+        is_bot_token: tokenPrefix === 'xoxb-',
+        is_user_token: tokenPrefix === 'xoxp-',
+      });
+      if (tokenPrefix !== 'xoxb-') {
+        console.warn('[oauth-callback] WARNING: Slack token is NOT a bot token (prefix:', tokenPrefix + '). Bot tokens (xoxb-) are required for conversations.list to discover channels.');
+      }
       console.log('[oauth-callback] Slack: Performing post-auth verification via auth.test...');
       try {
         const authTestResponse = await fetch('https://slack.com/api/auth.test', {

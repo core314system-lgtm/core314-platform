@@ -49,7 +49,7 @@ interface SlackMessage {
  * Fetch Slack workspace metrics using the Slack Web API
  * Respects rate limits with built-in delays between API calls
  */
-async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
+async function fetchSlackMetrics(accessToken: string, supabase: ReturnType<typeof createClient>, userIntegrationId: string): Promise<SlackMetrics> {
   const metrics: SlackMetrics = {
     messageCount: 0,
     channelCount: 0,
@@ -87,7 +87,8 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
     // Small delay to respect rate limits (Tier 3: ~50 requests/minute)
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 2. Get list of channels - use explicit parameters to ensure Slack returns results
+    // 2. Get list of channels using explicit types parameter
+    // IMPORTANT: Do not rely on Slack defaults — conversations.list may return empty without explicit types
     const allChannels: SlackChannel[] = [];
     let cursor: string | undefined = undefined;
     let pageCount = 0;
@@ -100,6 +101,14 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
       });
       if (cursor) params.set('cursor', cursor);
       
+      console.log('[slack-poll] Calling conversations.list with params:', {
+        types: 'public_channel,private_channel',
+        exclude_archived: 'true',
+        limit: '1000',
+        cursor: cursor || '(none)',
+        page: pageCount + 1,
+      });
+
       const channelsResponse = await fetch(`https://slack.com/api/conversations.list?${params.toString()}`, {
         method: 'GET',
         headers,
@@ -112,11 +121,11 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
           cursor = channelsData.response_metadata?.next_cursor || undefined;
           if (cursor === '') cursor = undefined;
         } else {
-          console.log('[slack-poll] conversations.list returned ok=false:', channelsData.error);
+          console.error('[slack-poll] conversations.list returned ok=false:', channelsData.error, channelsData);
           break;
         }
       } else {
-        console.log('[slack-poll] conversations.list HTTP error:', channelsResponse.status);
+        console.error('[slack-poll] conversations.list HTTP error:', channelsResponse.status, await channelsResponse.text());
         break;
       }
       pageCount++;
@@ -127,11 +136,10 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
     console.log('Slack channels detected:', allChannels.length);
 
     if (allChannels.length > 0) {
-      {
         const channels: SlackChannel[] = allChannels;
         metrics.channelCount = channels.length;
         
-        // Count channels where the user/bot is a member
+        // Count channels where the bot is a member
         const memberChannels = channels.filter(ch => ch.is_member);
         metrics.activeChannels = memberChannels.length;
 
@@ -208,7 +216,36 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
         if (latestTimestamp) {
           metrics.lastActivityTimestamp = new Date(latestTimestamp * 1000).toISOString();
         }
-      }
+    }
+
+    // Store detected channels in the user_integrations config for visibility
+    try {
+      const channelNames = allChannels
+        .filter(ch => ch.is_member)
+        .slice(0, 50)
+        .map(ch => ch.name);
+      
+      await supabase
+        .from('user_integrations')
+        .update({
+          config: {
+            channels_total: allChannels.length,
+            channels_member: allChannels.filter(ch => ch.is_member).length,
+            channel_names: channelNames,
+            channels_synced_at: new Date().toISOString(),
+            workspace_name: metrics.workspaceInfo.teamName,
+            workspace_id: metrics.workspaceInfo.teamId,
+          },
+        })
+        .eq('id', userIntegrationId);
+      
+      console.log('[slack-poll] Stored channel data in user_integrations config:', {
+        channels_total: allChannels.length,
+        channels_member: allChannels.filter(ch => ch.is_member).length,
+        channel_names: channelNames,
+      });
+    } catch (storeError) {
+      console.error('[slack-poll] Error storing channels in integration config:', storeError);
     }
   } catch (error) {
     console.error('[slack-poll] Error fetching Slack metrics:', error);
@@ -288,6 +325,17 @@ serve(async (req) => {
           continue;
         }
 
+        // Verify this is a Bot OAuth token (should start with xoxb-)
+        const tokenPrefix = accessToken.substring(0, 5);
+        console.log('[slack-poll] Token type check for user:', integration.user_id, {
+          token_prefix: tokenPrefix,
+          is_bot_token: tokenPrefix === 'xoxb-',
+          is_user_token: tokenPrefix === 'xoxp-',
+        });
+        if (tokenPrefix !== 'xoxb-') {
+          console.warn('[slack-poll] WARNING: Token for user', integration.user_id, 'is NOT a bot token (prefix:', tokenPrefix + '). Bot tokens (xoxb-) are required for conversations.list. This may cause channel discovery to fail.');
+        }
+
         // Note: Slack tokens don't expire unless revoked, but check anyway
         if (integration.expires_at && new Date(integration.expires_at) < now) {
           console.log('[slack-poll] Token expired for user:', integration.user_id);
@@ -353,8 +401,8 @@ serve(async (req) => {
           bot_user_id: authTestData.bot_user_id,
         });
 
-        // Fetch Slack metrics
-        const metrics = await fetchSlackMetrics(accessToken);
+        // Fetch Slack metrics (pass supabase and integration ID for storing channels)
+        const metrics = await fetchSlackMetrics(accessToken, supabase, integration.user_integration_id);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
         // Insert consolidated workspace activity event with ALL metrics
