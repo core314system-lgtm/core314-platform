@@ -499,7 +499,7 @@ INSTRUCTIONS:
 - Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
 
 Generate a JSON response with these exact fields:
-1. "title": Must begin with "Operational Event Detected" followed by the pattern name if one was detected (e.g., "Operational Event Detected — ${failurePattern ? failurePattern.display_name : 'Cross-Integration Pattern'} — ${today}")
+1. "title": Must begin with "Operational Event Detected" followed by the pattern name if one was detected (e.g., "Operational Event Detected — ${(correlatedEvent?.failure_pattern as { display_name?: string } | null)?.display_name || 'Cross-Integration Pattern'} — ${today}")
 2. "event_summary": 1-2 sentence description of the correlated operational event (e.g., "A correlated operational pattern has been detected across Slack and QuickBooks, indicating potential operational disruption affecting both communication and financial workflows.")
 3. "detected_signals": Array of signal descriptions in plain business English. Each entry should name the integration and the operational category (e.g., "Slack communication activity drop detected — limited message volume across monitored channels")
 4. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other and what operational condition they likely represent. This is the core analytical value — connect the dots across integrations.
