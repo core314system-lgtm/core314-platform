@@ -463,6 +463,9 @@ export function OperationalBrief() {
                       className="w-full py-3 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded px-2 -mx-2"
                       onClick={() => {
                         setBrief(pb);
+                        // Update momentum when switching briefs
+                        const pbCtx = pb.data_context;
+                        setMomentum(pbCtx?.momentum ?? null);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                     >
