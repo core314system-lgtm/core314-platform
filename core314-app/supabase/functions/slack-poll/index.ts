@@ -218,25 +218,34 @@ async function fetchSlackMetrics(accessToken: string, supabase: ReturnType<typeo
         }
     }
 
-    // Store detected channels in the user_integrations config for visibility
+    // Store detected channels in the user_integrations config (merge with existing config)
     try {
       const channelNames = allChannels
         .filter(ch => ch.is_member)
         .slice(0, 50)
         .map(ch => ch.name);
       
+      // Fetch existing config to merge (avoid overwriting OAuth fields)
+      const { data: existingRow } = await supabase
+        .from('user_integrations')
+        .select('config')
+        .eq('id', userIntegrationId)
+        .single();
+      
+      const existingConfig = (existingRow?.config as Record<string, unknown>) || {};
+      const mergedConfig = {
+        ...existingConfig,
+        channels_total: allChannels.length,
+        channels_member: allChannels.filter(ch => ch.is_member).length,
+        channel_names: channelNames,
+        channels_synced_at: new Date().toISOString(),
+        workspace_name: metrics.workspaceInfo.teamName,
+        workspace_id: metrics.workspaceInfo.teamId,
+      };
+
       await supabase
         .from('user_integrations')
-        .update({
-          config: {
-            channels_total: allChannels.length,
-            channels_member: allChannels.filter(ch => ch.is_member).length,
-            channel_names: channelNames,
-            channels_synced_at: new Date().toISOString(),
-            workspace_name: metrics.workspaceInfo.teamName,
-            workspace_id: metrics.workspaceInfo.teamId,
-          },
-        })
+        .update({ config: mergedConfig })
         .eq('id', userIntegrationId);
       
       console.log('[slack-poll] Stored channel data in user_integrations config:', {
