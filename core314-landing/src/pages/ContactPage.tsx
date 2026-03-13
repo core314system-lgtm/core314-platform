@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import { Send, CheckCircle, Mail, Building2 } from 'lucide-react';
+import { Send, CheckCircle, Building2, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -10,21 +10,36 @@ export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     const form = e.currentTarget;
     const formData = new FormData(form);
 
     try {
-      await fetch('/', {
+      const response = await fetch('/.netlify/functions/contact-form', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData as unknown as Record<string, string>).toString(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          email: formData.get('email'),
+          company: formData.get('company'),
+          phone: formData.get('phone'),
+          message: formData.get('message'),
+        }),
       });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to send message.');
+      }
+
       setSubmitted(true);
-    } catch {
-      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -58,17 +73,14 @@ export default function ContactPage() {
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
-                name="core314-contact-form"
-                method="POST"
-                data-netlify="true"
-                netlify-honeypot="bot-field"
                 onSubmit={handleSubmit}
                 className="bg-white border border-slate-200 rounded-xl p-6 lg:p-8 space-y-5"
               >
-                <input type="hidden" name="form-name" value="core314-contact-form" />
-                <div className="hidden">
-                  <input name="bot-field" />
-                </div>
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
@@ -143,10 +155,10 @@ export default function ContactPage() {
 
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg p-4">
-                <Mail className="h-5 w-5 text-sky-600 flex-shrink-0" />
+                <Clock className="h-5 w-5 text-sky-600 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-500">Email us at</p>
-                  <a href="mailto:chris.brown@core314.com" className="text-sm font-medium text-slate-900 hover:text-sky-600 transition-colors">chris.brown@core314.com</a>
+                  <p className="text-xs text-slate-500">Response time</p>
+                  <p className="text-sm font-medium text-slate-900">Within 1 business day</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-lg p-4">
