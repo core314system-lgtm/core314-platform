@@ -88,6 +88,12 @@ export function Settings() {
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [teamLoading, setTeamLoading] = useState(true);
   
+  // Organization creation state
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
+  const [newOrgName, setNewOrgName] = useState('');
+  const [createOrgLoading, setCreateOrgLoading] = useState(false);
+  const [createOrgError, setCreateOrgError] = useState<string | null>(null);
+
   // Modal state
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -429,6 +435,42 @@ export function Settings() {
     }
   };
 
+  const handleCreateOrganization = async () => {
+    if (!newOrgName.trim()) return;
+    
+    setCreateOrgLoading(true);
+    setCreateOrgError(null);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+      
+      const url = await getSupabaseFunctionUrl('organizations-create');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newOrgName.trim(),
+          plan: 'intelligence',
+        }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      
+      setShowCreateOrgModal(false);
+      setNewOrgName('');
+      await refreshOrganizations();
+    } catch (err) {
+      setCreateOrgError(err instanceof Error ? err.message : 'Failed to create organization');
+    } finally {
+      setCreateOrgLoading(false);
+    }
+  };
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'owner': return 'default';
@@ -662,7 +704,7 @@ export function Settings() {
                     You can use Core314 as an individual account without an organization. Create one if you want to invite team members or manage permissions.
                   </p>
                   <div className="space-y-4">
-                    <Button className="mx-auto">
+                    <Button className="mx-auto" onClick={() => setShowCreateOrgModal(true)}>
                       <Building2 className="mr-2 h-4 w-4" />
                       Create Organization
                     </Button>
@@ -1011,6 +1053,44 @@ export function Settings() {
             <Button onClick={handleChangeRole} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Organization Modal */}
+      <Dialog open={showCreateOrgModal} onOpenChange={setShowCreateOrgModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Organization</DialogTitle>
+            <DialogDescription>
+              Create an organization to invite team members and manage permissions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="org-name">Organization Name</Label>
+              <Input
+                id="org-name"
+                placeholder="My Company"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateOrganization()}
+              />
+            </div>
+            {createOrgError && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">{createOrgError}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateOrgModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateOrganization} disabled={createOrgLoading || !newOrgName.trim()}>
+              {createOrgLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Organization
             </Button>
           </DialogFooter>
         </DialogContent>
