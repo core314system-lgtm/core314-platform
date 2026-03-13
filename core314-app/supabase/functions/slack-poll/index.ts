@@ -87,16 +87,48 @@ async function fetchSlackMetrics(accessToken: string): Promise<SlackMetrics> {
     // Small delay to respect rate limits (Tier 3: ~50 requests/minute)
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // 2. Get list of channels the bot/user is a member of
-    const channelsResponse = await fetch('https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200', {
-      method: 'GET',
-      headers,
-    });
+    // 2. Get list of channels - use explicit parameters to ensure Slack returns results
+    const allChannels: SlackChannel[] = [];
+    let cursor: string | undefined = undefined;
+    let pageCount = 0;
+    
+    do {
+      const params = new URLSearchParams({
+        types: 'public_channel,private_channel',
+        exclude_archived: 'true',
+        limit: '1000',
+      });
+      if (cursor) params.set('cursor', cursor);
+      
+      const channelsResponse = await fetch(`https://slack.com/api/conversations.list?${params.toString()}`, {
+        method: 'GET',
+        headers,
+      });
 
-    if (channelsResponse.ok) {
-      const channelsData = await channelsResponse.json();
-      if (channelsData.ok && channelsData.channels) {
-        const channels: SlackChannel[] = channelsData.channels;
+      if (channelsResponse.ok) {
+        const channelsData = await channelsResponse.json();
+        if (channelsData.ok && channelsData.channels) {
+          allChannels.push(...channelsData.channels);
+          cursor = channelsData.response_metadata?.next_cursor || undefined;
+          if (cursor === '') cursor = undefined;
+        } else {
+          console.log('[slack-poll] conversations.list returned ok=false:', channelsData.error);
+          break;
+        }
+      } else {
+        console.log('[slack-poll] conversations.list HTTP error:', channelsResponse.status);
+        break;
+      }
+      pageCount++;
+      if (pageCount > 5) break; // Safety limit: max 5 pages (5000 channels)
+      if (cursor) await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit between pages
+    } while (cursor);
+
+    console.log('Slack channels detected:', allChannels.length);
+
+    if (allChannels.length > 0) {
+      {
+        const channels: SlackChannel[] = allChannels;
         metrics.channelCount = channels.length;
         
         // Count channels where the user/bot is a member

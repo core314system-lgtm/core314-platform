@@ -272,6 +272,40 @@ serve(withSentry(async (req) => {
         integrationConfig.slack_user_id = authTestData.user_id;
         integrationConfig.verified_at = new Date().toISOString();
         integrationConfig.verification_status = 'verified';
+        
+        // Immediately sync channels after OAuth installation
+        // This ensures Core314 knows available channels right away
+        console.log('[oauth-callback] Slack: Running post-install channel sync...');
+        try {
+          const channelSyncHeaders = {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Content-Type': 'application/json',
+          };
+          const channelsResponse = await fetch('https://slack.com/api/conversations.list?' + new URLSearchParams({
+            types: 'public_channel,private_channel',
+            exclude_archived: 'true',
+            limit: '1000',
+          }).toString(), {
+            method: 'GET',
+            headers: channelSyncHeaders,
+          });
+          
+          const channelsData = await channelsResponse.json();
+          if (channelsData.ok && channelsData.channels) {
+            console.log('Slack channels detected:', channelsData.channels.length);
+            const memberChannels = channelsData.channels.filter((ch: { is_member: boolean }) => ch.is_member);
+            console.log('[oauth-callback] Slack: Member channels:', memberChannels.length);
+            
+            integrationConfig.channels_total = channelsData.channels.length;
+            integrationConfig.channels_member = memberChannels.length;
+            integrationConfig.channel_names = memberChannels.slice(0, 50).map((ch: { name: string }) => ch.name);
+            integrationConfig.channels_synced_at = new Date().toISOString();
+          } else {
+            console.log('[oauth-callback] Slack: Channel sync returned ok=false:', channelsData.error);
+          }
+        } catch (channelSyncError) {
+          console.error('[oauth-callback] Slack: Channel sync error (non-fatal):', channelSyncError);
+        }
       } catch (verifyError) {
         console.error('[oauth-callback] Slack: auth.test verification error:', verifyError);
         integrationConfig.verification_status = 'error';

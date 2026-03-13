@@ -4,13 +4,14 @@
 -- New: Free, Monitor, Intelligence, Command Center, Enterprise
 -- ============================================================================
 
--- Step 1: Update plan_limits CHECK constraint and data
+-- Step 1: Drop old constraint, migrate data, THEN add new constraint
 ALTER TABLE plan_limits DROP CONSTRAINT IF EXISTS plan_limits_plan_name_check;
-ALTER TABLE plan_limits ADD CONSTRAINT plan_limits_plan_name_check
-  CHECK (plan_name IN ('Free', 'Monitor', 'Intelligence', 'Command Center', 'Enterprise'));
 
 UPDATE plan_limits SET plan_name = 'Monitor', description = 'Early warning system for operational issues' WHERE plan_name = 'Starter';
 UPDATE plan_limits SET plan_name = 'Intelligence', description = 'Understand what is happening inside your business and why' WHERE plan_name = 'Pro';
+
+ALTER TABLE plan_limits ADD CONSTRAINT plan_limits_plan_name_check
+  CHECK (plan_name IN ('Free', 'Monitor', 'Intelligence', 'Command Center', 'Enterprise'));
 
 -- Update features for new tiers to match pricing page
 UPDATE plan_limits SET
@@ -47,23 +48,23 @@ UPDATE plan_limits SET
   features = '{"analytics": true, "advanced_ai": true, "proactive_optimization": true, "api_access": true, "signal_analytics": true, "custom_integrations": true, "dedicated_support": true}'::jsonb
 WHERE plan_name = 'Enterprise';
 
--- Step 2: Update user_subscriptions CHECK constraint
+-- Step 2: Update user_subscriptions - drop constraint, migrate data, then add constraint
 ALTER TABLE user_subscriptions DROP CONSTRAINT IF EXISTS user_subscriptions_plan_name_check;
-ALTER TABLE user_subscriptions ADD CONSTRAINT user_subscriptions_plan_name_check
-  CHECK (plan_name IN ('Free', 'Monitor', 'Intelligence', 'Command Center', 'Enterprise'));
 
--- Migrate existing subscription data to new names
 UPDATE user_subscriptions SET plan_name = 'Monitor' WHERE plan_name = 'Starter';
 UPDATE user_subscriptions SET plan_name = 'Intelligence' WHERE plan_name = 'Pro';
 
--- Step 3: Update profiles.subscription_tier CHECK constraint
-ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_subscription_tier_check;
-ALTER TABLE profiles ADD CONSTRAINT profiles_subscription_tier_check
-  CHECK (subscription_tier IN ('none', 'free', 'monitor', 'intelligence', 'command_center', 'enterprise'));
+ALTER TABLE user_subscriptions ADD CONSTRAINT user_subscriptions_plan_name_check
+  CHECK (plan_name IN ('Free', 'Monitor', 'Intelligence', 'Command Center', 'Enterprise'));
 
--- Migrate existing profile tiers to new names
+-- Step 3: Update profiles - drop constraint, migrate data, then add constraint
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_subscription_tier_check;
+
 UPDATE profiles SET subscription_tier = 'monitor' WHERE subscription_tier = 'starter';
 UPDATE profiles SET subscription_tier = 'intelligence' WHERE subscription_tier = 'professional';
+
+ALTER TABLE profiles ADD CONSTRAINT profiles_subscription_tier_check
+  CHECK (subscription_tier IN ('none', 'free', 'monitor', 'intelligence', 'command_center', 'enterprise'));
 
 -- Step 4: Recreate get_user_subscription_summary to handle new tier names
 CREATE OR REPLACE FUNCTION get_user_subscription_summary(p_user_id UUID)
@@ -144,7 +145,9 @@ BEGIN
 END;
 $$;
 
--- Step 5: Update get_user_current_plan to handle new tier names
+-- Step 5: Drop and recreate get_user_current_plan (return type may have changed)
+DROP FUNCTION IF EXISTS get_user_current_plan(uuid);
+
 CREATE OR REPLACE FUNCTION get_user_current_plan(p_user_id UUID)
 RETURNS TABLE (
     plan_name TEXT,
