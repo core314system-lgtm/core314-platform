@@ -13,26 +13,6 @@
 // ============================================================================
 
 export const PRICING = {
-  monitor: {
-    monthly: 99,
-    name: 'Monitor',
-    tagline: 'Early warning system for operational issues.',
-    description:
-      'Core314 continuously monitors connected systems and detects operational signals across sales, finance, and communication activity.',
-    features: [
-      'Slack Integration',
-      'HubSpot Integration',
-      'QuickBooks Integration',
-      'Operational Health Score',
-      'Signals Dashboard',
-      'AI Operational Briefs (10 / month)',
-      '30 Day Operational Brief Archive',
-      'Up to 5 Users',
-    ],
-    users: 5,
-    briefsPerMonth: 10,
-    archiveDays: 30,
-  },
   intelligence: {
     monthly: 299,
     name: 'Intelligence',
@@ -40,15 +20,17 @@ export const PRICING = {
     description:
       'Core314 analyzes operational patterns across your business systems and generates AI-powered Operational Briefs explaining what is happening and what actions leadership should take.',
     features: [
-      'Everything in Monitor plus:',
-      'Unlimited AI Operational Briefs',
-      'Command Center Dashboard',
-      'Signal Trend Analysis',
-      'Executive Brief Delivery (Slack + Email)',
-      'Full Operational Brief Archive',
-      'Up to 10 Users',
+      'Slack Integration',
+      'HubSpot Integration',
+      'QuickBooks Integration',
+      'Operational Health Score',
+      'Signals Dashboard',
+      'AI Operational Briefs',
+      'Operational Pattern Detection',
+      'Operational Brief Archive',
+      'Up to 5 Users',
     ],
-    users: 10,
+    users: 5,
     briefsPerMonth: -1, // unlimited
     archiveDays: -1, // unlimited
   },
@@ -60,14 +42,14 @@ export const PRICING = {
       'A full operational intelligence command center for leadership teams that need continuous monitoring and deeper signal analytics.',
     features: [
       'Everything in Intelligence plus:',
-      'Unlimited Users',
-      'Advanced Signal Analytics',
-      'Operational Pattern Detection',
-      'Executive Weekly Operational Reports',
+      'Unlimited AI Operational Briefs',
+      'Command Center Dashboard',
+      'Advanced Signal Analysis',
       'Integration Event History',
       'Early Access to New Integrations',
+      'Up to 25 Users',
     ],
-    users: -1, // unlimited
+    users: 25,
     briefsPerMonth: -1,
     archiveDays: -1,
   },
@@ -79,11 +61,10 @@ export const PRICING = {
       'For organizations requiring deeper operational intelligence, custom integrations, and dedicated support.',
     features: [
       'Everything in Command Center plus:',
-      'Dedicated onboarding',
       'Custom integrations',
-      'Priority signal processing',
+      'Dedicated onboarding',
       'Executive operational reporting',
-      'Dedicated success manager',
+      'Priority signal processing',
       'SLA uptime guarantees',
     ],
     users: -1,
@@ -93,6 +74,14 @@ export const PRICING = {
 } as const;
 
 export type PlanId = keyof typeof PRICING;
+
+// Plan seat limits for enforcement
+export const PLAN_SEAT_LIMITS: Record<string, number> = {
+  intelligence: 5,
+  commandCenter: 25,
+  command_center: 25,
+  enterprise: -1, // unlimited
+};
 
 // Formatting helpers
 export const formatPrice = (amount: number): string => {

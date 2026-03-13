@@ -44,26 +44,18 @@ interface SubscriptionSummary {
 
 
 const PLAN_FEATURES = {
-  Monitor: [
+  Intelligence: [
     { name: 'Slack Integration', included: true },
     { name: 'HubSpot Integration', included: true },
     { name: 'QuickBooks Integration', included: true },
     { name: 'Operational Health Score', included: true },
     { name: 'Signals Dashboard', included: true },
-    { name: 'AI Operational Briefs (10/mo)', included: true },
+    { name: 'AI Operational Briefs', included: true },
     { name: 'Up to 5 Users', included: true },
-  ],
-  Intelligence: [
-    { name: 'Everything in Monitor', included: true },
-    { name: 'Unlimited AI Briefs', included: true },
-    { name: 'Command Center Dashboard', included: true },
-    { name: 'Signal Trend Analysis', included: true },
-    { name: 'Executive Brief Delivery', included: true },
-    { name: 'Up to 10 Users', included: true },
   ],
   'Command Center': [
     { name: 'Everything in Intelligence', included: true },
-    { name: 'Unlimited Users', included: true },
+    { name: 'Up to 25 Users', included: true },
     { name: 'Advanced Signal Analytics', included: true },
     { name: 'Operational Pattern Detection', included: true },
     { name: 'Weekly Executive Reports', included: true },
@@ -71,7 +63,7 @@ const PLAN_FEATURES = {
   ],
   Enterprise: [
     { name: 'Everything in Command Center', included: true },
-    { name: 'Dedicated Onboarding', included: true },
+    { name: 'Unlimited Users', included: true },
     { name: 'Custom Integrations', included: true },
     { name: 'Priority Signal Processing', included: true },
     { name: 'Dedicated Success Manager', included: true },
@@ -374,21 +366,18 @@ export default function Billing() {
       <div>
         <h2 className="text-2xl font-bold mb-4">Available Plans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {['Monitor', 'Intelligence', 'Command Center', 'Enterprise'].map((planName) => (
+          {['Intelligence', 'Command Center', 'Enterprise'].map((planName) => (
             <PlanCard
               key={planName}
               planName={planName}
               price={
-                planName === 'Monitor' ? PRICING.monitor.monthly
-                : planName === 'Intelligence' ? PRICING.intelligence.monthly
+                planName === 'Intelligence' ? PRICING.intelligence.monthly
                 : planName === 'Command Center' ? PRICING.commandCenter.monthly
                 : null
               }
               billingPeriod="monthly"
               description={
-                planName === 'Monitor'
-                  ? PRICING.monitor.tagline
-                  : planName === 'Intelligence'
+                planName === 'Intelligence'
                   ? PRICING.intelligence.tagline
                   : planName === 'Command Center'
                   ? PRICING.commandCenter.tagline

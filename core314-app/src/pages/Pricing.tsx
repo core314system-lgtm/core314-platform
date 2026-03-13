@@ -21,18 +21,10 @@ import { PRICING, formatPrice } from '../config/pricing';
 
 const tiers = [
   {
-    name: PRICING.monitor.name,
-    price: formatPrice(PRICING.monitor.monthly),
-    priceId: import.meta.env.VITE_STRIPE_PRICE_MONITOR,
-    description: PRICING.monitor.description,
-    features: PRICING.monitor.features as unknown as string[],
-  },
-  {
     name: PRICING.intelligence.name,
     price: formatPrice(PRICING.intelligence.monthly),
     priceId: import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE,
     description: PRICING.intelligence.description,
-    popular: true,
     features: PRICING.intelligence.features as unknown as string[],
   },
   {
@@ -40,6 +32,7 @@ const tiers = [
     price: formatPrice(PRICING.commandCenter.monthly),
     priceId: import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER,
     description: PRICING.commandCenter.description,
+    popular: true,
     features: PRICING.commandCenter.features as unknown as string[],
   },
   {
@@ -98,7 +91,7 @@ export function Pricing() {
           </AlertDescription>
         </Alert>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           {tiers.map((tier) => (
             <Card
               key={tier.name}

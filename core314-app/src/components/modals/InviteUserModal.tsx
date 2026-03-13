@@ -14,9 +14,18 @@ interface InviteUserModalProps {
   onOpenChange: (open: boolean) => void;
   organizationId: string | null;
   onSuccess: () => void;
+  currentMemberCount?: number;
+  organizationPlan?: string;
 }
 
-export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess }: InviteUserModalProps) {
+const PLAN_SEAT_LIMITS: Record<string, number> = {
+  intelligence: 5,
+  commandCenter: 25,
+  command_center: 25,
+  enterprise: -1,
+};
+
+export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess, currentMemberCount = 0, organizationPlan = 'intelligence' }: InviteUserModalProps) {
   const supabase = useSupabaseClient();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
@@ -24,11 +33,21 @@ export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess 
   const [error, setError] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
+  const seatLimit = PLAN_SEAT_LIMITS[organizationPlan] ?? 5;
+  const isAtSeatLimit = seatLimit !== -1 && currentMemberCount >= seatLimit;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setInviteLink(null);
+
+    // Frontend seat limit enforcement
+    if (isAtSeatLimit) {
+      setError('Upgrade to Command Center to add more team members.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();

@@ -98,10 +98,9 @@ export default function SignupPage() {
     }
   };
 
-  // Plan display names aligned with pricing page (Monitor, Intelligence, Command Center, Enterprise)
+  // Plan display names aligned with pricing page (Intelligence, Command Center, Enterprise)
   // Prices imported from shared/pricing.ts - single source of truth
   const plans = {
-    monitor: { name: 'Monitor', price: formatMonthlyPrice(PRICING.monitor.monthly) },
     intelligence: { name: 'Intelligence', price: formatMonthlyPrice(PRICING.intelligence.monthly) },
     commandCenter: { name: 'Command Center', price: formatMonthlyPrice(PRICING.commandCenter.monthly) },
     enterprise: { name: 'Enterprise', price: 'Custom' }
