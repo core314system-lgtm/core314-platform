@@ -88,11 +88,34 @@ export function AuthConfirm() {
 
       // Handle token_hash based confirmation
       try {
-        if (type === 'recovery') {
-          // Redirect to password reset confirm page
-          navigate(`/reset-password/confirm#access_token=${tokenHash}`, { replace: true });
-          return;
-        }
+          if (type === 'recovery') {
+            // Verify the recovery OTP to establish a session, then redirect to password form
+            try {
+              const { data: recoveryData, error: recoveryError } = await supabase.auth.verifyOtp({
+                token_hash: tokenHash,
+                type: 'recovery',
+              });
+              if (recoveryError) {
+                console.error('Recovery OTP verification error:', recoveryError);
+                setState({
+                  status: 'error',
+                  type: 'recovery',
+                  message: recoveryError.message || 'This password reset link is invalid or has expired.',
+                });
+                return;
+              }
+              // Session established — redirect to the password form
+              navigate('/reset-password/confirm', { replace: true });
+            } catch (recErr) {
+              console.error('Recovery verification error:', recErr);
+              setState({
+                status: 'error',
+                type: 'recovery',
+                message: 'This password reset link is invalid or has expired.',
+              });
+            }
+            return;
+          }
 
         // Verify the OTP token
         const { data, error } = await supabase.auth.verifyOtp({
@@ -203,6 +226,14 @@ export function AuthConfirm() {
                 className="block font-medium text-blue-600 hover:text-blue-500"
               >
                 Request new sign-in link
+              </Link>
+            )}
+            {state.type === 'recovery' && (
+              <Link 
+                to="/reset-password" 
+                className="block font-medium text-blue-600 hover:text-blue-500"
+              >
+                Request new reset link
               </Link>
             )}
             {state.type === 'email_change' && (

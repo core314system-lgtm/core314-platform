@@ -31,10 +31,14 @@ export function ResetPasswordConfirm() {
       }
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        if (timeoutId) clearTimeout(timeoutId);
         setInitializing(false);
       } else if (event === 'SIGNED_OUT') {
+        if (timeoutId) clearTimeout(timeoutId);
         setSessionError(true);
         setInitializing(false);
       }
@@ -43,19 +47,20 @@ export function ResetPasswordConfirm() {
     const checkExistingSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        if (timeoutId) clearTimeout(timeoutId);
         setInitializing(false);
       }
     };
     checkExistingSession();
 
-    const timeout = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       setSessionError(true);
       setInitializing(false);
     }, 5000);
 
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timeout);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
