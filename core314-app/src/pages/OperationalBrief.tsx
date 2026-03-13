@@ -22,7 +22,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSupabaseFunctionUrl } from '../lib/supabase';
+import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 
 interface BriefUsage {
   plan: string;
@@ -133,10 +133,12 @@ export function OperationalBrief() {
       if (!token) throw new Error('No session');
 
       const url = await getSupabaseFunctionUrl('operational-brief-generate');
+      const anonKey = await getSupabaseAnonKey();
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({}),
