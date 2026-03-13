@@ -185,9 +185,11 @@ serve(async (req) => {
               time_window_end: userEvent.time_window_end,
               combined_severity: userEvent.combined_severity,
               signals: userEvent.signals,
+              failure_pattern: userEvent.failure_pattern || null,
               correlated_at: new Date().toISOString(),
             };
-            console.log('[operational-brief] Found correlated event:', userEvent.correlation_id);
+            console.log('[operational-brief] Found correlated event:', userEvent.correlation_id,
+              userEvent.failure_pattern ? `pattern=${userEvent.failure_pattern.pattern}` : 'pattern=none');
           }
         }
       }
@@ -421,13 +423,29 @@ serve(async (req) => {
       const categories = (correlatedEvent.operational_categories as string[]) || [];
       const combinedSeverity = (correlatedEvent.combined_severity as string) || 'medium';
 
+      // Extract failure pattern info (if detected by signal-correlator)
+      const failurePattern = correlatedEvent.failure_pattern as {
+        pattern: string;
+        display_name: string;
+        confidence: number;
+        description: string;
+        matched_categories: string[];
+      } | null;
+
+      const patternContext = failurePattern
+        ? `\nOPERATIONAL FAILURE PATTERN DETECTED: ${failurePattern.display_name}
+Pattern confidence: ${Math.round(failurePattern.confidence * 100)}%
+Pattern description: ${failurePattern.description}
+Matched categories: ${failurePattern.matched_categories.join(', ')}`
+        : '';
+
       correlationContext = `\n\nCORRELATED OPERATIONAL EVENT DETECTED:
 Severity: ${combinedSeverity.toUpperCase()}
 Integrations involved: ${integrations.join(', ')}
 Operational categories: ${categories.map(c => c.replace(/_/g, ' ')).join(', ')}
 Time window: ${correlatedEvent.time_window_start} to ${correlatedEvent.time_window_end}
 Correlated signals:
-${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`).join('\n')}`;
+${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`).join('\n')}${patternContext}`;
     }
 
     // Build integration status summary — Slack status uses config-based connection check
@@ -481,7 +499,7 @@ INSTRUCTIONS:
 - Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
 
 Generate a JSON response with these exact fields:
-1. "title": Must begin with "Operational Event Detected" (e.g., "Operational Event Detected — Cross-Integration Pattern — ${today}")
+1. "title": Must begin with "Operational Event Detected" followed by the pattern name if one was detected (e.g., "Operational Event Detected — ${(correlatedEvent?.failure_pattern as { display_name?: string } | null)?.display_name || 'Cross-Integration Pattern'} — ${today}")
 2. "event_summary": 1-2 sentence description of the correlated operational event (e.g., "A correlated operational pattern has been detected across Slack and QuickBooks, indicating potential operational disruption affecting both communication and financial workflows.")
 3. "detected_signals": Array of signal descriptions in plain business English. Each entry should name the integration and the operational category (e.g., "Slack communication activity drop detected — limited message volume across monitored channels")
 4. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other and what operational condition they likely represent. This is the core analytical value — connect the dots across integrations.
@@ -597,7 +615,9 @@ Generate a JSON response with these exact fields:
       .insert({
         user_id: user.id,
         organization_id: organizationId,
-        title: narrative.title || (hasCorrelatedEvent ? `Operational Event Detected — ${today}` : `Operations Summary — ${today}`),
+        title: narrative.title || (hasCorrelatedEvent
+            ? `Operational Event Detected — ${(correlatedEvent?.failure_pattern as { display_name?: string } | null)?.display_name || 'Cross-Integration Pattern'} — ${today}`
+            : `Operations Summary — ${today}`),
         detected_signals: narrative.detected_signals || [],
         business_impact: narrative.business_impact || 'Insufficient data for impact analysis.',
         recommended_actions: narrative.recommended_actions || [],
@@ -623,6 +643,7 @@ Generate a JSON response with these exact fields:
             operational_categories: correlatedEvent.operational_categories,
             combined_severity: correlatedEvent.combined_severity,
             signal_count: (correlatedEvent.signal_ids as string[])?.length || 0,
+            failure_pattern: correlatedEvent.failure_pattern || null,
           } : null,
           // New correlated event narrative fields
           event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,

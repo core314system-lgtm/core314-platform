@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getSignalCategory } from '../_shared/signal-classification.ts';
+import { detectFailurePattern, type DetectedPattern } from '../_shared/detectFailurePattern.ts';
 
 /**
  * Signal Correlator
@@ -74,6 +75,7 @@ interface CorrelatedEvent {
     category: string;
     description: string;
   }>;
+  failure_pattern: DetectedPattern | null;
 }
 
 /**
@@ -220,6 +222,9 @@ serve(async (req) => {
         const timestamps = cluster.map(s => new Date(s.detected_at).getTime());
         const severities = cluster.map(s => s.severity);
 
+        // ── Detect failure pattern from signal categories ──────────────
+        const detectedPattern = detectFailurePattern(uniqueCategories);
+
         const event: CorrelatedEvent = {
           correlation_id: crypto.randomUUID(),
           organization_id: cluster[0].organization_id,
@@ -238,6 +243,7 @@ serve(async (req) => {
             category: s.category,
             description: s.description,
           })),
+          failure_pattern: detectedPattern,
         };
 
         correlatedEvents.push(event);
@@ -246,7 +252,8 @@ serve(async (req) => {
           `(${uniqueIntegrations.join(', ')}) ` +
           `[${uniqueCategories.join(', ')}] ` +
           `severity=${event.combined_severity} ` +
-          `signals=${cluster.length}`
+          `signals=${cluster.length}` +
+          (detectedPattern ? ` pattern=${detectedPattern.pattern} (${detectedPattern.confidence})` : ' pattern=none')
         );
       }
     }
