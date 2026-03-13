@@ -58,7 +58,7 @@ export function OptimizationEngine() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
-  const hasAIAccess = ['professional', 'enterprise'].includes(subscription.tier);
+  const hasAIAccess = ['intelligence', 'command_center', 'enterprise'].includes(subscription.tier);
 
   useEffect(() => {
     if (profile?.id) {

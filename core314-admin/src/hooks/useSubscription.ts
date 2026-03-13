@@ -10,26 +10,33 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
     maxIntegrations: 0,
     features: [],
   },
-  starter: {
-    tier: 'starter',
+  monitor: {
+    tier: 'monitor',
     status: 'active',
     maxUsers: 5,
-    maxIntegrations: 1,
-    features: ['core_dashboard', 'basic_metrics'],
+    maxIntegrations: -1,
+    features: ['core_dashboard', 'basic_metrics', 'signals_dashboard', 'health_score'],
   },
-  professional: {
-    tier: 'professional',
+  intelligence: {
+    tier: 'intelligence',
     status: 'active',
-    maxUsers: 25,
-    maxIntegrations: 5,
-    features: ['core_dashboard', 'ai_insights', 'alerts', 'custom_branding', 'basic_metrics'],
+    maxUsers: 10,
+    maxIntegrations: -1,
+    features: ['core_dashboard', 'basic_metrics', 'signals_dashboard', 'health_score', 'ai_insights', 'command_center', 'trend_analysis'],
+  },
+  command_center: {
+    tier: 'command_center',
+    status: 'active',
+    maxUsers: -1,
+    maxIntegrations: -1,
+    features: ['core_dashboard', 'basic_metrics', 'signals_dashboard', 'health_score', 'ai_insights', 'command_center', 'trend_analysis', 'signal_analytics', 'api_access'],
   },
   enterprise: {
     tier: 'enterprise',
     status: 'active',
     maxUsers: -1,
     maxIntegrations: -1,
-    features: ['full_access', 'ai_orchestration', 'audit_trails', 'api_access', 'account_manager', 'core_dashboard', 'ai_insights', 'alerts', 'custom_branding', 'basic_metrics'],
+    features: ['full_access', 'core_dashboard', 'basic_metrics', 'signals_dashboard', 'health_score', 'ai_insights', 'command_center', 'trend_analysis', 'signal_analytics', 'api_access', 'custom_integrations', 'dedicated_support'],
   },
 };
 

@@ -144,8 +144,9 @@ export default function AdminEntitlements() {
   const getTierBadgeColor = (tier: string) => {
     switch (tier) {
       case 'enterprise': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case 'professional': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'starter': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'intelligence': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'command_center': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200';
+      case 'monitor': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
       case 'internal': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
     }

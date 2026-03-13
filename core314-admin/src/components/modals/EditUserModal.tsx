@@ -31,7 +31,7 @@ export function EditUserModal({
   const [error, setError] = useState<string | null>(null);
   
   const [role, setRole] = useState<'admin' | 'manager' | 'user'>(user.role);
-  const [subscriptionTier, setSubscriptionTier] = useState<'none' | 'starter' | 'professional' | 'enterprise'>(user.subscription_tier);
+  const [subscriptionTier, setSubscriptionTier] = useState<'none' | 'monitor' | 'intelligence' | 'command_center' | 'enterprise'>(user.subscription_tier);
   const [status, setStatus] = useState<boolean>(user.subscription_status === 'active');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(user.two_factor_enabled);
 
@@ -201,10 +201,11 @@ export function EditUserModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="starter">Starter</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
+                <SelectItem value="none">None (Free)</SelectItem>
+                <SelectItem value="monitor">Monitor ($99/mo)</SelectItem>
+                <SelectItem value="intelligence">Intelligence ($299/mo)</SelectItem>
+                <SelectItem value="command_center">Command Center ($799/mo)</SelectItem>
+                <SelectItem value="enterprise">Enterprise (Custom)</SelectItem>
               </SelectContent>
             </Select>
             {role === 'admin' && (

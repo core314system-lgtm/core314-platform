@@ -5,7 +5,7 @@ export interface User {
   role: 'admin' | 'manager' | 'user';
   avatar_url?: string;
   two_factor_enabled: boolean;
-  subscription_tier: 'none' | 'starter' | 'professional' | 'enterprise';
+  subscription_tier: 'none' | 'monitor' | 'intelligence' | 'command_center' | 'enterprise';
   subscription_status: 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
@@ -88,7 +88,7 @@ export interface DailyMetrics {
 }
 
 export interface SubscriptionFeatures {
-  tier: 'none' | 'starter' | 'professional' | 'enterprise';
+  tier: 'none' | 'monitor' | 'intelligence' | 'command_center' | 'enterprise';
   status: string;
   maxUsers: number;
   maxIntegrations: number;
@@ -448,7 +448,7 @@ export interface Organization {
   id: string;
   name: string;
   owner_id: string;
-  plan: 'starter' | 'professional' | 'enterprise';
+  plan: 'monitor' | 'intelligence' | 'command_center' | 'enterprise';
   status: 'active' | 'inactive' | 'suspended';
   created_at: string;
   updated_at: string;
