@@ -687,7 +687,7 @@ export function Settings() {
                   <Label>Plan</Label>
                   <div className="mt-1">
                     <Badge variant="secondary" className="capitalize">
-                      {currentOrganization?.plan || 'monitor'}
+                      {currentOrganization?.plan || 'intelligence'}
                     </Badge>
                   </div>
                 </div>
@@ -760,6 +760,40 @@ export function Settings() {
                   </Button>
                 )}
               </CardHeader>
+              {currentOrganization && (
+                <div className="px-6 pb-4">
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Users className="h-5 w-5 text-blue-500" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        Seat Usage
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {teamMembers.length} / {
+                          (() => {
+                            const plan = currentOrganization?.plan || 'intelligence';
+                            const limits: Record<string, number> = { intelligence: 5, commandCenter: 25, command_center: 25, enterprise: -1 };
+                            const limit = limits[plan] ?? 5;
+                            return limit === -1 ? 'Unlimited' : `${limit}`;
+                          })()
+                        } Users Used
+                      </p>
+                    </div>
+                    {(() => {
+                      const plan = currentOrganization?.plan || 'intelligence';
+                      const limits: Record<string, number> = { intelligence: 5, commandCenter: 25, command_center: 25, enterprise: -1 };
+                      const limit = limits[plan] ?? 5;
+                      if (limit === -1) return null;
+                      const pct = Math.round((teamMembers.length / limit) * 100);
+                      return (
+                        <Badge variant={pct >= 100 ? 'destructive' : pct >= 80 ? 'secondary' : 'default'}>
+                          {pct}%
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
               <CardContent>
                 {/* Show friendly empty state when user has no organization */}
                 {/* Organizations are OPTIONAL - team features require one */}
@@ -905,6 +939,8 @@ export function Settings() {
         open={showInviteModal}
         onOpenChange={setShowInviteModal}
         organizationId={currentOrganization?.id || null}
+        currentMemberCount={teamMembers.length}
+        organizationPlan={currentOrganization?.plan || 'intelligence'}
         onSuccess={() => {
           setShowInviteModal(false);
           fetchPendingInvites();

@@ -7,7 +7,6 @@ import { PRICING } from '../../../../shared/pricing';
 interface BillingMetrics {
   mrr: number;
   activeSubscriptions: {
-    monitor: number;
     intelligence: number;
     commandCenter: number;
     enterprise: number;
@@ -19,7 +18,7 @@ interface BillingMetrics {
 export function BillingOverview() {
   const [metrics, setMetrics] = useState<BillingMetrics>({
     mrr: 0,
-    activeSubscriptions: { monitor: 0, intelligence: 0, commandCenter: 0, enterprise: 0 },
+    activeSubscriptions: { intelligence: 0, commandCenter: 0, enterprise: 0 },
     failedPayments: 0,
     trialConversions: 0,
   });
@@ -43,7 +42,6 @@ export function BillingOverview() {
         if (subscriptionsError) throw subscriptionsError;
 
         const activeSubscriptions = {
-          monitor: subscriptions?.filter(s => s.plan_name === 'Monitor').length || 0,
           intelligence: subscriptions?.filter(s => s.plan_name === 'Intelligence').length || 0,
           commandCenter: subscriptions?.filter(s => s.plan_name === 'Command Center').length || 0,
           enterprise: subscriptions?.filter(s => s.plan_name === 'Enterprise').length || 0,
@@ -51,7 +49,6 @@ export function BillingOverview() {
 
         // Use shared pricing config - single source of truth
         const mrr = (
-          (activeSubscriptions.monitor * PRICING.monitor.monthly) +
           (activeSubscriptions.intelligence * PRICING.intelligence.monthly) +
           (activeSubscriptions.commandCenter * PRICING.commandCenter.monthly) +
           (activeSubscriptions.enterprise * 0) // Enterprise is custom pricing
@@ -116,7 +113,6 @@ export function BillingOverview() {
   }
 
   const totalSubscriptions =
-    metrics.activeSubscriptions.monitor +
     metrics.activeSubscriptions.intelligence +
     metrics.activeSubscriptions.commandCenter +
     metrics.activeSubscriptions.enterprise;
@@ -182,20 +178,7 @@ export function BillingOverview() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monitor Plan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{metrics.activeSubscriptions.monitor}</div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Active subscribers</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              ${(metrics.activeSubscriptions.monitor * PRICING.monitor.monthly).toLocaleString()} MRR
-            </p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Intelligence Plan</CardTitle>

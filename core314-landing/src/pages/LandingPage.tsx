@@ -185,19 +185,20 @@ export default function LandingPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.6 }}
-              className="flex items-center justify-center gap-6 text-slate-400 text-sm"
+              className="mt-4"
             >
-              <span className="font-medium uppercase tracking-wider text-xs">Works with</span>
-              {[
-                { Icon: Briefcase, label: 'HubSpot' },
-                { Icon: MessageSquare, label: 'Slack' },
-                { Icon: DollarSign, label: 'QuickBooks' },
-              ].map(({ Icon, label }) => (
-                <div key={label} className="flex items-center gap-1.5 text-slate-500">
-                  <Icon className="h-4 w-4" />
-                  <span className="font-medium text-sm">{label}</span>
-                </div>
-              ))}
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+                Works With Popular Business Platforms
+              </p>
+              <p className="text-sm text-slate-500 max-w-xl mx-auto mb-6 leading-relaxed">
+                Core314 connects to many of the systems companies already rely on to run their business — including platforms like Slack, QuickBooks, and HubSpot — with additional integrations continuously being added.
+              </p>
+              <div className="flex items-center justify-center gap-8 sm:gap-12">
+                <img src="/logos/slack.svg" alt="Slack" className="h-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-200" />
+                <img src="/logos/quickbooks.svg" alt="QuickBooks" className="h-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-200" />
+                <img src="/logos/hubspot.svg" alt="HubSpot" className="h-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-200" />
+                <span className="text-sm font-medium text-slate-400 border-l border-slate-200 pl-6 sm:pl-8">+ Many More</span>
+              </div>
             </motion.div>
           </div>
         </div>

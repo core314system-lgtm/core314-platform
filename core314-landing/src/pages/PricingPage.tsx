@@ -10,16 +10,12 @@ const stagger = { visible: { transition: { staggerChildren: 0.08 } } };
 
 const plans = [
   {
-    id: 'monitor' as const,
-    highlight: false,
-  },
-  {
     id: 'intelligence' as const,
-    highlight: true,
+    highlight: false,
   },
   {
     id: 'commandCenter' as const,
-    highlight: false,
+    highlight: true,
   },
   {
     id: 'enterprise' as const,
@@ -28,20 +24,24 @@ const plans = [
 ];
 
 const comparisonFeatures = [
-  { label: 'Slack Integration', monitor: true, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'HubSpot Integration', monitor: true, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'QuickBooks Integration', monitor: true, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'Operational Health Score', monitor: true, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'AI Operational Briefs', monitor: '10/mo', intelligence: 'Unlimited', commandCenter: 'Unlimited', enterprise: 'Unlimited' },
-  { label: 'Brief Archive', monitor: '30 days', intelligence: 'Full', commandCenter: 'Full', enterprise: 'Full' },
-  { label: 'Command Center Dashboard', monitor: false, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'Signal Trend Analysis', monitor: false, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'Executive Brief Delivery', monitor: false, intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'Advanced Signal Analytics', monitor: false, intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Pattern Detection', monitor: false, intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Custom Integrations', monitor: false, intelligence: false, commandCenter: false, enterprise: true },
-  { label: 'Dedicated Success Manager', monitor: false, intelligence: false, commandCenter: false, enterprise: true },
-  { label: 'Users', monitor: 'Up to 5', intelligence: 'Up to 10', commandCenter: 'Unlimited', enterprise: 'Unlimited' },
+  { label: 'Slack Integration', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'HubSpot Integration', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'QuickBooks Integration', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'Operational Health Score', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'Signals Dashboard', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'AI Operational Briefs', intelligence: true, commandCenter: 'Unlimited', enterprise: 'Unlimited' },
+  { label: 'Operational Pattern Detection', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'Operational Brief Archive', intelligence: true, commandCenter: true, enterprise: true },
+  { label: 'Command Center Dashboard', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Advanced Signal Analysis', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Integration Event History', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Early Access to New Integrations', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Custom Integrations', intelligence: false, commandCenter: false, enterprise: true },
+  { label: 'Dedicated Onboarding', intelligence: false, commandCenter: false, enterprise: true },
+  { label: 'Executive Operational Reporting', intelligence: false, commandCenter: false, enterprise: true },
+  { label: 'Priority Signal Processing', intelligence: false, commandCenter: false, enterprise: true },
+  { label: 'SLA Uptime Guarantees', intelligence: false, commandCenter: false, enterprise: true },
+  { label: 'Users', intelligence: 'Up to 5', commandCenter: 'Up to 25', enterprise: 'Unlimited' },
 ];
 
 export default function PricingPage() {
@@ -64,8 +64,8 @@ export default function PricingPage() {
       </section>
 
       <section className="pb-20 lg:pb-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((plan) => {
               const data = PRICING[plan.id];
               const isEnterprise = 'custom' in data;
@@ -73,13 +73,13 @@ export default function PricingPage() {
                 <motion.div
                   key={plan.id}
                   variants={fadeUp}
-                  className={`rounded-xl p-6 border ${plan.highlight ? 'border-sky-300 bg-sky-50 ring-1 ring-sky-200' : 'border-slate-200 bg-white'}`}
+                  className={`rounded-xl p-6 border ${plan.highlight ? 'border-sky-300 bg-slate-50 ring-1 ring-sky-200 shadow-lg' : 'border-slate-200 bg-white'}`}
                 >
                   {plan.highlight && (
                     <div className="text-xs font-semibold text-sky-600 uppercase tracking-wider mb-3">Most Popular</div>
                   )}
                   <h3 className="text-lg font-bold text-slate-900 mb-1">{data.name}</h3>
-                  <p className="text-sm text-slate-500 mb-4">{'tagline' in data ? data.tagline : ''}</p>
+                  <p className="text-sm text-slate-500 mb-4">{data.tagline}</p>
                   <div className="mb-6">
                     {isEnterprise ? (
                       <div className="text-2xl font-extrabold text-slate-900">Custom</div>
@@ -103,8 +103,8 @@ export default function PricingPage() {
                       Contact Sales
                     </Link>
                   ) : (
-                    <Link to="/signup" className={`block w-full py-2.5 text-sm font-semibold rounded-lg text-center transition-colors ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}>
-                      Get Started
+                    <Link to="/signup" className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}>
+                      Start Free Trial
                     </Link>
                   )}
                 </motion.div>
@@ -115,7 +115,7 @@ export default function PricingPage() {
       </section>
 
       <section className="py-20 lg:py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Compare Plans</h2>
           </motion.div>
@@ -123,10 +123,9 @@ export default function PricingPage() {
             <table className="w-full min-w-xl">
               <thead>
                 <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900 w-1/3">Feature</th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900">Monitor</th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-sky-600">Intelligence</th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900">Command Center</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900 w-2/5">Feature</th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900">Intelligence</th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-sky-600">Command Center</th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-slate-900">Enterprise</th>
                 </tr>
               </thead>
@@ -134,7 +133,7 @@ export default function PricingPage() {
                 {comparisonFeatures.map((feat, i) => (
                   <tr key={i} className="border-b border-slate-100">
                     <td className="py-3 px-4 text-sm text-slate-700">{feat.label}</td>
-                    {(['monitor', 'intelligence', 'commandCenter', 'enterprise'] as const).map((plan) => {
+                    {(['intelligence', 'commandCenter', 'enterprise'] as const).map((plan) => {
                       const val = feat[plan];
                       return (
                         <td key={plan} className="text-center py-3 px-4">
@@ -166,7 +165,7 @@ export default function PricingPage() {
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Get Early Access <ArrowRight className="h-4 w-4" />
+              Start Free Trial <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/contact" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
               Contact Sales
