@@ -184,10 +184,13 @@ serve(async (req) => {
     }
 
     // ── Step 2: Annotate each signal with its inferred category ───────
-    const annotatedSignals = signals.map(s => ({
-      ...s,
-      category: getSignalCategory(s.signal_type, s.source_integration, (s.signal_data as Record<string, unknown>) || {}),
-    }));
+    const annotatedSignals = signals.map(s => {
+      const signalData = (s.signal_data as Record<string, unknown>) || {};
+      const storedCategory = signalData?.category as string | undefined;
+      const resolvedCategory = getSignalCategory(s.signal_type, s.source_integration, signalData);
+      console.log(`[signal-correlator] Signal "${s.signal_type}" (${s.source_integration}) → stored_category="${storedCategory || 'none'}" → resolved_category="${resolvedCategory}"`);
+      return { ...s, category: resolvedCategory };
+    });
 
     // ── Step 3: Group by user_id (and organization_id if available) ───
     // We use user_id as the primary grouping key since organization_id
