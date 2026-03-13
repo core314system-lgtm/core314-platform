@@ -341,7 +341,9 @@ serve(async (req) => {
 
     // Format correlated event context (if exists)
     let correlationContext = '';
+    let hasCorrelatedEvent = false;
     if (correlatedEvent && correlatedEvent.signals) {
+      hasCorrelatedEvent = true;
       const ceSignals = correlatedEvent.signals as Array<{
         signal_type: string;
         severity: string;
@@ -359,9 +361,7 @@ Integrations involved: ${integrations.join(', ')}
 Operational categories: ${categories.map(c => c.replace(/_/g, ' ')).join(', ')}
 Time window: ${correlatedEvent.time_window_start} to ${correlatedEvent.time_window_end}
 Correlated signals:
-${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`).join('\n')}
-
-IMPORTANT: These signals are correlated — they occurred within the same time window across multiple integrations and likely represent a single underlying operational event. Generate a UNIFIED narrative describing this as one operational event rather than listing signals individually. Explain the cross-integration pattern and what it means for the business.`;
+${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`).join('\n')}`;
     }
 
     // Build integration status summary — Slack status uses config-based connection check
@@ -379,7 +379,49 @@ Data availability: HubSpot ${hasHubspotData ? 'has data' : hasHubspot ? 'connect
     // ── Step 7: Generate narrative via GPT-4o ─────────────────────────
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    const gptPrompt = `You are Core314, an AI operations analyst. Generate a clear, executive-friendly Operational Brief for ${orgName}.
+    let gptPrompt: string;
+
+    if (hasCorrelatedEvent) {
+      // ── Correlated Event Brief Format ──────────────────────────────
+      // When correlated signals exist, produce a unified "Operational Event Detected" narrative
+      gptPrompt = `You are Core314, an AI operations analyst. A correlated operational pattern has been detected across multiple integrations for ${orgName}. Generate a structured Operational Event brief.
+
+Date: ${today}
+Operational Health Score: ${healthScore !== null ? `${healthScore}/100 (${healthLabel})` : 'Not yet calculated'}
+
+INTEGRATION STATUS:
+${integrationStatus}
+${correlationContext}
+
+ALL ACTIVE SIGNALS:
+${signalSummary}
+
+RAW METRICS:
+CRM (HubSpot): ${crmSummary}
+Communication (Slack): ${commSummary}
+Financial (QuickBooks): ${financialSummary}
+
+INSTRUCTIONS:
+- This is a CORRELATED EVENT brief — multiple signals from different integrations have been detected within the same time window
+- You MUST structure the brief as an "Operational Event Detected" narrative, NOT as a list of independent signals
+- Begin by describing the correlated pattern: what signals were detected, from which integrations, and what they mean together
+- Explain the RELATIONSHIP between the signals — why they likely represent a single underlying operational condition
+- Write as if you are a senior business analyst presenting to the CEO
+- Be specific — use exact numbers from the data when available
+- Do NOT invent data that isn't provided above
+
+Generate a JSON response with these exact fields:
+1. "title": Must begin with "Operational Event Detected" (e.g., "Operational Event Detected — Cross-Integration Pattern — ${today}")
+2. "event_summary": 1-2 sentence description of the correlated operational event (e.g., "A correlated operational pattern has been detected across Slack and QuickBooks, indicating potential operational disruption affecting both communication and financial workflows.")
+3. "detected_signals": Array of signal descriptions in plain business English. Each entry should name the integration and the operational category (e.g., "Slack communication activity drop detected — limited message volume across monitored channels")
+4. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other and what operational condition they likely represent. This is the core analytical value — connect the dots across integrations.
+5. "business_impact": 1-2 paragraphs describing the potential operational impact on the business. Be specific about what could happen if the condition persists.
+6. "recommended_actions": Array of 3-5 specific, prioritized corrective recommendations. Each should address a specific aspect of the correlated event.
+7. "risk_assessment": Brief risk outlook (1-2 sentences) based on the combined severity of the correlated signals.
+8. "confidence": Score 0-100 based on data quality and correlation strength.`;
+    } else {
+      // ── Standard Brief Format (no correlated events) ───────────────
+      gptPrompt = `You are Core314, an AI operations analyst. Generate a clear, executive-friendly Operational Brief for ${orgName}.
 
 Date: ${today}
 Operational Health Score: ${healthScore !== null ? `${healthScore}/100 (${healthLabel})` : 'Not yet calculated'}
@@ -388,7 +430,7 @@ INTEGRATION STATUS:
 ${integrationStatus}
 
 DETECTED OPERATIONAL SIGNALS:
-${signalSummary}${correlationContext}
+${signalSummary}
 
 RAW METRICS:
 CRM (HubSpot): ${crmSummary}
@@ -415,6 +457,7 @@ Generate a JSON response with these exact fields:
 4. "recommended_actions": Array of 3-5 specific, actionable recommendations. Include data coverage improvements if integrations are missing.
 5. "risk_assessment": Brief risk outlook (1-2 sentences). If data is sparse, note that limited visibility is itself a risk.
 6. "confidence": Score 0-100 based on data quality and coverage. Lower if data sources are missing (e.g., 20-30 with no data, 40-60 with partial data, 70-90 with full data).`;
+    }
 
     console.log('[operational-brief] Generating brief for user:', user.id, {
       plan: planName,
@@ -439,7 +482,9 @@ Generate a JSON response with these exact fields:
         messages: [
           {
             role: 'system',
-            content: 'You are Core314, an expert AI operations analyst specializing in business intelligence. You produce clear, data-driven operational briefs that help leadership understand what is happening in their business. You ALWAYS produce a brief, even when data is minimal — in those cases you explain what is known, what is unknown, and what that means for the business. Always return valid JSON. Never fabricate data.',
+            content: hasCorrelatedEvent
+              ? 'You are Core314, an expert AI operations analyst specializing in cross-integration signal correlation. When multiple operational signals from different systems occur simultaneously, you identify the unified operational event they represent and present it as a single coherent narrative — not as independent items. Your briefs begin with "Operational Event Detected" and explain the relationship between signals before providing impact analysis and recommendations. Always return valid JSON. Never fabricate data.'
+              : 'You are Core314, an expert AI operations analyst specializing in business intelligence. You produce clear, data-driven operational briefs that help leadership understand what is happening in their business. You ALWAYS produce a brief, even when data is minimal — in those cases you explain what is known, what is unknown, and what that means for the business. Always return valid JSON. Never fabricate data.',
           },
           {
             role: 'user',
@@ -464,21 +509,30 @@ Generate a JSON response with these exact fields:
     // ── Step 8: Save the operational brief ─────────────────────────────
     const signalIds = activeSignals.map(s => s.id);
 
+    // Build the brief summary — for correlated events, lead with the event summary and interpretation
+    const briefSummary = hasCorrelatedEvent
+      ? [
+          narrative.event_summary || '',
+          narrative.operational_interpretation || '',
+          narrative.business_impact || '',
+        ].filter(Boolean).join('\n\n')
+      : narrative.business_impact || '';
+
     const { data: savedBrief, error: insertError } = await supabase
       .from('operational_briefs')
       .insert({
         user_id: user.id,
         organization_id: organizationId,
-        title: narrative.title || `Operations Summary — ${today}`,
+        title: narrative.title || (hasCorrelatedEvent ? `Operational Event Detected — ${today}` : `Operations Summary — ${today}`),
         detected_signals: narrative.detected_signals || [],
         business_impact: narrative.business_impact || 'Insufficient data for impact analysis.',
         recommended_actions: narrative.recommended_actions || [],
         risk_assessment: narrative.risk_assessment || 'Insufficient data for risk assessment.',
-        summary: narrative.business_impact || '',
+        summary: briefSummary,
         confidence: narrative.confidence || 50,
         health_score: healthScore,
         signal_ids: signalIds,
-        brief_type: 'operational',
+        brief_type: hasCorrelatedEvent ? 'correlated_event' : 'operational',
         data_context: {
           crm: hubspotMeta,
           communication: slackMeta,
@@ -495,6 +549,9 @@ Generate a JSON response with these exact fields:
             combined_severity: correlatedEvent.combined_severity,
             signal_count: (correlatedEvent.signal_ids as string[])?.length || 0,
           } : null,
+          // New correlated event narrative fields
+          event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
+          operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
         },
       })
       .select()
