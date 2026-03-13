@@ -41,6 +41,7 @@ The following functions remain active and are deployed in production:
 | `operational-brief-generate` | Generate AI operational narratives | On demand |
 | `quickbooks-poll` | Poll QuickBooks financial data | pg_cron via integration-scheduler |
 | `send-bulk-email` | Send bulk emails to users | Admin EmailUsersModal |
+| `signal-correlator` | Correlate signals across integrations into unified events | Called by scheduler |
 | `signal-detector` | Analyze events, create operational signals | Called by scheduler |
 | `slack-poll` | Poll Slack workspace metrics | pg_cron via integration-scheduler |
 | `stripe-webhook` | Process Stripe subscription events | Stripe webhook |
