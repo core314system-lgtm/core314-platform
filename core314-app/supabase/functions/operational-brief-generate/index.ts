@@ -410,6 +410,13 @@ serve(async (req) => {
     // Format correlated event context (if exists)
     let correlationContext = '';
     let hasCorrelatedEvent = false;
+
+    // ── Hoist failure pattern fields to outer scope for programmatic title override ──
+    let patternDetected: string | null = null;
+    let patternTitle: string | null = null;
+    let patternConfidence: number | null = null;
+    let patternDescription: string | null = null;
+
     if (correlatedEvent && correlatedEvent.signals) {
       hasCorrelatedEvent = true;
       const ceSignals = correlatedEvent.signals as Array<{
@@ -424,7 +431,7 @@ serve(async (req) => {
       const combinedSeverity = (correlatedEvent.combined_severity as string) || 'medium';
 
       // Extract failure pattern info (if detected by signal-correlator)
-      const failurePattern = correlatedEvent.failure_pattern as {
+      const failurePatternObj = correlatedEvent.failure_pattern as {
         pattern: string;
         display_name: string;
         confidence: number;
@@ -432,11 +439,21 @@ serve(async (req) => {
         matched_categories: string[];
       } | null;
 
-      const patternContext = failurePattern
-        ? `\nOPERATIONAL FAILURE PATTERN DETECTED: ${failurePattern.display_name}
-Pattern confidence: ${Math.round(failurePattern.confidence * 100)}%
-Pattern description: ${failurePattern.description}
-Matched categories: ${failurePattern.matched_categories.join(', ')}`
+      if (failurePatternObj) {
+        patternDetected = failurePatternObj.pattern;
+        patternTitle = failurePatternObj.display_name;
+        patternConfidence = Math.round(failurePatternObj.confidence * 100);
+        patternDescription = failurePatternObj.description;
+        console.log('[operational-brief] Failure pattern extracted:', patternDetected, `title=${patternTitle}`, `confidence=${patternConfidence}%`);
+      } else {
+        console.log('[operational-brief] No failure pattern in correlated event');
+      }
+
+      const patternContext = failurePatternObj
+        ? `\nOPERATIONAL FAILURE PATTERN DETECTED: ${failurePatternObj.display_name}
+Pattern confidence: ${Math.round(failurePatternObj.confidence * 100)}%
+Pattern description: ${failurePatternObj.description}
+Matched categories: ${failurePatternObj.matched_categories.join(', ')}`
         : '';
 
       correlationContext = `\n\nCORRELATED OPERATIONAL EVENT DETECTED:
@@ -499,7 +516,7 @@ INSTRUCTIONS:
 - Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
 
 Generate a JSON response with these exact fields:
-1. "title": Must begin with "Operational Event Detected" followed by the pattern name if one was detected (e.g., "Operational Event Detected — ${(correlatedEvent?.failure_pattern as { display_name?: string } | null)?.display_name || 'Cross-Integration Pattern'} — ${today}")
+1. "title": ${patternTitle ? `Use EXACTLY this title: "Operational Event Detected — ${patternTitle} — ${today}". Do NOT change the pattern name.` : `Use: "Operational Event Detected — Cross-Integration Pattern — ${today}"`}
 2. "event_summary": 1-2 sentence description of the correlated operational event (e.g., "A correlated operational pattern has been detected across Slack and QuickBooks, indicating potential operational disruption affecting both communication and financial workflows.")
 3. "detected_signals": Array of signal descriptions in plain business English. Each entry should name the integration and the operational category (e.g., "Slack communication activity drop detected — limited message volume across monitored channels")
 4. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other and what operational condition they likely represent. This is the core analytical value — connect the dots across integrations.
@@ -615,9 +632,13 @@ Generate a JSON response with these exact fields:
       .insert({
         user_id: user.id,
         organization_id: organizationId,
-        title: narrative.title || (hasCorrelatedEvent
-            ? `Operational Event Detected — ${(correlatedEvent?.failure_pattern as { display_name?: string } | null)?.display_name || 'Cross-Integration Pattern'} — ${today}`
-            : `Operations Summary — ${today}`),
+        // Programmatic title: when pattern is detected, ALWAYS use pattern title (don't rely on GPT)
+        title: hasCorrelatedEvent && patternTitle
+            ? `Operational Event Detected — ${patternTitle} — ${today}`
+            : narrative.title || (hasCorrelatedEvent
+              ? `Operational Event Detected — Cross-Integration Pattern — ${today}`
+              : `Operations Summary — ${today}`),
+
         detected_signals: narrative.detected_signals || [],
         business_impact: narrative.business_impact || 'Insufficient data for impact analysis.',
         recommended_actions: narrative.recommended_actions || [],
