@@ -19,7 +19,7 @@ const steps = [
     num: '01',
     icon: Target,
     title: 'Connect Your Business Tools',
-    desc: 'Link HubSpot, Slack, and QuickBooks to Core314 using secure OAuth. No passwords stored, no data migration. Core314 reads data only \u2014 it never modifies anything in your systems.',
+    desc: 'Link HubSpot, Slack, and QuickBooks to Core314 using secure OAuth. No passwords stored, no data migration. Core314 reads data only — it never modifies anything in your systems.',
     detail: 'Setup takes less than 5 minutes per integration. Core314 begins ingesting data immediately after connection.',
   },
   {

@@ -29,7 +29,7 @@ const capabilities = [
   {
     icon: FileText,
     title: 'Operational Briefs',
-    desc: 'AI-generated written intelligence explaining what is happening inside your business, why it matters, and what actions leadership should take. Not a dashboard \u2014 a brief.',
+    desc: 'AI-generated written intelligence explaining what is happening inside your business, why it matters, and what actions leadership should take. Not a dashboard — a brief.',
   },
   {
     icon: BarChart3,
@@ -39,7 +39,7 @@ const capabilities = [
   {
     icon: Zap,
     title: 'Pattern Detection',
-    desc: 'Core314 identifies failure patterns across systems \u2014 like revenue pipeline stagnation or communication breakdowns \u2014 before they become visible in any single tool.',
+    desc: 'Core314 identifies failure patterns across systems — like revenue pipeline stagnation or communication breakdowns — before they become visible in any single tool.',
   },
 ];
 
