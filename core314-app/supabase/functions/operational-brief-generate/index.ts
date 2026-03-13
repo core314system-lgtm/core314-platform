@@ -151,6 +151,29 @@ serve(async (req) => {
       }
     }
 
+    // ── Step 1b: Fetch correlated events from signal-correlator ──────
+    let correlatedEvent: Record<string, unknown> | null = null;
+    try {
+      const { data: correlatorState } = await supabase
+        .from('integration_ingestion_state')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('service_name', 'signal-correlator')
+        .single();
+
+      if (correlatorState?.metadata) {
+        const meta = correlatorState.metadata as Record<string, unknown>;
+        const correlatedAt = meta.correlated_at as string;
+        // Only use if correlated within the last 60 minutes
+        if (correlatedAt && (Date.now() - new Date(correlatedAt).getTime()) < 60 * 60 * 1000) {
+          correlatedEvent = meta;
+          console.log('[operational-brief] Found correlated event:', meta.correlation_id);
+        }
+      }
+    } catch {
+      // No correlated events — proceed with standard brief
+    }
+
     // ── Step 2: Fetch active operational signals ──────────────────────
     const { data: signals } = await supabase
       .from('operational_signals')
@@ -296,6 +319,31 @@ serve(async (req) => {
       ? activeSignals.map(s => `- [${s.severity.toUpperCase()}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`).join('\n')
       : 'No active signals detected.';
 
+    // Format correlated event context (if exists)
+    let correlationContext = '';
+    if (correlatedEvent && correlatedEvent.signals) {
+      const ceSignals = correlatedEvent.signals as Array<{
+        signal_type: string;
+        severity: string;
+        source_integration: string;
+        category: string;
+        description: string;
+      }>;
+      const integrations = (correlatedEvent.integrations_involved as string[]) || [];
+      const categories = (correlatedEvent.operational_categories as string[]) || [];
+      const combinedSeverity = (correlatedEvent.combined_severity as string) || 'medium';
+
+      correlationContext = `\n\nCORRELATED OPERATIONAL EVENT DETECTED:
+Severity: ${combinedSeverity.toUpperCase()}
+Integrations involved: ${integrations.join(', ')}
+Operational categories: ${categories.map(c => c.replace(/_/g, ' ')).join(', ')}
+Time window: ${correlatedEvent.time_window_start} to ${correlatedEvent.time_window_end}
+Correlated signals:
+${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`).join('\n')}
+
+IMPORTANT: These signals are correlated — they occurred within the same time window across multiple integrations and likely represent a single underlying operational event. Generate a UNIFIED narrative describing this as one operational event rather than listing signals individually. Explain the cross-integration pattern and what it means for the business.`;
+    }
+
     // Build integration status summary — Slack status uses config-based connection check
     const slackStatusLabel = isSlackConnectionIssue
       ? 'connection issue'
@@ -320,7 +368,7 @@ INTEGRATION STATUS:
 ${integrationStatus}
 
 DETECTED OPERATIONAL SIGNALS:
-${signalSummary}
+${signalSummary}${correlationContext}
 
 RAW METRICS:
 CRM (HubSpot): ${crmSummary}
@@ -420,6 +468,13 @@ Generate a JSON response with these exact fields:
           health_label: healthLabel,
           connected_integrations: connectedServices,
           has_data: hasAnyData,
+          correlated_event: correlatedEvent ? {
+            correlation_id: correlatedEvent.correlation_id,
+            integrations_involved: correlatedEvent.integrations_involved,
+            operational_categories: correlatedEvent.operational_categories,
+            combined_severity: correlatedEvent.combined_severity,
+            signal_count: (correlatedEvent.signal_ids as string[])?.length || 0,
+          } : null,
         },
       })
       .select()

@@ -13,7 +13,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * Each poll function handles its own rate limiting via integration_ingestion_state.
  * 
  * Flow:
- *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers → signal-detector
+ *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers → signal-detector → signal-correlator
  */
 
 const corsHeaders = {
@@ -132,6 +132,23 @@ serve(async (req) => {
         users_processed: signalResult.data.users_processed,
         signals_created: signalResult.data.signals_created,
         signals_deactivated: signalResult.data.signals_deactivated,
+      } : undefined,
+    });
+
+    // Step 4: Run signal correlator (groups signals from multiple integrations into correlated events)
+    const correlatorStart = Date.now();
+    console.log('[scheduler] Step 4: Running signal correlator...');
+    const correlatorResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-correlator');
+    results.push({
+      step: 'signal-correlator',
+      success: correlatorResult.ok,
+      message: correlatorResult.ok
+        ? `Analyzed ${correlatorResult.data.signals_analyzed || 0} signals, found ${correlatorResult.data.correlated_events || 0} correlated events`
+        : `Signal correlation failed: ${correlatorResult.data.error || 'unknown error'}`,
+      duration_ms: Date.now() - correlatorStart,
+      details: correlatorResult.ok ? {
+        signals_analyzed: correlatorResult.data.signals_analyzed,
+        correlated_events: correlatorResult.data.correlated_events,
       } : undefined,
     });
 
