@@ -38,8 +38,8 @@ const corsHeaders = {
 // these types will be automatically categorized.
 
 const CATEGORY_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
-  // Communication patterns
-  { pattern: /communication|message|slack|chat|response_time|engagement/i, category: 'communication_activity' },
+  // Communication patterns (no integration names — matches signal_type keywords only)
+  { pattern: /communication|message|chat|response_time|engagement|spike/i, category: 'communication_activity' },
   // Revenue / pipeline patterns
   { pattern: /deal|pipeline|revenue|sales|opportunity|stalled|velocity/i, category: 'revenue_pipeline' },
   // Financial patterns
