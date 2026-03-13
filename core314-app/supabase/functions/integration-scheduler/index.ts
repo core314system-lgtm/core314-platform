@@ -152,7 +152,7 @@ serve(async (req) => {
       } : undefined,
     });
 
-    // Step 4: Log scheduler run to a tracking table (for UI to query)
+    // Step 5: Log scheduler run to a tracking table (for UI to query)
     const totalDuration = Date.now() - startTime;
     const allSuccess = results.every(r => r.success);
     const failedSteps = results.filter(r => !r.success).map(r => r.step);
