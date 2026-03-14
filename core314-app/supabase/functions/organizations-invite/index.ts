@@ -23,7 +23,7 @@ serve(withSentry(async (req) => {
   }
 
   try {
-    const { organization_id, email, role } = await req.json();
+    const { organization_id, email, role, invitee_name } = await req.json();
     const authHeader = req.headers.get('Authorization');
     
     if (!authHeader) {
@@ -128,30 +128,68 @@ serve(withSentry(async (req) => {
     const appUrl = Deno.env.get('APP_URL') || 'https://polite-mochi-fc5be5.netlify.app';
     const inviteLink = `${appUrl}/invite?token=${token}`;
 
-    // Send invite email (fire and forget - don't fail if email fails)
-    try {
-      const emailUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-transactional-email`;
-      await fetch(emailUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({
-          type: 'organization_invite',
-          to: email,
-          name: email.split('@')[0], // Use email prefix as name if we don't know their name
-          data: {
-            organization: org?.name || 'your organization',
-            inviter_name: inviterProfile?.full_name || inviterProfile?.email || 'A team member',
-            role: role || 'member',
-            invite_link: inviteLink,
+    // Send invite email via Resend (fire and forget - don't fail if email fails)
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (resendApiKey) {
+      try {
+        const inviterName = inviterProfile?.full_name || inviterProfile?.email || 'A team member';
+        const orgName = org?.name || 'your organization';
+        const inviteeName = invitee_name || email.split('@')[0];
+
+        const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f4;padding:20px;">
+    <tr><td align="center">
+      <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+        <tr><td style="padding:40px 40px 30px 40px;">
+          <h2 style="margin:0 0 20px 0;color:#0ea5e9;font-size:28px;font-weight:bold;">You're Invited to Join Core314</h2>
+          <p style="margin:0 0 15px 0;color:#222;font-size:16px;line-height:1.6;">Hi ${inviteeName},</p>
+          <p style="margin:0 0 15px 0;color:#222;font-size:16px;line-height:1.6;"><strong>${inviterName}</strong> has invited you to join <strong>${orgName}</strong> on Core314.</p>
+          <p style="margin:0 0 25px 0;color:#222;font-size:16px;line-height:1.6;">Click the button below to accept the invitation and get started.</p>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background-color:#0ea5e9;border-radius:6px;text-align:center;">
+              <a href="${inviteLink}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;">Accept Invitation</a>
+            </td></tr>
+          </table>
+          <p style="margin:20px 0 0 0;color:#999;font-size:12px;">This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.</p>
+        </td></tr>
+        <tr><td style="padding:20px 40px 40px 40px;border-top:1px solid #e0e0e0;">
+          <p style="margin:0;color:#777;font-size:12px;line-height:1.4;">Core314 Operational Intelligence<br>© ${new Date().getFullYear()} Core314. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+        const resendResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
           },
-        }),
-      });
-    } catch (emailError) {
-      console.error('Failed to send invite email:', emailError);
-      // Don't fail the request - invitation was created successfully
+          body: JSON.stringify({
+            from: 'Core314 <noreply@core314.com>',
+            to: [email],
+            subject: `${inviterName} invited you to join ${orgName} on Core314`,
+            html: emailHtml,
+          }),
+        });
+
+        if (!resendResponse.ok) {
+          const errBody = await resendResponse.text();
+          console.error('Resend API error:', resendResponse.status, errBody);
+        } else {
+          breadcrumb('invite_email_sent', { email, org: orgName });
+        }
+      } catch (emailError) {
+        console.error('Failed to send invite email via Resend:', emailError);
+        // Don't fail the request - invitation was created successfully
+      }
+    } else {
+      console.warn('RESEND_API_KEY not set - skipping invite email');
     }
 
     return new Response(JSON.stringify({ 
