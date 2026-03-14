@@ -61,7 +61,8 @@ export function TeamMembers() {
 
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
-  const [inviteName, setInviteName] = useState('');
+  const [inviteFirstName, setInviteFirstName] = useState('');
+  const [inviteLastName, setInviteLastName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -227,7 +228,8 @@ export function TeamMembers() {
           organization_id: currentOrganization.id,
           email: inviteEmail.trim(),
           role: 'member',
-          invitee_name: inviteName.trim() || undefined,
+          first_name: inviteFirstName.trim() || undefined,
+          last_name: inviteLastName.trim() || undefined,
         }),
       });
 
@@ -236,7 +238,8 @@ export function TeamMembers() {
 
       setInviteSuccess(`Invitation sent to ${inviteEmail}`);
       setInviteLink(data.invite_link || null);
-      setInviteName('');
+      setInviteFirstName('');
+      setInviteLastName('');
       setInviteEmail('');
       await fetchPendingInvites();
     } catch (err) {
@@ -345,6 +348,9 @@ export function TeamMembers() {
             setInviteError(null);
             setInviteSuccess(null);
             setInviteLink(null);
+            setInviteFirstName('');
+            setInviteLastName('');
+            setInviteEmail('');
           }}>
             <UserPlus className="mr-2 h-4 w-4" />
             Add Team Member
@@ -363,14 +369,25 @@ export function TeamMembers() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleInvite} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="invite-name">Full Name</Label>
+                  <Label htmlFor="invite-first-name">First Name *</Label>
                   <Input
-                    id="invite-name"
-                    value={inviteName}
-                    onChange={(e) => setInviteName(e.target.value)}
-                    placeholder="John Doe"
+                    id="invite-first-name"
+                    value={inviteFirstName}
+                    onChange={(e) => setInviteFirstName(e.target.value)}
+                    placeholder="John"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invite-last-name">Last Name *</Label>
+                  <Input
+                    id="invite-last-name"
+                    value={inviteLastName}
+                    onChange={(e) => setInviteLastName(e.target.value)}
+                    placeholder="Doe"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -411,7 +428,7 @@ export function TeamMembers() {
               )}
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={inviteLoading || !inviteEmail.trim()}>
+                <Button type="submit" disabled={inviteLoading || !inviteEmail.trim() || !inviteFirstName.trim() || !inviteLastName.trim()}>
                   {inviteLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
