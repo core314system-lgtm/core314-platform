@@ -23,7 +23,7 @@ serve(withSentry(async (req) => {
   }
 
   try {
-    const { organization_id, email, role, invitee_name } = await req.json();
+    const { organization_id, email, role, first_name, last_name, invitee_name } = await req.json();
     const authHeader = req.headers.get('Authorization');
     
     if (!authHeader) {
@@ -98,6 +98,8 @@ serve(withSentry(async (req) => {
         role: role || 'member',
         token,
         invited_by: user.id,
+        first_name: first_name || null,
+        last_name: last_name || null,
       })
       .select()
       .single();
@@ -134,7 +136,9 @@ serve(withSentry(async (req) => {
       try {
         const inviterName = inviterProfile?.full_name || inviterProfile?.email || 'A team member';
         const orgName = org?.name || 'your organization';
-        const inviteeName = invitee_name || email.split('@')[0];
+        const inviteeName = first_name
+          ? (last_name ? `${first_name} ${last_name}` : first_name)
+          : (invitee_name || email.split('@')[0]);
 
         const emailHtml = `<!DOCTYPE html>
 <html>
