@@ -51,13 +51,13 @@ interface PendingInvite {
 
 export function TeamMembers() {
   const { user } = useAuth();
-  const { currentOrganization, refreshOrganizations, loading: orgLoading } = useOrganization();
+  const { currentOrganization, refreshOrganizations, loading: orgLoading, error: orgError } = useOrganization();
   const supabase = useSupabaseClient();
 
   // Team state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
-  const [teamLoading, setTeamLoading] = useState(true);
+  const [teamLoading, setTeamLoading] = useState(false);
 
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -77,6 +77,7 @@ export function TeamMembers() {
 
   // Auto-create org state
   const [creatingOrg, setCreatingOrg] = useState(false);
+  const [orgCreateError, setOrgCreateError] = useState<string | null>(null);
 
   // Current user's role
   const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
@@ -96,6 +97,7 @@ export function TeamMembers() {
     if (!user || creatingOrg) return;
 
     setCreatingOrg(true);
+    setOrgCreateError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -129,6 +131,7 @@ export function TeamMembers() {
       }
     } catch (err) {
       console.error('Error auto-creating organization:', err);
+      setOrgCreateError(err instanceof Error ? err.message : 'Failed to set up your team');
     } finally {
       setCreatingOrg(false);
     }
@@ -291,13 +294,35 @@ export function TeamMembers() {
   };
 
   // Loading state while org context is loading or auto-creating org
-  if (orgLoading || creatingOrg || (!currentOrganization && teamLoading)) {
+  if (orgLoading || creatingOrg) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Setting up your team...</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              {creatingOrg ? 'Setting up your team...' : 'Loading...'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error or no-org fallback — prevents infinite spinner
+  if (!currentOrganization && !orgLoading && !creatingOrg) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center space-y-4">
+            <Users className="h-12 w-12 text-gray-400 mx-auto" />
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Team Setup</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                {orgError || orgCreateError || 'Unable to load your organization. Please try again.'}
+              </p>
+            </div>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
         </div>
       </div>
