@@ -51,7 +51,7 @@ interface PendingInvite {
 
 export function TeamMembers() {
   const { user } = useAuth();
-  const { currentOrganization, refreshOrganizations } = useOrganization();
+  const { currentOrganization, refreshOrganizations, loading: orgLoading } = useOrganization();
   const supabase = useSupabaseClient();
 
   // Team state
@@ -86,11 +86,11 @@ export function TeamMembers() {
     if (currentOrganization) {
       fetchTeamMembers();
       fetchPendingInvites();
-    } else if (user && !creatingOrg) {
-      // Auto-create organization for users who don't have one
+    } else if (user && !creatingOrg && !orgLoading) {
+      // Only auto-create after org context has finished loading and confirmed no org exists
       autoCreateOrganization();
     }
-  }, [currentOrganization, user]);
+  }, [currentOrganization, user, orgLoading]);
 
   const autoCreateOrganization = async () => {
     if (!user || creatingOrg) return;
@@ -290,8 +290,8 @@ export function TeamMembers() {
     }
   };
 
-  // Loading state while auto-creating org
-  if (creatingOrg || (!currentOrganization && teamLoading)) {
+  // Loading state while org context is loading or auto-creating org
+  if (orgLoading || creatingOrg || (!currentOrganization && teamLoading)) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center py-16">
