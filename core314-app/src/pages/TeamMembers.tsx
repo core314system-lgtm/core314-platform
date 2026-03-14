@@ -80,9 +80,9 @@ export function TeamMembers() {
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [orgCreateError, setOrgCreateError] = useState<string | null>(null);
 
-  // Current user's role
+  // Current user's role — check both team members list and org owner_id for robustness
   const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
-  const isOwner = currentUserRole === 'owner';
+  const isOwner = currentUserRole === 'owner' || currentOrganization?.owner_id === user?.id;
 
   useEffect(() => {
     if (currentOrganization) {
@@ -143,32 +143,37 @@ export function TeamMembers() {
 
     setTeamLoading(true);
     try {
-      const { data, error } = await supabase
+      // Step 1: Fetch organization members (no FK join needed)
+      const { data: membersData, error: membersError } = await supabase
         .from('organization_members')
-        .select(`
-          id,
-          user_id,
-          role,
-          joined_at,
-          profiles:user_id (
-            full_name,
-            email
-          )
-        `)
+        .select('id, user_id, role, joined_at')
         .eq('organization_id', currentOrganization.id);
 
-      if (error) throw error;
+      if (membersError) throw membersError;
 
-      const members = (data || []).map(m => {
-        const profileData = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-        return {
-          id: m.id,
-          user_id: m.user_id,
-          role: m.role as TeamMember['role'],
-          joined_at: m.joined_at,
-          profile: profileData as TeamMember['profile'],
-        };
-      });
+      if (!membersData || membersData.length === 0) {
+        setTeamMembers([]);
+        return;
+      }
+
+      // Step 2: Fetch profiles for all member user_ids
+      const userIds = membersData.map(m => m.user_id);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      const profileMap = new Map(
+        (profilesData || []).map(p => [p.id, { full_name: p.full_name, email: p.email }])
+      );
+
+      const members: TeamMember[] = membersData.map(m => ({
+        id: m.id,
+        user_id: m.user_id,
+        role: m.role as TeamMember['role'],
+        joined_at: m.joined_at,
+        profile: profileMap.get(m.user_id) || null,
+      }));
 
       // Sort: owner first, then by name
       members.sort((a, b) => {
