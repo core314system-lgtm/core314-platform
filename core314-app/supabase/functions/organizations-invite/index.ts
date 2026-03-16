@@ -127,20 +127,25 @@ serve(withSentry(async (req) => {
       .eq('id', user.id)
       .single();
 
-    const appUrl = Deno.env.get('APP_URL') || 'https://polite-mochi-fc5be5.netlify.app';
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.core314.com';
     const inviteLink = `${appUrl}/invite?token=${token}`;
 
-    // Send invite email via Resend (fire and forget - don't fail if email fails)
+    // Send invite email via Resend — fail the request if email cannot be sent
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (resendApiKey) {
-      try {
-        const inviterName = inviterProfile?.full_name || inviterProfile?.email || 'A team member';
-        const orgName = org?.name || 'your organization';
-        const inviteeName = first_name
-          ? (last_name ? `${first_name} ${last_name}` : first_name)
-          : (invitee_name || email.split('@')[0]);
+    let emailSent = false;
+    let emailError: string | null = null;
 
-        const emailHtml = `<!DOCTYPE html>
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY not set — cannot send invitation email');
+      emailError = 'Email service not configured. Please contact support.';
+    } else {
+      const inviterName = inviterProfile?.full_name || inviterProfile?.email || 'A team member';
+      const orgName = org?.name || 'your organization';
+      const inviteeName = first_name
+        ? (last_name ? `${first_name} ${last_name}` : first_name)
+        : (invitee_name || email.split('@')[0]);
+
+      const emailHtml = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
@@ -168,6 +173,7 @@ serve(withSentry(async (req) => {
 </body>
 </html>`;
 
+      try {
         const resendResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -185,21 +191,46 @@ serve(withSentry(async (req) => {
         if (!resendResponse.ok) {
           const errBody = await resendResponse.text();
           console.error('Resend API error:', resendResponse.status, errBody);
+          emailError = `Email delivery failed (${resendResponse.status}): ${errBody}`;
         } else {
-          breadcrumb('invite_email_sent', { email, org: orgName });
+          const resendData = await resendResponse.json();
+          emailSent = true;
+          breadcrumb('invite_email_sent', { email, org: orgName, resend_id: resendData?.id });
+          console.log('Invite email sent successfully:', { email, resend_id: resendData?.id });
         }
-      } catch (emailError) {
-        console.error('Failed to send invite email via Resend:', emailError);
-        // Don't fail the request - invitation was created successfully
+      } catch (sendError) {
+        console.error('Failed to send invite email via Resend:', sendError);
+        emailError = `Email send failed: ${sendError instanceof Error ? sendError.message : String(sendError)}`;
       }
-    } else {
-      console.warn('RESEND_API_KEY not set - skipping invite email');
+    }
+
+    // If email failed, return error so the frontend shows the actual problem
+    if (!emailSent) {
+      // Log to audit that email failed
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'organization_invite_email_failed',
+        resource_type: 'organization',
+        resource_id: organization_id,
+        details: { invited_email: email, error: emailError },
+      }).then(() => {}).catch(() => {});
+
+      return new Response(JSON.stringify({
+        error: `Invitation created but email delivery failed: ${emailError}`,
+        invitation,
+        invite_link: inviteLink,
+        email_sent: false,
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       invitation,
-      invite_link: inviteLink
+      invite_link: inviteLink,
+      email_sent: true,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

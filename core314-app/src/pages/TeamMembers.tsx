@@ -268,6 +268,19 @@ export function TeamMembers() {
       });
 
       const data = await response.json();
+
+      // Handle email delivery failure (502) — invite was created but email failed
+      if (response.status === 502 && data.invite_link) {
+        setInviteError('Email delivery failed. Share the invite link manually instead:');
+        setInviteLink(data.invite_link);
+        setInviteFirstName('');
+        setInviteLastName('');
+        setInviteEmail('');
+        await fetchPendingInvites();
+        await fetchSeatLimits();
+        return;
+      }
+
       if (!response.ok) throw new Error(data.error);
 
       setInviteSuccess(`Invitation sent to ${inviteEmail}`);
@@ -440,9 +453,19 @@ export function TeamMembers() {
               </div>
 
               {inviteError && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-                  <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                    <p className="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
+                  </div>
+                  {inviteLink && (
+                    <div className="flex items-center gap-2">
+                      <Input value={inviteLink} readOnly className="text-xs" />
+                      <Button type="button" variant="outline" size="sm" onClick={copyInviteLink}>
+                        {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
