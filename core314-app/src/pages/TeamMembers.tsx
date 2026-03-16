@@ -59,6 +59,11 @@ export function TeamMembers() {
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
 
+  // Seat limit state (from check_organization_user_limit RPC)
+  const [seatLimit, setSeatLimit] = useState<number | null>(null); // -1 = unlimited
+  const [seatCount, setSeatCount] = useState<number>(0);
+  const [seatPlanName, setSeatPlanName] = useState<string>('Free');
+
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteFirstName, setInviteFirstName] = useState('');
@@ -88,6 +93,7 @@ export function TeamMembers() {
     if (currentOrganization) {
       fetchTeamMembers();
       fetchPendingInvites();
+      fetchSeatLimits();
     } else if (user && !creatingOrg && !orgLoading) {
       // Only auto-create after org context has finished loading and confirmed no org exists
       autoCreateOrganization();
@@ -192,6 +198,29 @@ export function TeamMembers() {
     }
   };
 
+  const fetchSeatLimits = async () => {
+    if (!currentOrganization) return;
+
+    try {
+      const { data, error } = await supabase
+        .rpc('check_organization_user_limit', { p_organization_id: currentOrganization.id });
+
+      if (error) {
+        console.error('Error fetching seat limits:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const info = data[0];
+        setSeatLimit(info.user_limit);
+        setSeatCount(info.current_count);
+        setSeatPlanName(info.plan_name);
+      }
+    } catch (err) {
+      console.error('Error fetching seat limits:', err);
+    }
+  };
+
   const fetchPendingInvites = async () => {
     if (!currentOrganization) return;
 
@@ -247,6 +276,7 @@ export function TeamMembers() {
       setInviteLastName('');
       setInviteEmail('');
       await fetchPendingInvites();
+      await fetchSeatLimits(); // Refresh seat count after invite
     } catch (err) {
       setInviteError(err instanceof Error ? err.message : 'Failed to send invitation');
     } finally {
@@ -283,6 +313,7 @@ export function TeamMembers() {
       setShowDeleteModal(false);
       setSelectedMember(null);
       await fetchTeamMembers();
+      await fetchSeatLimits(); // Refresh seat count after removal
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Failed to remove member');
     } finally {
@@ -466,7 +497,13 @@ export function TeamMembers() {
             <div>
               <CardTitle>Your Team</CardTitle>
               <CardDescription>
-                {teamMembers.length} {teamMembers.length === 1 ? 'member' : 'members'}
+                {seatLimit !== null ? (
+                  seatLimit === -1
+                    ? `${seatCount} ${seatCount === 1 ? 'member' : 'members'} (Unlimited seats — ${seatPlanName})`
+                    : `${seatCount} of ${seatLimit} seats used — ${seatPlanName} plan`
+                ) : (
+                  `${teamMembers.length} ${teamMembers.length === 1 ? 'member' : 'members'}`
+                )}
               </CardDescription>
             </div>
           </div>
