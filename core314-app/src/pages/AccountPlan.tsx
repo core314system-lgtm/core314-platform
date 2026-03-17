@@ -117,17 +117,6 @@ const tierRank: Record<Tier, number> = {
 // Add-ons configuration with eligibility rules
 const ADDONS = [
   {
-    id: 'additional_integration_monitor',
-    name: 'Additional Integration (Monitor)',
-    description: 'Expand your connected systems beyond your Monitor plan. Each additional integration brings more data into your unified dashboard, enabling broader Fusion scoring and cross-system insights.',
-    benefit: 'Ideal for growing teams adding new tools over time. Connect Slack, Teams, Gmail, or any supported app to capture the full picture of your operations without upgrading your entire plan.',
-    price: '$75/mo',
-    minTier: 'monitor' as Tier,
-    maxTier: 'monitor' as Tier,
-    compatibilityLabel: 'Monitor plan only',
-    icon: Zap,
-  },
-  {
     id: 'additional_integration_intelligence',
     name: 'Additional Integration (Intelligence)',
     description: 'Expand your connected systems beyond your Intelligence plan. Each additional connection expands your operational visibility and strengthens your Fusion scoring accuracy across more data sources.',
@@ -144,9 +133,9 @@ const ADDONS = [
     description: 'Unlock advanced dashboards with cross-integration analysis, trend detection, and KPI comparisons. Build custom views that surface the metrics that matter most to your leadership and operations teams.',
     benefit: 'Ideal for operations leaders and executives who need a single source of truth. Investigate anomalies, compare performance across time periods, and share polished reports with stakeholders.',
     price: '$199/mo',
-    minTier: 'monitor' as Tier,
+    minTier: 'intelligence' as Tier,
     maxTier: 'enterprise' as Tier,
-    compatibilityLabel: 'Available on Monitor+',
+    compatibilityLabel: 'Available on Intelligence+',
     icon: TrendingUp,
   },
   {
@@ -166,9 +155,9 @@ const ADDONS = [
     description: 'Export your operational data anytime in CSV, JSON, or PDF formats. Maintain full ownership of your data for compliance audits, external reporting, or offline analysis.',
     benefit: 'Ideal for regulated industries or reporting-heavy environments. Meet audit requirements, share data with external partners, and ensure you always have access to your information.',
     price: '$99/mo',
-    minTier: 'monitor' as Tier,
+    minTier: 'intelligence' as Tier,
     maxTier: 'enterprise' as Tier,
-    compatibilityLabel: 'Available on Monitor+',
+    compatibilityLabel: 'Available on Intelligence+',
     icon: TrendingUp,
   },
 ];

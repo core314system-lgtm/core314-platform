@@ -83,10 +83,9 @@ export function RealMetricsDashboard() {
 
       // Calculate MRR from subscriptions
       const PLAN_PRICES: Record<string, number> = {
-        'Monitor': 99,
         'Intelligence': 299,
         'Command Center': 799,
-        'Enterprise': 2499,
+        'Enterprise': 0, // Custom pricing
       };
       const activeSubs = (subsRes.data || []).filter(s => s.status === 'active' || s.status === 'trialing');
       const mrr = activeSubs.reduce((total, s) => total + (PLAN_PRICES[s.plan_name] || 0), 0);

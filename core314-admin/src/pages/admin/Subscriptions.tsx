@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { RevenueSummary } from '../../components/billing/RevenueSummary';
 import { Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PRICING } from '../../../../shared/pricing';
 
 interface Subscription {
   id: string;
@@ -111,19 +112,17 @@ export default function Subscriptions() {
     value,
   }));
 
-  const COLORS = {
-    Free: '#9CA3AF',
-    Starter: '#3B82F6',
-    Pro: '#8B5CF6',
+  const COLORS: Record<string, string> = {
+    Intelligence: '#3B82F6',
+    'Command Center': '#8B5CF6',
     Enterprise: '#F59E0B',
   };
 
   const calculateMRR = () => {
     const planPrices: Record<string, number> = {
-      Free: 0,
-      Starter: 99,
-      Pro: 999,
-      Enterprise: 2999,
+      Intelligence: PRICING.intelligence.monthly,
+      'Command Center': PRICING.commandCenter.monthly,
+      Enterprise: 0, // Custom pricing
     };
 
     return subscriptions
@@ -133,16 +132,34 @@ export default function Subscriptions() {
 
   const totalMRR = calculateMRR();
   const totalARR = totalMRR * 12;
-  const churnRate = 2.3; // Mock churn rate
+  // Calculate churn from actual data
+  const canceledCount = subscriptions.filter(s => s.status === 'canceled').length;
+  const churnRate = subscriptions.length > 0
+    ? Math.round((canceledCount / subscriptions.length) * 1000) / 10
+    : 0;
 
-  const revenueTrendData = [
-    { month: 'Jun', revenue: totalMRR * 0.7 },
-    { month: 'Jul', revenue: totalMRR * 0.8 },
-    { month: 'Aug', revenue: totalMRR * 0.85 },
-    { month: 'Sep', revenue: totalMRR * 0.9 },
-    { month: 'Oct', revenue: totalMRR * 0.95 },
-    { month: 'Nov', revenue: totalMRR },
-  ];
+  // Generate revenue trend from subscription creation dates (last 6 months)
+  const revenueTrendData = (() => {
+    const planPrices: Record<string, number> = {
+      Intelligence: PRICING.intelligence.monthly,
+      'Command Center': PRICING.commandCenter.monthly,
+      Enterprise: 0,
+    };
+    const months: { month: string; revenue: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
+      const activeSubs = subscriptions.filter(s => {
+        const created = new Date(s.created_at);
+        return created <= monthEnd && (s.status === 'active' || s.status === 'trialing');
+      });
+      const revenue = activeSubs.reduce((sum, s) => sum + (planPrices[s.plan_name] || 0), 0);
+      months.push({ month: label, revenue });
+    }
+    return months;
+  })();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
@@ -162,14 +179,13 @@ export default function Subscriptions() {
 
   const getPlanBadge = (plan: string) => {
     const variants: Record<string, string> = {
-      Free: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
-      Starter: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-      Pro: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
+      Intelligence: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+      'Command Center': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
       Enterprise: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
     };
 
     return (
-      <Badge className={variants[plan] || variants.Free}>
+      <Badge className={variants[plan] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100'}>
         {plan}
       </Badge>
     );
@@ -282,9 +298,8 @@ export default function Subscriptions() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Plans</SelectItem>
-                <SelectItem value="Free">Free</SelectItem>
-                <SelectItem value="Starter">Starter</SelectItem>
-                <SelectItem value="Pro">Pro</SelectItem>
+                <SelectItem value="Intelligence">Intelligence</SelectItem>
+                <SelectItem value="Command Center">Command Center</SelectItem>
                 <SelectItem value="Enterprise">Enterprise</SelectItem>
               </SelectContent>
             </Select>
