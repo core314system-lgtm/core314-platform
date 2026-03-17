@@ -61,6 +61,8 @@ interface HubSpotStats {
 export function IntegrationTracking() {
   const [integrations, setIntegrations] = useState<AdminIntegrationRecord[]>([]);
   const [stats, setStats] = useState<IntegrationStats>({ total: 0, active: 0, inactive: 0, error: 0, pending: 0 });
+  const [eventVolume, setEventVolume] = useState<Record<string, number>>({});
+  const [signalVolume, setSignalVolume] = useState<Record<string, number>>({});
   const [hubspotConnections, setHubspotConnections] = useState<HubSpotConnection[]>([]);
   const [hubspotStats, setHubspotStats] = useState<HubSpotStats>({ total: 0, syncing: 0, success: 0, error: 0, pending: 0 });
   const [loading, setLoading] = useState(true);
@@ -98,6 +100,8 @@ export function IntegrationTracking() {
       const data = await response.json();
       setIntegrations(data.integrations || []);
       setStats(data.stats || { total: 0, active: 0, inactive: 0, error: 0, pending: 0 });
+      setEventVolume(data.eventVolume || {});
+      setSignalVolume(data.signalVolume || {});
     } catch (err) {
       console.error('Error fetching integrations:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch integrations');
@@ -234,6 +238,52 @@ export function IntegrationTracking() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Per-Integration Event & Signal Metrics */}
+      {(Object.keys(eventVolume).length > 0 || Object.keys(signalVolume).length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Integration Metrics (Last 7 Days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Integration</TableHead>
+                  <TableHead>Events (7d)</TableHead>
+                  <TableHead>Active Signals</TableHead>
+                  <TableHead>Connections</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'].map((svc) => {
+                  const displayNames: Record<string, string> = {
+                    slack: 'Slack', hubspot: 'HubSpot', quickbooks: 'QuickBooks',
+                    google_calendar: 'Google Calendar', gmail: 'Gmail', jira: 'Jira',
+                    trello: 'Trello', microsoft_teams: 'Microsoft Teams',
+                    google_sheets: 'Google Sheets', asana: 'Asana',
+                  };
+                  const events = eventVolume[svc] || 0;
+                  const signals = signalVolume[svc] || 0;
+                  const connections = integrations.filter(i => i.service_name === svc && i.status === 'active').length;
+                  return (
+                    <TableRow key={svc}>
+                      <TableCell className="font-medium">{displayNames[svc]}</TableCell>
+                      <TableCell>
+                        <span className={events > 0 ? 'text-green-600 font-semibold' : 'text-gray-400'}>{events}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={signals > 0 ? 'text-amber-600 font-semibold' : 'text-gray-400'}>{signals}</span>
+                      </TableCell>
+                      <TableCell>{connections}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* HubSpot Connections Section */}
       {hubspotConnections.length > 0 && (

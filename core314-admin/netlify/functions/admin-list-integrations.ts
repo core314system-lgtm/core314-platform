@@ -170,8 +170,12 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       profileMap.set(p.id, { email: p.email, full_name: p.full_name });
     }
 
-    // Phase 1 integrations only: Slack, HubSpot, QuickBooks
-    const PHASE1_SERVICES = ['slack', 'hubspot', 'quickbooks'];
+    // All supported integrations (Phase 1 + Command Center)
+    const ALL_SERVICES = [
+      'slack', 'hubspot', 'quickbooks',
+      'google_calendar', 'gmail', 'jira', 'trello',
+      'microsoft_teams', 'google_sheets', 'asana',
+    ];
 
     // Transform the data to a flat structure for the frontend
     const transformedIntegrations: AdminIntegrationRecord[] = (integrations || [])
@@ -195,8 +199,32 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
           display_name: registry?.display_name || 'Unknown Integration',
         };
       })
-      // Only show Phase 1 integrations (Slack, HubSpot, QuickBooks)
-      .filter((item) => PHASE1_SERVICES.includes(item.service_name));
+      // Show all supported integrations
+      .filter((item) => ALL_SERVICES.includes(item.service_name));
+
+    // Fetch event volume per integration (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: eventCounts } = await supabaseAdmin
+      .from('integration_events')
+      .select('service_name')
+      .gte('created_at', sevenDaysAgo);
+
+    const eventVolume: Record<string, number> = {};
+    for (const evt of eventCounts || []) {
+      eventVolume[evt.service_name] = (eventVolume[evt.service_name] || 0) + 1;
+    }
+
+    // Fetch active signal counts per integration
+    const { data: signalCounts } = await supabaseAdmin
+      .from('operational_signals')
+      .select('source_integration')
+      .eq('is_active', true);
+
+    const signalVolume: Record<string, number> = {};
+    for (const sig of signalCounts || []) {
+      const src = sig.source_integration as string;
+      if (src) signalVolume[src] = (signalVolume[src] || 0) + 1;
+    }
 
     // Compute stats
     const stats = {
@@ -219,6 +247,8 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       body: JSON.stringify({
         integrations: transformedIntegrations,
         stats,
+        eventVolume,
+        signalVolume,
       }),
     };
   } catch (error) {

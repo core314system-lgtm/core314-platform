@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { sendIntegrationFailureEmail } from '../_shared/integration-notifications.ts';
 
 /**
  * Integration Scheduler (Orchestrator)
@@ -91,17 +92,76 @@ serve(async (req) => {
       details: healthResult.data.summary as Record<string, unknown> || undefined,
     });
 
-    // Step 2: Run each service-specific poller
+    // Step 2: Run each service-specific poller (all 10 integrations)
     const pollers = [
       { name: 'slack-poll', service: 'Slack' },
       { name: 'hubspot-poll', service: 'HubSpot' },
       { name: 'quickbooks-poll', service: 'QuickBooks' },
+      { name: 'google-calendar-poll', service: 'Google Calendar' },
+      { name: 'gmail-poll', service: 'Gmail' },
+      { name: 'jira-poll', service: 'Jira' },
+      { name: 'trello-poll', service: 'Trello' },
+      { name: 'teams-poll', service: 'Microsoft Teams' },
+      { name: 'sheets-poll', service: 'Google Sheets' },
+      { name: 'asana-poll', service: 'Asana' },
     ];
+
+    // Track consecutive failures per poller for alerting
+    const { data: failureState } = await supabase
+      .from('integration_ingestion_state')
+      .select('metadata')
+      .eq('user_id', '00000000-0000-0000-0000-000000000000')
+      .eq('user_integration_id', '00000000-0000-0000-0000-000000000000')
+      .eq('service_name', 'scheduler_failures')
+      .single();
+
+    const failureCounts: Record<string, number> = (failureState?.metadata as Record<string, number>) || {};
 
     for (const poller of pollers) {
       const pollStart = Date.now();
       console.log(`[scheduler] Step 2: Running ${poller.service} poll...`);
-      const pollResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, poller.name);
+
+      // Retry once on failure with exponential backoff
+      let pollResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, poller.name);
+      if (!pollResult.ok) {
+        console.log(`[scheduler] ${poller.service} failed, retrying after 2s...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        pollResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, poller.name);
+      }
+
+      if (pollResult.ok) {
+        failureCounts[poller.name] = 0; // Reset on success
+      } else {
+        failureCounts[poller.name] = (failureCounts[poller.name] || 0) + 1;
+        const consecutiveFailures = failureCounts[poller.name];
+        console.error(`[scheduler] ${poller.service} consecutive failure #${consecutiveFailures}`);
+
+        // Send email alert on 3rd consecutive failure (and every 3rd after)
+        if (consecutiveFailures >= 3 && consecutiveFailures % 3 === 0) {
+          // Find users with this integration connected to alert them
+          const serviceName = poller.name.replace('-poll', '').replace(/-/g, '_');
+          const { data: affectedTokens } = await supabase
+            .from('oauth_tokens')
+            .select('user_id, integration_registry!inner(service_name)')
+            .eq('integration_registry.service_name', serviceName)
+            .limit(10);
+
+          if (affectedTokens && affectedTokens.length > 0) {
+            for (const token of affectedTokens) {
+              const { data: { user: affectedUser } } = await supabase.auth.admin.getUserById(token.user_id);
+              if (affectedUser?.email) {
+                sendIntegrationFailureEmail(
+                  serviceName,
+                  consecutiveFailures,
+                  String(pollResult.data.error || pollResult.data.message || 'Polling failed'),
+                  { recipientEmail: affectedUser.email, recipientName: affectedUser.user_metadata?.full_name as string }
+                ).catch(err => console.error(`[scheduler] Failure email error:`, err));
+              }
+            }
+          }
+        }
+      }
+
       results.push({
         step: poller.name,
         success: pollResult.ok,
@@ -113,9 +173,20 @@ serve(async (req) => {
           processed: pollResult.data.processed,
           total: pollResult.data.total,
           errors: pollResult.data.errors,
-        } : undefined,
+        } : { consecutive_failures: failureCounts[poller.name] },
       });
     }
+
+    // Persist failure counts for next run
+    await supabase.from('integration_ingestion_state').upsert({
+      user_id: '00000000-0000-0000-0000-000000000000',
+      user_integration_id: '00000000-0000-0000-0000-000000000000',
+      service_name: 'scheduler_failures',
+      last_polled_at: now.toISOString(),
+      next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+      metadata: failureCounts,
+      updated_at: now.toISOString(),
+    }, { onConflict: 'user_id,user_integration_id,service_name' });
 
     // Step 3: Run signal detector (analyzes integration_events → creates operational_signals)
     const signalStart = Date.now();

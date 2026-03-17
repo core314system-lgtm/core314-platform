@@ -310,6 +310,70 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1);
 
+    // ── Step 5a: Fetch Command Center integration events ────────────
+    const { data: gcalEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'google_calendar')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const { data: gmailEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'gmail')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const { data: jiraEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'jira')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const { data: trelloEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'trello')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const { data: teamsEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'microsoft_teams')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const { data: sheetsEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'google_sheets')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const { data: asanaEvents } = await supabase
+      .from('integration_events')
+      .select('metadata, created_at')
+      .eq('user_id', user.id)
+      .eq('service_name', 'asana')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
     // ── Step 5b: Fetch Slack integration config for channel/connection status ──
     // This provides channels_member, channels_total, oauth_connected from user_integrations.config
     // which is stored by slack-poll after each discovery run.
@@ -341,14 +405,39 @@ serve(async (req) => {
     const slackMeta = slackEvents?.[0]?.metadata || {};
     const qbMeta = qbEvents?.[0]?.metadata || {};
 
-    // Determine data availability
+    // Determine data availability — all 10 integrations
     const hasHubspot = connectedServices.includes('hubspot');
     const hasQuickbooks = connectedServices.includes('quickbooks');
+    const hasGcal = connectedServices.includes('google_calendar');
+    const hasGmail = connectedServices.includes('gmail');
+    const hasJira = connectedServices.includes('jira');
+    const hasTrello = connectedServices.includes('trello');
+    const hasTeams = connectedServices.includes('microsoft_teams');
+    const hasSheets = connectedServices.includes('google_sheets');
+    const hasAsana = connectedServices.includes('asana');
+
     const hasHubspotData = !!hubspotEvents?.[0];
     const hasSlackData = !!slackEvents?.[0];
     const hasQbData = !!qbEvents?.[0];
-    const hasAnyData = hasHubspotData || hasSlackData || hasQbData || activeSignals.length > 0;
+    const hasGcalData = !!gcalEvents?.[0];
+    const hasGmailData = !!gmailEvents?.[0];
+    const hasJiraData = !!jiraEvents?.[0];
+    const hasTrelloData = !!trelloEvents?.[0];
+    const hasTeamsData = !!teamsEvents?.[0];
+    const hasSheetsData = !!sheetsEvents?.[0];
+    const hasAsanaData = !!asanaEvents?.[0];
+
+    const hasAnyData = hasHubspotData || hasSlackData || hasQbData || hasGcalData || hasGmailData || hasJiraData || hasTrelloData || hasTeamsData || hasSheetsData || hasAsanaData || activeSignals.length > 0;
     const connectedCount = connectedServices.length;
+
+    // Extract metadata for new integrations
+    const gcalMeta = (gcalEvents?.[0]?.metadata || {}) as Record<string, unknown>;
+    const gmailMeta = (gmailEvents?.[0]?.metadata || {}) as Record<string, unknown>;
+    const jiraMeta = (jiraEvents?.[0]?.metadata || {}) as Record<string, unknown>;
+    const trelloMeta = (trelloEvents?.[0]?.metadata || {}) as Record<string, unknown>;
+    const teamsMeta = (teamsEvents?.[0]?.metadata || {}) as Record<string, unknown>;
+    const sheetsMeta = (sheetsEvents?.[0]?.metadata || {}) as Record<string, unknown>;
+    const asanaMeta = (asanaEvents?.[0]?.metadata || {}) as Record<string, unknown>;
 
     // Build CRM summary
     const crmSummary = hasHubspotData && hubspotMeta.total_deals !== undefined
@@ -392,6 +481,35 @@ serve(async (req) => {
       : hasQuickbooks
         ? 'QuickBooks is connected but no financial data has been collected yet. This typically means the first data sync has not completed or the QuickBooks account has no recent financial activity.'
         : 'QuickBooks is not connected. Financial data (invoices, payments, expenses) is not available for analysis.';
+
+    // Build Command Center integration summaries
+    const calendarSummary = hasGcalData
+      ? `${gcalMeta.total_events || 0} events, ${gcalMeta.meetings_with_attendees || 0} meetings with attendees, ${gcalMeta.total_meeting_hours || 0} meeting hours in next 7 days`
+      : hasGcal ? 'Google Calendar connected, awaiting first data sync.' : 'Not connected.';
+
+    const emailSummary = hasGmailData
+      ? `${gmailMeta.total_messages || 0} messages (${gmailMeta.sent_count || 0} sent, ${gmailMeta.received_count || 0} received), ${gmailMeta.thread_count || 0} threads in past 7 days`
+      : hasGmail ? 'Gmail connected, awaiting first data sync.' : 'Not connected.';
+
+    const jiraSummary = hasJiraData
+      ? `${jiraMeta.total_issues_updated || 0} issues updated, ${jiraMeta.done_count || 0} done, ${jiraMeta.in_progress_count || 0} in progress, ${jiraMeta.overdue_count || 0} overdue`
+      : hasJira ? 'Jira connected, awaiting first data sync.' : 'Not connected.';
+
+    const trelloSummary = hasTrelloData
+      ? `${trelloMeta.total_boards || 0} boards, ${trelloMeta.total_cards || 0} cards, ${trelloMeta.done_cards || 0} done, ${trelloMeta.overdue_cards || 0} overdue`
+      : hasTrello ? 'Trello connected, awaiting first data sync.' : 'Not connected.';
+
+    const teamsSummary = hasTeamsData
+      ? `${teamsMeta.total_teams || 0} teams, ${teamsMeta.total_channels || 0} channels`
+      : hasTeams ? 'Microsoft Teams connected, awaiting first data sync.' : 'Not connected.';
+
+    const sheetsSummary = hasSheetsData
+      ? `${sheetsMeta.total_spreadsheets || 0} spreadsheets, ${sheetsMeta.recently_modified_count || 0} modified in past 7 days`
+      : hasSheets ? 'Google Sheets connected, awaiting first data sync.' : 'Not connected.';
+
+    const asanaSummary = hasAsanaData
+      ? `${asanaMeta.total_projects || 0} projects, ${asanaMeta.total_tasks || 0} tasks, ${asanaMeta.completed_tasks || 0} completed, ${asanaMeta.overdue_tasks || 0} overdue (${asanaMeta.completion_rate || 0}% completion)`
+      : hasAsana ? 'Asana connected, awaiting first data sync.' : 'Not connected.';
 
     // Classify each signal and collect unique categories
     const classifiedSignals = activeSignals.map(s => {
@@ -474,8 +592,9 @@ ${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration}
           ? 'connected, awaiting channel access'
           : 'not connected';
 
-    const integrationStatus = `Connected integrations: ${connectedCount > 0 ? connectedServices.join(', ') : 'None'}
-Data availability: HubSpot ${hasHubspotData ? 'has data' : hasHubspot ? 'connected, no data yet' : 'not connected'} | Slack ${hasSlackData ? 'has data' : slackStatusLabel} | QuickBooks ${hasQbData ? 'has data' : hasQuickbooks ? 'connected, no data yet' : 'not connected'}`;
+    const integrationStatus = `Connected integrations (${connectedCount}): ${connectedCount > 0 ? connectedServices.join(', ') : 'None'}
+Core integrations: HubSpot ${hasHubspotData ? 'has data' : hasHubspot ? 'connected, no data yet' : 'not connected'} | Slack ${hasSlackData ? 'has data' : slackStatusLabel} | QuickBooks ${hasQbData ? 'has data' : hasQuickbooks ? 'connected, no data yet' : 'not connected'}
+Command Center integrations: Google Calendar ${hasGcalData ? 'has data' : hasGcal ? 'connected, no data yet' : 'not connected'} | Gmail ${hasGmailData ? 'has data' : hasGmail ? 'connected, no data yet' : 'not connected'} | Jira ${hasJiraData ? 'has data' : hasJira ? 'connected, no data yet' : 'not connected'} | Trello ${hasTrelloData ? 'has data' : hasTrello ? 'connected, no data yet' : 'not connected'} | Microsoft Teams ${hasTeamsData ? 'has data' : hasTeams ? 'connected, no data yet' : 'not connected'} | Google Sheets ${hasSheetsData ? 'has data' : hasSheets ? 'connected, no data yet' : 'not connected'} | Asana ${hasAsanaData ? 'has data' : hasAsana ? 'connected, no data yet' : 'not connected'}`;
 
     // ── Step 7: Generate narrative via GPT-4o ─────────────────────────
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -504,6 +623,13 @@ RAW METRICS:
 CRM (HubSpot): ${crmSummary}
 Communication (Slack): ${commSummary}
 Financial (QuickBooks): ${financialSummary}
+Scheduling (Google Calendar): ${calendarSummary}
+Email (Gmail): ${emailSummary}
+Project Tracking (Jira): ${jiraSummary}
+Task Management (Trello): ${trelloSummary}
+Team Communication (Microsoft Teams): ${teamsSummary}
+Data Tracking (Google Sheets): ${sheetsSummary}
+Project Delivery (Asana): ${asanaSummary}
 
 INSTRUCTIONS:
 - This is a CORRELATED EVENT brief — multiple signals from different integrations have been detected within the same time window
@@ -544,6 +670,13 @@ RAW METRICS:
 CRM (HubSpot): ${crmSummary}
 Communication (Slack): ${commSummary}
 Financial (QuickBooks): ${financialSummary}
+Scheduling (Google Calendar): ${calendarSummary}
+Email (Gmail): ${emailSummary}
+Project Tracking (Jira): ${jiraSummary}
+Task Management (Trello): ${trelloSummary}
+Team Communication (Microsoft Teams): ${teamsSummary}
+Data Tracking (Google Sheets): ${sheetsSummary}
+Project Delivery (Asana): ${asanaSummary}
 
 INSTRUCTIONS:
 - Write as if you are a senior business analyst presenting to the CEO

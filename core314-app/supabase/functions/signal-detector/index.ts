@@ -21,6 +21,31 @@ import { classifySignal } from '../_shared/signal-classification.ts';
  *   HubSpot:
  *     - stalled_deals: deals stuck in pipeline
  *     - deal_velocity_decline: deal close rate declining
+ *   Google Calendar:
+ *     - meeting_overload: > 30 meetings/week or > 25 hours/week
+ *     - low_meeting_activity: 0 events when calendar is connected
+ *   Gmail:
+ *     - email_volume_spike: > 200 messages/week
+ *     - low_email_activity: 0 messages when connected
+ *     - low_response_ratio: sent < 10% of received
+ *   Jira:
+ *     - overdue_issues: open issues older than 14 days
+ *     - low_velocity: < 10% done rate
+ *     - blocker_accumulation: highest/blocker priority issues present
+ *   Trello:
+ *     - overdue_cards: cards past due date
+ *     - stalled_cards: 0 done cards from total
+ *     - board_inactivity: 0 cards across boards
+ *   Microsoft Teams:
+ *     - low_team_activity: 0 teams/channels detected
+ *     - channel_inactivity: teams exist but 0 channels
+ *   Google Sheets:
+ *     - stale_spreadsheets: no recently modified sheets
+ *     - no_sheet_activity: 0 spreadsheets
+ *   Asana:
+ *     - overdue_tasks: tasks past due date
+ *     - low_completion_rate: < 20% completion rate
+ *     - workload_imbalance: high overdue with low completion
  * 
  * Designed to be called by integration-scheduler after polling completes.
  */
@@ -327,6 +352,339 @@ serve(async (req) => {
               description: 'HubSpot is connected but no contacts or deals found. Add CRM data for operational intelligence.',
               source_integration: 'hubspot',
               signal_data: { category: classifySignal('no_crm_activity', 'hubspot'), metric: 'no_crm_activity', contact_count: contactCount, deal_count: dealCount },
+            });
+          }
+        }
+
+        // --- Google Calendar Signal Detection ---
+        const { data: gcalEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'google_calendar.weekly_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (gcalEvents && gcalEvents.length > 0) {
+          const latest = gcalEvents[0].metadata as Record<string, unknown>;
+          const totalEvents = (latest.total_events as number) ?? 0;
+          const meetingsWithAttendees = (latest.meetings_with_attendees as number) ?? 0;
+          const totalMeetingHours = (latest.total_meeting_hours as number) ?? 0;
+
+          // Signal: Meeting overload (>30 meetings/week or >25 hours/week)
+          if (meetingsWithAttendees > 30 || totalMeetingHours > 25) {
+            signals.push({
+              signal_type: 'meeting_overload',
+              severity: totalMeetingHours > 35 ? 'high' : 'medium',
+              confidence: 85,
+              description: `${meetingsWithAttendees} meetings scheduled (${totalMeetingHours} hours) in the next 7 days. Heavy meeting load may reduce productive work time.`,
+              source_integration: 'google_calendar',
+              signal_data: { category: classifySignal('meeting_overload', 'google_calendar'), metric: 'meeting_overload', meetings: meetingsWithAttendees, meeting_hours: totalMeetingHours, total_events: totalEvents },
+            });
+          }
+
+          // Signal: Low meeting activity (connected but zero events)
+          if (totalEvents === 0) {
+            signals.push({
+              signal_type: 'low_meeting_activity',
+              severity: 'low',
+              confidence: 70,
+              description: 'Google Calendar is connected but no events found in the next 7 days. Calendar may be empty or permissions may need adjustment.',
+              source_integration: 'google_calendar',
+              signal_data: { category: classifySignal('low_meeting_activity', 'google_calendar'), metric: 'low_meeting_activity', total_events: 0 },
+            });
+          }
+        }
+
+        // --- Gmail Signal Detection ---
+        const { data: gmailEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'gmail.weekly_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (gmailEvents && gmailEvents.length > 0) {
+          const latest = gmailEvents[0].metadata as Record<string, unknown>;
+          const totalMessages = (latest.total_messages as number) ?? 0;
+          const sentCount = (latest.sent_count as number) ?? 0;
+          const receivedCount = (latest.received_count as number) ?? 0;
+
+          // Signal: Email volume spike (>200 messages/week)
+          if (totalMessages > 200) {
+            signals.push({
+              signal_type: 'email_volume_spike',
+              severity: totalMessages > 500 ? 'high' : 'medium',
+              confidence: 80,
+              description: `${totalMessages} emails in the past 7 days (${sentCount} sent, ${receivedCount} received). High email volume may indicate process inefficiency or urgent issues.`,
+              source_integration: 'gmail',
+              signal_data: { category: classifySignal('email_volume_spike', 'gmail'), metric: 'email_volume_spike', total_messages: totalMessages, sent: sentCount, received: receivedCount },
+            });
+          }
+
+          // Signal: Low email activity (connected but zero messages)
+          if (totalMessages === 0) {
+            signals.push({
+              signal_type: 'low_email_activity',
+              severity: 'low',
+              confidence: 70,
+              description: 'Gmail is connected but no email activity detected in the past 7 days. Account may be inactive or permissions may need adjustment.',
+              source_integration: 'gmail',
+              signal_data: { category: classifySignal('low_email_activity', 'gmail'), metric: 'low_email_activity', total_messages: 0 },
+            });
+          }
+
+          // Signal: Low response ratio (sent < 10% of received)
+          if (receivedCount > 20 && sentCount > 0 && sentCount < receivedCount * 0.1) {
+            signals.push({
+              signal_type: 'low_response_ratio',
+              severity: 'medium',
+              confidence: 70,
+              description: `Only ${sentCount} sent emails vs ${receivedCount} received (${Math.round(sentCount / receivedCount * 100)}% response ratio). Low responsiveness may impact customer and partner relationships.`,
+              source_integration: 'gmail',
+              signal_data: { category: classifySignal('low_response_ratio', 'gmail'), metric: 'low_response_ratio', sent: sentCount, received: receivedCount, ratio: Math.round(sentCount / receivedCount * 100) },
+            });
+          }
+        }
+
+        // --- Jira Signal Detection ---
+        const { data: jiraEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'jira.weekly_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (jiraEvents && jiraEvents.length > 0) {
+          const latest = jiraEvents[0].metadata as Record<string, unknown>;
+          const totalIssues = (latest.total_issues_updated as number) ?? 0;
+          const doneCount = (latest.done_count as number) ?? 0;
+          const inProgressCount = (latest.in_progress_count as number) ?? 0;
+          const overdueCount = (latest.overdue_count as number) ?? 0;
+          const priorityBreakdown = (latest.priority_breakdown as Record<string, number>) ?? {};
+
+          // Signal: Overdue issues
+          if (overdueCount > 0) {
+            const severity = overdueCount >= 10 ? 'high' : overdueCount >= 5 ? 'medium' : 'low';
+            signals.push({
+              signal_type: 'overdue_issues',
+              severity,
+              confidence: 90,
+              description: `${overdueCount} Jira issue${overdueCount > 1 ? 's' : ''} overdue (open > 14 days) out of ${totalIssues} updated this week. ${inProgressCount} in progress, ${doneCount} completed.`,
+              source_integration: 'jira',
+              signal_data: { category: classifySignal('overdue_issues', 'jira'), metric: 'overdue_issues', overdue: overdueCount, total: totalIssues, done: doneCount, in_progress: inProgressCount },
+            });
+          }
+
+          // Signal: Low velocity (< 10% done rate with significant issues)
+          if (totalIssues >= 10 && doneCount < totalIssues * 0.1) {
+            signals.push({
+              signal_type: 'low_velocity',
+              severity: 'medium',
+              confidence: 75,
+              description: `Only ${doneCount} of ${totalIssues} issues completed this week (${Math.round(doneCount / totalIssues * 100)}% done rate). Sprint velocity may be at risk.`,
+              source_integration: 'jira',
+              signal_data: { category: classifySignal('low_velocity', 'jira'), metric: 'low_velocity', done: doneCount, total: totalIssues, done_rate: Math.round(doneCount / totalIssues * 100) },
+            });
+          }
+
+          // Signal: Blocker accumulation (Highest/Blocker priority issues)
+          const blockerCount = (priorityBreakdown['Highest'] ?? 0) + (priorityBreakdown['Blocker'] ?? 0);
+          if (blockerCount >= 3) {
+            signals.push({
+              signal_type: 'blocker_accumulation',
+              severity: blockerCount >= 5 ? 'critical' : 'high',
+              confidence: 90,
+              description: `${blockerCount} blocker/highest-priority Jira issues detected. These may be blocking team progress across projects.`,
+              source_integration: 'jira',
+              signal_data: { category: classifySignal('blocker_accumulation', 'jira'), metric: 'blocker_accumulation', blockers: blockerCount, priority_breakdown: priorityBreakdown },
+            });
+          }
+        }
+
+        // --- Trello Signal Detection ---
+        const { data: trelloEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'trello.board_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (trelloEvents && trelloEvents.length > 0) {
+          const latest = trelloEvents[0].metadata as Record<string, unknown>;
+          const totalCards = (latest.total_cards as number) ?? 0;
+          const doneCards = (latest.done_cards as number) ?? 0;
+          const overdueCards = (latest.overdue_cards as number) ?? 0;
+          const totalBoards = (latest.total_boards as number) ?? 0;
+
+          // Signal: Overdue cards
+          if (overdueCards > 0) {
+            signals.push({
+              signal_type: 'overdue_cards',
+              severity: overdueCards >= 10 ? 'high' : overdueCards >= 5 ? 'medium' : 'low',
+              confidence: 85,
+              description: `${overdueCards} Trello card${overdueCards > 1 ? 's' : ''} past due date across ${totalBoards} board${totalBoards > 1 ? 's' : ''}. ${totalCards} total active cards.`,
+              source_integration: 'trello',
+              signal_data: { category: classifySignal('overdue_cards', 'trello'), metric: 'overdue_cards', overdue: overdueCards, total_cards: totalCards, boards: totalBoards },
+            });
+          }
+
+          // Signal: Stalled cards (cards exist but none completed)
+          if (totalCards >= 10 && doneCards === 0) {
+            signals.push({
+              signal_type: 'stalled_cards',
+              severity: 'medium',
+              confidence: 70,
+              description: `${totalCards} active Trello cards but no cards in "Done" lists. Work may be stalled or lists need reorganization.`,
+              source_integration: 'trello',
+              signal_data: { category: classifySignal('stalled_cards', 'trello'), metric: 'stalled_cards', total_cards: totalCards, done_cards: 0, boards: totalBoards },
+            });
+          }
+
+          // Signal: Board inactivity (connected but zero cards)
+          if (totalBoards > 0 && totalCards === 0) {
+            signals.push({
+              signal_type: 'board_inactivity',
+              severity: 'low',
+              confidence: 65,
+              description: `Trello is connected with ${totalBoards} board${totalBoards > 1 ? 's' : ''} but no active cards found. Boards may be empty or archived.`,
+              source_integration: 'trello',
+              signal_data: { category: classifySignal('board_inactivity', 'trello'), metric: 'board_inactivity', boards: totalBoards, total_cards: 0 },
+            });
+          }
+        }
+
+        // --- Microsoft Teams Signal Detection ---
+        const { data: teamsEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'teams.workspace_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (teamsEvents && teamsEvents.length > 0) {
+          const latest = teamsEvents[0].metadata as Record<string, unknown>;
+          const totalTeams = (latest.total_teams as number) ?? 0;
+          const totalChannels = (latest.total_channels as number) ?? 0;
+
+          // Signal: Low team activity (connected but zero teams)
+          if (totalTeams === 0) {
+            signals.push({
+              signal_type: 'low_team_activity',
+              severity: 'low',
+              confidence: 70,
+              description: 'Microsoft Teams is connected but no joined teams detected. The account may need team membership or permissions adjustment.',
+              source_integration: 'microsoft_teams',
+              signal_data: { category: classifySignal('low_team_activity', 'microsoft_teams'), metric: 'low_team_activity', teams: 0, channels: 0 },
+            });
+          }
+
+          // Signal: Channel inactivity (teams exist but no channels accessible)
+          if (totalTeams > 0 && totalChannels === 0) {
+            signals.push({
+              signal_type: 'channel_inactivity',
+              severity: 'medium',
+              confidence: 75,
+              description: `${totalTeams} Microsoft Teams team${totalTeams > 1 ? 's' : ''} found but no channels accessible. Channel permissions may need review.`,
+              source_integration: 'microsoft_teams',
+              signal_data: { category: classifySignal('channel_inactivity', 'microsoft_teams'), metric: 'channel_inactivity', teams: totalTeams, channels: 0 },
+            });
+          }
+        }
+
+        // --- Google Sheets Signal Detection ---
+        const { data: sheetsEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'sheets.file_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (sheetsEvents && sheetsEvents.length > 0) {
+          const latest = sheetsEvents[0].metadata as Record<string, unknown>;
+          const totalSpreadsheets = (latest.total_spreadsheets as number) ?? 0;
+          const recentlyModified = (latest.recently_modified_count as number) ?? 0;
+
+          // Signal: Stale spreadsheets (sheets exist but none modified recently)
+          if (totalSpreadsheets > 0 && recentlyModified === 0) {
+            signals.push({
+              signal_type: 'stale_spreadsheets',
+              severity: 'low',
+              confidence: 65,
+              description: `${totalSpreadsheets} Google Sheets spreadsheet${totalSpreadsheets > 1 ? 's' : ''} found but none modified in the past 7 days. KPI tracking data may be stale.`,
+              source_integration: 'google_sheets',
+              signal_data: { category: classifySignal('stale_spreadsheets', 'google_sheets'), metric: 'stale_spreadsheets', total: totalSpreadsheets, recently_modified: 0 },
+            });
+          }
+
+          // Signal: No sheet activity (connected but zero spreadsheets)
+          if (totalSpreadsheets === 0) {
+            signals.push({
+              signal_type: 'no_sheet_activity',
+              severity: 'low',
+              confidence: 60,
+              description: 'Google Sheets is connected but no spreadsheets found. Create or share spreadsheets for data tracking visibility.',
+              source_integration: 'google_sheets',
+              signal_data: { category: classifySignal('no_sheet_activity', 'google_sheets'), metric: 'no_sheet_activity', total: 0 },
+            });
+          }
+        }
+
+        // --- Asana Signal Detection ---
+        const { data: asanaEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'asana.project_summary')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (asanaEvents && asanaEvents.length > 0) {
+          const latest = asanaEvents[0].metadata as Record<string, unknown>;
+          const totalTasks = (latest.total_tasks as number) ?? 0;
+          const completedTasks = (latest.completed_tasks as number) ?? 0;
+          const overdueTasks = (latest.overdue_tasks as number) ?? 0;
+          const completionRate = (latest.completion_rate as number) ?? 0;
+          const totalProjects = (latest.total_projects as number) ?? 0;
+
+          // Signal: Overdue tasks
+          if (overdueTasks > 0) {
+            signals.push({
+              signal_type: 'overdue_tasks',
+              severity: overdueTasks >= 10 ? 'high' : overdueTasks >= 5 ? 'medium' : 'low',
+              confidence: 90,
+              description: `${overdueTasks} Asana task${overdueTasks > 1 ? 's' : ''} past due date across ${totalProjects} project${totalProjects > 1 ? 's' : ''}. ${completedTasks} of ${totalTasks} tasks completed (${completionRate}%).`,
+              source_integration: 'asana',
+              signal_data: { category: classifySignal('overdue_tasks', 'asana'), metric: 'overdue_tasks', overdue: overdueTasks, total_tasks: totalTasks, completed: completedTasks, projects: totalProjects },
+            });
+          }
+
+          // Signal: Low completion rate (<20% with significant tasks)
+          if (totalTasks >= 10 && completionRate < 20) {
+            signals.push({
+              signal_type: 'low_completion_rate',
+              severity: 'medium',
+              confidence: 75,
+              description: `Only ${completionRate}% task completion rate in Asana (${completedTasks} of ${totalTasks} tasks). Project delivery may be at risk.`,
+              source_integration: 'asana',
+              signal_data: { category: classifySignal('low_completion_rate', 'asana'), metric: 'low_completion_rate', completion_rate: completionRate, completed: completedTasks, total: totalTasks },
+            });
+          }
+
+          // Signal: Workload imbalance (high overdue + low completion)
+          if (overdueTasks >= 5 && completionRate < 30) {
+            signals.push({
+              signal_type: 'workload_imbalance',
+              severity: 'high',
+              confidence: 80,
+              description: `${overdueTasks} overdue tasks with only ${completionRate}% completion rate. Team may be overloaded or tasks need reprioritization.`,
+              source_integration: 'asana',
+              signal_data: { category: classifySignal('workload_imbalance', 'asana'), metric: 'workload_imbalance', overdue: overdueTasks, completion_rate: completionRate, total_tasks: totalTasks },
             });
           }
         }
