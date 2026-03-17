@@ -17,9 +17,19 @@ import {
   Clock,
   Unplug,
   AlertTriangle,
+  Calendar,
+  Mail,
+  ClipboardList,
+  LayoutGrid,
+  Users,
+  FileSpreadsheet,
+  ListTodo,
+  Lock,
+  ArrowUpRight,
+  Key,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl } from '../lib/supabase';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 interface IntegrationInfo {
   id: string;
@@ -28,6 +38,8 @@ interface IntegrationInfo {
   description: string;
   icon_url: string | null;
   is_enabled: boolean;
+  auth_type: string;
+  min_plan?: string;
 }
 
 interface UserIntegration {
@@ -55,16 +67,56 @@ const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
   slack: MessageSquare,
   hubspot: Briefcase,
   quickbooks: DollarSign,
+  google_calendar: Calendar,
+  gmail: Mail,
+  jira: ClipboardList,
+  trello: LayoutGrid,
+  microsoft_teams: Users,
+  google_sheets: FileSpreadsheet,
+  asana: ListTodo,
 };
 
 const SERVICE_DESCRIPTIONS: Record<string, string> = {
-  slack: 'Monitor team communication patterns, response times, and channel activity to detect operational bottlenecks.',
-  hubspot: 'Track deal velocity, stalled deals, pipeline changes, and follow-up delays to identify revenue risks.',
-  quickbooks: 'Analyze invoice aging, overdue payments, revenue trends, and expense anomalies for financial health.',
+  slack: 'Monitor team communication patterns, response times, and channel activity to detect operational bottlenecks and collaboration trends.',
+  hubspot: 'Track deal velocity, stalled deals, pipeline changes, and follow-up delays to identify revenue risks and sales performance patterns.',
+  quickbooks: 'Analyze invoice aging, overdue payments, revenue trends, and expense anomalies for comprehensive financial health monitoring.',
+  google_calendar: 'Track meeting patterns, scheduling conflicts, and calendar utilization to surface time-based operational signals and meeting overload.',
+  gmail: 'Analyze email volume, response patterns, and communication trends to detect bottlenecks without reading message content.',
+  jira: 'Monitor sprint progress, ticket velocity, and blocker patterns to detect delivery risks and team capacity issues early.',
+  trello: 'Track board activity, card movement, and workflow bottlenecks to surface stalled tasks and productivity patterns.',
+  microsoft_teams: 'Monitor team channel activity, meeting patterns, and collaboration metrics across departments for organizational health.',
+  google_sheets: 'Connect key operational spreadsheets for real-time KPI monitoring and automated data change tracking.',
+  asana: 'Track project milestones, task completion rates, and team workload to detect delivery risks and resource constraints.',
+};
+
+const PLAN_TIERS: Record<string, number> = {
+  intelligence: 1,
+  command_center: 2,
+  enterprise: 3,
+};
+
+const CORE_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks'];
+const COMMAND_CENTER_INTEGRATIONS = ['google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'];
+const ALL_INTEGRATIONS = [...CORE_INTEGRATIONS, ...COMMAND_CENTER_INTEGRATIONS];
+
+const API_KEY_FIELDS: Record<string, { label: string; field: string; type: string; placeholder: string }[]> = {
+  jira: [
+    { label: 'Jira Domain', field: 'domain', type: 'text', placeholder: 'your-company.atlassian.net' },
+    { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
+    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Jira API token' },
+  ],
+  trello: [
+    { label: 'API Key', field: 'api_key', type: 'text', placeholder: 'Your Trello API key' },
+    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Trello API token' },
+  ],
+  asana: [
+    { label: 'Personal Access Token', field: 'api_token', type: 'password', placeholder: 'Your Asana personal access token' },
+  ],
 };
 
 export function IntegrationManager() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationInfo[]>([]);
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
@@ -74,6 +126,9 @@ export function IntegrationManager() {
   const [connectionSuccess, setConnectionSuccess] = useState<string | null>(null);
   const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
   const [ingestionStates, setIngestionStates] = useState<IngestionState[]>([]);
+  const [userPlan, setUserPlan] = useState<string>('intelligence');
+  const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
   // Check for OAuth callback success (from Supabase oauth-callback or HubSpot Netlify callback)
   useEffect(() => {
@@ -98,22 +153,57 @@ export function IntegrationManager() {
   useEffect(() => {
     if (profile?.id) {
       fetchIntegrations();
+      fetchUserPlan();
     }
   }, [profile?.id]);
+
+  const fetchUserPlan = async () => {
+    if (!profile?.id) return;
+    const { data: orgMember } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', profile.id)
+      .limit(1)
+      .single();
+    if (orgMember) {
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('plan_name')
+        .eq('organization_id', orgMember.organization_id)
+        .eq('status', 'active')
+        .limit(1)
+        .single();
+      if (subscription?.plan_name) {
+        const planName = subscription.plan_name.toLowerCase();
+        if (planName.includes('command') || planName.includes('center')) {
+          setUserPlan('command_center');
+        } else if (planName.includes('enterprise')) {
+          setUserPlan('enterprise');
+        } else {
+          setUserPlan('intelligence');
+        }
+      }
+    }
+  };
 
   const fetchIntegrations = async () => {
     if (!profile?.id) return;
     setLoading(true);
 
-    // Fetch available integrations (only Phase 1 services)
+    // Fetch ALL enabled integrations
     const { data: registryData } = await supabase
       .from('integration_registry')
-      .select('*')
-      .in('service_name', ['slack', 'hubspot', 'quickbooks'])
+      .select('id, service_name, display_name, description, logo_url, is_enabled, auth_type, min_plan')
+      .in('service_name', ALL_INTEGRATIONS)
       .eq('is_enabled', true);
 
     if (registryData) {
-      setIntegrations(registryData as IntegrationInfo[]);
+      const sorted = [...registryData].sort((a, b) => {
+        const aIdx = ALL_INTEGRATIONS.indexOf(a.service_name);
+        const bIdx = ALL_INTEGRATIONS.indexOf(b.service_name);
+        return aIdx - bIdx;
+      });
+      setIntegrations(sorted as IntegrationInfo[]);
     }
 
     // Fetch user's connected integrations
@@ -127,12 +217,11 @@ export function IntegrationManager() {
       setUserIntegrations(userIntData as UserIntegration[]);
     }
 
-    // Fetch ingestion state (last polled times)
+    // Fetch ingestion state for all integrations
     const { data: stateData } = await supabase
       .from('integration_ingestion_state')
       .select('service_name, last_polled_at, next_poll_after')
-      .eq('user_id', profile.id)
-      .in('service_name', ['slack', 'hubspot', 'quickbooks']);
+      .eq('user_id', profile.id);
 
     if (stateData) {
       setIngestionStates(stateData as IngestionState[]);
@@ -141,8 +230,22 @@ export function IntegrationManager() {
     setLoading(false);
   };
 
+  const canAccessIntegration = (serviceName: string): boolean => {
+    if (CORE_INTEGRATIONS.includes(serviceName)) return true;
+    if (COMMAND_CENTER_INTEGRATIONS.includes(serviceName)) {
+      return (PLAN_TIERS[userPlan] || 0) >= PLAN_TIERS['command_center'];
+    }
+    return false;
+  };
+
   const handleConnect = async (serviceName: string) => {
     if (!profile?.id) return;
+    if (!canAccessIntegration(serviceName)) return;
+    if (API_KEY_FIELDS[serviceName]) {
+      setApiKeyForm({ service: serviceName, credentials: {} });
+      setApiKeyError(null);
+      return;
+    }
     setConnecting(serviceName);
 
     try {
@@ -188,6 +291,36 @@ export function IntegrationManager() {
       }
     } catch (err) {
       console.error('Error connecting:', err);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const handleApiKeySubmit = async () => {
+    if (!apiKeyForm || !profile?.id) return;
+    setConnecting(apiKeyForm.service);
+    setApiKeyError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-api-key', {
+        body: {
+          service_name: apiKeyForm.service,
+          credentials: apiKeyForm.credentials,
+        },
+      });
+      if (error) {
+        setApiKeyError('Failed to connect. Please check your credentials.');
+        return;
+      }
+      if (data && !data.success) {
+        setApiKeyError(data.message || data.error || 'Connection failed');
+        return;
+      }
+      setApiKeyForm(null);
+      setConnectionSuccess(apiKeyForm.service);
+      setTimeout(() => setConnectionSuccess(null), 5000);
+      await fetchIntegrations();
+    } catch {
+      setApiKeyError('An unexpected error occurred. Please try again.');
     } finally {
       setConnecting(null);
     }
@@ -268,6 +401,11 @@ export function IntegrationManager() {
     return { label: 'Connected', color: 'text-green-600' };
   };
 
+  const coreIntegrations = integrations.filter(i => CORE_INTEGRATIONS.includes(i.service_name));
+  const commandCenterIntegrations = integrations.filter(i => COMMAND_CENTER_INTEGRATIONS.includes(i.service_name));
+  const connectedCount = integrations.filter(i => isConnected(i.id)).length;
+  const accessibleCount = integrations.filter(i => canAccessIntegration(i.service_name)).length;
+
   if (loading) {
     return (
       <div className="p-6 space-y-6">
@@ -301,8 +439,61 @@ export function IntegrationManager() {
             <div className="flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                {connectionSuccess === 'hubspot' ? 'HubSpot' : connectionSuccess === 'quickbooks' ? 'QuickBooks Online' : connectionSuccess === 'slack' ? 'Slack' : connectionSuccess} connected successfully! Core314 will begin analyzing your data shortly.
+                {connectionSuccess.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} connected successfully! Core314 will begin analyzing your data shortly.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* API Key Form */}
+      {apiKeyForm && (
+        <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Key className="h-4 w-4 text-indigo-500" />
+              Connect {apiKeyForm.service.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {API_KEY_FIELDS[apiKeyForm.service]?.map(field => (
+                <div key={field.field}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {field.label}
+                  </label>
+                  <input
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    value={apiKeyForm.credentials[field.field] || ''}
+                    onChange={(e) => setApiKeyForm({
+                      ...apiKeyForm,
+                      credentials: { ...apiKeyForm.credentials, [field.field]: e.target.value },
+                    })}
+                  />
+                </div>
+              ))}
+              {apiKeyError && (
+                <p className="text-sm text-red-600">{apiKeyError}</p>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={handleApiKeySubmit}
+                  disabled={connecting === apiKeyForm.service}
+                  className="flex-1"
+                >
+                  {connecting === apiKeyForm.service ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  {connecting === apiKeyForm.service ? 'Validating...' : 'Connect'}
+                </Button>
+                <Button variant="outline" onClick={() => setApiKeyForm(null)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -315,46 +506,50 @@ export function IntegrationManager() {
             <Plug className="h-8 w-8 text-indigo-500" />
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {integrations.filter(i => isConnected(i.id)).length} of {integrations.length} integrations connected
+                {connectedCount} of {accessibleCount} available integrations connected
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {integrations.filter(i => isConnected(i.id)).length === integrations.length
+                {connectedCount === accessibleCount && accessibleCount > 0
                   ? 'All signal sources active. Core314 is analyzing your full operational picture.'
-                  : 'Connect more integrations for richer operational insights.'}
+                  : userPlan === 'intelligence'
+                    ? 'Connect your core integrations. Upgrade to Command Center for 7 additional integrations.'
+                    : 'Connect more integrations for richer operational insights.'}
               </p>
             </div>
           </div>
-          {/* Progress bar */}
           <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div
               className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(integrations.filter(i => isConnected(i.id)).length / Math.max(integrations.length, 1)) * 100}%` }}
+              style={{ width: `${(connectedCount / Math.max(accessibleCount, 1)) * 100}%` }}
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Integration Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {integrations.map(integration => {
-          const Icon = SERVICE_ICONS[integration.service_name] || Layers;
-          const connected = isConnected(integration.id);
-          const connDate = getConnectionDate(integration.id);
-          const description = SERVICE_DESCRIPTIONS[integration.service_name] || integration.description;
-          const ui = getUserIntegration(integration.id);
-          const state = getIngestionState(integration.service_name);
-          const health = getHealthStatus(ui);
-
-          return (
-            <Card
-              key={integration.id}
-              className={connected ? 'border-green-200 dark:border-green-800' : ''}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+      {/* Core Integrations Section */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Core Integrations</h2>
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-0">
+            All Plans
+          </Badge>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {coreIntegrations.map(integration => {
+            const Icon = SERVICE_ICONS[integration.service_name] || Layers;
+            const connected = isConnected(integration.id);
+            const connDate = getConnectionDate(integration.id);
+            const description = SERVICE_DESCRIPTIONS[integration.service_name] || integration.description;
+            const ui = getUserIntegration(integration.id);
+            const state = getIngestionState(integration.service_name);
+            const health = getHealthStatus(ui);
+            const isApiKeyService = !!API_KEY_FIELDS[integration.service_name];
+            return (
+              <Card key={integration.id} className={connected ? 'border-green-200 dark:border-green-800' : ''}>
+                <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                      <Icon className={`h-5 w-5 ${connected ? 'text-green-600' : 'text-gray-500'}`} />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
+                      <Icon className={`h-5 w-5 ${connected ? 'text-green-600' : 'text-indigo-600'}`} />
                     </div>
                     <div>
                       <CardTitle className="text-base">{integration.display_name}</CardTitle>
@@ -366,106 +561,175 @@ export function IntegrationManager() {
                       )}
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  {description}
-                </p>
-
-                {connected ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Clock className="h-3 w-3" />
-                      Connected {connDate ? new Date(connDate).toLocaleDateString() : ''}
-                    </div>
-                    {/* Health status */}
-                    <div className={`flex items-center gap-2 text-xs ${health.color}`}>
-                      <CheckCircle className="h-3 w-3" />
-                      {health.label}
-                      {ui?.last_verified_at && (
-                        <span className="text-gray-400">({formatTimeAgo(ui.last_verified_at)})</span>
-                      )}
-                    </div>
-                    {/* Last polled */}
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <RefreshCw className={`h-3 w-3 ${state?.last_polled_at ? '' : 'text-gray-300'}`} />
-                      {state?.last_polled_at ? (
-                        <span>
-                          Last polled {formatTimeAgo(state.last_polled_at)}
-                          <span className="text-gray-400 ml-1">(every 15 min)</span>
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">Awaiting first poll...</span>
-                      )}
-                    </div>
-                    {/* Error message if any */}
-                    {ui?.error_message && ui.consecutive_failures > 0 && (
-                      <div className="flex items-center gap-2 text-xs text-red-500">
-                        <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate" title={ui.error_message}>
-                          {ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}
-                        </span>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{description}</p>
+                  {connected ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Clock className="h-3 w-3" />
+                        Connected {connDate ? new Date(connDate).toLocaleDateString() : ''}
                       </div>
-                    )}
-                    {/* Disconnect button */}
-                    <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                      {disconnectConfirm === integration.id ? (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="text-xs h-7"
-                            onClick={() => handleDisconnect(integration.service_name, integration.id)}
-                            disabled={disconnecting === integration.service_name}
-                          >
-                            {disconnecting === integration.service_name ? (
-                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              <Unplug className="h-3 w-3 mr-1" />
-                            )}
-                            Confirm Disconnect
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs h-7"
-                            onClick={() => setDisconnectConfirm(null)}
-                          >
-                            Cancel
-                          </Button>
+                      <div className={`flex items-center gap-2 text-xs ${health.color}`}>
+                        <CheckCircle className="h-3 w-3" />
+                        {health.label}
+                        {ui?.last_verified_at && <span className="text-gray-400">({formatTimeAgo(ui.last_verified_at)})</span>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <RefreshCw className={`h-3 w-3 ${state?.last_polled_at ? '' : 'text-gray-300'}`} />
+                        {state?.last_polled_at ? (
+                          <span>Last polled {formatTimeAgo(state.last_polled_at)}<span className="text-gray-400 ml-1">(every 15 min)</span></span>
+                        ) : (<span className="text-gray-400">Awaiting first poll...</span>)}
+                      </div>
+                      {ui?.error_message && ui.consecutive_failures > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-red-500">
+                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate" title={ui.error_message}>{ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}</span>
                         </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs h-7 text-gray-400 hover:text-red-500"
-                          onClick={() => handleDisconnect(integration.service_name, integration.id)}
-                        >
-                          <Unplug className="h-3 w-3 mr-1" />
-                          Disconnect
-                        </Button>
+                      )}
+                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                        {disconnectConfirm === integration.id ? (
+                          <div className="flex items-center gap-2">
+                            <Button variant="destructive" size="sm" className="text-xs h-7" onClick={() => handleDisconnect(integration.service_name, integration.id)} disabled={disconnecting === integration.service_name}>
+                              {disconnecting === integration.service_name ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <Unplug className="h-3 w-3 mr-1" />}
+                              Confirm Disconnect
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setDisconnectConfirm(null)}>Cancel</Button>
+                          </div>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="text-xs h-7 text-gray-400 hover:text-red-500" onClick={() => handleDisconnect(integration.service_name, integration.id)}>
+                            <Unplug className="h-3 w-3 mr-1" /> Disconnect
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <Button className="w-full" onClick={() => handleConnect(integration.service_name)} disabled={connecting === integration.service_name}>
+                      {connecting === integration.service_name ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : isApiKeyService ? <Key className="h-4 w-4 mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                      {connecting === integration.service_name ? 'Connecting...' : `Connect ${integration.display_name}`}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Command Center Integrations Section */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Command Center Integrations</h2>
+          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-0">
+            Command Center+
+          </Badge>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {COMMAND_CENTER_INTEGRATIONS.map(serviceName => {
+            const dbIntegration = commandCenterIntegrations.find(i => i.service_name === serviceName);
+            const locked = !canAccessIntegration(serviceName);
+            const Icon = SERVICE_ICONS[serviceName] || Layers;
+            const displayName = dbIntegration?.display_name || serviceName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const description = SERVICE_DESCRIPTIONS[serviceName] || dbIntegration?.description || 'Connect this integration for operational intelligence.';
+            const connected = dbIntegration ? isConnected(dbIntegration.id) : false;
+            const connDate = dbIntegration ? getConnectionDate(dbIntegration.id) : null;
+            const ui = dbIntegration ? getUserIntegration(dbIntegration.id) : null;
+            const state = getIngestionState(serviceName);
+            const health = getHealthStatus(ui);
+            const isApiKeyService = !!API_KEY_FIELDS[serviceName];
+
+            return (
+              <Card key={serviceName} className={`${connected ? 'border-green-200 dark:border-green-800' : ''} ${locked ? 'opacity-75' : ''} relative`}>
+                {locked && (
+                  <div className="absolute top-3 right-3">
+                    <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-300">
+                      <Lock className="h-3 w-3 mr-1" /> Command Center
+                    </Badge>
+                  </div>
+                )}
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : locked ? 'bg-gray-100 dark:bg-gray-800' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
+                      <Icon className={`h-5 w-5 ${connected ? 'text-green-600' : locked ? 'text-gray-400' : 'text-indigo-600'}`} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">{displayName}</CardTitle>
+                      {connected && (
+                        <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+                          <CheckCircle className="h-3 w-3 mr-1" /> Connected
+                        </Badge>
+                      )}
+                      {isApiKeyService && !locked && !connected && (
+                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
+                          <Key className="h-3 w-3 mr-1" /> API Key
+                        </Badge>
                       )}
                     </div>
                   </div>
-                ) : (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleConnect(integration.service_name)}
-                    disabled={connecting === integration.service_name}
-                  >
-                    {connecting === integration.service_name ? (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                    )}
-                    {connecting === integration.service_name ? 'Connecting...' : `Connect ${integration.display_name}`}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{description}</p>
+                  {connected ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Clock className="h-3 w-3" />
+                        Connected {connDate ? new Date(connDate).toLocaleDateString() : ''}
+                      </div>
+                      <div className={`flex items-center gap-2 text-xs ${health.color}`}>
+                        <CheckCircle className="h-3 w-3" />
+                        {health.label}
+                        {ui?.last_verified_at && <span className="text-gray-400">({formatTimeAgo(ui.last_verified_at)})</span>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <RefreshCw className={`h-3 w-3 ${state?.last_polled_at ? '' : 'text-gray-300'}`} />
+                        {state?.last_polled_at ? (
+                          <span>Last polled {formatTimeAgo(state.last_polled_at)}<span className="text-gray-400 ml-1">(every 15 min)</span></span>
+                        ) : (<span className="text-gray-400">Awaiting first poll...</span>)}
+                      </div>
+                      {ui?.error_message && ui.consecutive_failures > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-red-500">
+                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate" title={ui.error_message}>{ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}</span>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                        {disconnectConfirm === dbIntegration?.id ? (
+                          <div className="flex items-center gap-2">
+                            <Button variant="destructive" size="sm" className="text-xs h-7" onClick={() => handleDisconnect(serviceName, dbIntegration!.id)} disabled={disconnecting === serviceName}>
+                              {disconnecting === serviceName ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <Unplug className="h-3 w-3 mr-1" />}
+                              Confirm Disconnect
+                            </Button>
+                            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setDisconnectConfirm(null)}>Cancel</Button>
+                          </div>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="text-xs h-7 text-gray-400 hover:text-red-500" onClick={() => handleDisconnect(serviceName, dbIntegration!.id)}>
+                            <Unplug className="h-3 w-3 mr-1" /> Disconnect
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : locked ? (
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          Available on the <span className="font-semibold">Command Center</span> plan and above.
+                        </p>
+                      </div>
+                      <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white" onClick={() => navigate('/account-plan')}>
+                        <ArrowUpRight className="h-4 w-4 mr-2" /> Upgrade to Command Center
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button className="w-full" onClick={() => handleConnect(serviceName)} disabled={connecting === serviceName}>
+                      {connecting === serviceName ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : isApiKeyService ? <Key className="h-4 w-4 mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                      {connecting === serviceName ? 'Connecting...' : `Connect ${displayName}`}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       {/* How It Works */}
@@ -481,7 +745,7 @@ export function IntegrationManager() {
               </div>
               <h4 className="text-sm font-medium mb-1">Connect</h4>
               <p className="text-xs text-gray-500">
-                Securely connect your tools via OAuth. Core314 never stores your passwords.
+                Securely connect your tools via OAuth or API key. Core314 never stores your passwords.
               </p>
             </div>
             <div className="text-center">

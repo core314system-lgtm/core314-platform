@@ -42,13 +42,65 @@ const current = [
   },
 ];
 
+const commandCenterIntegrations = [
+  {
+    name: 'Google Calendar',
+    icon: Globe,
+    category: 'Scheduling',
+    desc: 'Track meeting patterns, detect scheduling conflicts, and surface calendar-based operational signals. Understand how your team spends its time.',
+    dataPoints: ['Meeting frequency and duration', 'Scheduling conflict detection', 'Calendar utilization patterns', 'Cross-team meeting overlap'],
+  },
+  {
+    name: 'Gmail',
+    icon: MessageSquare,
+    category: 'Communication',
+    desc: 'Analyze email volume, response patterns, and communication trends. Detect bottlenecks in team communication without reading message content.',
+    dataPoints: ['Email volume and trends', 'Response time patterns', 'Thread activity metrics', 'Communication flow analysis'],
+  },
+  {
+    name: 'Jira',
+    icon: FileText,
+    category: 'Project Management',
+    desc: 'Monitor sprint progress, ticket velocity, and blocker patterns. Detect overdue items and delivery risks before they escalate.',
+    dataPoints: ['Sprint progress and velocity', 'Ticket status transitions', 'Blocker and dependency tracking', 'Team workload distribution'],
+  },
+  {
+    name: 'Trello',
+    icon: BarChart3,
+    category: 'Project Management',
+    desc: 'Track board activity, card movement, and workflow bottlenecks. Surface stalled tasks and team productivity patterns.',
+    dataPoints: ['Board and card activity', 'Workflow stage transitions', 'Card aging and stale detection', 'Team member activity patterns'],
+  },
+  {
+    name: 'Microsoft Teams',
+    icon: Users,
+    category: 'Communication',
+    desc: 'Monitor team channel activity, meeting patterns, and collaboration metrics. Detect communication gaps across departments.',
+    dataPoints: ['Channel message activity', 'Meeting frequency and attendance', 'Cross-team collaboration', 'Response time metrics'],
+  },
+  {
+    name: 'Google Sheets',
+    icon: FileText,
+    category: 'Data',
+    desc: 'Connect key operational spreadsheets for real-time data monitoring. Track KPI updates, report changes, and data entry patterns.',
+    dataPoints: ['Spreadsheet modification tracking', 'KPI value change detection', 'Data entry pattern analysis', 'Sheet collaboration activity'],
+  },
+  {
+    name: 'Asana',
+    icon: FileText,
+    category: 'Project Management',
+    desc: 'Track project milestones, task completion rates, and team workload. Detect delivery risks and resource constraints early.',
+    dataPoints: ['Project milestone tracking', 'Task completion velocity', 'Workload balance metrics', 'Due date and overdue analysis'],
+  },
+];
+
 const upcoming = [
   { name: 'Salesforce', icon: BarChart3 },
-  { name: 'Microsoft Teams', icon: Users },
-  { name: 'Jira', icon: FileText },
   { name: 'Stripe', icon: DollarSign },
-  { name: 'Google Workspace', icon: Globe },
   { name: 'Xero', icon: DollarSign },
+  { name: 'Notion', icon: FileText },
+  { name: 'GitHub', icon: Code },
+  { name: 'Linear', icon: FileText },
 ];
 
 const howItWorks = [
@@ -80,8 +132,8 @@ export default function IntegrationsPage() {
       <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Available Integrations</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Phase 1 integrations are live and available for all plans.</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Core Integrations</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Available on all plans. Connect your essential business tools in minutes.</p>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="space-y-6">
             {current.map((int, i) => (
@@ -97,7 +149,7 @@ export default function IntegrationsPage() {
                         <span className="text-xs text-slate-500">{int.category}</span>
                       </div>
                       <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium ml-auto">
-                        <CheckCircle className="h-3.5 w-3.5" /> Available
+                        <CheckCircle className="h-3.5 w-3.5" /> All Plans
                       </span>
                     </div>
                     <p className="text-sm text-slate-600 leading-relaxed">{int.desc}</p>
@@ -121,6 +173,49 @@ export default function IntegrationsPage() {
       </section>
 
       <section className="py-20 lg:py-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Command Center Integrations</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Available on Command Center and Enterprise plans. Expand your operational visibility with 7 additional integrations.</p>
+          </motion.div>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="space-y-6">
+            {commandCenterIntegrations.map((int, i) => (
+              <motion.div key={i} variants={fadeUp} className="bg-white border border-slate-200 rounded-xl p-6 lg:p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-indigo-50 rounded-lg w-10 h-10 flex items-center justify-center">
+                        <int.icon className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">{int.name}</h3>
+                        <span className="text-xs text-slate-500">{int.category}</span>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-indigo-600 text-xs font-medium ml-auto">
+                        <CheckCircle className="h-3.5 w-3.5" /> Command Center+
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{int.desc}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Data Points</h4>
+                    <ul className="space-y-2">
+                      {int.dataPoints.map((dp, di) => (
+                        <li key={di} className="flex items-center gap-2 text-sm text-slate-600">
+                          <CheckCircle className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                          {dp}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="py-20 lg:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Coming Soon</h2>
@@ -171,11 +266,11 @@ export default function IntegrationsPage() {
             Connect Your Tools Today
           </motion.h2>
           <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-            Start with HubSpot, Slack, and QuickBooks. Receive your first Operational Brief within days.
+            Start with HubSpot, Slack, and QuickBooks on any plan. Upgrade to Command Center for 7 additional integrations.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Get Early Access <ArrowRight className="h-4 w-4" />
+              Start Free Trial <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/contact" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
               Request an Integration

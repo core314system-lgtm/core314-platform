@@ -23,12 +23,14 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
   'zoom': 'ZOOM',
   'google_calendar': 'GOOGLE',
-  'google_meet': 'GOOGLE',  // Google Meet uses same credentials as Google Calendar
+  'google_meet': 'GOOGLE',
+  'gmail': 'GOOGLE',           // Gmail uses same Google OAuth credentials
+  'google_sheets': 'GOOGLE',  // Google Sheets uses same Google OAuth credentials
   'quickbooks': 'QUICKBOOKS',
   'xero': 'XERO',
   'salesforce': 'SALESFORCE',
   'hubspot': 'HUBSPOT',
-  'planner': 'TEAMS',  // Microsoft Planner uses same credentials as Microsoft Teams
+  'planner': 'TEAMS',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -349,7 +351,7 @@ serve(withSentry(async (req) => {
     // Slack: comma-delimited scopes
     // Zoom: space-delimited scopes
     // Salesforce: space-delimited scopes
-    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'zoom', 'salesforce'].includes(normalizedServiceName);
+    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'gmail', 'google_sheets', 'zoom', 'salesforce'].includes(normalizedServiceName);
     const scopeDelimiter = useSpaceDelimiter ? ' ' : ',';
     
     // Salesforce-specific: Use hardcoded scopes to ensure they match Connected App configuration
@@ -369,7 +371,7 @@ serve(withSentry(async (req) => {
     authUrl.searchParams.set('redirect_uri', redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`);
     
     // Google-specific: request offline access for refresh tokens
-    if (normalizedServiceName === 'google_calendar') {
+    if (['google_calendar', 'gmail', 'google_sheets'].includes(normalizedServiceName)) {
       authUrl.searchParams.set('access_type', 'offline');
       authUrl.searchParams.set('prompt', 'consent');
     }
