@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import {
   FileText,
   RefreshCw,
-  AlertTriangle,
-  TrendingUp,
-  Shield,
-  CheckCircle,
   Clock,
-  ChevronRight,
   Sparkles,
   AlertCircle,
   ArrowUpCircle,
@@ -173,14 +166,6 @@ export function OperationalBrief() {
     } finally {
       setGenerating(false);
     }
-  };
-
-  const getHealthColor = (score: number | null) => {
-    if (score === null) return 'text-gray-500';
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
   };
 
   const getHealthLabel = (score: number | null) => {
