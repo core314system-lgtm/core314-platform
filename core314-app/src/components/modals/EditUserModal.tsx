@@ -22,7 +22,7 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
   const [saving, setSaving] = useState(false);
   
   const [role, setRole] = useState<'admin' | 'manager' | 'user'>(user.role);
-  const [subscriptionTier, setSubscriptionTier] = useState<'none' | 'monitor' | 'intelligence' | 'command_center' | 'enterprise'>(user.subscription_tier);
+  const [subscriptionTier, setSubscriptionTier] = useState<'none' | 'intelligence' | 'command_center' | 'enterprise'>(user.subscription_tier as 'none' | 'intelligence' | 'command_center' | 'enterprise');
   const [status, setStatus] = useState<boolean>(user.subscription_status === 'active');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(user.two_factor_enabled);
 
@@ -122,7 +122,6 @@ export function EditUserModal({ user, open, onOpenChange, onUserUpdated }: EditU
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None (Free)</SelectItem>
-                <SelectItem value="monitor">Monitor ($99/mo)</SelectItem>
                 <SelectItem value="intelligence">Intelligence ($299/mo)</SelectItem>
                 <SelectItem value="command_center">Command Center ($799/mo)</SelectItem>
                 <SelectItem value="enterprise">Enterprise (Custom)</SelectItem>
