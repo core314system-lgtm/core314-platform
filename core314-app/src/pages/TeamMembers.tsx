@@ -27,6 +27,10 @@ import {
   Check,
   Copy,
   AlertTriangle,
+  RefreshCw,
+  XCircle,
+  Clock,
+  Send,
 } from 'lucide-react';
 
 interface TeamMember {
@@ -47,6 +51,9 @@ interface PendingInvite {
   status: string;
   created_at: string;
   expires_at: string;
+  sent_at: string | null;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 export function TeamMembers() {
@@ -80,6 +87,13 @@ export function TeamMembers() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Invite action state (resend/cancel)
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [inviteActionError, setInviteActionError] = useState<string | null>(null);
+  const [inviteActionSuccess, setInviteActionSuccess] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedInvite, setSelectedInvite] = useState<PendingInvite | null>(null);
 
   // Auto-create org state
   const [creatingOrg, setCreatingOrg] = useState(false);
@@ -227,9 +241,10 @@ export function TeamMembers() {
     try {
       const { data, error } = await supabase
         .from('organization_invitations')
-        .select('id, email, role, status, created_at, expires_at')
+        .select('id, email, role, status, created_at, expires_at, sent_at, first_name, last_name')
         .eq('organization_id', currentOrganization.id)
-        .eq('status', 'pending');
+        .in('status', ['pending', 'cancelled', 'expired'])
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setPendingInvites(data || []);
@@ -343,6 +358,101 @@ export function TeamMembers() {
     } catch {
       // Fallback for environments where clipboard API is not available
     }
+  };
+
+  const handleResendInvite = async (invite: PendingInvite) => {
+    if (!currentOrganization) return;
+
+    setActionLoadingId(invite.id);
+    setInviteActionError(null);
+    setInviteActionSuccess(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const url = await getSupabaseFunctionUrl('organizations-invite-manage');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'resend',
+          invitation_id: invite.id,
+          organization_id: currentOrganization.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 502 && data.invite_link) {
+        setInviteActionError(`Email delivery failed for ${invite.email}. Copy invite link: ${data.invite_link}`);
+        await fetchPendingInvites();
+        return;
+      }
+
+      if (!response.ok) throw new Error(data.error);
+
+      setInviteActionSuccess(`Invitation resent to ${invite.email}`);
+      await fetchPendingInvites();
+    } catch (err) {
+      setInviteActionError(err instanceof Error ? err.message : 'Failed to resend invitation');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleCancelInvite = async () => {
+    if (!currentOrganization || !selectedInvite) return;
+
+    setActionLoadingId(selectedInvite.id);
+    setInviteActionError(null);
+    setInviteActionSuccess(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const url = await getSupabaseFunctionUrl('organizations-invite-manage');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'cancel',
+          invitation_id: selectedInvite.id,
+          organization_id: currentOrganization.id,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      setInviteActionSuccess(`Invitation to ${selectedInvite.email} cancelled`);
+      setShowCancelModal(false);
+      setSelectedInvite(null);
+      await fetchPendingInvites();
+      await fetchSeatLimits();
+    } catch (err) {
+      setInviteActionError(err instanceof Error ? err.message : 'Failed to cancel invitation');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const getInviteStatusBadge = (invite: PendingInvite) => {
+    const isExpired = invite.status === 'pending' && new Date(invite.expires_at) < new Date();
+    if (isExpired || invite.status === 'expired') {
+      return <Badge variant="outline" className="text-amber-600 border-amber-300"><Clock className="h-3 w-3 mr-1" />Expired</Badge>;
+    }
+    if (invite.status === 'cancelled') {
+      return <Badge variant="outline" className="text-red-600 border-red-300"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+    }
+    return <Badge variant="outline" className="text-yellow-600 border-yellow-300"><Send className="h-3 w-3 mr-1" />Pending</Badge>;
   };
 
   // Loading state while org context is loading or auto-creating org
@@ -594,33 +704,126 @@ export function TeamMembers() {
       {isOwner && pendingInvites.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Pending Invitations</CardTitle>
-            <CardDescription>Invitations waiting to be accepted</CardDescription>
+            <CardTitle>Invitations</CardTitle>
+            <CardDescription>Manage sent invitations</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {inviteActionError && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                <p className="text-sm text-red-600 dark:text-red-400">{inviteActionError}</p>
+              </div>
+            )}
+            {inviteActionSuccess && (
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500 shrink-0" />
+                <p className="text-sm text-green-600 dark:text-green-400">{inviteActionSuccess}</p>
+              </div>
+            )}
             <div className="space-y-2">
-              {pendingInvites.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <Mail className="h-5 w-5 text-yellow-600" />
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{invite.email}</p>
-                      <p className="text-sm text-gray-500">
-                        Sent {new Date(invite.created_at).toLocaleDateString()} &middot;
-                        Expires {new Date(invite.expires_at).toLocaleDateString()}
-                      </p>
+              {pendingInvites.map((invite) => {
+                const isPending = invite.status === 'pending' && new Date(invite.expires_at) >= new Date();
+                const isExpiredPending = invite.status === 'pending' && new Date(invite.expires_at) < new Date();
+                return (
+                  <div
+                    key={invite.id}
+                    className={`flex items-center justify-between p-4 rounded-lg ${
+                      invite.status === 'cancelled'
+                        ? 'bg-red-50 dark:bg-red-900/10'
+                        : isExpiredPending || invite.status === 'expired'
+                        ? 'bg-amber-50 dark:bg-amber-900/10'
+                        : 'bg-yellow-50 dark:bg-yellow-900/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <Mail className={`h-5 w-5 shrink-0 ${
+                        invite.status === 'cancelled' ? 'text-red-400' :
+                        isExpiredPending ? 'text-amber-500' : 'text-yellow-600'
+                      }`} />
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">
+                          {invite.first_name || invite.last_name
+                            ? `${invite.first_name || ''} ${invite.last_name || ''}`.trim()
+                            : invite.email}
+                        </p>
+                        {(invite.first_name || invite.last_name) && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{invite.email}</p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          Sent {new Date(invite.sent_at || invite.created_at).toLocaleDateString()}
+                          {' '}&middot;{' '}
+                          {isPending
+                            ? `Expires ${new Date(invite.expires_at).toLocaleDateString()}`
+                            : invite.status === 'cancelled'
+                            ? 'Cancelled'
+                            : `Expired ${new Date(invite.expires_at).toLocaleDateString()}`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {getInviteStatusBadge(invite)}
+                      {isPending && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResendInvite(invite)}
+                            disabled={actionLoadingId === invite.id}
+                            title="Resend invitation email"
+                          >
+                            {actionLoadingId === invite.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedInvite(invite);
+                              setShowCancelModal(true);
+                              setInviteActionError(null);
+                            }}
+                            disabled={actionLoadingId === invite.id}
+                            title="Cancel invitation"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <Badge variant="outline">Pending</Badge>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Cancel Invitation Confirmation Modal */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Invitation</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel the invitation to{' '}
+              <strong>{selectedInvite?.email}</strong>?
+              The invite link will be immediately invalidated.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelModal(false)}>
+              Keep Invitation
+            </Button>
+            <Button variant="destructive" onClick={handleCancelInvite} disabled={actionLoadingId === selectedInvite?.id}>
+              {actionLoadingId === selectedInvite?.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cancel Invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Member Confirmation Modal */}
       <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
