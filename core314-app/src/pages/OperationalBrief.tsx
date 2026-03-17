@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -81,6 +82,7 @@ function normalizeBrief(raw: Record<string, unknown>): OperationalBriefData {
 
 export function OperationalBrief() {
   const { profile } = useAuth();
+  const { markBriefViewed } = useOnboardingStatus();
   const navigate = useNavigate();
   const [brief, setBrief] = useState<OperationalBriefData | null>(null);
   const [pastBriefs, setPastBriefs] = useState<OperationalBriefData[]>([]);
@@ -117,6 +119,8 @@ export function OperationalBrief() {
       if (ctx?.momentum) {
         setMomentum(ctx.momentum as MomentumData);
       }
+      // Mark brief as viewed for onboarding tracking
+      markBriefViewed();
     }
     setLoading(false);
   };

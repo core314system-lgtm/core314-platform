@@ -28,7 +28,7 @@ import {
   ArrowUpRight,
   Key,
 } from 'lucide-react';
-import { getSupabaseFunctionUrl, getSupabaseUrl } from '../lib/supabase';
+import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
 interface IntegrationInfo {
@@ -129,24 +129,67 @@ export function IntegrationManager() {
   const [userPlan, setUserPlan] = useState<string>('intelligence');
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [autoGenerating, setAutoGenerating] = useState(false);
+
+  // Auto-trigger: after first integration connects, auto-generate brief and redirect
+  const autoTriggerBriefGeneration = async () => {
+    if (!profile?.id) return;
+    setAutoGenerating(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return;
+
+      const url = await getSupabaseFunctionUrl('operational-brief-generate');
+      const anonKey = await getSupabaseAnonKey();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        // Brief generated successfully — redirect to brief page
+        navigate('/brief');
+      }
+    } catch (err) {
+      console.error('[AutoTrigger] Failed to generate brief:', err);
+    } finally {
+      setAutoGenerating(false);
+    }
+  };
 
   // Check for OAuth callback success (from Supabase oauth-callback or HubSpot Netlify callback)
   useEffect(() => {
     const oauthSuccess = searchParams.get('oauth_success');
     const oauthService = searchParams.get('service');
     const hubspotStatus = searchParams.get('hubspot');
+    let isFirstConnection = false;
 
     if (oauthSuccess === 'true' && oauthService) {
       setConnectionSuccess(oauthService);
       searchParams.delete('oauth_success');
       searchParams.delete('service');
       setSearchParams(searchParams, { replace: true });
+      isFirstConnection = true;
       setTimeout(() => setConnectionSuccess(null), 5000);
     } else if (hubspotStatus === 'connected') {
       setConnectionSuccess('hubspot');
       searchParams.delete('hubspot');
       setSearchParams(searchParams, { replace: true });
+      isFirstConnection = true;
       setTimeout(() => setConnectionSuccess(null), 5000);
+    }
+
+    // Auto-trigger brief generation on first integration connection
+    if (isFirstConnection && userIntegrations.length === 0) {
+      // Small delay to let the integration record settle
+      setTimeout(() => autoTriggerBriefGeneration(), 2000);
     }
   }, [searchParams, setSearchParams]);
 
@@ -314,6 +357,10 @@ export function IntegrationManager() {
       setApiKeyForm(null);
       setConnectionSuccess(apiKeyForm.service);
       setTimeout(() => setConnectionSuccess(null), 5000);
+      // Auto-trigger brief generation if this is the first integration
+      if (userIntegrations.length === 0) {
+        setTimeout(() => autoTriggerBriefGeneration(), 2000);
+      }
       await fetchIntegrations();
     } catch {
       setApiKeyError('An unexpected error occurred. Please try again.');
@@ -437,6 +484,25 @@ export function IntegrationManager() {
               <p className="text-sm font-medium text-green-800 dark:text-green-200">
                 {connectionSuccess.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} connected successfully! Core314 will begin analyzing your data shortly.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Auto-generating brief banner */}
+      {autoGenerating && (
+        <Card className="bg-sky-50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-800">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="h-5 w-5 text-sky-600 animate-spin" />
+              <div>
+                <p className="text-sm font-medium text-sky-800 dark:text-sky-200">
+                  Generating your first Operational Brief...
+                </p>
+                <p className="text-xs text-sky-600 dark:text-sky-400 mt-0.5">
+                  Analyzing your integration data. You&apos;ll be redirected to your brief automatically.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

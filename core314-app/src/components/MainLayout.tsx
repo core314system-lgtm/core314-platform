@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { supabase } from '../lib/supabase';
@@ -17,6 +18,8 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
+import { OnboardingNudge } from './onboarding/OnboardingNudge';
+import { GuidedWalkthrough } from './onboarding/GuidedWalkthrough';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,6 +68,7 @@ const getNavItems = (_integrationBadge?: string, _isAdmin?: boolean, _subscripti
 export function MainLayout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
+  const onboarding = useOnboardingStatus();
   const [integrationCount, setIntegrationCount] = useState<{ current: number; max: number }>({ current: 0, max: 0 });
   const [subscriptionTier, setSubscriptionTier] = useState<string>('none');
   const [canAccessBilling, setCanAccessBilling] = useState<boolean>(false);
@@ -220,10 +224,29 @@ export function MainLayout() {
             </div>
           </header>
           
+          {/* Contextual onboarding nudge banner */}
+          {!onboarding.loading && !onboarding.isComplete && (
+            <div className="px-6 pt-3">
+              {!onboarding.hasConnectedIntegration ? (
+                <OnboardingNudge type="connect-integration" show={true} />
+              ) : !onboarding.hasGeneratedBrief ? (
+                <OnboardingNudge type="generate-brief" show={true} />
+              ) : !onboarding.hasReviewedSignals ? (
+                <OnboardingNudge type="review-signals" show={true} />
+              ) : null}
+            </div>
+          )}
+
           {/* Page content */}
           <div className="flex-1 overflow-auto">
             <Outlet />
           </div>
+
+          {/* Guided Walkthrough - first login only */}
+          <GuidedWalkthrough
+            isVisible={onboarding.isFirstLogin && !onboarding.isWalkthroughDismissed && !onboarding.loading}
+            onDismiss={onboarding.dismissWalkthrough}
+          />
         </main>
       </div>
     </div>
