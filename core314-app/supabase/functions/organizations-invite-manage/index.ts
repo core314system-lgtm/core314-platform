@@ -164,13 +164,15 @@ serve(withSentry(async (req) => {
       const appUrl = Deno.env.get('APP_URL') || 'https://app.core314.com';
       const inviteLink = `${appUrl}/invite?token=${invitation.token}`;
 
-      // Send email via Resend
-      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      // Send email via SendGrid
+      const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
+      const senderEmail = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'support@core314.com';
+      const senderName = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
       let emailSent = false;
       let emailError: string | null = null;
 
-      if (!resendApiKey) {
-        console.error('RESEND_API_KEY not set — cannot send invitation email');
+      if (!sendgridApiKey) {
+        console.error('SENDGRID_API_KEY not set — cannot send invitation email');
         emailError = 'Email service not configured. Please contact support.';
       } else {
         const inviterName = inviterProfile?.full_name || inviterProfile?.email || 'A team member';
@@ -207,33 +209,37 @@ serve(withSentry(async (req) => {
 </body>
 </html>`;
 
+        const emailSubject = `${inviterName} invited you to join ${orgName} on Core314`;
+
         try {
-          const resendResponse = await fetch('https://api.resend.com/emails', {
+          const sendgridResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${resendApiKey}`,
+              'Authorization': `Bearer ${sendgridApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'Core314 <noreply@core314.com>',
-              to: [invitation.email],
-              subject: `${inviterName} invited you to join ${orgName} on Core314`,
-              html: emailHtml,
+              personalizations: [{ to: [{ email: invitation.email }] }],
+              from: { email: senderEmail, name: senderName },
+              subject: emailSubject,
+              content: [
+                { type: 'text/plain', value: `${inviterName} has invited you to join ${orgName} on Core314. Accept your invitation: ${inviteLink}` },
+                { type: 'text/html', value: emailHtml },
+              ],
             }),
           });
 
-          if (!resendResponse.ok) {
-            const errBody = await resendResponse.text();
-            console.error('Resend API error:', resendResponse.status, errBody);
-            emailError = `Email delivery failed (${resendResponse.status}): ${errBody}`;
+          if (!sendgridResponse.ok) {
+            const errBody = await sendgridResponse.text();
+            console.error('SendGrid API error:', sendgridResponse.status, errBody);
+            emailError = `Email delivery failed (${sendgridResponse.status}): ${errBody}`;
           } else {
-            const resendData = await resendResponse.json();
             emailSent = true;
-            breadcrumb.custom('invite', 'invite_email_resent', { email: invitation.email, resend_id: resendData?.id });
-            console.log('Invite email resent successfully:', { email: invitation.email, resend_id: resendData?.id });
+            breadcrumb.custom('invite', 'invite_email_resent', { email: invitation.email });
+            console.log('Invite email resent successfully via SendGrid:', { email: invitation.email });
           }
         } catch (sendError) {
-          console.error('Failed to resend invite email via Resend:', sendError);
+          console.error('Failed to resend invite email via SendGrid:', sendError);
           emailError = `Email send failed: ${sendError instanceof Error ? sendError.message : String(sendError)}`;
         }
       }
