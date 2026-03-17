@@ -159,29 +159,25 @@ export function IntegrationManager() {
 
   const fetchUserPlan = async () => {
     if (!profile?.id) return;
-    const { data: orgMember } = await supabase
-      .from('organization_members')
-      .select('organization_id')
+
+    // Primary source of truth: user_subscriptions table (per-user, linked to Stripe)
+    const { data: subscription } = await supabase
+      .from('user_subscriptions')
+      .select('plan_name')
       .eq('user_id', profile.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
       .limit(1)
       .single();
-    if (orgMember) {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('plan_name')
-        .eq('organization_id', orgMember.organization_id)
-        .eq('status', 'active')
-        .limit(1)
-        .single();
-      if (subscription?.plan_name) {
-        const planName = subscription.plan_name.toLowerCase();
-        if (planName.includes('command') || planName.includes('center')) {
-          setUserPlan('command_center');
-        } else if (planName.includes('enterprise')) {
-          setUserPlan('enterprise');
-        } else {
-          setUserPlan('intelligence');
-        }
+
+    if (subscription?.plan_name) {
+      const planName = subscription.plan_name.toLowerCase();
+      if (planName.includes('command') || planName.includes('center')) {
+        setUserPlan('command_center');
+      } else if (planName.includes('enterprise')) {
+        setUserPlan('enterprise');
+      } else {
+        setUserPlan('intelligence');
       }
     }
   };
