@@ -213,18 +213,42 @@ export function OperationalBrief() {
 
   const getSignalDotColor = (severity: 'high' | 'medium' | 'low') => {
     switch (severity) {
-      case 'high': return 'bg-red-400';
-      case 'medium': return 'bg-amber-400';
-      case 'low': return 'bg-green-400';
+      case 'high': return 'bg-red-500';
+      case 'medium': return 'bg-yellow-400';
+      case 'low': return 'bg-emerald-400';
     }
   };
 
-  const getScoreBadgeStyle = (score: number | null) => {
-    if (score === null) return 'bg-slate-500/20 text-slate-300';
-    if (score >= 80) return 'bg-green-500/20 text-green-400';
-    if (score >= 60) return 'bg-amber-500/20 text-amber-400';
-    if (score >= 40) return 'bg-orange-500/20 text-orange-400';
-    return 'bg-red-500/20 text-red-400';
+  const getSignalTextColor = (severity: 'high' | 'medium' | 'low') => {
+    switch (severity) {
+      case 'high': return 'text-red-300';
+      case 'medium': return 'text-yellow-200';
+      case 'low': return 'text-emerald-300';
+    }
+  };
+
+  const getSignalBgColor = (severity: 'high' | 'medium' | 'low') => {
+    switch (severity) {
+      case 'high': return 'bg-red-500/5 border-red-500/20';
+      case 'medium': return 'bg-yellow-500/5 border-yellow-500/20';
+      case 'low': return 'bg-emerald-500/5 border-emerald-500/20';
+    }
+  };
+
+  const getScoreRingColor = (score: number | null) => {
+    if (score === null) return 'border-slate-600 text-slate-400';
+    if (score >= 80) return 'border-emerald-400 text-emerald-400';
+    if (score >= 60) return 'border-amber-400 text-amber-400';
+    if (score >= 40) return 'border-orange-400 text-orange-400';
+    return 'border-red-400 text-red-400';
+  };
+
+  const getScoreGlowColor = (score: number | null) => {
+    if (score === null) return '';
+    if (score >= 80) return 'shadow-emerald-500/20';
+    if (score >= 60) return 'shadow-amber-500/20';
+    if (score >= 40) return 'shadow-orange-500/20';
+    return 'shadow-red-500/20';
   };
 
   const getRiskBadgeStyle = (score: number | null) => {
@@ -376,15 +400,17 @@ export function OperationalBrief() {
                 </div>
               </div>
               {brief.health_score !== null && (
-                <div className="flex flex-col items-end gap-1.5 ml-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`${getScoreBadgeStyle(brief.health_score)} px-3 py-1 rounded-full text-xs font-semibold`}>
-                      Score: {brief.health_score} / 100
+                <div className="flex flex-col items-center gap-2 ml-6">
+                  {/* Prominent Score Circle — primary KPI */}
+                  <div className={`w-20 h-20 rounded-full border-[3px] flex flex-col items-center justify-center shadow-lg ${getScoreRingColor(brief.health_score)} ${getScoreGlowColor(brief.health_score)}`}>
+                    <span className="text-2xl font-extrabold leading-none">
+                      {brief.health_score}
                     </span>
-                    <span className={`${getRiskBadgeStyle(brief.health_score)} px-3 py-1 rounded-full text-xs font-semibold`}>
-                      {getHealthLabel(brief.health_score)}
-                    </span>
+                    <span className="text-[9px] uppercase tracking-wider text-slate-400 mt-0.5">/ 100</span>
                   </div>
+                  <span className={`${getRiskBadgeStyle(brief.health_score)} px-3 py-1 rounded-full text-xs font-semibold`}>
+                    {getHealthLabel(brief.health_score)}
+                  </span>
                   {momentum && (() => {
                     const arrow = getMomentumArrow(momentum.classification);
                     const ArrowIcon = arrow.icon;
@@ -412,13 +438,13 @@ export function OperationalBrief() {
                 Detected Signals
               </h4>
               {brief.detected_signals && brief.detected_signals.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {brief.detected_signals.map((signal, i) => {
                     const severity = getSignalSeverity(signal);
                     return (
-                      <div key={i} className="flex items-start gap-3">
-                        <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${getSignalDotColor(severity)}`} />
-                        <p className="text-slate-300 text-sm leading-relaxed">{signal}</p>
+                      <div key={i} className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${getSignalBgColor(severity)}`}>
+                        <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${getSignalDotColor(severity)}`} />
+                        <p className={`text-sm leading-relaxed ${getSignalTextColor(severity)}`}>{signal}</p>
                       </div>
                     );
                   })}
@@ -429,11 +455,14 @@ export function OperationalBrief() {
             </div>
 
             {/* Business Impact */}
-            <div className="mb-8">
-              <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
+            <div className="mb-8 rounded-xl bg-sky-500/5 border border-sky-500/20 p-5">
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs flex items-center gap-2">
+                <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
                 Business Impact
               </h4>
-              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
+              <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line">
                 {brief.business_impact}
               </p>
             </div>
@@ -444,13 +473,13 @@ export function OperationalBrief() {
                 Recommended Actions
               </h4>
               {brief.recommended_actions && brief.recommended_actions.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {brief.recommended_actions.map((action, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
+                    <div key={i} className="flex items-start gap-4 rounded-lg border border-slate-700/40 bg-slate-800/40 px-4 py-3.5 hover:bg-slate-800/60 transition-colors">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold">
                         {i + 1}
                       </span>
-                      <p className="text-slate-300 text-sm leading-relaxed">{action}</p>
+                      <p className="text-slate-300 text-sm leading-relaxed pt-0.5">{action}</p>
                     </div>
                   ))}
                 </div>
