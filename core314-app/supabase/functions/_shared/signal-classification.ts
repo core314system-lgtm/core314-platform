@@ -15,6 +15,9 @@ export const SIGNAL_CATEGORIES = {
   CUSTOMER_ACTIVITY: 'customer_activity',
   OPERATIONS: 'operations',
   SYSTEM_HEALTH: 'system_health',
+  PROJECT_DELIVERY: 'project_delivery',
+  SCHEDULING: 'scheduling',
+  DATA_TRACKING: 'data_tracking',
 } as const;
 
 export type SignalCategory = (typeof SIGNAL_CATEGORIES)[keyof typeof SIGNAL_CATEGORIES];
@@ -48,6 +51,44 @@ const EXACT_MAPPINGS: Record<string, SignalCategory> = {
   'hubspot::no_crm_activity': SIGNAL_CATEGORIES.SALES_PIPELINE,
   'hubspot::deal_pipeline_stall': SIGNAL_CATEGORIES.SALES_PIPELINE,
   'hubspot::lead_activity_drop': SIGNAL_CATEGORIES.SALES_PIPELINE,
+
+  // Google Calendar signals → SCHEDULING
+  'google_calendar::meeting_overload': SIGNAL_CATEGORIES.SCHEDULING,
+  'google_calendar::scheduling_conflicts': SIGNAL_CATEGORIES.SCHEDULING,
+  'google_calendar::low_meeting_activity': SIGNAL_CATEGORIES.SCHEDULING,
+  'google_calendar::after_hours_meetings': SIGNAL_CATEGORIES.SCHEDULING,
+
+  // Gmail signals → COMMUNICATION
+  'gmail::email_volume_spike': SIGNAL_CATEGORIES.COMMUNICATION,
+  'gmail::low_email_activity': SIGNAL_CATEGORIES.COMMUNICATION,
+  'gmail::low_response_ratio': SIGNAL_CATEGORIES.COMMUNICATION,
+  'gmail::email_backlog': SIGNAL_CATEGORIES.COMMUNICATION,
+
+  // Jira signals → PROJECT_DELIVERY
+  'jira::sprint_at_risk': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'jira::blocker_accumulation': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'jira::low_velocity': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'jira::overdue_issues': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+
+  // Trello signals → PROJECT_DELIVERY
+  'trello::stalled_cards': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'trello::board_inactivity': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'trello::overdue_cards': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+
+  // Microsoft Teams signals → COMMUNICATION
+  'microsoft_teams::low_team_activity': SIGNAL_CATEGORIES.COMMUNICATION,
+  'microsoft_teams::meeting_overload': SIGNAL_CATEGORIES.SCHEDULING,
+  'microsoft_teams::channel_inactivity': SIGNAL_CATEGORIES.COMMUNICATION,
+
+  // Google Sheets signals → DATA_TRACKING
+  'google_sheets::stale_spreadsheets': SIGNAL_CATEGORIES.DATA_TRACKING,
+  'google_sheets::no_sheet_activity': SIGNAL_CATEGORIES.DATA_TRACKING,
+
+  // Asana signals → PROJECT_DELIVERY
+  'asana::overdue_tasks': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'asana::low_completion_rate': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'asana::workload_imbalance': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'asana::milestone_at_risk': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
 };
 
 /**
@@ -60,6 +101,9 @@ const PATTERN_RULES: Array<{ pattern: RegExp; category: SignalCategory }> = [
   { pattern: /deal|pipeline|sales|opportunity|stalled|velocity|lead|crm/i, category: SIGNAL_CATEGORIES.SALES_PIPELINE },
   { pattern: /customer|contact|ticket|support|churn/i, category: SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY },
   { pattern: /health|uptime|error|failure|outage|integration_inactive|connection|oauth|token/i, category: SIGNAL_CATEGORIES.SYSTEM_HEALTH },
+  { pattern: /sprint|velocity|blocker|overdue_issue|jira|delivery|milestone/i, category: SIGNAL_CATEGORIES.PROJECT_DELIVERY },
+  { pattern: /meeting|calendar|schedule|conflict|after_hours/i, category: SIGNAL_CATEGORIES.SCHEDULING },
+  { pattern: /spreadsheet|sheet|stale|data_tracking/i, category: SIGNAL_CATEGORIES.DATA_TRACKING },
 ];
 
 /**

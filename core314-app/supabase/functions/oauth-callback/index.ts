@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { sendIntegrationConnectedEmail } from '../_shared/integration-notifications.ts';
 
 // Cold start: Log credential presence for key OAuth providers (never log values)
 console.log('[oauth-callback] Cold start - Credentials check:', {
@@ -412,6 +413,16 @@ serve(withSentry(async (req) => {
     });
 
     await supabase.from('oauth_states').delete().eq('state', state);
+
+    // Send connection confirmation email (non-blocking)
+    // Look up user email for notification
+    const { data: { user: connectedUser } } = await supabase.auth.admin.getUserById(stateData.user_id);
+    if (connectedUser?.email) {
+      sendIntegrationConnectedEmail(integration.service_name, {
+        recipientEmail: connectedUser.email,
+        recipientName: connectedUser.user_metadata?.full_name as string,
+      }).catch(err => console.error('[oauth-callback] Email notification failed:', err));
+    }
 
     return new Response(null, {
       status: 302,

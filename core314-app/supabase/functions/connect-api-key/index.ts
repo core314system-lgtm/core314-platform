@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { sendIntegrationConnectedEmail } from '../_shared/integration-notifications.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -216,6 +217,12 @@ serve(async (req) => {
     });
 
     console.log(`[connect-api-key] ${service_name} connected successfully for user:`, user.id);
+
+    // Send connection confirmation email (non-blocking)
+    sendIntegrationConnectedEmail(service_name, {
+      recipientEmail: user.email ?? '',
+      recipientName: user.user_metadata?.full_name as string,
+    }).catch(err => console.error('[connect-api-key] Email notification failed:', err));
 
     return new Response(JSON.stringify({ 
       success: true,
