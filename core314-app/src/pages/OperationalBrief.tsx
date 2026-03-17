@@ -168,12 +168,34 @@ export function OperationalBrief() {
     }
   };
 
-  const getHealthLabel = (score: number | null) => {
-    if (score === null) return 'Unknown';
-    if (score >= 80) return 'Healthy';
-    if (score >= 60) return 'Moderate';
-    if (score >= 40) return 'At Risk';
-    return 'Critical';
+  const getHealthDescription = (score: number | null) => {
+    if (score === null) return 'Insufficient Data';
+    if (score >= 80) return 'On Track — No Action Required';
+    if (score >= 60) return 'Moderate Risk — Attention Recommended';
+    if (score >= 40) return 'At Risk — Immediate Review Needed';
+    return 'Critical — Urgent Intervention Required';
+  };
+
+  const getSignalSeverityLabel = (severity: 'high' | 'medium' | 'low') => {
+    switch (severity) {
+      case 'high': return 'HIGH RISK';
+      case 'medium': return 'MEDIUM RISK';
+      case 'low': return 'LOW RISK';
+    }
+  };
+
+  const getSignalLabelColor = (severity: 'high' | 'medium' | 'low') => {
+    switch (severity) {
+      case 'high': return 'text-red-400 bg-red-500/15';
+      case 'medium': return 'text-yellow-400 bg-yellow-500/15';
+      case 'low': return 'text-emerald-400 bg-emerald-500/15';
+    }
+  };
+
+  const getActionUrgency = (index: number, total: number): { label: string; color: string } => {
+    if (index === 0) return { label: 'Immediate', color: 'text-red-400 bg-red-500/15' };
+    if (index <= Math.floor(total * 0.5)) return { label: 'High Priority', color: 'text-amber-400 bg-amber-500/15' };
+    return { label: 'Monitor', color: 'text-slate-400 bg-slate-500/15' };
   };
 
   const getConfidenceBadge = (confidence: number) => {
@@ -193,15 +215,17 @@ export function OperationalBrief() {
     }
   };
 
-  const getMomentumDisplayLabel = (classification: string) => {
+  const getMomentumDisplayLabel = (classification: string, delta: number) => {
     const labels: Record<string, string> = {
       'strong_improvement': 'Strong Improvement',
       'improving': 'Improving',
-      'stable': 'Stable',
+      'stable': 'No change in recent briefs',
       'declining': 'Declining',
       'critical_decline': 'Critical Decline',
     };
-    return labels[classification] || classification;
+    const base = labels[classification] || classification;
+    if (classification === 'stable' && delta === 0) return base;
+    return base;
   };
 
   const getSignalSeverity = (signal: string): 'high' | 'medium' | 'low' => {
@@ -408,8 +432,8 @@ export function OperationalBrief() {
                     </span>
                     <span className="text-[9px] uppercase tracking-wider text-slate-400 mt-0.5">/ 100</span>
                   </div>
-                  <span className={`${getRiskBadgeStyle(brief.health_score)} px-3 py-1 rounded-full text-xs font-semibold`}>
-                    {getHealthLabel(brief.health_score)}
+                  <span className={`${getRiskBadgeStyle(brief.health_score)} px-3 py-1 rounded-full text-[10px] font-semibold text-center leading-tight max-w-[140px]`}>
+                    {getHealthDescription(brief.health_score)}
                   </span>
                   {momentum && (() => {
                     const arrow = getMomentumArrow(momentum.classification);
@@ -421,10 +445,7 @@ export function OperationalBrief() {
                         ) : (
                           <ArrowIcon className="h-3 w-3" />
                         )}
-                        {getMomentumDisplayLabel(momentum.classification)}
-                        <span className="text-slate-500 font-normal ml-1">
-                          ({momentum.delta >= 0 ? '+' : ''}{momentum.delta})
-                        </span>
+                        {getMomentumDisplayLabel(momentum.classification, momentum.delta)}
                       </div>
                     );
                   })()}
@@ -443,8 +464,17 @@ export function OperationalBrief() {
                     const severity = getSignalSeverity(signal);
                     return (
                       <div key={i} className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${getSignalBgColor(severity)}`}>
-                        <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${getSignalDotColor(severity)}`} />
-                        <p className={`text-sm leading-relaxed ${getSignalTextColor(severity)}`}>{signal}</p>
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${getSignalDotColor(severity)}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${getSignalLabelColor(severity)}`}>
+                              {getSignalSeverityLabel(severity)}
+                            </span>
+                          </div>
+                          <p className={`text-sm leading-relaxed ${getSignalTextColor(severity)}`}>{signal}</p>
+                        </div>
                       </div>
                     );
                   })}
@@ -474,14 +504,24 @@ export function OperationalBrief() {
               </h4>
               {brief.recommended_actions && brief.recommended_actions.length > 0 ? (
                 <div className="space-y-2.5">
-                  {brief.recommended_actions.map((action, i) => (
-                    <div key={i} className="flex items-start gap-4 rounded-lg border border-slate-700/40 bg-slate-800/40 px-4 py-3.5 hover:bg-slate-800/60 transition-colors">
-                      <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold">
-                        {i + 1}
-                      </span>
-                      <p className="text-slate-300 text-sm leading-relaxed pt-0.5">{action}</p>
-                    </div>
-                  ))}
+                  {brief.recommended_actions.map((action, i) => {
+                    const urgency = getActionUrgency(i, brief.recommended_actions.length);
+                    return (
+                      <div key={i} className="flex items-start gap-4 rounded-lg border border-slate-700/40 bg-slate-800/40 px-4 py-3.5 hover:bg-slate-800/60 transition-colors">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${urgency.color}`}>
+                              {urgency.label}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 text-sm leading-relaxed">{action}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-slate-500">No actions recommended.</p>
