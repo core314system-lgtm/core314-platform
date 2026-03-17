@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useOrganization } from '../contexts/OrganizationContext';
 import { useSupabaseClient } from '../contexts/SupabaseClientContext';
 import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -22,7 +21,6 @@ export function InviteAccept() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { refreshOrganizations } = useOrganization();
   const supabase = useSupabaseClient();
   
   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
@@ -113,12 +111,10 @@ export function InviteAccept() {
 
       setSuccess(true);
       
-      // Refresh organization context to include the newly joined org
-      await refreshOrganizations();
-      
-      // Redirect to dashboard after a short delay
+      // Redirect to brief after a short delay — the OrganizationProvider
+      // will automatically refresh when the protected route loads
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/brief');
       }, 2000);
     } catch (err) {
       console.error('Error accepting invite:', err);
