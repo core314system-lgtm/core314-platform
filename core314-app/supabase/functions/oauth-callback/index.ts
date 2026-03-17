@@ -23,12 +23,14 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'slack': 'SLACK',
   'zoom': 'ZOOM',
   'google_calendar': 'GOOGLE',
-  'google_meet': 'GOOGLE',  // Google Meet uses same credentials as Google Calendar
+  'google_meet': 'GOOGLE',
+  'gmail': 'GOOGLE',           // Gmail uses same Google OAuth credentials
+  'google_sheets': 'GOOGLE',  // Google Sheets uses same Google OAuth credentials
   'quickbooks': 'QUICKBOOKS',
   'xero': 'XERO',
   'salesforce': 'SALESFORCE',
   'hubspot': 'HUBSPOT',
-  'planner': 'TEAMS',  // Microsoft Planner uses same credentials as Microsoft Teams
+  'planner': 'TEAMS',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
