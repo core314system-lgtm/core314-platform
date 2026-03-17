@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { ArrowRight, X, Layers, Zap } from 'lucide-react';
 
 interface WalkthroughStep {
   title: string;
+  subtitle: string;
   description: string;
   targetSelector: string;
   icon: typeof Zap;
@@ -13,17 +14,19 @@ interface WalkthroughStep {
 
 const WALKTHROUGH_STEPS: WalkthroughStep[] = [
   {
-    title: 'Welcome to Core314',
-    description: 'Core314 analyzes your connected business tools to generate operational intelligence. Let\'s get you set up in just a few steps.',
-    targetSelector: '',
+    title: "Let's generate your first Operational Insight",
+    subtitle: 'Welcome to Core314',
+    description: 'Start by connecting a data source. Core314 will automatically analyze your tools and generate intelligence within minutes.',
+    targetSelector: 'a[href="/integration-manager"]',
     icon: Zap,
+    action: { label: 'Go to Integrations', route: '/integration-manager' },
   },
   {
-    title: 'Connect Your Integrations',
-    description: 'Start by connecting at least one integration like Slack, HubSpot, or QuickBooks. This enables Core314 to collect operational signals from your tools.',
-    targetSelector: 'a[href="/integration-manager"]',
+    title: 'Connect your first integration to begin analysis',
+    subtitle: 'Choose an integration',
+    description: 'Connect Slack, HubSpot, or QuickBooks to start collecting operational signals. Core314 will automatically generate your first brief once connected.',
+    targetSelector: '[data-onboarding="primary-integration"]',
     icon: Layers,
-    action: { label: 'Go to Integrations', route: '/integration-manager' },
   },
 ];
 
@@ -36,18 +39,17 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
   const [currentStep, setCurrentStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const updateSpotlight = useCallback(() => {
     if (!isVisible) return;
-
     const step = WALKTHROUGH_STEPS[currentStep];
     if (step.targetSelector) {
       const el = document.querySelector(step.targetSelector);
       if (el) {
         const rect = el.getBoundingClientRect();
         setSpotlightRect(rect);
-        // Scroll element into view if needed
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else {
         setSpotlightRect(null);
@@ -57,6 +59,13 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
     }
   }, [currentStep, isVisible]);
 
+  useEffect(() => {
+    updateSpotlight();
+    // Re-check after a short delay for elements that render async
+    const timer = setTimeout(updateSpotlight, 500);
+    return () => clearTimeout(timer);
+  }, [updateSpotlight, location.pathname]);
+
   if (!isVisible) return null;
 
   const step = WALKTHROUGH_STEPS[currentStep];
@@ -64,10 +73,10 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
   const StepIcon = step.icon;
 
   const handleNext = () => {
+    if (step.action) {
+      navigate(step.action.route);
+    }
     if (isLastStep) {
-      if (step.action) {
-        navigate(step.action.route);
-      }
       onDismiss();
     } else {
       setCurrentStep(prev => prev + 1);
@@ -91,15 +100,25 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
       };
     }
 
-    // Position to the right of the spotlight element
-    const tooltipLeft = spotlightRect.right + 16;
-    const tooltipTop = spotlightRect.top;
+    // Position to the right of the spotlight element, or below if not enough space
+    const spaceRight = window.innerWidth - spotlightRect.right;
+    const tooltipWidth = 360;
 
+    if (spaceRight > tooltipWidth + 24) {
+      return {
+        position: 'fixed',
+        top: `${Math.max(16, spotlightRect.top)}px`,
+        left: `${spotlightRect.right + 16}px`,
+        zIndex: 10002,
+        maxWidth: `${tooltipWidth}px`,
+      };
+    }
     return {
       position: 'fixed',
-      top: `${tooltipTop}px`,
-      left: `${tooltipLeft}px`,
+      top: `${spotlightRect.bottom + 16}px`,
+      left: `${Math.max(16, spotlightRect.left)}px`,
       zIndex: 10002,
+      maxWidth: `${tooltipWidth}px`,
     };
   };
 
@@ -113,8 +132,8 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
           backgroundColor: 'rgba(0, 0, 0, 0.6)',
           // SVG-based mask for spotlight cutout
           ...(spotlightRect ? {
-            maskImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${window.innerWidth}' height='${window.innerHeight}'%3E%3Crect width='100%25' height='100%25' fill='white'/%3E%3Crect x='${spotlightRect.left - 6}' y='${spotlightRect.top - 6}' width='${spotlightRect.width + 12}' height='${spotlightRect.height + 12}' rx='8' fill='black'/%3E%3C/svg%3E")`,
-            WebkitMaskImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${window.innerWidth}' height='${window.innerHeight}'%3E%3Crect width='100%25' height='100%25' fill='white'/%3E%3Crect x='${spotlightRect.left - 6}' y='${spotlightRect.top - 6}' width='${spotlightRect.width + 12}' height='${spotlightRect.height + 12}' rx='8' fill='black'/%3E%3C/svg%3E")`,
+            maskImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${window.innerWidth}' height='${window.innerHeight}'%3E%3Crect width='100%25' height='100%25' fill='white'/%3E%3Crect x='${spotlightRect.left - 8}' y='${spotlightRect.top - 8}' width='${spotlightRect.width + 16}' height='${spotlightRect.height + 16}' rx='10' fill='black'/%3E%3C/svg%3E")`,
+            WebkitMaskImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${window.innerWidth}' height='${window.innerHeight}'%3E%3Crect width='100%25' height='100%25' fill='white'/%3E%3Crect x='${spotlightRect.left - 8}' y='${spotlightRect.top - 8}' width='${spotlightRect.width + 16}' height='${spotlightRect.height + 16}' rx='10' fill='black'/%3E%3C/svg%3E")`,
           } : {}),
         }}
         onClick={handleSkip}
@@ -123,19 +142,19 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
       {/* Spotlight ring highlight */}
       {spotlightRect && (
         <div
-          className="fixed z-[10001] rounded-lg ring-2 ring-sky-400 ring-offset-2 ring-offset-transparent pointer-events-none animate-pulse"
+          className="fixed z-[10001] rounded-xl ring-2 ring-sky-400 ring-offset-4 ring-offset-transparent pointer-events-none animate-pulse"
           style={{
-            top: spotlightRect.top - 6,
-            left: spotlightRect.left - 6,
-            width: spotlightRect.width + 12,
-            height: spotlightRect.height + 12,
+            top: spotlightRect.top - 8,
+            left: spotlightRect.left - 8,
+            width: spotlightRect.width + 16,
+            height: spotlightRect.height + 16,
           }}
         />
       )}
 
       {/* Tooltip card */}
-      <div style={getTooltipStyle()} className="max-w-sm">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div style={getTooltipStyle()}>
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 relative animate-in fade-in slide-in-from-bottom-2 duration-300">
           {/* Close button */}
           <button
             onClick={handleSkip}
@@ -159,14 +178,22 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
                 }`}
               />
             ))}
+            <span className="text-xs text-slate-400 ml-2">
+              Step {currentStep + 1} of {WALKTHROUGH_STEPS.length}
+            </span>
           </div>
 
+          {/* Subtitle */}
+          <p className="text-xs text-sky-500 font-semibold uppercase tracking-wider mb-1">
+            {step.subtitle}
+          </p>
+
           {/* Icon + Title */}
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
+          <div className="flex items-start gap-2.5 mb-2">
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center mt-0.5">
               <StepIcon className="h-4 w-4 text-sky-600 dark:text-sky-400" />
             </div>
-            <h3 className="text-base font-semibold text-slate-800 dark:text-white">
+            <h3 className="text-base font-semibold text-slate-800 dark:text-white leading-snug pr-6">
               {step.title}
             </h3>
           </div>
@@ -189,7 +216,7 @@ export function GuidedWalkthrough({ isVisible, onDismiss }: GuidedWalkthroughPro
               onClick={handleNext}
               className="bg-sky-600 hover:bg-sky-700 text-white"
             >
-              {isLastStep ? (step.action?.label || 'Get Started') : 'Next'}
+              {step.action?.label || (isLastStep ? 'Get Started' : 'Next')}
               <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </Button>
           </div>

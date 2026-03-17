@@ -25,12 +25,20 @@ export interface OnboardingStatus {
   markBriefViewed: () => void;
   dismissWalkthrough: () => void;
   isWalkthroughDismissed: boolean;
+  // Stricter state flags
+  onboardingStarted: boolean;
+  currentStep: number; // 0=not started, 1=connect, 2=brief, 3=signals
+  onboardingComplete: boolean;
+  isBriefHighlightsDismissed: boolean;
+  markBriefHighlightsDismissed: () => void;
 }
 
 const WALKTHROUGH_DISMISSED_KEY = 'core314_walkthrough_dismissed';
 const SIGNALS_REVIEWED_KEY = 'core314_signals_reviewed';
 const BRIEF_VIEWED_KEY = 'core314_brief_viewed';
 const FIRST_LOGIN_KEY = 'core314_first_login_seen';
+const ONBOARDING_STARTED_KEY = 'core314_onboarding_started';
+const BRIEF_HIGHLIGHTS_DISMISSED_KEY = 'core314_brief_highlights_dismissed';
 
 export function useOnboardingStatus(): OnboardingStatus {
   const { user, profile } = useAuth();
@@ -40,6 +48,12 @@ export function useOnboardingStatus(): OnboardingStatus {
   const [loading, setLoading] = useState(true);
   const [isWalkthroughDismissed, setIsWalkthroughDismissed] = useState(() => {
     return localStorage.getItem(WALKTHROUGH_DISMISSED_KEY) === 'true';
+  });
+  const [onboardingStarted, setOnboardingStarted] = useState(() => {
+    return localStorage.getItem(ONBOARDING_STARTED_KEY) === 'true';
+  });
+  const [isBriefHighlightsDismissed, setIsBriefHighlightsDismissed] = useState(() => {
+    return localStorage.getItem(BRIEF_HIGHLIGHTS_DISMISSED_KEY) === 'true';
   });
 
   // First login detection: true if user has never seen the walkthrough before
@@ -89,6 +103,12 @@ export function useOnboardingStatus(): OnboardingStatus {
       if (!localStorage.getItem(FIRST_LOGIN_KEY)) {
         localStorage.setItem(FIRST_LOGIN_KEY, 'true');
       }
+
+      // Mark onboarding as started on first page load
+      if (!localStorage.getItem(ONBOARDING_STARTED_KEY)) {
+        localStorage.setItem(ONBOARDING_STARTED_KEY, 'true');
+        setOnboardingStarted(true);
+      }
     } catch (err) {
       console.error('[useOnboardingStatus] Error checking status:', err);
     } finally {
@@ -113,6 +133,11 @@ export function useOnboardingStatus(): OnboardingStatus {
   const dismissWalkthrough = useCallback(() => {
     localStorage.setItem(WALKTHROUGH_DISMISSED_KEY, 'true');
     setIsWalkthroughDismissed(true);
+  }, []);
+
+  const markBriefHighlightsDismissed = useCallback(() => {
+    localStorage.setItem(BRIEF_HIGHLIGHTS_DISMISSED_KEY, 'true');
+    setIsBriefHighlightsDismissed(true);
   }, []);
 
   const steps: OnboardingStep[] = [
@@ -142,6 +167,10 @@ export function useOnboardingStatus(): OnboardingStatus {
   const completedCount = steps.filter(s => s.isComplete).length;
   const isComplete = completedCount === steps.length;
 
+  // Derive current step number: 0=not started, 1=connect, 2=brief, 3=signals
+  const currentStep = !hasConnectedIntegration ? 1 : !hasGeneratedBrief ? 2 : !hasReviewedSignals ? 3 : 3;
+  const onboardingComplete = isComplete;
+
   return {
     steps,
     completedCount,
@@ -157,5 +186,10 @@ export function useOnboardingStatus(): OnboardingStatus {
     markBriefViewed,
     dismissWalkthrough,
     isWalkthroughDismissed,
+    onboardingStarted,
+    currentStep,
+    onboardingComplete,
+    isBriefHighlightsDismissed,
+    markBriefHighlightsDismissed,
   };
 }

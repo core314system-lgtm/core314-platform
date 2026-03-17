@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
+import { BriefHighlights } from '../components/onboarding/BriefHighlights';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -82,7 +83,7 @@ function normalizeBrief(raw: Record<string, unknown>): OperationalBriefData {
 
 export function OperationalBrief() {
   const { profile } = useAuth();
-  const { markBriefViewed } = useOnboardingStatus();
+  const { markBriefViewed, isBriefHighlightsDismissed } = useOnboardingStatus();
   const navigate = useNavigate();
   const [brief, setBrief] = useState<OperationalBriefData | null>(null);
   const [pastBriefs, setPastBriefs] = useState<OperationalBriefData[]>([]);
@@ -297,6 +298,9 @@ export function OperationalBrief() {
           </CardContent>
         </Card>
       )}
+
+      {/* Aha Moment: Brief Highlights Guide - shown on first brief view */}
+      <BriefHighlights show={!!brief && !isBriefHighlightsDismissed} />
 
       {!brief ? (
         /* Empty State */

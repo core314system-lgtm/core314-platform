@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { AnalysisProcessingScreen } from '../components/onboarding/AnalysisProcessingScreen';
 
 interface IntegrationInfo {
   id: string;
@@ -489,24 +490,14 @@ export function IntegrationManager() {
         </Card>
       )}
 
-      {/* Auto-generating brief banner */}
-      {autoGenerating && (
-        <Card className="bg-sky-50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <RefreshCw className="h-5 w-5 text-sky-600 animate-spin" />
-              <div>
-                <p className="text-sm font-medium text-sky-800 dark:text-sky-200">
-                  Generating your first Operational Brief...
-                </p>
-                <p className="text-xs text-sky-600 dark:text-sky-400 mt-0.5">
-                  Analyzing your integration data. You&apos;ll be redirected to your brief automatically.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Processing Screen - shown while auto-generating first brief */}
+      <AnalysisProcessingScreen
+        isVisible={autoGenerating}
+        onComplete={() => {
+          // The actual navigation happens in autoTriggerBriefGeneration
+          // This callback fires when the animation sequence completes
+        }}
+      />
 
       {/* API Key Form */}
       {apiKeyForm && (
@@ -597,7 +588,7 @@ export function IntegrationManager() {
           </Badge>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {coreIntegrations.map(integration => {
+          {coreIntegrations.map((integration, idx) => {
             const Icon = SERVICE_ICONS[integration.service_name] || Layers;
             const connected = isConnected(integration.id);
             const connDate = getConnectionDate(integration.id);
@@ -607,7 +598,7 @@ export function IntegrationManager() {
             const health = getHealthStatus(ui);
             const isApiKeyService = !!API_KEY_FIELDS[integration.service_name];
             return (
-              <Card key={integration.id} className={connected ? 'border-green-200 dark:border-green-800' : ''}>
+              <Card key={integration.id} className={connected ? 'border-green-200 dark:border-green-800' : ''} {...(idx === 0 ? { 'data-onboarding': 'primary-integration' } : {})}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
