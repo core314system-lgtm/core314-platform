@@ -193,7 +193,7 @@ export function IntegrationManager() {
     // Fetch ALL enabled integrations
     const { data: registryData } = await supabase
       .from('integration_registry')
-      .select('id, service_name, display_name, description, logo_url, is_enabled, auth_type, min_plan')
+      .select('id, service_name, display_name, description, icon_url, is_enabled, auth_type, min_plan')
       .in('service_name', ALL_INTEGRATIONS)
       .eq('is_enabled', true);
 
