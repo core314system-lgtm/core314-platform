@@ -7,7 +7,7 @@ import { getSupabaseFunctionUrl } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Building2, Mail, UserPlus, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Building2, Mail, UserPlus, AlertCircle, CheckCircle, Loader2, Clock, XCircle, RefreshCw } from 'lucide-react';
 
 interface InviteDetails {
   valid: boolean;
@@ -64,11 +64,13 @@ export function InviteAccept() {
       
       if (!data.valid) {
         if (data.status === 'expired') {
-          setError('This invitation has expired');
+          setError('This invitation has expired. Please contact your organization administrator to request a new invitation.');
         } else if (data.status === 'accepted') {
-          setError('This invitation has already been accepted');
+          setError('This invitation has already been accepted.');
+        } else if (data.status === 'cancelled') {
+          setError('This invitation has been cancelled. Please contact your organization administrator to request a new invitation.');
         } else {
-          setError('This invitation is no longer valid');
+          setError('This invitation is no longer valid. Please contact your organization administrator to request a new invitation.');
         }
       }
     } catch (err) {
@@ -157,18 +159,88 @@ export function InviteAccept() {
   }
 
   if (error && !inviteDetails?.valid) {
+    const statusIcon = () => {
+      switch (inviteDetails?.status) {
+        case 'expired':
+          return <Clock className="h-16 w-16 text-amber-500 mx-auto mb-4" />;
+        case 'cancelled':
+          return <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />;
+        case 'accepted':
+          return <CheckCircle className="h-16 w-16 text-blue-500 mx-auto mb-4" />;
+        default:
+          return <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />;
+      }
+    };
+
+    const statusTitle = () => {
+      switch (inviteDetails?.status) {
+        case 'expired':
+          return 'Invitation Expired';
+        case 'cancelled':
+          return 'Invitation Cancelled';
+        case 'accepted':
+          return 'Invitation Already Used';
+        default:
+          return 'Invalid Invitation';
+      }
+    };
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
         <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Invalid Invitation
+          <CardContent className="pt-6 text-center space-y-4">
+            {statusIcon()}
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {statusTitle()}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
-            <Button asChild>
-              <Link to="/login">Go to Login</Link>
-            </Button>
+            <p className="text-gray-600 dark:text-gray-400">{error}</p>
+
+            {inviteDetails?.organization_name && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-2 justify-center">
+                  <Building2 className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Organization: <strong className="text-gray-900 dark:text-white">{inviteDetails.organization_name}</strong>
+                  </span>
+                </div>
+                {inviteDetails.invited_email && (
+                  <div className="flex items-center gap-2 justify-center mt-1">
+                    <Mail className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{inviteDetails.invited_email}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Request New Invitation hint */}
+            {(inviteDetails?.status === 'expired' || inviteDetails?.status === 'cancelled') && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center gap-2 justify-center mb-1">
+                  <RefreshCw className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Need a new invitation?</span>
+                </div>
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Contact your organization administrator and ask them to resend your invitation from the Team Members page.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-center pt-2">
+              <Button asChild variant="outline">
+                <Link to="/login">Go to Login</Link>
+              </Button>
+              {inviteDetails?.invited_email && (
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    window.location.href = `mailto:?subject=New Invitation Request&body=Hi, I tried to accept my invitation to ${inviteDetails?.organization_name || 'your organization'} on Core314 but it is no longer valid (${inviteDetails?.status || 'invalid'}). Could you please send me a new invitation to ${inviteDetails?.invited_email}? Thank you!`;
+                  }}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  Request New Invite
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
