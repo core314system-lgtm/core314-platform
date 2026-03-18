@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -132,17 +132,40 @@ export function IntegrationManager() {
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [autoGenerating, setAutoGenerating] = useState(false);
 
+  // Track whether an OAuth callback was detected that should trigger brief generation
+  const [pendingAutoTrigger, setPendingAutoTrigger] = useState(false);
+  // Ref to prevent double-triggering
+  const autoTriggerFiredRef = useRef(false);
+  // Ref to always have latest profile available in async functions
+  const profileRef = useRef(profile);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
   // Auto-trigger: after first integration connects, auto-generate brief and redirect
-  const autoTriggerBriefGeneration = async () => {
-    if (!profile?.id) return;
+  // Uses profileRef to avoid stale closure — always reads the latest profile
+  const autoTriggerBriefGeneration = useCallback(async () => {
+    const currentProfile = profileRef.current;
+    if (!currentProfile?.id) {
+      console.warn('[AutoTrigger] No profile.id available, cannot trigger');
+      return;
+    }
+    if (autoTriggerFiredRef.current) {
+      console.log('[AutoTrigger] Already fired, skipping duplicate');
+      return;
+    }
+    autoTriggerFiredRef.current = true;
+    console.log('[AutoTrigger] Starting brief generation for user:', currentProfile.id);
     setAutoGenerating(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      if (!token) return;
+      if (!token) {
+        console.error('[AutoTrigger] No auth token available');
+        return;
+      }
 
       const url = await getSupabaseFunctionUrl('operational-brief-generate');
       const anonKey = await getSupabaseAnonKey();
+      console.log('[AutoTrigger] Calling operational-brief-generate...');
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -154,45 +177,58 @@ export function IntegrationManager() {
       });
 
       const result = await response.json();
+      console.log('[AutoTrigger] Response:', response.status, result);
       if (response.ok && result.success) {
+        console.log('[AutoTrigger] Brief generated successfully, redirecting to /brief');
         // Brief generated successfully — redirect to brief page
         navigate('/brief');
+      } else {
+        console.error('[AutoTrigger] Brief generation failed:', result);
       }
     } catch (err) {
       console.error('[AutoTrigger] Failed to generate brief:', err);
     } finally {
       setAutoGenerating(false);
     }
-  };
+  }, [navigate]);
 
-  // Check for OAuth callback success (from Supabase oauth-callback or HubSpot Netlify callback)
+  // Step 1: Detect OAuth callback params and mark pending auto-trigger
   useEffect(() => {
     const oauthSuccess = searchParams.get('oauth_success');
     const oauthService = searchParams.get('service');
     const hubspotStatus = searchParams.get('hubspot');
-    let isFirstConnection = false;
 
     if (oauthSuccess === 'true' && oauthService) {
+      console.log('[AutoTrigger] OAuth callback detected for:', oauthService);
       setConnectionSuccess(oauthService);
       searchParams.delete('oauth_success');
       searchParams.delete('service');
       setSearchParams(searchParams, { replace: true });
-      isFirstConnection = true;
+      setPendingAutoTrigger(true);
       setTimeout(() => setConnectionSuccess(null), 5000);
     } else if (hubspotStatus === 'connected') {
+      console.log('[AutoTrigger] HubSpot callback detected');
       setConnectionSuccess('hubspot');
       searchParams.delete('hubspot');
       setSearchParams(searchParams, { replace: true });
-      isFirstConnection = true;
+      setPendingAutoTrigger(true);
       setTimeout(() => setConnectionSuccess(null), 5000);
     }
-
-    // Auto-trigger brief generation on first integration connection
-    if (isFirstConnection && userIntegrations.length === 0) {
-      // Small delay to let the integration record settle
-      setTimeout(() => autoTriggerBriefGeneration(), 2000);
-    }
   }, [searchParams, setSearchParams]);
+
+  // Step 2: When pendingAutoTrigger is true AND profile is available, fire the trigger
+  // This eliminates the stale closure — we wait for profile to be ready via deps
+  useEffect(() => {
+    if (!pendingAutoTrigger) return;
+    if (!profile?.id) {
+      console.log('[AutoTrigger] Waiting for profile to load before triggering...');
+      return; // Will re-run when profile becomes available
+    }
+    // Profile is ready — fire the auto-trigger
+    console.log('[AutoTrigger] Profile ready, firing auto-trigger');
+    setPendingAutoTrigger(false);
+    autoTriggerBriefGeneration();
+  }, [pendingAutoTrigger, profile?.id, autoTriggerBriefGeneration]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -358,10 +394,10 @@ export function IntegrationManager() {
       setApiKeyForm(null);
       setConnectionSuccess(apiKeyForm.service);
       setTimeout(() => setConnectionSuccess(null), 5000);
-      // Auto-trigger brief generation if this is the first integration
-      if (userIntegrations.length === 0) {
-        setTimeout(() => autoTriggerBriefGeneration(), 2000);
-      }
+      // Auto-trigger brief generation for API key integrations
+      // Uses the same pendingAutoTrigger flow to ensure profile is available
+      console.log('[AutoTrigger] API key connection success, setting pending trigger');
+      setPendingAutoTrigger(true);
       await fetchIntegrations();
     } catch {
       setApiKeyError('An unexpected error occurred. Please try again.');
