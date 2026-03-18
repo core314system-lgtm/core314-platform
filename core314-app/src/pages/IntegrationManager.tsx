@@ -131,6 +131,8 @@ export function IntegrationManager() {
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  // CTA state: shown when a new integration connects but user already has briefs
+  const [showNewDataCTA, setShowNewDataCTA] = useState(false);
 
   // Track whether an OAuth callback was detected that should trigger brief generation
   const [pendingAutoTrigger, setPendingAutoTrigger] = useState(false);
@@ -140,8 +142,13 @@ export function IntegrationManager() {
   const profileRef = useRef(profile);
   useEffect(() => { profileRef.current = profile; }, [profile]);
 
+  // Future: user setting for auto-trigger behavior (not exposed in UI yet)
+  // When implemented, this will be fetched from user_preferences table
+  // const [autoTriggerEnabled, setAutoTriggerEnabled] = useState(true);
+
   // Auto-trigger: after first integration connects, auto-generate brief and redirect
-  // Uses profileRef to avoid stale closure — always reads the latest profile
+  // ONLY triggers if user has zero existing briefs (first "aha moment")
+  // If briefs already exist, shows a CTA instead of auto-triggering
   const autoTriggerBriefGeneration = useCallback(async () => {
     const currentProfile = profileRef.current;
     if (!currentProfile?.id) {
@@ -153,7 +160,38 @@ export function IntegrationManager() {
       return;
     }
     autoTriggerFiredRef.current = true;
-    console.log('[AutoTrigger] Starting brief generation for user:', currentProfile.id);
+
+    // DB check: only auto-trigger if user has zero existing briefs
+    try {
+      const { count, error: countError } = await supabase
+        .from('operational_briefs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', currentProfile.id);
+
+      if (countError) {
+        console.error('[AutoTrigger] Failed to check brief count:', countError);
+        // On error, fall through to CTA as safe default
+        setShowNewDataCTA(true);
+        return;
+      }
+
+      const briefCount = count ?? 0;
+      console.log('[AutoTrigger] Existing brief count:', briefCount);
+
+      if (briefCount > 0) {
+        // User already has briefs — show CTA instead of auto-triggering
+        console.log('[AutoTrigger] User has existing briefs, showing CTA instead');
+        setShowNewDataCTA(true);
+        return;
+      }
+    } catch (err) {
+      console.error('[AutoTrigger] Brief count check failed:', err);
+      setShowNewDataCTA(true);
+      return;
+    }
+
+    // Zero briefs — proceed with auto-trigger for first "aha moment"
+    console.log('[AutoTrigger] Zero briefs found, starting auto-generation for user:', currentProfile.id);
     setAutoGenerating(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -180,7 +218,6 @@ export function IntegrationManager() {
       console.log('[AutoTrigger] Response:', response.status, result);
       if (response.ok && result.success) {
         console.log('[AutoTrigger] Brief generated successfully, redirecting to /brief');
-        // Brief generated successfully — redirect to brief page
         navigate('/brief');
       } else {
         console.error('[AutoTrigger] Brief generation failed:', result);
@@ -521,6 +558,32 @@ export function IntegrationManager() {
               <p className="text-sm font-medium text-green-800 dark:text-green-200">
                 {connectionSuccess.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} connected successfully! Core314 will begin analyzing your data shortly.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* New Data CTA - shown when integration connects but user already has briefs */}
+      {showNewDataCTA && (
+        <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-5 w-5 text-blue-600" />
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  New data available — Generate an updated brief to see the latest insights
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setShowNewDataCTA(false);
+                  navigate('/brief');
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+              >
+                Generate Updated Brief
+              </Button>
             </div>
           </CardContent>
         </Card>
