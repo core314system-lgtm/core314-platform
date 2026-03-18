@@ -571,7 +571,7 @@ export function IntegrationManager() {
               <div className="flex items-center gap-3">
                 <RefreshCw className="h-5 w-5 text-blue-600" />
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  New data available — Generate an updated brief to see the latest insights
+                  New data available — Refresh your operational brief to see the latest insights
                 </p>
               </div>
               <Button
@@ -582,7 +582,7 @@ export function IntegrationManager() {
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
               >
-                Generate Updated Brief
+                Refresh Insights
               </Button>
             </div>
           </CardContent>
