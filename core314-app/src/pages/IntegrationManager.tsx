@@ -27,7 +27,6 @@ import {
   Lock,
   ArrowUpRight,
   Key,
-  Info,
   BarChart3,
   ShieldAlert,
   Hash,
