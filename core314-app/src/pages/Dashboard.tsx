@@ -28,8 +28,8 @@ import { SystemSignalSummary } from '../components/dashboard/SystemSignalSummary
 import { SystemExplainabilityPanel } from '../components/dashboard/SystemExplainabilityPanel';
 import { SystemTrajectoryPanel } from '../components/dashboard/SystemTrajectoryPanel';
 import { IntelligenceReadinessPanel } from '../components/dashboard/IntelligenceReadinessPanel';
-import { BetaOnboardingPanel } from '../components/dashboard/BetaOnboardingPanel';
-import { GettingStartedChecklist } from '../components/dashboard/GettingStartedChecklist';
+import { OnboardingPanel } from '../components/onboarding/OnboardingPanel';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { SystemLearningPanel } from '../components/dashboard/SystemLearningPanel';
 import { LearningTimeline } from '../components/dashboard/LearningTimeline';
 import { AddOnCTA } from '../components/AddOnCTA';
@@ -47,6 +47,7 @@ export function Dashboard() {
   const { isIntelligenceDashboardEnabled } = useIntelligenceDashboard();
   const { isObserveTier, systemStatus } = useSystemStatus();
   const { learningStates, learningEvents, globalSummary, loading: learningLoading } = useLearningState();
+  const onboarding = useOnboardingStatus();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [integrations, setIntegrations] = useState<IntegrationWithScore[]>([]);
@@ -347,11 +348,15 @@ export function Dashboard() {
 
   return (
     <div className="min-h-full flex flex-col p-4 space-y-4">
-      {/* Beta Onboarding Panel - first-time users only (no connected integrations) */}
-      <BetaOnboardingPanel hasConnectedIntegrations={hasConnectedIntegrations} />
-
-      {/* Getting Started Checklist - dismissible, new users only */}
-      <GettingStartedChecklist hasConnectedIntegrations={hasConnectedIntegrations} />
+      {/* Persistent Onboarding Panel - shown until all 3 steps complete */}
+      {!onboarding.loading && !onboarding.isComplete && (
+        <OnboardingPanel
+          steps={onboarding.steps}
+          completedCount={onboarding.completedCount}
+          totalSteps={onboarding.totalSteps}
+          isComplete={onboarding.isComplete}
+        />
+      )}
 
       {/* System Status Banner - reduced padding, contextual confirmation */}
       {hasConnectedIntegrations && <AnalyzeUnlockBanner isComputed={isComputed} />}

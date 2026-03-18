@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -43,6 +44,7 @@ const SOURCE_ICONS: Record<string, typeof Activity> = {
 
 export function SignalDashboard() {
   const { profile } = useAuth();
+  const { markSignalsReviewed } = useOnboardingStatus();
   const [signals, setSignals] = useState<OperationalSignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterSource, setFilterSource] = useState<string | null>(null);
@@ -68,6 +70,8 @@ export function SignalDashboard() {
 
     if (!error && data) {
       setSignals(data as OperationalSignal[]);
+      // Mark signals as reviewed for onboarding tracking
+      markSignalsReviewed();
     }
     setLoading(false);
   };
