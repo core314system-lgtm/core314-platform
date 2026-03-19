@@ -33,6 +33,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
+import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AnalysisProcessingScreen } from '../components/onboarding/AnalysisProcessingScreen';
 
@@ -198,24 +199,20 @@ export function IntegrationManager() {
     console.log('[AutoTrigger] Zero briefs found, starting auto-generation for user:', currentProfile.id);
     setAutoGenerating(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) {
-        console.error('[AutoTrigger] No auth token available');
-        return;
-      }
-
       const url = await getSupabaseFunctionUrl('operational-brief-generate');
       const anonKey = await getSupabaseAnonKey();
       console.log('[AutoTrigger] Calling operational-brief-generate...');
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
+
+      const response = await authenticatedFetch(async (token) => {
+        return await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
       });
 
       const result = await response.json();
@@ -227,7 +224,11 @@ export function IntegrationManager() {
         console.error('[AutoTrigger] Brief generation failed:', result);
       }
     } catch (err) {
-      console.error('[AutoTrigger] Failed to generate brief:', err);
+      if (err instanceof SessionExpiredError) {
+        console.error('[AutoTrigger] Session expired, user needs to sign in again');
+      } else {
+        console.error('[AutoTrigger] Failed to generate brief:', err);
+      }
     } finally {
       setAutoGenerating(false);
     }

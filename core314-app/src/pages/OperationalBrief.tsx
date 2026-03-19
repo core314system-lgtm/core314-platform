@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
+import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
 
 interface BriefUsage {
   plan: string;
@@ -133,20 +134,19 @@ export function OperationalBrief() {
     setLimitReached(false);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error('No session');
-
       const url = await getSupabaseFunctionUrl('operational-brief-generate');
       const anonKey = await getSupabaseAnonKey();
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
+
+      const response = await authenticatedFetch(async (token) => {
+        return await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
       });
 
       const result = await response.json();
@@ -170,11 +170,15 @@ export function OperationalBrief() {
         });
         setError(result.message);
       } else {
-        setError(result.error || 'Failed to generate brief. Please try again.');
+        setError(result.error || 'Unable to generate brief. Please try again.');
       }
     } catch (err) {
       console.error('Error generating brief:', err);
-      setError('Failed to connect to the brief generator. Please try again.');
+      if (err instanceof SessionExpiredError) {
+        setError('Your session has expired. Please sign in again.');
+      } else {
+        setError('Unable to generate brief. Please try again.');
+      }
     } finally {
       setGenerating(false);
     }
