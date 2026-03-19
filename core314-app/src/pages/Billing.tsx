@@ -10,6 +10,7 @@ import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink, Receipt, C
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { PRICING } from '../../../shared/pricing';
+import { createCheckoutSession, createPortalSession } from '../services/stripe';
 
 interface SubscriptionSummary {
   subscription: {
@@ -137,17 +138,18 @@ export default function Billing() {
   const handleUpgradePlan = async (planName: string) => {
     setProcessingAction(true);
     try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planName,
-          userId: user?.id,
-        }),
-      });
-
-      const { url } = await response.json();
-      window.location.href = url;
+      // Map display name to plan key for the Edge Function
+      const planMap: Record<string, 'intelligence' | 'command_center'> = {
+        'Intelligence': 'intelligence',
+        'Command Center': 'command_center',
+      };
+      const plan = planMap[planName];
+      if (!plan) {
+        // Enterprise or unknown — go to contact sales
+        window.location.href = '/contact-sales';
+        return;
+      }
+      await createCheckoutSession({ plan });
     } catch (error) {
       console.error('Error upgrading plan:', error);
       setNotification({
@@ -162,16 +164,7 @@ export default function Billing() {
   const handleManageBilling = async () => {
     setProcessingAction(true);
     try {
-      const response = await fetch('/api/create-portal-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user?.id,
-        }),
-      });
-
-      const { url } = await response.json();
-      window.location.href = url;
+      await createPortalSession();
     } catch (error) {
       console.error('Error managing billing:', error);
       setNotification({
