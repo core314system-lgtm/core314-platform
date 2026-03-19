@@ -157,16 +157,22 @@ serve(async (req) => {
 
         const configChannelsMember = (slackConfig?.channels_member as number) ?? 0;
         const configChannelsTotal = (slackConfig?.channels_total as number) ?? 0;
+        const configChannelsAnalyzed = (slackConfig?.channels_analyzed as number) ?? 0;
         const configOauthConnected = slackConfig?.oauth_connected as boolean ?? false;
+        const configPrivateChannelsAccessible = slackConfig?.private_channels_accessible as boolean ?? false;
+        const configScopeWarning = slackConfig?.scope_warning as string | null ?? null;
+        // data_completeness is stored in config but read via event metadata at signal detection time
 
         if (slackEvents && slackEvents.length > 0) {
-          const latest = slackEvents[0].metadata as Record<string, number | string | null>;
+          const latest = slackEvents[0].metadata as Record<string, number | string | boolean | null>;
           const messageCount = (latest.message_count as number) ?? 0;
           const activeChannels = (latest.active_channels as number) ?? 0;
           const totalChannels = (latest.total_channels as number) ?? configChannelsTotal;
+          const channelsAnalyzed = (latest.channels_analyzed as number) ?? configChannelsAnalyzed;
           const uniqueUsers = (latest.unique_users as number) ?? 0;
           const avgResponseTime = latest.avg_response_time_minutes as number | null;
           const channelsMember = activeChannels > 0 ? activeChannels : configChannelsMember;
+          const isDataComplete = (latest.data_complete as boolean) ?? (channelsAnalyzed >= channelsMember);
 
           // Determine Slack connection validity:
           // - Valid: channels_member >= 1 (bot is in at least one channel)
@@ -188,18 +194,56 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Low communication activity — only when connection is valid
-          // If channels_member >= 1 but no recent messages, this is "active but limited" (not a connection issue)
+          // Signal: Low communication activity — only when connection is valid AND data is complete
+          // PRODUCTION HARDENING: Do NOT emit low_communication if data is incomplete (prevents false positives)
           if (isSlackConnectionValid && !isSlackConnectionIssue && messageCount < 5 && totalChannels > 0) {
+            // Reduce confidence if data is incomplete (channels_analyzed < channels_member)
+            const dataConfidenceAdjustment = !isDataComplete ? -25 : 0;
+            const adjustedConfidence = Math.max(40, 75 + dataConfidenceAdjustment);
+            
+            // Only emit signal if data is reasonably complete (>50% channels analyzed)
+            const coveragePct = channelsMember > 0 ? Math.round((channelsAnalyzed / channelsMember) * 100) : 100;
+            if (coveragePct >= 50) {
+              signals.push({
+                signal_type: 'low_communication',
+                severity: 'low',
+                confidence: adjustedConfidence,
+                description: messageCount === 0
+                  ? `Slack integration is active but limited communication activity was detected in monitored channels. ${channelsAnalyzed} of ${channelsMember} channel${channelsMember > 1 ? 's' : ''} analyzed across ${totalChannels} total.${!isDataComplete ? ' Note: Not all channels were analyzed — signal confidence is reduced.' : ''}`
+                  : `Only ${messageCount} Slack messages across ${channelsAnalyzed} analyzed channels (${channelsMember} monitored, ${totalChannels} total). Communication volume is below typical thresholds.${!isDataComplete ? ' Partial data — confidence adjusted.' : ''}`,
+                source_integration: 'slack',
+                signal_data: { category: classifySignal('low_communication', 'slack'), metric: 'low_communication', message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels, channels_member: channelsMember, channels_analyzed: channelsAnalyzed, data_complete: isDataComplete, coverage_pct: coveragePct },
+              });
+            } else {
+              console.warn(`[signal-detector] Skipping low_communication signal for user ${userId}: insufficient data coverage (${coveragePct}% of channels analyzed)`);
+            }
+          }
+
+          // Signal: Data completeness warning (channels detected but not all analyzed)
+          if (isSlackConnectionValid && channelsMember > 0 && channelsAnalyzed < channelsMember && channelsAnalyzed > 0) {
+            const gap = channelsMember - channelsAnalyzed;
+            const coveragePct = Math.round((channelsAnalyzed / channelsMember) * 100);
+            if (coveragePct < 80) {
+              signals.push({
+                signal_type: 'data_ingestion_gap',
+                severity: coveragePct < 50 ? 'medium' : 'low',
+                confidence: 90,
+                description: `Slack data ingestion gap: ${channelsAnalyzed} of ${channelsMember} member channels analyzed (${coveragePct}% coverage). ${gap} channel${gap > 1 ? 's' : ''} not yet ingested — signals may not reflect full workspace activity.`,
+                source_integration: 'slack',
+                signal_data: { category: classifySignal('data_ingestion_gap', 'slack'), metric: 'data_ingestion_gap', channels_member: channelsMember, channels_analyzed: channelsAnalyzed, coverage_pct: coveragePct, gap },
+              });
+            }
+          }
+
+          // Signal: Private channels inaccessible (scope warning)
+          if (configScopeWarning && !configPrivateChannelsAccessible) {
             signals.push({
-              signal_type: 'low_communication',
+              signal_type: 'scope_limitation',
               severity: 'low',
-              confidence: 75,
-              description: messageCount === 0
-                ? `Slack integration is active but limited communication activity was detected in monitored channels. ${channelsMember} channel${channelsMember > 1 ? 's' : ''} monitored across ${totalChannels} total.`
-                : `Only ${messageCount} Slack messages in the past 7 days across ${channelsMember} monitored channels. Communication volume is below typical thresholds.`,
+              confidence: 95,
+              description: 'Slack bot does not have access to private channels (missing groups:read scope). Only public channels are being monitored. Re-authorize the Slack app with the groups:read scope to include private channels.',
               source_integration: 'slack',
-              signal_data: { category: classifySignal('low_communication', 'slack'), metric: 'low_communication', message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels, channels_member: channelsMember },
+              signal_data: { category: classifySignal('scope_limitation', 'slack'), metric: 'scope_limitation', private_channels_accessible: false, scope_warning: configScopeWarning },
             });
           }
 

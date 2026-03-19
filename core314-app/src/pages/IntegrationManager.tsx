@@ -743,7 +743,7 @@ export function IntegrationManager() {
                           <span className="truncate" title={ui.error_message}>{ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}</span>
                         </div>
                       )}
-                      {/* Slack Transparency Metrics */}
+                      {/* Slack Transparency Metrics - Production Hardening */}
                       {integration.service_name === 'slack' && ui?.config && (() => {
                         const cfg = ui.config;
                         const channelsTotal = (cfg.channels_total as number) ?? 0;
@@ -765,21 +765,38 @@ export function IntegrationManager() {
                                 Slack Data Transparency
                               </div>
                               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Hash className="h-3 w-3" />Channels detected</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <Hash className="h-3 w-3" />
+                                  Channels detected
+                                </div>
                                 <div className="font-medium text-gray-700 dark:text-gray-300">{channelsTotal}</div>
-                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><CheckCircle className="h-3 w-3" />Monitored</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Monitored
+                                </div>
                                 <div className="font-medium text-gray-700 dark:text-gray-300">{channelsMember}</div>
-                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><BarChart3 className="h-3 w-3" />Analyzed</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <BarChart3 className="h-3 w-3" />
+                                  Analyzed
+                                </div>
                                 <div className="font-medium text-gray-700 dark:text-gray-300">
                                   {channelsAnalyzed}
-                                  {channelsMember > 0 && <span className={`ml-1 ${coveragePct >= 80 ? 'text-green-600' : coveragePct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>({coveragePct}%)</span>}
+                                  {channelsMember > 0 && (
+                                    <span className={`ml-1 ${coveragePct >= 80 ? 'text-green-600' : coveragePct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      ({coveragePct}%)
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><MessageSquare className="h-3 w-3" />Messages</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <MessageSquare className="h-3 w-3" />
+                                  Messages
+                                </div>
                                 <div className="font-medium text-gray-700 dark:text-gray-300">{messagesAnalyzed.toLocaleString()}</div>
                               </div>
                               {channelsSyncedAt && (
                                 <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
-                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(channelsSyncedAt)}
+                                  <Clock className="h-3 w-3" />
+                                  Last sync: {formatTimeAgo(channelsSyncedAt)}
                                 </div>
                               )}
                               {scopeWarning && !privateAccessible && (
