@@ -66,6 +66,49 @@ serve(withSentry(async (req) => {
       });
     }
 
+    // Check for duplicate: already a member with this email
+    const { data: existingMembers } = await supabase
+      .from('organization_members')
+      .select('id, user_id')
+      .eq('organization_id', organization_id);
+
+    if (existingMembers && existingMembers.length > 0) {
+      // Check if any existing member has this email
+      const memberUserIds = existingMembers.map(m => m.user_id);
+      const { data: memberProfiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', memberUserIds);
+
+      const memberEmails = new Set<string>();
+      (memberProfiles || []).forEach(p => {
+        if (p.email) memberEmails.add(p.email.toLowerCase());
+      });
+
+      if (memberEmails.has(email.toLowerCase())) {
+        return new Response(JSON.stringify({ error: 'This email is already a member of your team' }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Check for duplicate: already has a pending invitation
+    const { data: existingInvite } = await supabase
+      .from('organization_invitations')
+      .select('id, status')
+      .eq('organization_id', organization_id)
+      .ilike('email', email.trim())
+      .eq('status', 'pending')
+      .limit(1);
+
+    if (existingInvite && existingInvite.length > 0) {
+      return new Response(JSON.stringify({ error: 'An invitation has already been sent to this email address' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Check plan limits before creating invitation
     const { data: limitCheck, error: limitError } = await supabase
       .rpc('check_organization_user_limit', { p_organization_id: organization_id });

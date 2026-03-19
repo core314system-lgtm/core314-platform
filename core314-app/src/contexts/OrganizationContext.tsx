@@ -49,6 +49,43 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       const orgIds = members?.map(m => m.organization_id) || [];
 
       if (orgIds.length === 0) {
+        // No org membership found — check for pending invites and auto-accept
+        try {
+          const { data: autoAcceptResult } = await supabase
+            .rpc('auto_accept_pending_invites', {
+              p_user_id: user.id,
+              p_user_email: user.email || '',
+            });
+
+          if (autoAcceptResult && autoAcceptResult.length > 0 && autoAcceptResult[0].accepted) {
+            // Successfully auto-accepted an invite — re-fetch memberships
+            const { data: newMembers } = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', user.id);
+
+            const newOrgIds = newMembers?.map(m => m.organization_id) || [];
+            if (newOrgIds.length > 0) {
+              const { data: newOrgs } = await supabase
+                .from('organizations')
+                .select('*')
+                .in('id', newOrgIds)
+                .order('name');
+
+              if (newOrgs && newOrgs.length > 0) {
+                setOrganizations(newOrgs);
+                setCurrentOrganization(newOrgs[0]);
+                localStorage.setItem('currentOrganizationId', newOrgs[0].id);
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        } catch (autoAcceptErr) {
+          // Auto-accept is best-effort — don't block the flow
+          console.error('Auto-accept pending invites failed:', autoAcceptErr);
+        }
+
         setOrganizations([]);
         setCurrentOrganization(null);
         setLoading(false);

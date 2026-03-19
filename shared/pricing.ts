@@ -28,9 +28,9 @@ export const PRICING = {
       '30 AI Operational Briefs per month',
       'Operational Pattern Detection',
       'Operational Brief Archive',
-      'Up to 5 Users',
+      '1 User (Owner)',
     ],
-    users: 5,
+    users: 1,
     briefsPerMonth: 30,
     archiveDays: -1, // unlimited
   },
@@ -53,9 +53,9 @@ export const PRICING = {
       'Command Center Dashboard',
       'Advanced Signal Analysis',
       'Integration Event History',
-      'Up to 25 Users',
+      'Up to 5 Users',
     ],
-    users: 25,
+    users: 5,
     briefsPerMonth: -1,
     archiveDays: -1,
   },
@@ -73,7 +73,7 @@ export const PRICING = {
       'Priority signal processing',
       'SLA uptime guarantees',
     ],
-    users: -1,
+    users: 20,
     briefsPerMonth: -1,
     archiveDays: -1,
   },
@@ -83,10 +83,13 @@ export type PlanId = keyof typeof PRICING;
 
 // Plan seat limits for enforcement
 export const PLAN_SEAT_LIMITS: Record<string, number> = {
-  intelligence: 5,
-  commandCenter: 25,
-  command_center: 25,
-  enterprise: -1, // unlimited
+  intelligence: 1,
+  Intelligence: 1,
+  commandCenter: 5,
+  command_center: 5,
+  'Command Center': 5,
+  enterprise: 20,
+  Enterprise: 20,
 };
 
 // Formatting helpers

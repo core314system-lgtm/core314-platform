@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Alert, AlertDescription } from '../ui/alert';
 import { CheckCircle, AlertTriangle } from 'lucide-react';
 
@@ -19,16 +18,19 @@ interface InviteUserModalProps {
 }
 
 const PLAN_SEAT_LIMITS: Record<string, number> = {
-  intelligence: 5,
-  commandCenter: 25,
-  command_center: 25,
-  enterprise: -1,
+  intelligence: 1,
+  Intelligence: 1,
+  commandCenter: 5,
+  command_center: 5,
+  'Command Center': 5,
+  enterprise: 20,
+  Enterprise: 20,
 };
 
 export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess, currentMemberCount = 0, organizationPlan = 'intelligence' }: InviteUserModalProps) {
   const supabase = useSupabaseClient();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('member');
+  const role = 'member';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -75,7 +77,6 @@ export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess,
 
       setInviteLink(data.invite_link);
       setEmail('');
-      setRole('member');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send invitation');
     } finally {
@@ -147,26 +148,9 @@ export function InviteUserModal({ open, onOpenChange, organizationId, onSuccess,
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="viewer">Viewer (read-only access)</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="analyst">Analyst</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500 mt-1">
-                {role === 'viewer' && 'Can view dashboards and reports only'}
-                {role === 'member' && 'Can view and interact with integrations'}
-                {role === 'analyst' && 'Can view, analyze, and export data'}
-                {role === 'admin' && 'Full access except ownership transfer'}
-              </p>
-            </div>
+            <p className="text-xs text-gray-500">
+              Members have full access to briefs, signals, and dashboard.
+            </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
