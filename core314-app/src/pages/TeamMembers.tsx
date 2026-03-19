@@ -73,8 +73,6 @@ export function TeamMembers() {
 
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
-  const [inviteFirstName, setInviteFirstName] = useState('');
-  const [inviteLastName, setInviteLastName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -277,8 +275,6 @@ export function TeamMembers() {
           organization_id: currentOrganization.id,
           email: inviteEmail.trim(),
           role: 'member',
-          first_name: inviteFirstName.trim() || undefined,
-          last_name: inviteLastName.trim() || undefined,
         }),
       });
 
@@ -288,8 +284,6 @@ export function TeamMembers() {
       if (response.status === 502 && data.invite_link) {
         setInviteError('Email delivery failed. Share the invite link manually instead:');
         setInviteLink(data.invite_link);
-        setInviteFirstName('');
-        setInviteLastName('');
         setInviteEmail('');
         await fetchPendingInvites();
         await fetchSeatLimits();
@@ -300,8 +294,6 @@ export function TeamMembers() {
 
       setInviteSuccess(`Invitation sent to ${inviteEmail}`);
       setInviteLink(data.invite_link || null);
-      setInviteFirstName('');
-      setInviteLastName('');
       setInviteEmail('');
       await fetchPendingInvites();
       await fetchSeatLimits(); // Refresh seat count after invite
@@ -507,12 +499,10 @@ export function TeamMembers() {
             setInviteError(null);
             setInviteSuccess(null);
             setInviteLink(null);
-            setInviteFirstName('');
-            setInviteLastName('');
             setInviteEmail('');
           }}>
             <UserPlus className="mr-2 h-4 w-4" />
-            Add Team Member
+            Invite Member
           </Button>
         )}
       </div>
@@ -520,47 +510,27 @@ export function TeamMembers() {
       {/* Add Team Member Form */}
       {showInviteForm && isOwner && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Invite a New Team Member</CardTitle>
-            <CardDescription>
-              Send an email invitation to add someone to your team
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleInvite} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-first-name">First Name *</Label>
-                  <Input
-                    id="invite-first-name"
-                    value={inviteFirstName}
-                    onChange={(e) => setInviteFirstName(e.target.value)}
-                    placeholder="John"
-                    required
-                  />
+            <CardHeader>
+              <CardTitle className="text-lg">Invite Member</CardTitle>
+              <CardDescription>
+                Enter the email address of the person you want to invite
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleInvite} className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="invite-email">Email Address</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="colleague@company.com"
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invite-last-name">Last Name *</Label>
-                  <Input
-                    id="invite-last-name"
-                    value={inviteLastName}
-                    onChange={(e) => setInviteLastName(e.target.value)}
-                    placeholder="Doe"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email Address *</Label>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="john@example.com"
-                    required
-                  />
-                </div>
-              </div>
 
               {inviteError && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg space-y-2">
@@ -597,7 +567,7 @@ export function TeamMembers() {
               )}
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={inviteLoading || !inviteEmail.trim() || !inviteFirstName.trim() || !inviteLastName.trim()}>
+                <Button type="submit" disabled={inviteLoading || !inviteEmail.trim()}>
                   {inviteLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -607,7 +577,7 @@ export function TeamMembers() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => {
                     setShowInviteForm(false);
                     setInviteError(null);
@@ -646,6 +616,14 @@ export function TeamMembers() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             </div>
+          ) : teamMembers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Users className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium">No team members yet</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                Invite members to share briefs, signals, and dashboard access.
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               {teamMembers.map((member) => (
@@ -673,10 +651,13 @@ export function TeamMembers() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge
-                      variant={member.role === 'owner' ? 'default' : 'outline'}
+                      variant={member.role === 'owner' ? 'default' : 'secondary'}
                       className="capitalize"
                     >
-                      {member.role === 'owner' ? 'Admin' : 'Member'}
+                      {member.role === 'owner' ? 'Owner' : 'Member'}
+                    </Badge>
+                    <Badge variant="outline" className="text-green-600 border-green-300">
+                      Active
                     </Badge>
                     {/* Only owner can delete non-owner members */}
                     {isOwner && member.role !== 'owner' && (
