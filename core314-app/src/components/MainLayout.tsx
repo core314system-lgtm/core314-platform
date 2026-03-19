@@ -224,16 +224,14 @@ export function MainLayout() {
             </div>
           </header>
           
-          {/* Contextual onboarding nudge banner */}
-          {!onboarding.loading && !onboarding.isComplete && (
+          {/* Contextual onboarding nudge banner — only shown if user has NO briefs */}
+          {!onboarding.loading && !onboarding.hasGeneratedBrief && (
             <div className="px-6 pt-3">
               {!onboarding.hasConnectedIntegration ? (
                 <OnboardingNudge type="connect-integration" show={true} />
-              ) : !onboarding.hasGeneratedBrief ? (
+              ) : (
                 <OnboardingNudge type="generate-brief" show={true} />
-              ) : !onboarding.hasReviewedSignals ? (
-                <OnboardingNudge type="review-signals" show={true} />
-              ) : null}
+              )}
             </div>
           )}
 
@@ -242,9 +240,9 @@ export function MainLayout() {
             <Outlet />
           </div>
 
-          {/* Guided Walkthrough - first login only */}
+          {/* Guided Walkthrough - first login only, hidden once a brief exists */}
           <GuidedWalkthrough
-            isVisible={onboarding.isFirstLogin && !onboarding.isWalkthroughDismissed && !onboarding.loading}
+            isVisible={onboarding.isFirstLogin && !onboarding.isWalkthroughDismissed && !onboarding.loading && !onboarding.hasGeneratedBrief}
             onDismiss={onboarding.dismissWalkthrough}
           />
         </main>

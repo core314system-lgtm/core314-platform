@@ -56,7 +56,8 @@ export function useOnboardingStatus(): OnboardingStatus {
     return localStorage.getItem(BRIEF_HIGHLIGHTS_DISMISSED_KEY) === 'true';
   });
 
-  // First login detection: true if user has never seen the walkthrough before
+  // First login detection: true only if user has no briefs AND has never seen the walkthrough
+  // This is primarily driven by real data (hasGeneratedBrief), not localStorage alone
   const isFirstLogin = !isWalkthroughDismissed && !localStorage.getItem(FIRST_LOGIN_KEY);
 
   const checkStatus = useCallback(async () => {
@@ -165,7 +166,9 @@ export function useOnboardingStatus(): OnboardingStatus {
   ];
 
   const completedCount = steps.filter(s => s.isComplete).length;
-  const isComplete = completedCount === steps.length;
+  // Onboarding is complete once user has at least one brief (real data, not localStorage)
+  // This ensures onboarding NEVER reappears once a brief exists
+  const isComplete = hasGeneratedBrief || completedCount === steps.length;
 
   // Derive current step number: 0=not started, 1=connect, 2=brief, 3=signals
   const currentStep = !hasConnectedIntegration ? 1 : !hasGeneratedBrief ? 2 : !hasReviewedSignals ? 3 : 3;
