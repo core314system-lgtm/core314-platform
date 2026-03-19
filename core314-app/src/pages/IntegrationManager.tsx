@@ -876,6 +876,58 @@ export function IntegrationManager() {
                         }
                         return null;
                       })()}
+                      {/* QuickBooks Financial Transparency Metrics */}
+                      {integration.service_name === 'quickbooks' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const accountCount = (cfg.account_count as number) ?? 0;
+                        const invoiceCount = (cfg.invoice_count as number) ?? 0;
+                        const invoiceTotal = (cfg.invoice_total as number) ?? 0;
+                        const paymentCount = (cfg.payment_count as number) ?? 0;
+                        const paymentTotal = (cfg.payment_total as number) ?? 0;
+                        const expenseCount = (cfg.expense_count as number) ?? 0;
+                        const expenseTotal = (cfg.expense_total as number) ?? 0;
+                        const overdueInvoices = (cfg.overdue_invoices as number) ?? 0;
+                        const overdueTotal = (cfg.overdue_total as number) ?? 0;
+                        const companyName = cfg.company_name as string | null;
+                        const financialSyncedAt = cfg.financial_synced_at as string | null;
+                        const hasActivity = accountCount > 0 || invoiceCount > 0 || paymentCount > 0 || expenseCount > 0;
+
+                        if (hasActivity || financialSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-green-500" />
+                                QuickBooks Financial Transparency
+                                {companyName && <span className="text-gray-400 font-normal ml-1">({companyName})</span>}
+                              </div>
+                              {!hasActivity ? (
+                                <div className="text-xs text-gray-400 dark:text-gray-500 italic">No financial activity</div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Layers className="h-3 w-3" />Accounts</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{accountCount}</div>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><DollarSign className="h-3 w-3" />Invoices</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{invoiceCount}{invoiceTotal > 0 && <span className="text-gray-400 ml-1">(${invoiceTotal.toLocaleString()})</span>}</div>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><CheckCircle className="h-3 w-3" />Payments</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{paymentCount}{paymentTotal > 0 && <span className="text-gray-400 ml-1">(${paymentTotal.toLocaleString()})</span>}</div>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><DollarSign className="h-3 w-3" />Expenses</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{expenseCount}{expenseTotal > 0 && <span className="text-gray-400 ml-1">(${expenseTotal.toLocaleString()})</span>}</div>
+                                  {overdueInvoices > 0 && (<>
+                                    <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" />Overdue</div>
+                                    <div className="font-medium text-amber-600 dark:text-amber-400">{overdueInvoices}{overdueTotal > 0 && <span className="ml-1">(${overdueTotal.toLocaleString()})</span>}</div>
+                                  </>)}
+                                </div>
+                              )}
+                              {financialSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(financialSyncedAt)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
                         {disconnectConfirm === integration.id ? (
                           <div className="flex items-center gap-2">

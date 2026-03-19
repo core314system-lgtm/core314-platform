@@ -401,6 +401,38 @@ serve(async (req) => {
           });
         }
 
+        // Store metrics to user_integrations.config for UI transparency panel
+        if (integration.user_integration_id) {
+          const existingConfig = (userIntegration?.config as Record<string, unknown>) || {};
+          await supabase.from('user_integrations')
+            .update({
+              config: {
+                ...existingConfig,
+                account_count: metrics.accountCount,
+                bank_accounts: metrics.bankAccounts,
+                credit_card_accounts: metrics.creditCardAccounts,
+                invoice_count: metrics.invoiceCount,
+                invoice_total: metrics.invoiceTotal,
+                open_invoices: metrics.openInvoices,
+                paid_invoices: metrics.paidInvoices,
+                overdue_invoices: metrics.overdueInvoices,
+                overdue_total: metrics.overdueTotal,
+                payment_count: metrics.paymentCount,
+                payment_total: metrics.paymentTotal,
+                expense_count: metrics.expenseCount,
+                expense_total: metrics.expenseTotal,
+                collection_rate: metrics.collectionRate,
+                avg_days_to_payment: metrics.avgDaysToPayment,
+                invoice_aging: metrics.invoiceAging,
+                company_name: metrics.companyName,
+                financial_synced_at: now.toISOString(),
+                data_range_days: 90,
+              },
+              updated_at: now.toISOString(),
+            })
+            .eq('id', integration.user_integration_id);
+        }
+
         // Update ingestion state with rate limiting (15 minute interval)
         await supabase.from('integration_ingestion_state').upsert({
           user_id: integration.user_id,
