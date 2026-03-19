@@ -47,7 +47,7 @@ const CRITICAL_BUSINESS_SIGNALS = new Set([
 ]);
 
 // Category amplification multiplier for business-critical signals
-const CATEGORY_AMPLIFICATION = 1.8;
+const CATEGORY_AMPLIFICATION = 1.5;
 
 function getScoreLabel(score: number): string {
   if (score >= 80) return 'Healthy';
@@ -173,9 +173,9 @@ serve(async (req) => {
         // Multi-signal amplification penalty
         let multiSignalPenalty = 0;
         if (activeSignals.length >= 5) {
-          multiSignalPenalty = 15;
+          multiSignalPenalty = 10;
         } else if (activeSignals.length >= 3) {
-          multiSignalPenalty = 7;
+          multiSignalPenalty = 5;
         }
         score -= multiSignalPenalty;
         breakdown.multi_signal_penalty = multiSignalPenalty;

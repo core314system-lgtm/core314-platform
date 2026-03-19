@@ -845,7 +845,7 @@ Generate a JSON response with these exact fields:
       'financial_inactivity',
       'overdue_invoices',
     ]);
-    const CATEGORY_AMPLIFICATION = 1.8;
+    const CATEGORY_AMPLIFICATION = 1.5;
 
     const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; amplified: boolean }[] = [];
     let rawSignalPenalties = 0;
@@ -869,9 +869,9 @@ Generate a JSON response with these exact fields:
     // Multi-signal amplification: compounding penalty for widespread issues
     let multiSignalPenalty = 0;
     if (activeSignals.length >= 5) {
-      multiSignalPenalty = 15;
+      multiSignalPenalty = 10;
     } else if (activeSignals.length >= 3) {
-      multiSignalPenalty = 7;
+      multiSignalPenalty = 5;
     }
     const totalSignalPenalties = rawSignalPenalties + multiSignalPenalty;
 
