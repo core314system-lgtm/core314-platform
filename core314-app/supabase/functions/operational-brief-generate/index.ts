@@ -53,7 +53,8 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+      console.error('[operational-brief] Missing Authorization header');
+      return new Response(JSON.stringify({ error: 'Missing authorization header. Please sign in again.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -67,11 +68,14 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('[operational-brief] Auth failed:', userError?.message || 'No user returned');
+      return new Response(JSON.stringify({ error: 'Session expired or invalid. Please sign in again.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('[operational-brief] Authenticated user:', user.id);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

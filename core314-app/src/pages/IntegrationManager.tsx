@@ -198,25 +198,51 @@ export function IntegrationManager() {
     console.log('[AutoTrigger] Zero briefs found, starting auto-generation for user:', currentProfile.id);
     setAutoGenerating(true);
     try {
+      // Try to get current session token, refreshing if expired
+      let token: string | undefined;
       const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      token = sessionData.session?.access_token;
+
       if (!token) {
-        console.error('[AutoTrigger] No auth token available');
-        return;
+        console.log('[AutoTrigger] No session token, attempting refresh...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session?.access_token) {
+          console.error('[AutoTrigger] Session refresh failed:', refreshError?.message);
+          return;
+        }
+        token = refreshData.session.access_token;
+        console.log('[AutoTrigger] Session refreshed successfully');
       }
 
       const url = await getSupabaseFunctionUrl('operational-brief-generate');
       const anonKey = await getSupabaseAnonKey();
       console.log('[AutoTrigger] Calling operational-brief-generate...');
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
+
+      const callBrief = async (authToken: string) => {
+        return fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'apikey': anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+      };
+
+      let response = await callBrief(token);
+
+      // If 401 Unauthorized, try refreshing the session once and retry
+      if (response.status === 401) {
+        console.log('[AutoTrigger] Got 401, refreshing session and retrying...');
+        const { data: retryRefresh, error: retryError } = await supabase.auth.refreshSession();
+        if (retryError || !retryRefresh.session?.access_token) {
+          console.error('[AutoTrigger] Retry session refresh failed:', retryError?.message);
+          return;
+        }
+        token = retryRefresh.session.access_token;
+        response = await callBrief(token);
+      }
 
       const result = await response.json();
       console.log('[AutoTrigger] Response:', response.status, result);

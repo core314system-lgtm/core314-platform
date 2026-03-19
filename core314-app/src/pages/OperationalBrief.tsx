@@ -133,21 +133,55 @@ export function OperationalBrief() {
     setLimitReached(false);
 
     try {
+      // Try to get current session token, refreshing if expired
+      let token: string | undefined;
       const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error('No session');
+      token = sessionData.session?.access_token;
+
+      if (!token) {
+        // Session may be expired — attempt refresh
+        console.log('[Brief] No session token, attempting refresh...');
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session?.access_token) {
+          console.error('[Brief] Session refresh failed:', refreshError?.message);
+          setError('Your session has expired. Please sign in again.');
+          setGenerating(false);
+          return;
+        }
+        token = refreshData.session.access_token;
+        console.log('[Brief] Session refreshed successfully');
+      }
 
       const url = await getSupabaseFunctionUrl('operational-brief-generate');
       const anonKey = await getSupabaseAnonKey();
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      });
+
+      const callBrief = async (authToken: string) => {
+        return fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'apikey': anonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        });
+      };
+
+      let response = await callBrief(token);
+
+      // If 401 Unauthorized, try refreshing the session once and retry
+      if (response.status === 401) {
+        console.log('[Brief] Got 401, refreshing session and retrying...');
+        const { data: retryRefresh, error: retryError } = await supabase.auth.refreshSession();
+        if (retryError || !retryRefresh.session?.access_token) {
+          console.error('[Brief] Retry session refresh failed:', retryError?.message);
+          setError('Your session has expired. Please sign in again.');
+          setGenerating(false);
+          return;
+        }
+        token = retryRefresh.session.access_token;
+        response = await callBrief(token);
+      }
 
       const result = await response.json();
 
@@ -173,8 +207,13 @@ export function OperationalBrief() {
         setError(result.error || 'Failed to generate brief. Please try again.');
       }
     } catch (err) {
-      console.error('Error generating brief:', err);
-      setError('Failed to connect to the brief generator. Please try again.');
+      console.error('[Brief] Error generating brief:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (message.includes('session') || message.includes('Session')) {
+        setError('Your session has expired. Please sign in again.');
+      } else {
+        setError(`Brief generation failed: ${message}. Please try again.`);
+      }
     } finally {
       setGenerating(false);
     }
