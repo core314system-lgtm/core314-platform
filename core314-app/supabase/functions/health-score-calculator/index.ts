@@ -20,7 +20,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
  * - Critical: 30 base points
  * 
  * Category Amplification:
- * - Business-critical signals (financial inactivity, empty CRM) get 1.8x multiplier
+ * - Business-critical signals (financial inactivity, empty CRM) get 1.5x multiplier
  */
 
 const corsHeaders = {
