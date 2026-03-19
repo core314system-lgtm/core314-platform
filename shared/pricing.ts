@@ -25,13 +25,13 @@ export const PRICING = {
       'QuickBooks Integration',
       'Operational Health Score',
       'Signals Dashboard',
-      'AI Operational Briefs',
+      '30 AI Operational Briefs per month',
       'Operational Pattern Detection',
       'Operational Brief Archive',
       'Up to 5 Users',
     ],
     users: 5,
-    briefsPerMonth: -1, // unlimited
+    briefsPerMonth: 30,
     archiveDays: -1, // unlimited
   },
   commandCenter: {

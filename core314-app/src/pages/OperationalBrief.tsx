@@ -294,7 +294,7 @@ export function OperationalBrief() {
         <div className="flex items-center gap-3">
           {usage && usage.limit !== -1 && (
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {usage.remaining === -1 ? 'Unlimited' : `${usage.remaining} of ${usage.limit} briefs remaining`}
+              {usage.used} / {usage.limit} briefs used this month
             </span>
           )}
           {usage && usage.limit === -1 && (
@@ -337,7 +337,7 @@ export function OperationalBrief() {
                 onClick={() => navigate('/billing')}
               >
                 <ArrowUpCircle className="h-3.5 w-3.5 mr-1.5" />
-                Upgrade Plan
+                Upgrade to Command Center for unlimited briefs
               </Button>
             )}
           </div>
