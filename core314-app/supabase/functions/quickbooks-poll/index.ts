@@ -58,7 +58,12 @@ interface QueryResponse<T> {
   };
 }
 
-async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Promise<QuickBooksMetrics> {
+interface QuickBooksPollResult {
+  metrics: QuickBooksMetrics;
+  apiErrors: string[];
+}
+
+async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Promise<QuickBooksPollResult> {
   const metrics: QuickBooksMetrics = {
     invoiceCount: 0,
     invoiceTotal: 0,
@@ -80,6 +85,8 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
     avgDaysToPayment: null,
   };
 
+  const apiErrors: string[] = [];
+
   const headers = {
     'Authorization': `Bearer ${accessToken}`,
     'Accept': 'application/json',
@@ -95,7 +102,9 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
       const companyData = await companyResponse.json();
       metrics.companyName = companyData.CompanyInfo?.CompanyName || null;
     } else {
+      const errMsg = `CompanyInfo API ${companyResponse.status}`;
       console.log('[quickbooks-poll] Failed to fetch company info:', companyResponse.status);
+      apiErrors.push(errMsg);
     }
 
     // 2. Fetch Invoices (last 90 days)
@@ -153,7 +162,10 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
         }
       }
     } else {
-      console.log('[quickbooks-poll] Failed to fetch invoices:', invoiceResponse.status, await invoiceResponse.text());
+      const errText = await invoiceResponse.text();
+      const errMsg = `Invoice query API ${invoiceResponse.status}: ${errText.slice(0, 100)}`;
+      console.log('[quickbooks-poll] Failed to fetch invoices:', invoiceResponse.status, errText);
+      apiErrors.push(errMsg);
     }
 
     // 3. Fetch Payments (last 90 days)
@@ -182,7 +194,9 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
         }
       }
     } else {
+      const errMsg = `Payment query API ${paymentResponse.status}`;
       console.log('[quickbooks-poll] Failed to fetch payments:', paymentResponse.status);
+      apiErrors.push(errMsg);
     }
 
     // Compute collection rate: percentage of invoiced amount that has been paid
@@ -226,7 +240,9 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
         }
       }
     } else {
+      const errMsg = `Bill query API ${billResponse.status}`;
       console.log('[quickbooks-poll] Failed to fetch bills:', billResponse.status);
+      apiErrors.push(errMsg);
     }
 
     // 5. Fetch Accounts (chart of accounts structure)
@@ -252,14 +268,17 @@ async function fetchQuickBooksMetrics(accessToken: string, realmId: string): Pro
         }
       }
     } else {
+      const errMsg = `Account query API ${accountResponse.status}`;
       console.log('[quickbooks-poll] Failed to fetch accounts:', accountResponse.status);
+      apiErrors.push(errMsg);
     }
 
   } catch (error) {
     console.error('[quickbooks-poll] Error fetching QuickBooks metrics:', error);
+    apiErrors.push(`Fetch error: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  return metrics;
+  return { metrics, apiErrors };
 }
 
 serve(async (req) => {
@@ -361,13 +380,20 @@ serve(async (req) => {
         }
 
         // Fetch metrics from QuickBooks API
-        const metrics = await fetchQuickBooksMetrics(accessToken, realmId);
+        const { metrics, apiErrors } = await fetchQuickBooksMetrics(accessToken, realmId);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
+
+        // Log API errors if any (non-fatal — partial data is still stored)
+        if (apiErrors.length > 0) {
+          console.warn('[quickbooks-poll] API errors for user:', integration.user_id, apiErrors);
+        }
 
         // Insert integration event with financial metrics
         const hasData = metrics.invoiceCount > 0 || metrics.paymentCount > 0 || 
                        metrics.expenseCount > 0 || metrics.accountCount > 0;
 
+        // Always insert event when accountCount > 0 (even if invoices/payments/expenses = 0)
+        // This ensures signal-detector can distinguish "no activity" from "API failure"
         if (hasData) {
           await supabase.from('integration_events').insert({
             user_id: integration.user_id,
@@ -397,9 +423,46 @@ serve(async (req) => {
               avg_days_to_payment: metrics.avgDaysToPayment,
               data_range_days: 90,
               poll_timestamp: now.toISOString(),
+              api_errors: apiErrors.length > 0 ? apiErrors : undefined,
             },
           });
         }
+
+        // PRODUCTION HARDENING: Store comprehensive metrics to user_integrations.config
+        // This enables the UI transparency panel to show real-time data (matching Slack/HubSpot pattern)
+        const existingConfig = (userIntegration?.config as Record<string, unknown>) || {};
+        await supabase.from('user_integrations')
+          .update({
+            config: {
+              ...existingConfig,
+              // Core financial metrics
+              account_count: metrics.accountCount,
+              bank_accounts: metrics.bankAccounts,
+              credit_card_accounts: metrics.creditCardAccounts,
+              invoice_count: metrics.invoiceCount,
+              invoice_total: metrics.invoiceTotal,
+              open_invoices: metrics.openInvoices,
+              paid_invoices: metrics.paidInvoices,
+              overdue_invoices: metrics.overdueInvoices,
+              overdue_total: metrics.overdueTotal,
+              payment_count: metrics.paymentCount,
+              payment_total: metrics.paymentTotal,
+              expense_count: metrics.expenseCount,
+              expense_total: metrics.expenseTotal,
+              // Computed metrics
+              collection_rate: metrics.collectionRate,
+              avg_days_to_payment: metrics.avgDaysToPayment,
+              invoice_aging: metrics.invoiceAging,
+              // Metadata
+              company_name: metrics.companyName,
+              financial_synced_at: now.toISOString(),
+              data_range_days: 90,
+              // Error tracking
+              last_api_errors: apiErrors.length > 0 ? apiErrors.slice(0, 5) : null,
+            },
+            updated_at: now.toISOString(),
+          })
+          .eq('id', integration.user_integration_id);
 
         // Update ingestion state with rate limiting (15 minute interval)
         await supabase.from('integration_ingestion_state').upsert({
@@ -419,6 +482,8 @@ serve(async (req) => {
           payments: metrics.paymentCount,
           expenses: metrics.expenseCount,
           accounts: metrics.accountCount,
+          apiErrors: apiErrors.length,
+          company: metrics.companyName,
         });
       } catch (userError: unknown) {
         const errorMessage = userError instanceof Error ? userError.message : String(userError);

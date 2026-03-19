@@ -816,6 +816,103 @@ export function IntegrationManager() {
                         }
                         return null;
                       })()}
+                      {/* QuickBooks Financial Transparency Metrics */}
+                      {integration.service_name === 'quickbooks' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const accountCount = (cfg.account_count as number) ?? 0;
+                        const bankAccounts = (cfg.bank_accounts as number) ?? 0;
+                        const creditCardAccounts = (cfg.credit_card_accounts as number) ?? 0;
+                        const invoiceCount = (cfg.invoice_count as number) ?? 0;
+                        const invoiceTotal = (cfg.invoice_total as number) ?? 0;
+                        const openInvoices = (cfg.open_invoices as number) ?? 0;
+                        const overdueInvoices = (cfg.overdue_invoices as number) ?? 0;
+                        const paymentCount = (cfg.payment_count as number) ?? 0;
+                        const paymentTotal = (cfg.payment_total as number) ?? 0;
+                        const expenseCount = (cfg.expense_count as number) ?? 0;
+                        const expenseTotal = (cfg.expense_total as number) ?? 0;
+                        const collectionRate = (cfg.collection_rate as number) ?? 0;
+                        const companyName = cfg.company_name as string | null;
+                        const financialSyncedAt = cfg.financial_synced_at as string | null;
+                        const lastErrors = cfg.last_api_errors as string[] | null;
+
+                        if (accountCount > 0 || financialSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-green-500" />
+                                QuickBooks Financial Transparency
+                                {companyName && <span className="text-gray-400 font-normal ml-1">({companyName})</span>}
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <Layers className="h-3 w-3" />
+                                  Accounts
+                                </div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">
+                                  {accountCount}
+                                  {(bankAccounts > 0 || creditCardAccounts > 0) && (
+                                    <span className="text-gray-400 ml-1">({bankAccounts} bank, {creditCardAccounts} CC)</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <DollarSign className="h-3 w-3" />
+                                  Invoices
+                                </div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">
+                                  {invoiceCount}
+                                  {invoiceTotal > 0 && <span className="text-gray-400 ml-1">(${invoiceTotal.toLocaleString()})</span>}
+                                  {openInvoices > 0 && <span className="text-amber-600 ml-1">{openInvoices} open</span>}
+                                  {overdueInvoices > 0 && <span className="text-red-600 ml-1">{overdueInvoices} overdue</span>}
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Payments
+                                </div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">
+                                  {paymentCount}
+                                  {paymentTotal > 0 && <span className="text-gray-400 ml-1">(${paymentTotal.toLocaleString()})</span>}
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                  <TrendingDown className="h-3 w-3" />
+                                  Expenses
+                                </div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">
+                                  {expenseCount}
+                                  {expenseTotal > 0 && <span className="text-gray-400 ml-1">(${expenseTotal.toLocaleString()})</span>}
+                                </div>
+                                {collectionRate > 0 && (<>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                    <BarChart3 className="h-3 w-3" />
+                                    Collection rate
+                                  </div>
+                                  <div className={`font-medium ${collectionRate >= 70 ? 'text-green-600' : collectionRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {collectionRate}%
+                                  </div>
+                                </>)}
+                              </div>
+                              {financialSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />
+                                  Last sync: {formatTimeAgo(financialSyncedAt)}
+                                </div>
+                              )}
+                              {invoiceCount === 0 && paymentCount === 0 && expenseCount === 0 && accountCount > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 p-1.5 rounded mt-1">
+                                  <ShieldAlert className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span>No invoices, payments, or expenses found in the last 90 days. {accountCount} accounts confirmed via API — this is verified empty data.</span>
+                                </div>
+                              )}
+                              {lastErrors && lastErrors.length > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-red-500 dark:text-red-400 pt-0.5">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span className="truncate" title={lastErrors[0]}>{lastErrors.length} API error{lastErrors.length > 1 ? 's' : ''} in last poll</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       {/* HubSpot CRM Transparency Metrics */}
                       {integration.service_name === 'hubspot' && ui?.config && (() => {
                         const cfg = ui.config;

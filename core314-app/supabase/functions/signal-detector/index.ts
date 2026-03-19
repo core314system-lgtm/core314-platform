@@ -299,7 +299,26 @@ serve(async (req) => {
           const collectionRate = (latest.collection_rate as number) ?? 0;
           const overdueTotal = (latest.overdue_total as number) ?? 0;
           const invoiceCount = (latest.invoice_count as number) ?? 0;
+          const paymentCount = (latest.payment_count as number) ?? 0;
+          const expenseCount = (latest.expense_count as number) ?? 0;
+          const accountCount = (latest.account_count as number) ?? 0;
           const invoiceAging = latest.invoice_aging as { current?: number; aging30?: number; aging60?: number; aging90Plus?: number } | null;
+          const qbApiErrors = (latest.api_errors as string[]) ?? [];
+          const companyName = (latest.company_name as string) ?? null;
+
+          console.log(`[signal-detector] QuickBooks data for user ${userId}: accounts=${accountCount}, invoices=${invoiceCount}, payments=${paymentCount}, expenses=${expenseCount}, apiErrors=${qbApiErrors.length}${companyName ? `, company=${companyName}` : ''}`);
+
+          // Signal: API errors detected during poll (non-fatal but worth flagging)
+          if (qbApiErrors.length > 0) {
+            signals.push({
+              signal_type: 'api_errors',
+              severity: qbApiErrors.length >= 3 ? 'high' : 'medium',
+              confidence: 95,
+              description: `QuickBooks API returned ${qbApiErrors.length} error${qbApiErrors.length > 1 ? 's' : ''} during last poll. Data may be incomplete. ${qbApiErrors[0]}`,
+              source_integration: 'quickbooks',
+              signal_data: { category: classifySignal('api_errors', 'quickbooks'), metric: 'api_errors', error_count: qbApiErrors.length, errors: qbApiErrors.slice(0, 3) },
+            });
+          }
 
           // Signal: Overdue invoices
           if (overdueInvoices > 0) {
@@ -354,17 +373,28 @@ serve(async (req) => {
             }
           }
 
-          // Signal: No financial activity (connected but no data)
-          if (invoiceCount === 0 && (latest.payment_count as number) === 0 && (latest.expense_count as number) === 0) {
-            const accountCount = (latest.account_count as number) ?? 0;
-            if (accountCount > 0) {
+          // Signal: No financial activity (connected but no transactional data)
+          // PRODUCTION HARDENING: Only emit when accountCount > 0 (proves API works) AND no API errors
+          // This confirms the signal is data-driven (API returned empty datasets), not failure-driven
+          if (invoiceCount === 0 && paymentCount === 0 && expenseCount === 0) {
+            if (accountCount > 0 && qbApiErrors.length === 0) {
               signals.push({
                 signal_type: 'no_financial_activity',
                 severity: 'low',
-                confidence: 90,
-                description: `QuickBooks is connected (${accountCount} accounts) but no invoices, payments, or expenses found in the last 90 days. This may be a new or inactive account.`,
+                confidence: 95,
+                description: `QuickBooks is connected and verified (${accountCount} accounts${companyName ? `, ${companyName}` : ''}) but the API returned zero invoices, payments, and expenses for the last 90 days. This is confirmed empty data — not an API failure.`,
                 source_integration: 'quickbooks',
-                signal_data: { category: classifySignal('no_financial_activity', 'quickbooks'), metric: 'no_financial_activity', account_count: accountCount },
+                signal_data: { category: classifySignal('no_financial_activity', 'quickbooks'), metric: 'no_financial_activity', account_count: accountCount, company_name: companyName, api_verified: true, data_range_days: 90 },
+              });
+            } else if (accountCount > 0 && qbApiErrors.length > 0) {
+              // Accounts exist but API errors occurred — lower confidence, may be partial failure
+              signals.push({
+                signal_type: 'no_financial_activity',
+                severity: 'low',
+                confidence: 60,
+                description: `QuickBooks is connected (${accountCount} accounts) but no invoices, payments, or expenses found. Note: ${qbApiErrors.length} API error${qbApiErrors.length > 1 ? 's' : ''} occurred during polling — data may be incomplete.`,
+                source_integration: 'quickbooks',
+                signal_data: { category: classifySignal('no_financial_activity', 'quickbooks'), metric: 'no_financial_activity', account_count: accountCount, company_name: companyName, api_verified: false, api_error_count: qbApiErrors.length },
               });
             }
           }
