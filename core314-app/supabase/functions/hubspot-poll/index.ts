@@ -24,27 +24,35 @@ const corsHeaders = {
 };
 
 const HUBSPOT_API_BASE = 'https://api.hubapi.com';
+const STALLED_THRESHOLD_DAYS = 6;
+const MAX_PAGES = 10; // Safety limit: 10 pages * 100 = 1000 deals max
 
 interface HubSpotMetrics {
-  // Deals
   totalDeals: number;
+  dealsAnalyzed: number;
   openDeals: number;
   wonDeals: number;
   lostDeals: number;
   totalPipelineValue: number;
   openPipelineValue: number;
   stalledDeals: number;
-  stalledDealIds: string[];
+  stalledDealNames: string[];
   avgDealAge: number;
   dealsByStage: Record<string, number>;
-  // Contacts
+  dealsByStageLabel: Record<string, number>;
+  recentDeals7d: number;
+  maxStageDays: number;
+  dealsStuckOver14d: number;
   totalContacts: number;
-  recentContacts: number;
-  // Companies
+  recentContacts7d: number;
   totalCompanies: number;
-  // Meta
+  pipelineCount: number;
+  pipelineNames: string[];
+  lastDealActivity: string | null;
   lastActivityTimestamp: string | null;
   portalName: string | null;
+  portalId: string | null;
+  apiErrors: string[];
 }
 
 interface HubSpotDeal {
@@ -52,6 +60,7 @@ interface HubSpotDeal {
   properties: {
     dealname?: string;
     dealstage?: string;
+    pipeline?: string;
     amount?: string;
     closedate?: string;
     createdate?: string;
@@ -62,23 +71,73 @@ interface HubSpotDeal {
   };
 }
 
+interface PipelineStage { stageId: string; label: string; displayOrder: number; }
+interface Pipeline { id: string; label: string; stages: PipelineStage[]; }
+
+async function refreshHubSpotToken(
+  supabase: ReturnType<typeof createClient>,
+  oauthTokenId: string,
+  refreshTokenSecretId: string | null,
+  accessTokenSecretId: string,
+): Promise<string | null> {
+  if (!refreshTokenSecretId) { console.error('[hubspot-poll] No refresh token secret ID'); return null; }
+  try {
+    const { data: refreshToken, error: rtError } = await supabase.rpc('get_decrypted_secret', { secret_id: refreshTokenSecretId });
+    if (rtError || !refreshToken) { console.error('[hubspot-poll] Failed to get refresh token:', rtError); return null; }
+    const clientId = Deno.env.get('HUBSPOT_CLIENT_ID') ?? '';
+    const clientSecret = Deno.env.get('HUBSPOT_CLIENT_SECRET') ?? '';
+    if (!clientId || !clientSecret) { console.error('[hubspot-poll] Missing HUBSPOT_CLIENT_ID or HUBSPOT_CLIENT_SECRET'); return null; }
+    const response = await fetch('https://api.hubapi.com/oauth/v1/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken }),
+    });
+    if (!response.ok) { const errText = await response.text(); console.error('[hubspot-poll] Token refresh failed:', response.status, errText); return null; }
+    const tokenData = await response.json();
+    const newAccessToken = tokenData.access_token;
+    const expiresIn = tokenData.expires_in || 1800;
+    const newRefreshToken = tokenData.refresh_token;
+    await supabase.rpc('update_secret', { secret_id: accessTokenSecretId, new_secret: newAccessToken });
+    if (newRefreshToken && newRefreshToken !== refreshToken) {
+      await supabase.rpc('update_secret', { secret_id: refreshTokenSecretId, new_secret: newRefreshToken });
+    }
+    const newExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
+    await supabase.from('oauth_tokens').update({ expires_at: newExpiry, updated_at: new Date().toISOString() }).eq('id', oauthTokenId);
+    console.log('[hubspot-poll] Token refreshed, new expiry:', newExpiry);
+    return newAccessToken;
+  } catch (err) { console.error('[hubspot-poll] Token refresh error:', err); return null; }
+}
+
+async function fetchPipelines(headers: Record<string, string>): Promise<Pipeline[]> {
+  try {
+    const response = await fetch(`${HUBSPOT_API_BASE}/crm/v3/pipelines/deals`, { headers });
+    if (!response.ok) { console.warn('[hubspot-poll] Failed to fetch pipelines:', response.status); return []; }
+    const data = await response.json();
+    return (data.results || []).map((p: Record<string, unknown>) => ({
+      id: p.id as string, label: p.label as string,
+      stages: ((p.stages as Record<string, unknown>[]) || []).map((s: Record<string, unknown>) => ({
+        stageId: (s.stageId as string) || (s.id as string), label: s.label as string, displayOrder: (s.displayOrder as number) || 0,
+      })),
+    }));
+  } catch (err) { console.error('[hubspot-poll] Error fetching pipelines:', err); return []; }
+}
+
+function buildStageLabelMap(pipelines: Pipeline[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const p of pipelines) { for (const s of p.stages) { map[s.stageId] = s.label; } }
+  return map;
+}
+
 async function fetchHubSpotMetrics(accessToken: string): Promise<HubSpotMetrics> {
   const metrics: HubSpotMetrics = {
-    totalDeals: 0,
-    openDeals: 0,
-    wonDeals: 0,
-    lostDeals: 0,
-    totalPipelineValue: 0,
-    openPipelineValue: 0,
-    stalledDeals: 0,
-    stalledDealIds: [],
-    avgDealAge: 0,
-    dealsByStage: {},
-    totalContacts: 0,
-    recentContacts: 0,
-    totalCompanies: 0,
-    lastActivityTimestamp: null,
-    portalName: null,
+    totalDeals: 0, dealsAnalyzed: 0, openDeals: 0, wonDeals: 0, lostDeals: 0,
+    totalPipelineValue: 0, openPipelineValue: 0, stalledDeals: 0, stalledDealNames: [],
+    avgDealAge: 0, dealsByStage: {}, dealsByStageLabel: {}, recentDeals7d: 0,
+    maxStageDays: 0, dealsStuckOver14d: 0,
+    totalContacts: 0, recentContacts7d: 0, totalCompanies: 0,
+    pipelineCount: 0, pipelineNames: [],
+    lastDealActivity: null, lastActivityTimestamp: null,
+    portalName: null, portalId: null, apiErrors: [],
   };
 
   const headers = {
@@ -86,159 +145,179 @@ async function fetchHubSpotMetrics(accessToken: string): Promise<HubSpotMetrics>
     'Content-Type': 'application/json',
   };
 
+  // 1. Fetch pipelines for stage label resolution
+  console.log('[hubspot-poll] Fetching pipelines...');
+  const pipelines = await fetchPipelines(headers);
+  metrics.pipelineCount = pipelines.length;
+  metrics.pipelineNames = pipelines.map(p => p.label);
+  const stageLabelMap = buildStageLabelMap(pipelines);
+  console.log('[hubspot-poll] Pipelines:', metrics.pipelineCount, 'Stage labels:', Object.keys(stageLabelMap).length);
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  // 2. Fetch ALL deals with pagination
+  console.log('[hubspot-poll] Fetching deals with pagination...');
+  const allDeals: HubSpotDeal[] = [];
+  let dealsAfter: string | undefined;
+  let pageCount = 0;
+
   try {
-    // 1. Fetch deals with properties
-    console.log('[hubspot-poll] Fetching deals...');
-    const dealsResponse = await fetch(
-      `${HUBSPOT_API_BASE}/crm/v3/objects/deals?limit=100&properties=dealname,dealstage,amount,closedate,createdate,hs_lastmodifieddate,notes_last_updated,num_notes`,
-      { headers }
-    );
+    do {
+      const url = new URL(`${HUBSPOT_API_BASE}/crm/v3/objects/deals`);
+      url.searchParams.set('limit', '100');
+      url.searchParams.set('properties', 'dealname,dealstage,pipeline,amount,closedate,createdate,hs_lastmodifieddate,notes_last_updated,num_notes');
+      if (dealsAfter) url.searchParams.set('after', dealsAfter);
 
-    if (dealsResponse.ok) {
+      const dealsResponse = await fetch(url.toString(), { headers });
+      pageCount++;
+
+      if (!dealsResponse.ok) {
+        const errText = await dealsResponse.text();
+        console.error('[hubspot-poll] Failed to fetch deals page', pageCount, ':', dealsResponse.status, errText);
+        metrics.apiErrors.push(`deals_fetch_page${pageCount}: ${dealsResponse.status}`);
+        break;
+      }
+
       const dealsData = await dealsResponse.json();
-      const deals: HubSpotDeal[] = dealsData.results || [];
-      metrics.totalDeals = dealsData.total || deals.length;
+      const pageDeals: HubSpotDeal[] = dealsData.results || [];
+      allDeals.push(...pageDeals);
 
-      const now = Date.now();
-      const sixDaysMs = 6 * 24 * 60 * 60 * 1000;
-      let totalAge = 0;
+      if (dealsData.total !== undefined) { metrics.totalDeals = dealsData.total; }
+      dealsAfter = dealsData.paging?.next?.after;
 
-      for (const deal of deals) {
-        const amount = parseFloat(deal.properties.amount || '0');
-        const stage = deal.properties.dealstage || 'unknown';
-        const lastModified = deal.properties.hs_lastmodifieddate;
-        const createDate = deal.properties.createdate;
+      if (dealsAfter && pageCount < MAX_PAGES) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    } while (dealsAfter && pageCount < MAX_PAGES);
 
-        // Track stage distribution
-        metrics.dealsByStage[stage] = (metrics.dealsByStage[stage] || 0) + 1;
+    if (metrics.totalDeals === 0) { metrics.totalDeals = allDeals.length; }
+    metrics.dealsAnalyzed = allDeals.length;
+    console.log('[hubspot-poll] Fetched', allDeals.length, 'deals across', pageCount, 'pages (total:', metrics.totalDeals, ')');
 
-        // Determine deal status
-        const isClosed = stage.includes('closedwon') || stage.includes('closedlost') || 
-                         stage === 'closed won' || stage === 'closed lost';
-        const isWon = stage.includes('closedwon') || stage === 'closed won';
-        const isLost = stage.includes('closedlost') || stage === 'closed lost';
+    const now = Date.now();
+    const stalledThresholdMs = STALLED_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+    const fourteenDaysMs = 14 * 24 * 60 * 60 * 1000;
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    let totalAge = 0;
 
-        if (isWon) {
-          metrics.wonDeals++;
-          metrics.totalPipelineValue += amount;
-        } else if (isLost) {
-          metrics.lostDeals++;
-          metrics.totalPipelineValue += amount;
-        } else {
-          metrics.openDeals++;
-          metrics.openPipelineValue += amount;
-          metrics.totalPipelineValue += amount;
+    for (const deal of allDeals) {
+      const amount = parseFloat(deal.properties.amount || '0');
+      const stage = deal.properties.dealstage || 'unknown';
+      const stageLabel = stageLabelMap[stage] || stage;
+      const lastModified = deal.properties.hs_lastmodifieddate;
+      const createDate = deal.properties.createdate;
+      const dealName = deal.properties.dealname || `Deal ${deal.id}`;
 
-          // Check for stalled deals (no activity in 6+ days)
-          if (lastModified) {
-            const lastModifiedTime = new Date(lastModified).getTime();
-            if (now - lastModifiedTime > sixDaysMs) {
-              metrics.stalledDeals++;
-              metrics.stalledDealIds.push(deal.id);
-            }
-          }
+      metrics.dealsByStage[stage] = (metrics.dealsByStage[stage] || 0) + 1;
+      metrics.dealsByStageLabel[stageLabel] = (metrics.dealsByStageLabel[stageLabel] || 0) + 1;
 
-          // Calculate deal age
-          if (createDate) {
-            const ageMs = now - new Date(createDate).getTime();
-            totalAge += ageMs / (24 * 60 * 60 * 1000); // Convert to days
-          }
-        }
+      if (createDate && (now - new Date(createDate).getTime()) < sevenDaysMs) { metrics.recentDeals7d++; }
 
-        // Track latest activity
+      const isWon = stage.includes('closedwon') || stage === 'closed won';
+      const isLost = stage.includes('closedlost') || stage === 'closed lost';
+
+      if (isWon) {
+        metrics.wonDeals++;
+        metrics.totalPipelineValue += amount;
+      } else if (isLost) {
+        metrics.lostDeals++;
+        metrics.totalPipelineValue += amount;
+      } else {
+        metrics.openDeals++;
+        metrics.openPipelineValue += amount;
+        metrics.totalPipelineValue += amount;
+
         if (lastModified) {
-          if (!metrics.lastActivityTimestamp || lastModified > metrics.lastActivityTimestamp) {
-            metrics.lastActivityTimestamp = lastModified;
+          const lastModifiedTime = new Date(lastModified).getTime();
+          const daysSinceModified = (now - lastModifiedTime) / (24 * 60 * 60 * 1000);
+
+          if (now - lastModifiedTime > stalledThresholdMs) {
+            metrics.stalledDeals++;
+            if (metrics.stalledDealNames.length < 10) { metrics.stalledDealNames.push(dealName); }
           }
+          if (now - lastModifiedTime > fourteenDaysMs) { metrics.dealsStuckOver14d++; }
+          if (daysSinceModified > metrics.maxStageDays) { metrics.maxStageDays = Math.round(daysSinceModified); }
+        }
+
+        if (createDate) {
+          const ageMs = now - new Date(createDate).getTime();
+          totalAge += ageMs / (24 * 60 * 60 * 1000);
         }
       }
 
-      if (metrics.openDeals > 0) {
-        metrics.avgDealAge = Math.round(totalAge / metrics.openDeals);
+      if (lastModified) {
+        if (!metrics.lastDealActivity || lastModified > metrics.lastDealActivity) { metrics.lastDealActivity = lastModified; }
+        if (!metrics.lastActivityTimestamp || lastModified > metrics.lastActivityTimestamp) { metrics.lastActivityTimestamp = lastModified; }
       }
-
-      // Handle pagination if there are more deals
-      if (dealsData.paging?.next?.after) {
-        // Just get the total count from the first page
-        metrics.totalDeals = dealsData.total || metrics.totalDeals;
-      }
-    } else {
-      console.error('[hubspot-poll] Failed to fetch deals:', dealsResponse.status, await dealsResponse.text());
     }
 
-    // Small delay for rate limiting
-    await new Promise(resolve => setTimeout(resolve, 100));
+    if (metrics.openDeals > 0) { metrics.avgDealAge = Math.round(totalAge / metrics.openDeals); }
+  } catch (error) {
+    console.error('[hubspot-poll] Error fetching deals:', error);
+    metrics.apiErrors.push(`deals_error: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
-    // 2. Fetch contacts count
-    console.log('[hubspot-poll] Fetching contacts...');
-    const contactsResponse = await fetch(
-      `${HUBSPOT_API_BASE}/crm/v3/objects/contacts?limit=1`,
-      { headers }
-    );
+  await new Promise(resolve => setTimeout(resolve, 150));
 
+  // 3. Fetch contacts count
+  console.log('[hubspot-poll] Fetching contacts...');
+  try {
+    const contactsResponse = await fetch(`${HUBSPOT_API_BASE}/crm/v3/objects/contacts?limit=1`, { headers });
     if (contactsResponse.ok) {
       const contactsData = await contactsResponse.json();
       metrics.totalContacts = contactsData.total || 0;
     } else {
-      console.error('[hubspot-poll] Failed to fetch contacts:', contactsResponse.status);
+      const errText = await contactsResponse.text();
+      console.error('[hubspot-poll] Failed to fetch contacts:', contactsResponse.status, errText);
+      metrics.apiErrors.push(`contacts_fetch: ${contactsResponse.status}`);
     }
+  } catch (error) {
+    console.error('[hubspot-poll] Error fetching contacts:', error);
+    metrics.apiErrors.push(`contacts_error: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 150));
 
-    // 3. Fetch recently created contacts (last 7 days)
+  // 4. Fetch recently created contacts (last 7 days)
+  try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const recentContactsResponse = await fetch(
-      `${HUBSPOT_API_BASE}/crm/v3/objects/contacts/search`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          filterGroups: [{
-            filters: [{
-              propertyName: 'createdate',
-              operator: 'GTE',
-              value: sevenDaysAgo,
-            }],
-          }],
-          limit: 1,
-        }),
-      }
-    );
-
+    const recentContactsResponse = await fetch(`${HUBSPOT_API_BASE}/crm/v3/objects/contacts/search`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'createdate', operator: 'GTE', value: sevenDaysAgo }] }], limit: 1 }),
+    });
     if (recentContactsResponse.ok) {
       const recentData = await recentContactsResponse.json();
-      metrics.recentContacts = recentData.total || 0;
-    }
+      metrics.recentContacts7d = recentData.total || 0;
+    } else { console.warn('[hubspot-poll] Recent contacts search failed:', recentContactsResponse.status); }
+  } catch (error) { console.warn('[hubspot-poll] Error fetching recent contacts:', error); }
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 150));
 
-    // 4. Fetch companies count
-    console.log('[hubspot-poll] Fetching companies...');
-    const companiesResponse = await fetch(
-      `${HUBSPOT_API_BASE}/crm/v3/objects/companies?limit=1`,
-      { headers }
-    );
-
+  // 5. Fetch companies count
+  console.log('[hubspot-poll] Fetching companies...');
+  try {
+    const companiesResponse = await fetch(`${HUBSPOT_API_BASE}/crm/v3/objects/companies?limit=1`, { headers });
     if (companiesResponse.ok) {
       const companiesData = await companiesResponse.json();
       metrics.totalCompanies = companiesData.total || 0;
+    } else {
+      console.warn('[hubspot-poll] Failed to fetch companies:', companiesResponse.status);
+      metrics.apiErrors.push(`companies_fetch: ${companiesResponse.status}`);
     }
+  } catch (error) { console.warn('[hubspot-poll] Error fetching companies:', error); }
 
-    // 5. Get account info
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const accountResponse = await fetch(
-      `${HUBSPOT_API_BASE}/account-info/v3/details`,
-      { headers }
-    );
+  await new Promise(resolve => setTimeout(resolve, 150));
 
+  // 6. Get account info
+  console.log('[hubspot-poll] Fetching account info...');
+  try {
+    const accountResponse = await fetch(`${HUBSPOT_API_BASE}/account-info/v3/details`, { headers });
     if (accountResponse.ok) {
       const accountData = await accountResponse.json();
       metrics.portalName = accountData.companyName || accountData.portalId?.toString() || null;
-    }
-
-  } catch (error) {
-    console.error('[hubspot-poll] Error fetching HubSpot metrics:', error);
-  }
+      metrics.portalId = accountData.portalId?.toString() || null;
+    } else { console.warn('[hubspot-poll] Failed to fetch account info:', accountResponse.status); }
+  } catch (error) { console.warn('[hubspot-poll] Error fetching account info:', error); }
 
   return metrics;
 }
@@ -254,7 +333,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch all active HubSpot integrations with OAuth tokens
+    console.log('[hubspot-poll] Starting HubSpot poll run');
+
     const { data: hubspotIntegrations, error: intError } = await supabase
       .from('oauth_tokens')
       .select(`
@@ -263,6 +343,7 @@ serve(async (req) => {
         user_integration_id,
         integration_registry_id,
         access_token_secret_id,
+        refresh_token_secret_id,
         expires_at,
         integration_registry!inner (
           service_name
@@ -279,10 +360,13 @@ serve(async (req) => {
     }
 
     if (!hubspotIntegrations || hubspotIntegrations.length === 0) {
+      console.log('[hubspot-poll] No HubSpot integrations found');
       return new Response(JSON.stringify({ message: 'No HubSpot integrations found', processed: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('[hubspot-poll] Found', hubspotIntegrations.length, 'HubSpot integration(s)');
 
     let processedCount = 0;
     const errors: string[] = [];
@@ -314,19 +398,49 @@ serve(async (req) => {
           continue;
         }
 
-        // Check token expiration
+        const tokenStr = String(accessToken);
+        console.log('[hubspot-poll] Token retrieved for user:', integration.user_id, { token_length: tokenStr.length });
+
+        // Check token expiration and attempt refresh if needed
+        let currentToken = tokenStr;
         if (integration.expires_at && new Date(integration.expires_at) < now) {
-          console.log('[hubspot-poll] Token expired for user:', integration.user_id);
-          errors.push(`Token expired for user ${integration.user_id}`);
-          continue;
+          console.log('[hubspot-poll] Token expired, attempting refresh for user:', integration.user_id);
+          const refreshedToken = await refreshHubSpotToken(
+            supabase, integration.id,
+            (integration as Record<string, unknown>).refresh_token_secret_id as string | null,
+            integration.access_token_secret_id,
+          );
+          if (refreshedToken) {
+            currentToken = refreshedToken;
+            console.log('[hubspot-poll] Token refreshed successfully for user:', integration.user_id);
+          } else {
+            console.error('[hubspot-poll] Token refresh failed for user:', integration.user_id);
+            errors.push(`Token expired and refresh failed for user ${integration.user_id}`);
+            if (integration.user_integration_id) {
+              await supabase.from('user_integrations').update({
+                error_message: 'HubSpot token expired and could not be refreshed. Please reconnect.',
+                last_error_at: now.toISOString(),
+                consecutive_failures: 1,
+              }).eq('id', integration.user_integration_id);
+            }
+            continue;
+          }
         }
 
         // Fetch metrics from HubSpot API
-        const metrics = await fetchHubSpotMetrics(accessToken);
+        console.log('[hubspot-poll] Fetching HubSpot metrics for user:', integration.user_id);
+        const metrics = await fetchHubSpotMetrics(currentToken);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
-        // Insert integration event with CRM metrics
-        await supabase.from('integration_events').insert({
+        console.log('[hubspot-poll] Metrics summary:', {
+          totalDeals: metrics.totalDeals, dealsAnalyzed: metrics.dealsAnalyzed,
+          openDeals: metrics.openDeals, stalledDeals: metrics.stalledDeals,
+          totalContacts: metrics.totalContacts, totalCompanies: metrics.totalCompanies,
+          pipelineCount: metrics.pipelineCount, apiErrors: metrics.apiErrors.length,
+        });
+
+        // Insert integration event with comprehensive CRM metrics
+        const { error: eventError } = await supabase.from('integration_events').insert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           integration_registry_id: integration.integration_registry_id,
@@ -335,30 +449,43 @@ serve(async (req) => {
           occurred_at: eventTime,
           source: 'hubspot_api_poll',
           metadata: {
-            // Deal metrics
             total_deals: metrics.totalDeals,
+            deals_analyzed: metrics.dealsAnalyzed,
             open_deals: metrics.openDeals,
             won_deals: metrics.wonDeals,
             lost_deals: metrics.lostDeals,
+            stalled_deals: metrics.stalledDeals,
+            stalled_deal_names: metrics.stalledDealNames,
+            recent_deals_7d: metrics.recentDeals7d,
+            deals_stuck_over_14d: metrics.dealsStuckOver14d,
+            max_stage_days: metrics.maxStageDays,
             total_pipeline_value: metrics.totalPipelineValue,
             open_pipeline_value: metrics.openPipelineValue,
-            stalled_deals: metrics.stalledDeals,
-            stalled_deal_ids: metrics.stalledDealIds.slice(0, 20), // Limit stored IDs
             avg_deal_age_days: metrics.avgDealAge,
             deals_by_stage: metrics.dealsByStage,
-            // Contact metrics
+            deals_by_stage_label: metrics.dealsByStageLabel,
             total_contacts: metrics.totalContacts,
-            recent_contacts_7d: metrics.recentContacts,
-            // Company metrics
+            recent_contacts_7d: metrics.recentContacts7d,
             total_companies: metrics.totalCompanies,
-            // Meta
+            pipeline_count: metrics.pipelineCount,
+            pipeline_names: metrics.pipelineNames,
+            last_deal_activity: metrics.lastDealActivity,
             portal_name: metrics.portalName,
+            portal_id: metrics.portalId,
             poll_timestamp: now.toISOString(),
+            api_errors: metrics.apiErrors.length > 0 ? metrics.apiErrors.slice(0, 10) : undefined,
           },
         });
 
+        if (eventError) {
+          console.error('[hubspot-poll] Error inserting event:', eventError);
+          errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
+        } else {
+          console.log('[hubspot-poll] Event inserted successfully for user:', integration.user_id);
+        }
+
         // Update ingestion state with 15-minute rate limiting
-        await supabase.from('integration_ingestion_state').upsert({
+        const { error: stateError } = await supabase.from('integration_ingestion_state').upsert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           service_name: 'hubspot',
@@ -369,13 +496,46 @@ serve(async (req) => {
           updated_at: now.toISOString(),
         }, { onConflict: 'user_id,user_integration_id,service_name' });
 
+        if (stateError) { console.error('[hubspot-poll] Error updating ingestion state:', stateError); }
+
+        // Update user_integrations config with CRM transparency data
+        if (integration.user_integration_id) {
+          const configUpdate: Record<string, unknown> = {
+            total_deals: metrics.totalDeals, deals_analyzed: metrics.dealsAnalyzed,
+            open_deals: metrics.openDeals, won_deals: metrics.wonDeals, lost_deals: metrics.lostDeals,
+            stalled_deals: metrics.stalledDeals, total_contacts: metrics.totalContacts,
+            recent_contacts_7d: metrics.recentContacts7d, total_companies: metrics.totalCompanies,
+            pipeline_count: metrics.pipelineCount, pipeline_names: metrics.pipelineNames,
+            avg_deal_age_days: metrics.avgDealAge, open_pipeline_value: metrics.openPipelineValue,
+            total_pipeline_value: metrics.totalPipelineValue,
+            deals_by_stage_label: metrics.dealsByStageLabel,
+            crm_synced_at: now.toISOString(),
+            portal_name: metrics.portalName, portal_id: metrics.portalId,
+            last_api_errors: metrics.apiErrors.length > 0 ? metrics.apiErrors.slice(0, 5) : [],
+            data_completeness: {
+              deals_analyzed: metrics.dealsAnalyzed, deals_total: metrics.totalDeals,
+              coverage_pct: metrics.totalDeals > 0 ? Math.round((metrics.dealsAnalyzed / metrics.totalDeals) * 100) : 100,
+            },
+          };
+
+          const { data: existingIntegration } = await supabase
+            .from('user_integrations').select('config')
+            .eq('id', integration.user_integration_id).single();
+
+          const existingConfig = (existingIntegration?.config as Record<string, unknown>) || {};
+          const mergedConfig = { ...existingConfig, ...configUpdate };
+
+          await supabase.from('user_integrations').update({
+            config: mergedConfig, error_message: null,
+            consecutive_failures: 0, updated_at: now.toISOString(),
+          }).eq('id', integration.user_integration_id);
+        }
+
         processedCount++;
-        console.log('[hubspot-poll] Processed user:', integration.user_id, {
-          deals: metrics.totalDeals,
-          openDeals: metrics.openDeals,
-          stalledDeals: metrics.stalledDeals,
-          pipelineValue: metrics.openPipelineValue,
-          contacts: metrics.totalContacts,
+        console.log('[hubspot-poll] Successfully processed user:', integration.user_id, {
+          deals: metrics.totalDeals, contacts: metrics.totalContacts,
+          companies: metrics.totalCompanies, pipelines: metrics.pipelineCount,
+          stalledDeals: metrics.stalledDeals, apiErrors: metrics.apiErrors.length,
         });
       } catch (userError: unknown) {
         const errorMessage = userError instanceof Error ? userError.message : String(userError);
@@ -394,7 +554,7 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[hubspot-poll] Error:', error);
+    console.error('[hubspot-poll] Fatal error:', error);
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
