@@ -348,8 +348,8 @@ export function Dashboard() {
 
   return (
     <div className="min-h-full flex flex-col p-4 space-y-4">
-      {/* Persistent Onboarding Panel - shown until all 3 steps complete */}
-      {!onboarding.loading && !onboarding.isComplete && (
+      {/* Onboarding Panel - hidden once user has at least one brief */}
+      {!onboarding.loading && !onboarding.hasGeneratedBrief && (
         <OnboardingPanel
           steps={onboarding.steps}
           completedCount={onboarding.completedCount}
