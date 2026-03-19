@@ -23,14 +23,14 @@ const tiers = [
   {
     name: PRICING.intelligence.name,
     price: formatPrice(PRICING.intelligence.monthly),
-    priceId: import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE,
+    plan: 'intelligence' as const,
     description: PRICING.intelligence.description,
     features: PRICING.intelligence.features as unknown as string[],
   },
   {
     name: PRICING.commandCenter.name,
     price: formatPrice(PRICING.commandCenter.monthly),
-    priceId: import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER,
+    plan: 'command_center' as const,
     description: PRICING.commandCenter.description,
     popular: true,
     features: PRICING.commandCenter.features as unknown as string[],
@@ -38,7 +38,7 @@ const tiers = [
   {
     name: PRICING.enterprise.name,
     price: 'Custom',
-    priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE,
+    plan: null,
     description: PRICING.enterprise.description,
     isCustom: true,
     features: PRICING.enterprise.features as unknown as string[],
@@ -51,19 +51,15 @@ export function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [showAddons, setShowAddons] = useState(false);
 
-  const handleSubscribe = async (priceId: string, tierName: string) => {
-    if (!priceId) {
+  const handleSubscribe = async (plan: 'intelligence' | 'command_center' | null) => {
+    if (!plan) {
       window.location.href = '/contact-sales';
       return;
     }
     
-    setLoading(priceId);
+    setLoading(plan);
     try {
-      await createCheckoutSession({
-        priceId,
-        email: user?.email,
-        metadata: { tier: tierName.toLowerCase() },
-      });
+      await createCheckoutSession({ plan });
     } catch (error) {
       console.error('Checkout error:', error);
       setLoading(null);
@@ -127,10 +123,10 @@ export function Pricing() {
                   <Button
                     className="w-full"
                     variant={tier.popular ? 'default' : 'outline'}
-                    onClick={() => handleSubscribe(tier.priceId, tier.name)}
-                    disabled={loading === tier.priceId || tier.isCustom}
+                    onClick={() => handleSubscribe(tier.plan)}
+                    disabled={loading === tier.plan || tier.isCustom}
                   >
-                    {tier.isCustom ? 'Contact Sales' : loading === tier.priceId ? 'Processing...' : 'Start Free Trial'}
+                    {tier.isCustom ? 'Contact Sales' : loading === tier.plan ? 'Processing...' : 'Start Free Trial'}
                   </Button>
                 </div>
               </CardContent>

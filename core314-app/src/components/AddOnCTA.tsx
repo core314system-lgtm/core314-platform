@@ -4,7 +4,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { createCheckoutSession } from '../services/stripe';
 import { Sparkles, TrendingUp, Zap, X } from 'lucide-react';
 import { formatMonthlyPrice } from '../../../shared/pricing';
 
@@ -19,23 +18,9 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handlePurchase = async (priceId: string, addonName: string, category: string) => {
-    setLoading(true);
-    try {
-      await createCheckoutSession({
-        priceId,
-        email: user?.email,
-        metadata: {
-          type: 'addon',
-          addon_name: addonName,
-          addon_category: category,
-          user_id: profile?.id || '',
-        },
-      });
-    } catch (error) {
-      console.error('Checkout error:', error);
-      setLoading(false);
-    }
+  const handlePurchase = async (_addonName: string, _category: string) => {
+    // Add-on checkout not yet available — redirect to pricing page
+    navigate('/pricing');
   };
 
   if (type === 'dashboard_footer') {
@@ -93,7 +78,6 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
             </div>
             <Button
               onClick={() => handlePurchase(
-                priceId,
                 `Additional Integration (${subscription.tier})`,
                 'integration'
               )}
@@ -134,7 +118,6 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
             </div>
             <Button
               onClick={() => handlePurchase(
-                import.meta.env.VITE_STRIPE_PRICE_PREMIUM_ANALYTICS,
                 'Premium Analytics',
                 'analytics'
               )}
@@ -175,7 +158,6 @@ export function AddOnCTA({ type, onDismiss }: AddOnCTAProps) {
             </div>
             <Button
               onClick={() => handlePurchase(
-                import.meta.env.VITE_STRIPE_PRICE_ADVANCED_FUSION_AI,
                 'Advanced Fusion AI',
                 'ai_module'
               )}
