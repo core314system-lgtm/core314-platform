@@ -27,6 +27,10 @@ import {
   Lock,
   ArrowUpRight,
   Key,
+  BarChart3,
+  ShieldAlert,
+  Hash,
+  TrendingDown,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -739,6 +743,122 @@ export function IntegrationManager() {
                           <span className="truncate" title={ui.error_message}>{ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}</span>
                         </div>
                       )}
+                      {/* Slack Transparency Metrics */}
+                      {integration.service_name === 'slack' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const channelsTotal = (cfg.channels_total as number) ?? 0;
+                        const channelsMember = (cfg.channels_member as number) ?? 0;
+                        const channelsAnalyzed = (cfg.channels_analyzed as number) ?? 0;
+                        const messagesAnalyzed = (cfg.messages_analyzed as number) ?? 0;
+                        const channelsSyncedAt = cfg.channels_synced_at as string | null;
+                        const privateAccessible = cfg.private_channels_accessible as boolean ?? false;
+                        const scopeWarning = cfg.scope_warning as string | null;
+                        const dataCompleteness = cfg.data_completeness as Record<string, unknown> | null;
+                        const coveragePct = dataCompleteness ? (dataCompleteness.coverage_pct as number) ?? 0 : (channelsMember > 0 ? Math.round((channelsAnalyzed / channelsMember) * 100) : 0);
+                        const lastErrors = cfg.last_api_errors as string[] | null;
+
+                        if (channelsTotal > 0 || channelsSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-indigo-500" />
+                                Slack Data Transparency
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Hash className="h-3 w-3" />Channels detected</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{channelsTotal}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><CheckCircle className="h-3 w-3" />Monitored</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{channelsMember}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><BarChart3 className="h-3 w-3" />Analyzed</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">
+                                  {channelsAnalyzed}
+                                  {channelsMember > 0 && <span className={`ml-1 ${coveragePct >= 80 ? 'text-green-600' : coveragePct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>({coveragePct}%)</span>}
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><MessageSquare className="h-3 w-3" />Messages</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{messagesAnalyzed.toLocaleString()}</div>
+                              </div>
+                              {channelsSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(channelsSyncedAt)}
+                                </div>
+                              )}
+                              {scopeWarning && !privateAccessible && (
+                                <div className="flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-1.5 rounded mt-1">
+                                  <ShieldAlert className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span>Private channels not accessible (missing groups:read scope). Only public channels are monitored.</span>
+                                </div>
+                              )}
+                              {lastErrors && lastErrors.length > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-red-500 dark:text-red-400 pt-0.5">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span className="truncate" title={lastErrors[0]}>{lastErrors.length} API error{lastErrors.length > 1 ? 's' : ''} in last poll</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {/* HubSpot CRM Transparency Metrics */}
+                      {integration.service_name === 'hubspot' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const totalDeals = (cfg.total_deals as number) ?? 0;
+                        const dealsAnalyzed = (cfg.deals_analyzed as number) ?? 0;
+                        const openDeals = (cfg.open_deals as number) ?? 0;
+                        const stalledDeals = (cfg.stalled_deals as number) ?? 0;
+                        const totalContacts = (cfg.total_contacts as number) ?? 0;
+                        const totalCompanies = (cfg.total_companies as number) ?? 0;
+                        const pipelineCount = (cfg.pipeline_count as number) ?? 0;
+                        const openPipelineValue = (cfg.open_pipeline_value as number) ?? 0;
+                        const crmSyncedAt = cfg.crm_synced_at as string | null;
+                        const portalName = cfg.portal_name as string | null;
+                        const dataCompleteness = cfg.data_completeness as Record<string, unknown> | null;
+                        const coveragePct = dataCompleteness ? (dataCompleteness.coverage_pct as number) ?? 100 : 100;
+                        const lastErrors = cfg.last_api_errors as string[] | null;
+
+                        if (totalDeals > 0 || totalContacts > 0 || crmSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-orange-500" />
+                                HubSpot CRM Transparency
+                                {portalName && <span className="text-gray-400 font-normal ml-1">({portalName})</span>}
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Briefcase className="h-3 w-3" />Total deals</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">
+                                  {totalDeals}
+                                  {dealsAnalyzed > 0 && dealsAnalyzed < totalDeals && <span className={`ml-1 ${coveragePct >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>({coveragePct}% analyzed)</span>}
+                                </div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><CheckCircle className="h-3 w-3" />Open deals</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{openDeals}{openPipelineValue > 0 && <span className="text-gray-400 ml-1">(${openPipelineValue.toLocaleString()})</span>}</div>
+                                {stalledDeals > 0 && (<>
+                                  <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400"><TrendingDown className="h-3 w-3" />Stalled deals</div>
+                                  <div className="font-medium text-amber-600 dark:text-amber-400">{stalledDeals}</div>
+                                </>)}
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Users className="h-3 w-3" />Contacts</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{totalContacts.toLocaleString()}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Layers className="h-3 w-3" />Companies</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{totalCompanies.toLocaleString()}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><BarChart3 className="h-3 w-3" />Pipelines</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{pipelineCount}</div>
+                              </div>
+                              {crmSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(crmSyncedAt)}
+                                </div>
+                              )}
+                              {lastErrors && lastErrors.length > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-red-500 dark:text-red-400 pt-0.5">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span className="truncate" title={lastErrors[0]}>{lastErrors.length} API error{lastErrors.length > 1 ? 's' : ''} in last poll</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
                         {disconnectConfirm === integration.id ? (
                           <div className="flex items-center gap-2">
