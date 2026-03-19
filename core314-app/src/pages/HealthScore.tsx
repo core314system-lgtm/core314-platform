@@ -15,6 +15,15 @@ import {
   Clock,
 } from 'lucide-react';
 
+interface SignalPenalty {
+  type: string;
+  severity: string;
+  penalty: number;
+  source?: string;
+  description?: string;
+  amplified?: boolean;
+}
+
 interface HealthScoreData {
   id: string;
   score: number;
@@ -22,9 +31,16 @@ interface HealthScoreData {
   signal_count: number;
   score_breakdown: {
     base_score: number;
-    signal_penalties: { type: string; severity: string; penalty: number }[];
+    signal_penalties: SignalPenalty[] | number;
+    total_signal_deductions?: number;
+    multi_signal_penalty?: number;
     integration_coverage: number;
+    coverage_bonus?: number;
     data_freshness_bonus: number;
+    fresh_integrations?: number;
+    connected_services?: string[];
+    connected_integrations?: number;
+    active_signals?: number;
   };
   integration_coverage: { connected: number; fresh: number };
   calculated_at: string;
@@ -46,7 +62,7 @@ function parseJsonObject<T>(value: unknown, fallback: T): T {
 }
 
 function normalizeHealthScore(raw: Record<string, unknown>): HealthScoreData {
-  const defaultBreakdown = { base_score: 0, signal_penalties: [] as { type: string; severity: string; penalty: number }[], integration_coverage: 0, data_freshness_bonus: 0 };
+  const defaultBreakdown = { base_score: 0, signal_penalties: [] as SignalPenalty[], integration_coverage: 0, data_freshness_bonus: 0 };
   const defaultCoverage = { connected: 0, fresh: 0 };
   const normalized = {
     ...raw,
@@ -218,60 +234,164 @@ export function HealthScore() {
           </Card>
 
           {/* Score Breakdown */}
-          {currentScore.score_breakdown && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Score Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Base Score</span>
-                    <span className="font-medium">{currentScore.score_breakdown.base_score}</span>
-                  </div>
+          {currentScore.score_breakdown && (() => {
+            const bd = currentScore.score_breakdown;
+            // Normalize signal_penalties: may be array (new format) or number (legacy)
+            const penaltiesArray: SignalPenalty[] = Array.isArray(bd.signal_penalties)
+              ? bd.signal_penalties
+              : [];
+            const totalDeductions = bd.total_signal_deductions
+              ?? (Array.isArray(bd.signal_penalties)
+                ? bd.signal_penalties.reduce((sum, p) => sum + p.penalty, 0)
+                : (typeof bd.signal_penalties === 'number' ? bd.signal_penalties : 0));
+            const connectedCount = bd.integration_coverage
+              || bd.connected_integrations
+              || currentScore.integration_coverage?.connected
+              || 0;
+            const coverageBonus = bd.coverage_bonus ?? Math.min(connectedCount * 2, 5);
+            const connectedServices = bd.connected_services || [];
 
-                  {currentScore.score_breakdown.signal_penalties.length > 0 && (
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Signal Penalties</p>
-                      <div className="space-y-1.5 pl-4">
-                        {currentScore.score_breakdown.signal_penalties.map((p, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {p.severity}
-                              </Badge>
-                              <span className="text-gray-700 dark:text-gray-300">
-                                {p.type.replace(/_/g, ' ')}
-                              </span>
-                            </div>
-                            <span className="text-red-600 font-medium">-{p.penalty}</span>
-                          </div>
-                        ))}
+            return (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Score Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {/* Score Formula */}
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md border border-gray-100 dark:border-gray-700">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Score Formula</p>
+                      <div className="flex items-center gap-2 text-sm font-mono">
+                        <span className="font-medium">{bd.base_score}</span>
+                        <span className="text-gray-400">-</span>
+                        <span className="text-red-600">{Math.round(totalDeductions * 10) / 10}</span>
+                        <span className="text-gray-400">+</span>
+                        <span className="text-green-600">{coverageBonus}</span>
+                        {bd.data_freshness_bonus !== 0 && (
+                          <>
+                            <span className="text-gray-400">{bd.data_freshness_bonus >= 0 ? '+' : '-'}</span>
+                            <span className={bd.data_freshness_bonus >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {Math.abs(bd.data_freshness_bonus)}
+                            </span>
+                          </>
+                        )}
+                        <span className="text-gray-400">=</span>
+                        <span className={`font-bold ${currentScore.score >= 80 ? 'text-green-600' : currentScore.score >= 60 ? 'text-yellow-600' : currentScore.score >= 40 ? 'text-orange-600' : 'text-red-600'}`}>
+                          {currentScore.score}
+                        </span>
                       </div>
+                      <p className="text-xs text-gray-400 mt-1">Base - Signal Penalties + Coverage Bonus +/- Freshness = Final Score</p>
                     </div>
-                  )}
 
-                  <div className="flex items-center justify-between text-sm border-t pt-2">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Integration Coverage ({currentScore.score_breakdown.integration_coverage} connected)
-                    </span>
-                    <span className="text-green-600 font-medium">
-                      +{Math.min(currentScore.score_breakdown.integration_coverage * 2, 5)}
-                    </span>
-                  </div>
-
-                  {currentScore.score_breakdown.data_freshness_bonus !== 0 && (
+                    {/* Base Score */}
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Data Freshness</span>
-                      <span className={`font-medium ${currentScore.score_breakdown.data_freshness_bonus >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {currentScore.score_breakdown.data_freshness_bonus >= 0 ? '+' : ''}{currentScore.score_breakdown.data_freshness_bonus}
+                      <span className="text-gray-600 dark:text-gray-400">Base Score</span>
+                      <span className="font-medium">{bd.base_score}</span>
+                    </div>
+
+                    {/* Signal Penalties - Per Signal */}
+                    {penaltiesArray.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Signal Penalties ({penaltiesArray.length} active)</p>
+                          <span className="text-sm text-red-600 font-medium">-{Math.round(totalDeductions * 10) / 10}</span>
+                        </div>
+                        <div className="space-y-1.5 pl-4">
+                          {penaltiesArray.map((p, i) => (
+                            <div key={i} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs flex-shrink-0 ${
+                                    p.severity === 'critical' ? 'border-red-500 text-red-600' :
+                                    p.severity === 'high' ? 'border-orange-500 text-orange-600' :
+                                    p.severity === 'medium' ? 'border-yellow-500 text-yellow-600' :
+                                    'border-gray-400 text-gray-500'
+                                  }`}
+                                >
+                                  {p.severity}
+                                </Badge>
+                                  <span className="text-gray-700 dark:text-gray-300 truncate">
+                                    {p.type.replace(/_/g, ' ')}
+                                  </span>
+                                  {p.amplified && (
+                                    <span className="text-xs text-red-500 flex-shrink-0 font-medium">CRITICAL</span>
+                                  )}
+                                  {p.source && (
+                                    <span className="text-xs text-gray-400 flex-shrink-0">({p.source})</span>
+                                  )}
+                              </div>
+                              <span className="text-red-600 font-medium flex-shrink-0 ml-2">-{p.penalty}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Legacy: signal_penalties as number */}
+                    {!Array.isArray(bd.signal_penalties) && typeof bd.signal_penalties === 'number' && bd.signal_penalties > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Signal Penalties ({currentScore.signal_count} signal{currentScore.signal_count !== 1 ? 's' : ''})
+                        </span>
+                        <span className="text-red-600 font-medium">-{bd.signal_penalties}</span>
+                      </div>
+                    )}
+
+                    {/* Multi-Signal Amplification */}
+                    {(bd.multi_signal_penalty ?? 0) > 0 && (
+                      <div className="flex items-center justify-between text-sm pl-4">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Multi-signal amplification ({currentScore.signal_count} active)
+                        </span>
+                        <span className="text-red-600 font-medium">-{bd.multi_signal_penalty}</span>
+                      </div>
+                    )}
+
+                    {/* Integration Coverage */}
+                    <div className="flex items-center justify-between text-sm border-t pt-2">
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Integration Coverage ({connectedCount} connected)
+                        </span>
+                        {connectedServices.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {connectedServices.map(s => s.replace(/_/g, ' ')).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-green-600 font-medium">
+                        +{coverageBonus}
                       </span>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
+                    {/* Data Freshness */}
+                    {bd.data_freshness_bonus !== 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Data Freshness
+                          {bd.fresh_integrations !== undefined && (
+                            <span className="text-xs text-gray-400 ml-1">({bd.fresh_integrations} of {connectedCount} fresh)</span>
+                          )}
+                        </span>
+                        <span className={`font-medium ${bd.data_freshness_bonus >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {bd.data_freshness_bonus >= 0 ? '+' : ''}{bd.data_freshness_bonus}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Final Score */}
+                    <div className="flex items-center justify-between text-sm border-t pt-2 font-bold">
+                      <span className="text-gray-700 dark:text-gray-300">Final Score</span>
+                      <span className={currentScore.score >= 80 ? 'text-green-600' : currentScore.score >= 60 ? 'text-yellow-600' : currentScore.score >= 40 ? 'text-orange-600' : 'text-red-600'}>
+                        {currentScore.score} / 100
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Score History */}
           {history.length > 1 && (

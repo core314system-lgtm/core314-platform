@@ -269,13 +269,17 @@ serve(async (req) => {
     }
 
     // ── Step 4: Fetch connected integrations ──────────────────────────
+    // Join integrations_master to get service name (user_integrations has no service_name column)
     const { data: connectedIntegrations } = await supabase
       .from('user_integrations')
-      .select('service_name, status, connected_at')
+      .select('id, status, updated_at, integration_id, integrations_master!inner(integration_name)')
       .eq('user_id', user.id)
       .eq('status', 'active');
 
-    const connectedServices = (connectedIntegrations || []).map(i => i.service_name);
+    const connectedServices = (connectedIntegrations || []).map(i => {
+      const master = i.integrations_master as unknown as { integration_name: string } | null;
+      return master?.integration_name?.toLowerCase().replace(/\s+/g, '_') || '';
+    }).filter(Boolean);
 
     // ── Step 5: Fetch recent integration events for context ───────────
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -823,16 +827,67 @@ Generate a JSON response with these exact fields:
     // ── Step 9: Persist health score to operational_health_scores ─────
     // Calculate a health score based on available data and signal severity
     const baseScore = 100;
-    const signalPenalties = activeSignals.reduce((penalty: number, s: { severity: string }) => {
-      if (s.severity === 'critical') return penalty + 20;
-      if (s.severity === 'high') return penalty + 10;
-      if (s.severity === 'medium') return penalty + 5;
-      if (s.severity === 'low') return penalty + 2;
-      return penalty;
-    }, 0);
-    const integrationCoverage = Math.round((connectedCount / 3) * 20); // max 20 points for 3 integrations
-    const dataFreshnessBonus = hasAnyData ? 5 : 0;
-    const calculatedScore = Math.max(0, Math.min(100, baseScore - signalPenalties + integrationCoverage - (3 - connectedCount) * 10 + dataFreshnessBonus));
+
+    // Build per-signal penalty breakdown for UI transparency
+    // Calibrated severity weights aligned with real-world business conditions
+    const SEVERITY_WEIGHTS: Record<string, number> = {
+      'critical': 30,
+      'high': 20,
+      'medium': 12,
+      'low': 6,
+    };
+
+    // Business-critical signal types get amplified penalties (1.8x)
+    const CRITICAL_BUSINESS_SIGNALS = new Set([
+      'no_financial_activity',
+      'no_crm_activity',
+      'revenue_pipeline_stagnation',
+      'financial_inactivity',
+      'overdue_invoices',
+    ]);
+    const CATEGORY_AMPLIFICATION = 1.5;
+
+    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; amplified: boolean }[] = [];
+    let rawSignalPenalties = 0;
+    for (const s of activeSignals) {
+      const basePenalty = SEVERITY_WEIGHTS[s.severity] || 6;
+      const confidence = (s.confidence as number) || 100;
+      const isCriticalBusiness = CRITICAL_BUSINESS_SIGNALS.has(s.signal_type);
+      const amplifier = isCriticalBusiness ? CATEGORY_AMPLIFICATION : 1.0;
+      const scaledPenalty = Math.round((basePenalty * amplifier * (confidence / 100)) * 10) / 10;
+      rawSignalPenalties += scaledPenalty;
+      signalPenaltyDetails.push({
+        type: s.signal_type,
+        severity: s.severity,
+        penalty: scaledPenalty,
+        source: s.source_integration || 'unknown',
+        description: (s.description as string) || s.signal_type.replace(/_/g, ' '),
+        amplified: isCriticalBusiness,
+      });
+    }
+
+    // Multi-signal amplification: compounding penalty for widespread issues
+    let multiSignalPenalty = 0;
+    if (activeSignals.length >= 5) {
+      multiSignalPenalty = 10;
+    } else if (activeSignals.length >= 3) {
+      multiSignalPenalty = 5;
+    }
+    const totalSignalPenalties = rawSignalPenalties + multiSignalPenalty;
+
+    // Integration coverage: bonus capped at +3 (prevents offsetting major issues)
+    const coverageBonus = Math.min(connectedCount, 3);
+
+    // Data freshness: check how many integrations were updated within last 24 hours
+    const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const freshIntegrations = (connectedIntegrations || []).filter(
+      i => i.updated_at && i.updated_at > oneHourAgo
+    ).length;
+    const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 1) : 0;
+
+    const calculatedScore = Math.max(0, Math.min(100, Math.round(
+      baseScore - totalSignalPenalties + coverageBonus - freshnessPenalty
+    )));
     const scoreLabel = calculatedScore >= 80 ? 'Healthy' : calculatedScore >= 60 ? 'Moderate' : calculatedScore >= 40 ? 'At Risk' : 'Critical';
 
     try {
@@ -845,16 +900,23 @@ Generate a JSON response with these exact fields:
           label: scoreLabel,
           score_breakdown: {
             base_score: baseScore,
-            signal_penalties: signalPenalties,
-            integration_coverage: integrationCoverage,
-            data_freshness_bonus: dataFreshnessBonus,
-            connected_integrations: connectedCount,
-            active_signals: activeSignals.length,
+            signal_penalties: signalPenaltyDetails,
+            total_signal_deductions: Math.round(totalSignalPenalties * 10) / 10,
+            multi_signal_penalty: multiSignalPenalty,
+            integration_coverage: connectedCount,
+            coverage_bonus: coverageBonus,
+            data_freshness_bonus: -freshnessPenalty,
+            fresh_integrations: freshIntegrations,
+            connected_services: connectedServices,
+          },
+          integration_coverage: {
+            connected: connectedCount,
+            fresh: freshIntegrations,
           },
           signal_count: activeSignals.length,
           calculated_at: new Date().toISOString(),
         });
-      console.log('[operational-brief] Health score persisted:', calculatedScore);
+      console.log(`[operational-brief] Health score persisted: ${calculatedScore} (${connectedCount} integrations, ${activeSignals.length} signals, penalties=${Math.round(totalSignalPenalties * 10) / 10})`);
     } catch (healthErr) {
       console.error('[operational-brief] Health score insert error (non-fatal):', healthErr);
     }
