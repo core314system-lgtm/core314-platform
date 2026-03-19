@@ -36,7 +36,7 @@ const comparisonFeatures = [
   { label: 'Asana Integration', intelligence: false, commandCenter: true, enterprise: true },
   { label: 'Operational Health Score', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'Signals Dashboard', intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'AI Operational Briefs', intelligence: true, commandCenter: 'Unlimited', enterprise: 'Unlimited' },
+  { label: 'AI Operational Briefs', intelligence: '30 per month', commandCenter: 'Unlimited', enterprise: 'Unlimited' },
   { label: 'Operational Pattern Detection', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'Operational Brief Archive', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'Command Center Dashboard', intelligence: false, commandCenter: true, enterprise: true },

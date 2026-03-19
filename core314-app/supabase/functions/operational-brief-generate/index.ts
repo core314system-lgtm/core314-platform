@@ -16,12 +16,10 @@ import { getSignalCategory } from '../_shared/signal-classification.ts';
  * Works even with minimal or no data — briefs always include
  * reasoning about what is (or isn't) happening.
  * 
- * Brief limits per plan (from shared/pricing.ts):
- *   Monitor:        10 / month
- *   Intelligence:   Unlimited
+ * Brief limits per plan:
+ *   Intelligence:   30 / month
  *   Command Center: Unlimited
  *   Enterprise:     Unlimited
- *   Free:           3 / month
  */
 
 const corsHeaders = {
@@ -33,16 +31,15 @@ const corsHeaders = {
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 
 // Brief limits per plan name (matching plan_name from user_subscriptions / plan_limits)
+// Intelligence: 30/month, Command Center & Enterprise: unlimited
 const BRIEF_LIMITS: Record<string, number> = {
-  'Free': 3,
-  'Monitor': 10,
-  'Intelligence': -1, // unlimited
-  'Command Center': -1,
-  'Enterprise': -1,
+  'Intelligence': 30,
+  'Command Center': -1, // unlimited
+  'Enterprise': -1,     // unlimited
 };
 
 function getBriefLimit(planName: string): number {
-  return BRIEF_LIMITS[planName] ?? 3; // default to Free tier limit
+  return BRIEF_LIMITS[planName] ?? 30; // default to Intelligence tier limit
 }
 
 serve(async (req) => {
@@ -86,7 +83,7 @@ serve(async (req) => {
 
     const planName = subscriptionData?.subscription?.plan_name
       ?? subscriptionData?.plan_limits?.plan_name
-      ?? 'Free';
+      ?? 'Intelligence';
     const briefLimit = getBriefLimit(planName);
 
     // Count briefs generated this calendar month
@@ -108,7 +105,7 @@ serve(async (req) => {
     if (briefLimit !== -1 && currentCount >= briefLimit) {
       return new Response(JSON.stringify({
         error: 'brief_limit_reached',
-        message: `You have used all ${briefLimit} operational briefs for this month on the ${planName} plan. Upgrade your plan for more briefs.`,
+        message: `You have reached your monthly limit of ${briefLimit} briefs. Upgrade to Command Center for unlimited access.`,
         plan: planName,
         limit: briefLimit,
         used: currentCount,
