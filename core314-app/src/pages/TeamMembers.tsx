@@ -31,6 +31,9 @@ import {
   XCircle,
   Clock,
   Send,
+  History,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface TeamMember {
@@ -98,6 +101,9 @@ export function TeamMembers() {
   // Auto-create org state
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [orgCreateError, setOrgCreateError] = useState<string | null>(null);
+
+  // Invitation history toggle
+  const [showHistory, setShowHistory] = useState(false);
 
   // Current user's role — check both team members list and org owner_id for robustness
   const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
@@ -243,7 +249,7 @@ export function TeamMembers() {
         .from('organization_invitations')
         .select('id, email, role, status, created_at, expires_at, sent_at, first_name, last_name')
         .eq('organization_id', currentOrganization.id)
-        .in('status', ['pending', 'cancelled', 'expired'])
+        .in('status', ['pending', 'cancelled', 'expired', 'accepted'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -701,11 +707,43 @@ export function TeamMembers() {
       </Card>
 
       {/* Pending Invitations */}
-      {isOwner && pendingInvites.length > 0 && (
+      {isOwner && pendingInvites.length > 0 && (() => {
+        const activeInvites = pendingInvites.filter(
+          (inv) => inv.status === 'pending' && new Date(inv.expires_at) >= new Date()
+        );
+        const historyInvites = pendingInvites.filter(
+          (inv) => inv.status !== 'pending' || new Date(inv.expires_at) < new Date()
+        );
+        const displayedInvites = showHistory ? pendingInvites : activeInvites;
+
+        // Only show the card if there are active invites or history toggle is on
+        if (activeInvites.length === 0 && !showHistory && historyInvites.length === 0) return null;
+
+        return (
         <Card>
           <CardHeader>
-            <CardTitle>Invitations</CardTitle>
-            <CardDescription>Manage sent invitations</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Invitations</CardTitle>
+                <CardDescription>
+                  {activeInvites.length === 0
+                    ? 'No pending invitations'
+                    : `${activeInvites.length} pending invitation${activeInvites.length !== 1 ? 's' : ''}`}
+                </CardDescription>
+              </div>
+              {historyInvites.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <History className="h-4 w-4 mr-1" />
+                  {showHistory ? 'Hide' : 'Show'} History
+                  {showHistory ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {inviteActionError && (
@@ -720,25 +758,28 @@ export function TeamMembers() {
                 <p className="text-sm text-green-600 dark:text-green-400">{inviteActionSuccess}</p>
               </div>
             )}
+            {displayedInvites.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                No pending invitations
+              </p>
+            ) : (
             <div className="space-y-2">
-              {pendingInvites.map((invite) => {
+              {displayedInvites.map((invite) => {
                 const isPending = invite.status === 'pending' && new Date(invite.expires_at) >= new Date();
                 const isExpiredPending = invite.status === 'pending' && new Date(invite.expires_at) < new Date();
+                const isInactive = invite.status === 'cancelled' || invite.status === 'expired' || isExpiredPending;
                 return (
                   <div
                     key={invite.id}
                     className={`flex items-center justify-between p-4 rounded-lg ${
-                      invite.status === 'cancelled'
-                        ? 'bg-red-50 dark:bg-red-900/10'
-                        : isExpiredPending || invite.status === 'expired'
-                        ? 'bg-amber-50 dark:bg-amber-900/10'
+                      isInactive
+                        ? 'bg-gray-50 dark:bg-gray-800/50 opacity-60'
                         : 'bg-yellow-50 dark:bg-yellow-900/20'
                     }`}
                   >
                     <div className="flex items-center gap-4 min-w-0">
                       <Mail className={`h-5 w-5 shrink-0 ${
-                        invite.status === 'cancelled' ? 'text-red-400' :
-                        isExpiredPending ? 'text-amber-500' : 'text-yellow-600'
+                        isInactive ? 'text-gray-400' : 'text-yellow-600'
                       }`} />
                       <div className="min-w-0">
                         <p className="font-medium text-gray-900 dark:text-white truncate">
@@ -798,9 +839,11 @@ export function TeamMembers() {
                 );
               })}
             </div>
+            )}
           </CardContent>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Cancel Invitation Confirmation Modal */}
       <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
