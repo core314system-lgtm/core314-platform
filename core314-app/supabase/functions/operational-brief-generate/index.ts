@@ -883,7 +883,7 @@ Generate a JSON response with these exact fields:
     const freshIntegrations = (connectedIntegrations || []).filter(
       i => i.updated_at && i.updated_at > oneHourAgo
     ).length;
-    const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 2) : 0;
+    const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 1) : 0;
 
     const calculatedScore = Math.max(0, Math.min(100, Math.round(
       baseScore - totalSignalPenalties + coverageBonus - freshnessPenalty

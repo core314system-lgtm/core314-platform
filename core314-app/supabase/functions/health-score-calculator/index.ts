@@ -195,7 +195,7 @@ serve(async (req) => {
         const freshIntegrations = (integrations || []).filter(
           i => i.updated_at && i.updated_at > oneHourAgo
         ).length;
-        const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 2) : 0;
+        const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 1) : 0;
         score -= freshnessPenalty;
         breakdown.data_freshness_bonus = -freshnessPenalty;
         breakdown.fresh_integrations = freshIntegrations;
