@@ -878,8 +878,8 @@ Generate a JSON response with these exact fields:
     // Integration coverage: bonus capped at +3 (prevents offsetting major issues)
     const coverageBonus = Math.min(connectedCount, 3);
 
-    // Data freshness: check how many integrations were updated within last hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    // Data freshness: check how many integrations were updated within last 24 hours
+    const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const freshIntegrations = (connectedIntegrations || []).filter(
       i => i.updated_at && i.updated_at > oneHourAgo
     ).length;

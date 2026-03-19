@@ -190,8 +190,8 @@ serve(async (req) => {
         breakdown.integration_coverage = connectedCount;
         breakdown.coverage_bonus = coverageBonus;
 
-        // Data freshness check
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        // Data freshness check (24h window — integrations polled on schedule)
+        const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const freshIntegrations = (integrations || []).filter(
           i => i.updated_at && i.updated_at > oneHourAgo
         ).length;
