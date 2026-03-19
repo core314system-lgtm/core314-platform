@@ -21,6 +21,7 @@ interface SignalPenalty {
   penalty: number;
   source?: string;
   description?: string;
+  amplified?: boolean;
 }
 
 interface HealthScoreData {
@@ -32,6 +33,7 @@ interface HealthScoreData {
     base_score: number;
     signal_penalties: SignalPenalty[] | number;
     total_signal_deductions?: number;
+    multi_signal_penalty?: number;
     integration_coverage: number;
     coverage_bonus?: number;
     data_freshness_bonus: number;
@@ -309,12 +311,15 @@ export function HealthScore() {
                                 >
                                   {p.severity}
                                 </Badge>
-                                <span className="text-gray-700 dark:text-gray-300 truncate">
-                                  {p.type.replace(/_/g, ' ')}
-                                </span>
-                                {p.source && (
-                                  <span className="text-xs text-gray-400 flex-shrink-0">({p.source})</span>
-                                )}
+                                  <span className="text-gray-700 dark:text-gray-300 truncate">
+                                    {p.type.replace(/_/g, ' ')}
+                                  </span>
+                                  {p.amplified && (
+                                    <span className="text-xs text-red-500 flex-shrink-0 font-medium">CRITICAL</span>
+                                  )}
+                                  {p.source && (
+                                    <span className="text-xs text-gray-400 flex-shrink-0">({p.source})</span>
+                                  )}
                               </div>
                               <span className="text-red-600 font-medium flex-shrink-0 ml-2">-{p.penalty}</span>
                             </div>
@@ -330,6 +335,16 @@ export function HealthScore() {
                           Signal Penalties ({currentScore.signal_count} signal{currentScore.signal_count !== 1 ? 's' : ''})
                         </span>
                         <span className="text-red-600 font-medium">-{bd.signal_penalties}</span>
+                      </div>
+                    )}
+
+                    {/* Multi-Signal Amplification */}
+                    {(bd.multi_signal_penalty ?? 0) > 0 && (
+                      <div className="flex items-center justify-between text-sm pl-4">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Multi-signal amplification ({currentScore.signal_count} active)
+                        </span>
+                        <span className="text-red-600 font-medium">-{bd.multi_signal_penalty}</span>
                       </div>
                     )}
 

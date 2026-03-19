@@ -829,30 +829,54 @@ Generate a JSON response with these exact fields:
     const baseScore = 100;
 
     // Build per-signal penalty breakdown for UI transparency
+    // Calibrated severity weights aligned with real-world business conditions
     const SEVERITY_WEIGHTS: Record<string, number> = {
-      'critical': 25,
-      'high': 15,
-      'medium': 7,
-      'low': 3,
+      'critical': 30,
+      'high': 20,
+      'medium': 12,
+      'low': 6,
     };
-    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string }[] = [];
-    let totalSignalPenalties = 0;
+
+    // Business-critical signal types get amplified penalties (1.8x)
+    const CRITICAL_BUSINESS_SIGNALS = new Set([
+      'no_financial_activity',
+      'no_crm_activity',
+      'revenue_pipeline_stagnation',
+      'financial_inactivity',
+      'overdue_invoices',
+    ]);
+    const CATEGORY_AMPLIFICATION = 1.8;
+
+    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; amplified: boolean }[] = [];
+    let rawSignalPenalties = 0;
     for (const s of activeSignals) {
-      const basePenalty = SEVERITY_WEIGHTS[s.severity] || 5;
+      const basePenalty = SEVERITY_WEIGHTS[s.severity] || 6;
       const confidence = (s.confidence as number) || 100;
-      const scaledPenalty = Math.round((basePenalty * (confidence / 100)) * 10) / 10;
-      totalSignalPenalties += scaledPenalty;
+      const isCriticalBusiness = CRITICAL_BUSINESS_SIGNALS.has(s.signal_type);
+      const amplifier = isCriticalBusiness ? CATEGORY_AMPLIFICATION : 1.0;
+      const scaledPenalty = Math.round((basePenalty * amplifier * (confidence / 100)) * 10) / 10;
+      rawSignalPenalties += scaledPenalty;
       signalPenaltyDetails.push({
         type: s.signal_type,
         severity: s.severity,
         penalty: scaledPenalty,
         source: s.source_integration || 'unknown',
         description: (s.description as string) || s.signal_type.replace(/_/g, ' '),
+        amplified: isCriticalBusiness,
       });
     }
 
-    // Integration coverage: bonus for connected integrations (max +5)
-    const coverageBonus = Math.min(connectedCount * 2, 5);
+    // Multi-signal amplification: compounding penalty for widespread issues
+    let multiSignalPenalty = 0;
+    if (activeSignals.length >= 5) {
+      multiSignalPenalty = 15;
+    } else if (activeSignals.length >= 3) {
+      multiSignalPenalty = 7;
+    }
+    const totalSignalPenalties = rawSignalPenalties + multiSignalPenalty;
+
+    // Integration coverage: bonus capped at +3 (prevents offsetting major issues)
+    const coverageBonus = Math.min(connectedCount, 3);
 
     // Data freshness: check how many integrations were updated within last hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -878,6 +902,7 @@ Generate a JSON response with these exact fields:
             base_score: baseScore,
             signal_penalties: signalPenaltyDetails,
             total_signal_deductions: Math.round(totalSignalPenalties * 10) / 10,
+            multi_signal_penalty: multiSignalPenalty,
             integration_coverage: connectedCount,
             coverage_bonus: coverageBonus,
             data_freshness_bonus: -freshnessPenalty,
