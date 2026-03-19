@@ -99,19 +99,29 @@ serve(async (req) => {
           .eq('is_active', true);
 
         // Get connected integrations for coverage assessment
+        // Join integrations_master to get service names for UI transparency
         const { data: integrations } = await supabase
           .from('user_integrations')
-          .select('id, status, updated_at')
+          .select('id, status, updated_at, integrations_master!inner(integration_name)')
           .eq('user_id', userId)
           .eq('status', 'active');
 
         // Calculate score starting from 100
         let score = 100;
+        const connectedServiceNames = (integrations || []).map(i => {
+          const master = i.integrations_master as unknown as { integration_name: string } | null;
+          return master?.integration_name?.toLowerCase().replace(/\s+/g, '_') || '';
+        }).filter(Boolean);
+
         const breakdown: Record<string, unknown> = {
           base_score: 100,
-          signal_penalties: [] as { type: string; severity: string; penalty: number }[],
+          signal_penalties: [] as { type: string; severity: string; penalty: number; source: string; description: string }[],
+          total_signal_deductions: 0,
           integration_coverage: 0,
+          coverage_bonus: 0,
           data_freshness_bonus: 0,
+          fresh_integrations: 0,
+          connected_services: connectedServiceNames,
         };
 
         // Apply penalties for each active signal
@@ -122,18 +132,28 @@ serve(async (req) => {
           const scaledPenalty = penalty * (signal.confidence / 100);
           score -= scaledPenalty;
 
-          (breakdown.signal_penalties as { type: string; severity: string; penalty: number }[]).push({
+          (breakdown.signal_penalties as { type: string; severity: string; penalty: number; source: string; description: string }[]).push({
             type: signal.signal_type,
             severity: signal.severity,
             penalty: Math.round(scaledPenalty * 10) / 10,
+            source: signal.source_integration || 'unknown',
+            description: signal.description || signal.signal_type.replace(/_/g, ' '),
           });
         }
+
+        // Track total signal deductions
+        const totalDeductions = activeSignals.reduce((sum, signal) => {
+          const pen = SEVERITY_PENALTIES[signal.severity] || 5;
+          return sum + pen * (signal.confidence / 100);
+        }, 0);
+        breakdown.total_signal_deductions = Math.round(totalDeductions * 10) / 10;
 
         // Integration coverage bonus
         const connectedCount = (integrations || []).length;
         const coverageBonus = Math.min(connectedCount * 2, 5); // Up to 5 bonus points
         score += coverageBonus;
         breakdown.integration_coverage = connectedCount;
+        breakdown.coverage_bonus = coverageBonus;
 
         // Data freshness check
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -143,6 +163,7 @@ serve(async (req) => {
         const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 2) : 0;
         score -= freshnessPenalty;
         breakdown.data_freshness_bonus = -freshnessPenalty;
+        breakdown.fresh_integrations = freshIntegrations;
 
         // Clamp score to 0-100
         score = Math.max(0, Math.min(100, Math.round(score)));
