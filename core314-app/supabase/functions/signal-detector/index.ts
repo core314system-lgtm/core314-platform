@@ -373,21 +373,76 @@ serve(async (req) => {
         // --- HubSpot Signal Detection ---
         if (hubspotEvents && hubspotEvents.length > 0) {
           const latest = hubspotEvents[0].metadata as Record<string, unknown>;
-          const dealCount = (latest.deal_count as number) ?? 0;
+          // FIXED: field names match hubspot-poll output (total_deals, total_contacts, total_companies)
+          const dealCount = (latest.total_deals as number) ?? 0;
+          const _dealsAnalyzed = (latest.deals_analyzed as number) ?? dealCount; // used by UI transparency panel
+          const openDeals = (latest.open_deals as number) ?? 0;
           const stalledDeals = (latest.stalled_deals as number) ?? 0;
-          const contactCount = (latest.contact_count as number) ?? 0;
+          const contactCount = (latest.total_contacts as number) ?? 0;
+          const companyCount = (latest.total_companies as number) ?? 0;
+          const _pipelineCount = (latest.pipeline_count as number) ?? 0; // used by UI transparency panel
+          const recentDeals7d = (latest.recent_deals_7d as number) ?? -1;
+          const dealsStuckOver14d = (latest.deals_stuck_over_14d as number) ?? 0;
+          const maxStageDays = (latest.max_stage_days as number) ?? 0;
+          const avgDealAge = (latest.avg_deal_age_days as number) ?? 0;
+          const openPipelineValue = (latest.open_pipeline_value as number) ?? 0;
+          const stalledDealNames = (latest.stalled_deal_names as string[]) ?? [];
 
+          // Signal: Stalled deals (no activity > 6 days)
           if (stalledDeals > 0) {
+            const dealNamesList = stalledDealNames.length > 0 ? ` Including: ${stalledDealNames.slice(0, 3).join(', ')}.` : '';
             signals.push({
               signal_type: 'stalled_deals',
               severity: stalledDeals >= 5 ? 'high' : 'medium',
               confidence: 85,
-              description: `${stalledDeals} deal${stalledDeals > 1 ? 's' : ''} stalled in the pipeline out of ${dealCount} total. Revenue at risk — review and take action.`,
+              description: `${stalledDeals} deal${stalledDeals > 1 ? 's' : ''} stalled in the pipeline out of ${dealCount} total. Revenue at risk — review and take action.${dealNamesList}`,
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('stalled_deals', 'hubspot'), metric: 'stalled_deals', stalled_deals: stalledDeals, total_deals: dealCount },
+              signal_data: { category: classifySignal('stalled_deals', 'hubspot'), metric: 'stalled_deals', stalled_deals: stalledDeals, total_deals: dealCount, stalled_deal_names: stalledDealNames.slice(0, 5) },
             });
           }
 
+          // Signal: No new deals in last 7 days
+          if (recentDeals7d === 0 && dealCount > 0) {
+            signals.push({
+              signal_type: 'no_new_deals',
+              severity: 'medium',
+              confidence: 80,
+              description: `No new deals created in the past 7 days despite ${dealCount} existing deals. Pipeline generation may need attention.`,
+              source_integration: 'hubspot',
+              signal_data: { category: classifySignal('no_new_deals', 'hubspot'), metric: 'no_new_deals', recent_deals_7d: recentDeals7d, total_deals: dealCount, open_deals: openDeals },
+            });
+          }
+
+          // Signal: Deal stage delay (deals stuck > 14 days in a stage)
+          if (dealsStuckOver14d > 0) {
+            signals.push({
+              signal_type: 'deal_stage_delay',
+              severity: dealsStuckOver14d >= 3 ? 'high' : 'medium',
+              confidence: 80,
+              description: `${dealsStuckOver14d} deal${dealsStuckOver14d > 1 ? 's' : ''} stuck in the same stage for over 14 days (max: ${maxStageDays} days). Pipeline velocity is impaired.`,
+              source_integration: 'hubspot',
+              signal_data: { category: classifySignal('deal_stage_delay', 'hubspot'), metric: 'deal_stage_delay', deals_stuck_over_14d: dealsStuckOver14d, max_stage_days: maxStageDays, avg_deal_age: avgDealAge },
+            });
+          }
+
+          // Signal: Pipeline stagnation (compare with previous poll — open deals unchanged or declining)
+          if (hubspotEvents.length > 1) {
+            const prev = hubspotEvents[1].metadata as Record<string, unknown>;
+            const prevOpenDeals = (prev.open_deals as number) ?? 0;
+            const prevOpenValue = (prev.open_pipeline_value as number) ?? 0;
+            if (prevOpenDeals > 0 && openDeals <= prevOpenDeals && prevOpenValue > 0 && openPipelineValue <= prevOpenValue * 0.9) {
+              signals.push({
+                signal_type: 'pipeline_stagnation',
+                severity: 'medium',
+                confidence: 70,
+                description: `Pipeline value dropped from $${prevOpenValue.toLocaleString()} to $${openPipelineValue.toLocaleString()} with ${openDeals} open deals (was ${prevOpenDeals}). Pipeline momentum is declining.`,
+                source_integration: 'hubspot',
+                signal_data: { category: classifySignal('pipeline_stagnation', 'hubspot'), metric: 'pipeline_stagnation', current_open_deals: openDeals, prev_open_deals: prevOpenDeals, current_value: openPipelineValue, prev_value: prevOpenValue },
+              });
+            }
+          }
+
+          // Signal: No CRM activity (connected but empty)
           if (contactCount === 0 && dealCount === 0) {
             signals.push({
               signal_type: 'no_crm_activity',
@@ -395,7 +450,19 @@ serve(async (req) => {
               confidence: 90,
               description: 'HubSpot is connected but no contacts or deals found. Add CRM data for operational intelligence.',
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('no_crm_activity', 'hubspot'), metric: 'no_crm_activity', contact_count: contactCount, deal_count: dealCount },
+              signal_data: { category: classifySignal('no_crm_activity', 'hubspot'), metric: 'no_crm_activity', total_contacts: contactCount, total_deals: dealCount, total_companies: companyCount },
+            });
+          }
+
+          // Signal: Low activity (has some data but very minimal)
+          if (dealCount > 0 && contactCount === 0 && companyCount === 0 && openDeals === 0) {
+            signals.push({
+              signal_type: 'low_crm_activity',
+              severity: 'low',
+              confidence: 75,
+              description: `HubSpot shows ${dealCount} deals but no active contacts or companies. CRM utilization is minimal.`,
+              source_integration: 'hubspot',
+              signal_data: { category: classifySignal('low_crm_activity', 'hubspot'), metric: 'low_crm_activity', total_deals: dealCount, total_contacts: contactCount, total_companies: companyCount },
             });
           }
         }
