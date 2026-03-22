@@ -109,7 +109,7 @@ export default function PricingPage() {
                       Contact Sales
                     </Link>
                   ) : (
-                    <Link to="/signup" className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}>
+                    <Link to={`/signup?plan=${plan.id === 'commandCenter' ? 'command_center' : plan.id}`} className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}>
                       Start Free Trial
                     </Link>
                   )}
@@ -170,7 +170,7 @@ export default function PricingPage() {
             Connect your tools and receive your first Operational Brief. Trial starts after your first integration is connected.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
+            <Link to="/signup?plan=intelligence" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
               Start Free Trial <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/contact" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
