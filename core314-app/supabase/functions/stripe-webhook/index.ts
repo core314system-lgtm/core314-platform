@@ -1,15 +1,14 @@
 // ============================================================================
-// STRIPE WEBHOOK HANDLER — SIGNUP-FIRST FLOW
+// STRIPE WEBHOOK HANDLER — STRIPE-FIRST FLOW
 // ============================================================================
-// In the signup-first flow, the user already exists in auth.users before
-// reaching Stripe Checkout. This webhook's ONLY job is:
-//   1. checkout.session.completed — Link Stripe customer, upsert subscription
+// In the Stripe-first flow, the user does NOT exist before checkout.
+// This webhook is the PRIMARY ENGINE that:
+//   1. checkout.session.completed — Create user, link Stripe, upsert subscription, send password email
 //   2. invoice.paid              — Confirm subscription active, update period
 //   3. customer.subscription.updated — Sync plan/status/seats/cancellation
 //   4. customer.subscription.deleted — Mark subscription canceled
 //
-// DO NOT create users here. DO NOT send onboarding emails.
-// User creation happens on the signup page (Supabase Auth signUp).
+// Flow: Pricing → Stripe Checkout → Webhook → User Creation → Password Email → Login
 // ============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -85,12 +84,14 @@ function resolvePlan(
 }
 
 // ============================================================================
-// HANDLER 1: checkout.session.completed
+// HANDLER 1: checkout.session.completed (PRIMARY ENGINE)
 // ============================================================================
-// User already exists (created during signup). We just need to:
-//   1. Find the user by client_reference_id (user_id) or email
-//   2. Link Stripe customer ID to their profile
-//   3. Upsert subscription record
+// Stripe-first flow:
+//   1. Extract email, customer_id, subscription_id, plan
+//   2. Check if user exists → IF NOT create via Supabase Admin API
+//   3. Link Stripe customer to profile
+//   4. Upsert subscription record (plan, status, seats)
+//   5. Send password setup email
 // ============================================================================
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   log("info", "Processing checkout.session.completed", {
@@ -102,31 +103,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const stripeCustomerId = session.customer as string;
   const subscriptionId = session.subscription as string;
 
-  // Resolve user_id: prefer client_reference_id (set at checkout), fallback to metadata, then email lookup
-  let userId = session.client_reference_id || session.metadata?.userId || session.metadata?.user_id;
-
-  if (!userId && email) {
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-    if (listError) {
-      log("error", "Failed to list users", { error: String(listError) });
-    } else {
-      const found = users.find((u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase());
-      if (found) {
-        userId = found.id;
-        log("info", "Found user by email lookup", { user_id: userId });
-      }
-    }
-  }
-
-  if (!userId) {
-    log("error", "Cannot find user for checkout session — user must sign up first", {
-      session_id: session.id,
-      email,
-    });
+  if (!email) {
+    log("error", "No email found in checkout session", { session_id: session.id });
     return;
   }
 
-  // Resolve plan from metadata or subscription price
+  // ---- Resolve plan ----
   const metadataPlan = session.metadata?.plan;
   let plan = resolvePlan(metadataPlan, undefined);
 
@@ -151,7 +133,49 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const seatsAllowed = PLAN_SEATS[plan] || 1;
 
-  // Link Stripe customer to profile (non-fatal if column doesn't exist)
+  // ---- STEP 2: Check if user exists, create if not ----
+  let userId: string | null = null;
+
+  // Check if user already exists by email
+  const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+  if (listError) {
+    log("error", "Failed to list users for duplicate check", { error: String(listError) });
+  } else {
+    const existing = users.find((u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase());
+    if (existing) {
+      userId = existing.id;
+      log("info", "User already exists — reusing", { user_id: userId, email });
+    }
+  }
+
+  // Create new user if not found
+  if (!userId) {
+    // Generate a random temporary password (user will set their own via password reset email)
+    const tempPassword = crypto.randomUUID() + crypto.randomUUID();
+
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true, // Auto-confirm — they already verified via Stripe payment
+      user_metadata: {
+        plan,
+        signup_source: "stripe_checkout",
+      },
+    });
+
+    if (createError) {
+      log("error", "Failed to create user via Admin API", {
+        error: String(createError),
+        email,
+      });
+      return;
+    }
+
+    userId = newUser.user.id;
+    log("info", "User created via Supabase Admin API", { user_id: userId, email });
+  }
+
+  // ---- STEP 3: Link Stripe customer to profile ----
   try {
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
@@ -168,7 +192,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     log("warn", "Profile update exception (non-fatal)", { error: String(err) });
   }
 
-  // Upsert subscription (idempotent on user_id unique constraint)
+  // ---- STEP 4: Upsert subscription ----
   const subscriptionData = {
     user_id: userId,
     stripe_customer_id: stripeCustomerId,
@@ -193,11 +217,107 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  log("info", "Checkout completed — subscription created", {
+  log("info", "Subscription created", {
     user_id: userId,
     plan,
     seats_allowed: seatsAllowed,
     stripe_subscription_id: subscriptionId,
+  });
+
+  // ---- STEP 5: Send password setup email via SendGrid ----
+  try {
+    // Generate a secure password recovery link using Supabase Admin API
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: {
+        redirectTo: "https://app.core314.com/reset-password",
+      },
+    });
+
+    if (linkError || !linkData?.properties?.action_link) {
+      log("error", "Failed to generate password setup link", {
+        error: linkError ? String(linkError) : "No action_link returned",
+        email,
+      });
+    } else {
+      const passwordSetupLink = linkData.properties.action_link;
+      log("info", "Password setup link generated", { email });
+
+      // Send the email via SendGrid
+      const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
+      const senderEmail = Deno.env.get("SENDGRID_SENDER_EMAIL") || "support@core314.com";
+      const senderName = Deno.env.get("SENDGRID_SENDER_NAME") || "Core314";
+
+      if (!sendgridApiKey) {
+        log("error", "SENDGRID_API_KEY not set — cannot send password setup email", { email });
+      } else {
+        const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f4;padding:20px;">
+    <tr><td align="center">
+      <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+        <tr><td style="padding:40px 40px 30px 40px;">
+          <h2 style="margin:0 0 20px 0;color:#0ea5e9;font-size:28px;font-weight:bold;">Set Your Core314 Password</h2>
+          <p style="margin:0 0 15px 0;color:#222;font-size:16px;line-height:1.6;">Welcome to Core314!</p>
+          <p style="margin:0 0 15px 0;color:#222;font-size:16px;line-height:1.6;">Your subscription is active and your account has been created. Click the button below to set your password and start using the platform.</p>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr><td style="background-color:#0ea5e9;border-radius:6px;text-align:center;">
+              <a href="${passwordSetupLink}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;">Set Your Password</a>
+            </td></tr>
+          </table>
+          <p style="margin:20px 0 0 0;color:#999;font-size:12px;">If you didn't subscribe to Core314, you can safely ignore this email. This link expires in 24 hours.</p>
+        </td></tr>
+        <tr><td style="padding:20px 40px 40px 40px;border-top:1px solid #e0e0e0;">
+          <p style="margin:0;color:#777;font-size:12px;line-height:1.4;">Core314 Operational Intelligence<br>&copy; ${new Date().getFullYear()} Core314. All rights reserved.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+        const sgResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${sendgridApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email }] }],
+            from: { email: senderEmail, name: senderName },
+            subject: "Set your Core314 password",
+            content: [
+              { type: "text/plain", value: `Welcome to Core314! Set your password here: ${passwordSetupLink}` },
+              { type: "text/html", value: emailHtml },
+            ],
+          }),
+        });
+
+        if (!sgResponse.ok) {
+          const errBody = await sgResponse.text();
+          log("error", "SendGrid API error for password setup email", {
+            status: sgResponse.status,
+            body: errBody,
+            email,
+          });
+        } else {
+          log("info", "Password setup email sent via SendGrid", { email });
+        }
+      }
+    }
+  } catch (err) {
+    log("error", "Exception sending password setup email", { error: String(err) });
+  }
+
+  log("info", "Checkout completed — full Stripe-first flow executed", {
+    user_id: userId,
+    plan,
+    seats_allowed: seatsAllowed,
+    stripe_subscription_id: subscriptionId,
+    email,
   });
 }
 
