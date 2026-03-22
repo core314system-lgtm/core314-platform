@@ -8,8 +8,9 @@ import { corsHeaders } from "../_shared/cors.ts";
 // STRIPE CREATE CHECKOUT SESSION
 // ============================================================================
 // Creates a Stripe Checkout session for subscription purchases.
-// - Validates authenticated user
-// - Gets or creates Stripe customer
+// Supports TWO modes:
+//   1. Authenticated (app) — JWT in Authorization header → customer get-or-create
+//   2. Unauthenticated (landing page) — no auth → Stripe collects email at checkout
 // - Maps plan → price ID
 // - Returns checkout URL
 // ============================================================================
@@ -145,32 +146,6 @@ serve(async (req) => {
   }
 
   try {
-    // ---- AUTH: Verify user ----
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return jsonError("Missing or invalid authorization header", 401);
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-
-    // Create a user-scoped client to verify the token
-    const supabaseUser = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || "", {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseUser.auth.getUser(token);
-
-    if (authError || !user) {
-      return jsonError(
-        "Authentication failed",
-        401,
-        authError?.message || "Invalid or expired token"
-      );
-    }
-
     // ---- PARSE + VALIDATE REQUEST ----
     const body = await req.json();
     const { plan } = body;
@@ -188,40 +163,77 @@ serve(async (req) => {
       return jsonError("Price not configured for this plan", 500);
     }
 
-    // ---- GET OR CREATE STRIPE CUSTOMER ----
-    const customerId = await getOrCreateStripeCustomer(
-      user.id,
-      user.email || ""
-    );
+    // ---- AUTH: Optional — check for authenticated user ----
+    const authHeader = req.headers.get("authorization");
+    let userId: string | null = null;
+    let userEmail: string | null = null;
+    let customerId: string | undefined = undefined;
 
-    // ---- CREATE CHECKOUT SESSION ----
-    const session = await stripe.checkout.sessions.create({
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+
+      // Create a user-scoped client to verify the token
+      const supabaseUser = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || "", {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseUser.auth.getUser(token);
+
+      if (!authError && user) {
+        userId = user.id;
+        userEmail = user.email || null;
+
+        // Authenticated path: get or create Stripe customer
+        customerId = await getOrCreateStripeCustomer(user.id, user.email || "");
+      }
+      // If auth fails, fall through to unauthenticated path (no error)
+    }
+
+    // ---- BUILD CHECKOUT SESSION PARAMS ----
+    const LANDING_URL = Deno.env.get("LANDING_URL") || "https://core314.com";
+
+    // deno-lint-ignore no-explicit-any
+    const sessionParams: Record<string, any> = {
       mode: "subscription",
-      customer: customerId,
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      success_url: `${APP_URL}/billing?session_id={CHECKOUT_SESSION_ID}&status=success`,
-      cancel_url: `${APP_URL}/billing?status=canceled`,
+      allow_promotion_codes: true,
       metadata: {
-        user_id: user.id,
         plan: plan,
-        source: "core314_checkout",
+        source: userId ? "core314_app" : "core314_landing",
       },
       subscription_data: {
         metadata: {
-          user_id: user.id,
           plan: plan,
         },
       },
-      allow_promotion_codes: true,
-    });
+    };
+
+    if (customerId) {
+      // Authenticated: attach existing customer, redirect back to app
+      sessionParams.customer = customerId;
+      sessionParams.success_url = `${APP_URL}/billing?session_id={CHECKOUT_SESSION_ID}&status=success`;
+      sessionParams.cancel_url = `${APP_URL}/billing?status=canceled`;
+      sessionParams.metadata.user_id = userId;
+      sessionParams.subscription_data.metadata.user_id = userId;
+    } else {
+      // Unauthenticated (landing page): let Stripe collect email
+      sessionParams.success_url = `${APP_URL}/billing?session_id={CHECKOUT_SESSION_ID}&status=success`;
+      sessionParams.cancel_url = `${LANDING_URL}/pricing?status=canceled`;
+    }
+
+    // ---- CREATE CHECKOUT SESSION ----
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     console.log(
-      `✅ Checkout session created: ${session.id} for user ${user.id} plan=${plan}`
+      `✅ Checkout session created: ${session.id} plan=${plan} authenticated=${!!userId}`
     );
 
     // ---- RETURN SESSION URL ----
