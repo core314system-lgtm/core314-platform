@@ -23,11 +23,11 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
 const APP_URL = Deno.env.get("APP_URL") || "https://app.core314.com";
 
 // ============================================================================
-// PLAN → PRICE ID MAPPING (LIVE Stripe prices)
+// PLAN → PRICE ID MAPPING (Stripe prices)
 // ============================================================================
 const PLAN_PRICE_MAP: Record<string, string> = {
-  intelligence: "price_1TCq6Q9s9Vjc0ojFG4t15gOO",
-  command_center: "price_1TCq6a9s9Vjc0ojFifJOG9IY",
+  intelligence: "price_1TDmVlRvffecbIr9Gm8itXZw",
+  command_center: "price_1TDmXnRvffecbIr9UUJpP5H8",
 };
 
 const VALID_PLANS = Object.keys(PLAN_PRICE_MAP);
