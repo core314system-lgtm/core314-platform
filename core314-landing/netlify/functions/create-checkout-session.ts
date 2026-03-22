@@ -14,26 +14,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-// Expected price amounts in cents (source of truth: shared/pricing.ts)
-// Monitor = $99/month = 9900 cents
-// Intelligence = $299/month = 29900 cents
-// Command Center = $799/month = 79900 cents
-const EXPECTED_PRICE_AMOUNTS: Record<string, number> = {
-  monitor: 9900,         // $99/month
-  intelligence: 29900,   // $299/month
-  commandcenter: 79900,  // $799/month
+// Hardcoded Stripe price IDs (source of truth per CORE314 protocol)
+const PLAN_PRICE_IDS: Record<string, string> = {
+  intelligence: 'price_1TCq6Q9s9Vjc0ojFG4t15gOO',
+  commandcenter: 'price_1TCq6a9s9Vjc0ojFifJOG9IY',
 };
 
 // Plans eligible for 14-day free trial
-// Monitor, Intelligence, and Command Center get trials; Enterprise is custom/contact-sales
-const TRIAL_ELIGIBLE_PLANS = ['monitor', 'intelligence', 'commandcenter'];
-
-// Map plan names to Stripe lookup keys
-const PLAN_LOOKUP_KEYS: Record<string, string> = {
-  monitor: 'monitor_monthly',
-  intelligence: 'intelligence_monthly',
-  commandcenter: 'commandCenter_monthly',
-};
+const TRIAL_ELIGIBLE_PLANS = ['intelligence', 'commandcenter'];
 
 // Trial abuse protection constants
 const MAX_TRIALS_PER_IP_30_DAYS = 2;
@@ -103,7 +91,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const { plan, addons = [], email, userId } = JSON.parse(event.body || '{}');
+    const { plan, email } = JSON.parse(event.body || '{}');
 
     if (!plan) {
       return {
@@ -117,7 +105,7 @@ export const handler: Handler = async (event) => {
     const planLower = plan.toLowerCase().replace(/[\s_]+/g, '');
     
     // Validate plan is supported
-    if (!['monitor', 'intelligence', 'commandcenter'].includes(planLower)) {
+    if (!['intelligence', 'commandcenter'].includes(planLower)) {
       return {
         statusCode: 400,
         headers,
@@ -265,102 +253,19 @@ export const handler: Handler = async (event) => {
     // END TRIAL ABUSE PROTECTION CHECKS
     // ========================================
 
-    // Get expected amount for this plan (source of truth)
-    const expectedAmount = EXPECTED_PRICE_AMOUNTS[planLower];
-    
-    let selectedPrice: Stripe.Price | undefined;
-    let allPricesForDiagnostics: Stripe.Price[] = [];
-
-    // Look up price using the plan's lookup key
-    const lookupKey = PLAN_LOOKUP_KEYS[planLower];
-    if (lookupKey) {
-      const prices = await stripe.prices.list({
-        lookup_keys: [lookupKey],
-        limit: 10,
-        active: true,
-      });
-      allPricesForDiagnostics = prices.data;
-      
-      // Find exact match: active + USD + monthly + correct amount
-      selectedPrice = prices.data.find(p => 
-        p.active &&
-        p.currency === 'usd' &&
-        p.recurring?.interval === 'month' &&
-        p.unit_amount === expectedAmount
-      );
-    }
-
-    // Fallback: search all active recurring prices if lookup key didn't match
-    if (!selectedPrice) {
-      const prices = await stripe.prices.list({
-        active: true,
-        type: 'recurring',
-        limit: 100,
-      });
-      allPricesForDiagnostics = [...allPricesForDiagnostics, ...prices.data];
-      
-      selectedPrice = prices.data.find(p => 
-        p.active &&
-        p.currency === 'usd' &&
-        p.recurring?.interval === 'month' &&
-        p.unit_amount === expectedAmount
-      );
-    }
-
-    // If no exact match found, log diagnostics and return error
-    if (!selectedPrice) {
-      // Log full diagnostic info server-side only
-      const diagnosticInfo = allPricesForDiagnostics.map(p => ({
-        id: p.id,
-        unit_amount: p.unit_amount,
-        currency: p.currency,
-        interval: p.recurring?.interval,
-        active: p.active,
-        livemode: p.livemode,
-      }));
-      
-      console.error(
-        'PRO PRICE RESOLUTION FAILED:',
-        'Plan:', planLower,
-        'Expected amount (cents):', expectedAmount,
-        'Total prices returned:', allPricesForDiagnostics.length,
-        'All prices:', JSON.stringify(diagnosticInfo, null, 2)
-      );
-      
-      // Return user-safe error (no Stripe internals exposed)
+    // Use hardcoded price IDs — no dynamic lookup needed
+    const priceId = PLAN_PRICE_IDS[planLower];
+    if (!priceId) {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ 
-          error: `Unable to load pricing for ${plan} plan. Please try again or contact support.`,
-        }),
+        body: JSON.stringify({ error: `No price configured for ${plan} plan.` }),
       };
     }
 
-    const priceId = selectedPrice.id;
-
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      {
-        price: priceId,
-        quantity: 1,
-      },
+      { price: priceId, quantity: 1 },
     ];
-
-    if (addons && addons.length > 0) {
-      for (const addon of addons) {
-        const addonPrices = await stripe.prices.list({
-          lookup_keys: [addon.lookupKey],
-          limit: 1,
-        });
-
-        if (addonPrices.data && addonPrices.data.length > 0) {
-          lineItems.push({
-            price: addonPrices.data[0].id,
-            quantity: addon.quantity || 1,
-          });
-        }
-      }
-    }
 
     // isTrialEligible already determined above during trial abuse checks
 
@@ -368,22 +273,19 @@ export const handler: Handler = async (event) => {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: 'https://app.core314.com/dashboard?session_id={CHECKOUT_SESSION_ID}&checkout=success',
+      success_url: 'https://app.core314.com/login?checkout=success',
       cancel_url: `${process.env.URL || 'https://core314.com'}/pricing`,
-      customer_email: email,
-      client_reference_id: userId,
+      // Stripe collects email on the checkout page (no pre-fill if email not provided)
+      ...(email && { customer_email: email }),
       subscription_data: {
-        // 14-day free trial for Monitor, Intelligence, and Command Center plans
-        // Stripe Checkout will show "14 days free" and "$0 due today"
+        // 14-day free trial for Intelligence and Command Center plans
         ...(isTrialEligible && { trial_period_days: 14 }),
         metadata: {
           plan,
-          userId: userId || '',
         },
       },
       metadata: {
         plan,
-        userId: userId || '',
       },
       allow_promotion_codes: true,
     });

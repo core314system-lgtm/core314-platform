@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle, Minus } from 'lucide-react';
+import { ArrowRight, CheckCircle, Minus, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { PRICING, formatPrice } from '../config/pricing';
@@ -51,6 +52,45 @@ const comparisonFeatures = [
 ];
 
 export default function PricingPage() {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const handleCheckout = async (planId: string) => {
+    // Map component plan IDs to checkout plan names
+    const planMap: Record<string, string> = {
+      intelligence: 'intelligence',
+      commandCenter: 'command_center',
+    };
+    const plan = planMap[planId];
+    if (!plan) return;
+
+    setLoading(planId);
+    setError('');
+
+    try {
+      const response = await fetch('/.netlify/functions/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start checkout');
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Please try again.');
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
@@ -71,6 +111,11 @@ export default function PricingPage() {
 
       <section className="pb-20 lg:pb-28">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-center text-sm max-w-xl mx-auto">
+              {error}
+            </div>
+          )}
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((plan) => {
               const data = PRICING[plan.id];
@@ -109,9 +154,17 @@ export default function PricingPage() {
                       Contact Sales
                     </Link>
                   ) : (
-                    <Link to={`/signup?plan=${plan.id === 'commandCenter' ? 'command_center' : plan.id}`} className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}>
-                      Start Free Trial
-                    </Link>
+                    <button
+                      onClick={() => handleCheckout(plan.id)}
+                      disabled={loading === plan.id}
+                      className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}
+                    >
+                      {loading === plan.id ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</span>
+                      ) : (
+                        'Start Free Trial'
+                      )}
+                    </button>
                   )}
                 </motion.div>
               );
@@ -170,9 +223,17 @@ export default function PricingPage() {
             Connect your tools and receive your first Operational Brief. Trial starts after your first integration is connected.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/signup?plan=intelligence" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Start Free Trial <ArrowRight className="h-4 w-4" />
-            </Link>
+            <button
+              onClick={() => handleCheckout('intelligence')}
+              disabled={loading === 'intelligence'}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loading === 'intelligence' ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Loading...</>
+              ) : (
+                <>Start Free Trial <ArrowRight className="h-4 w-4" /></>
+              )}
+            </button>
             <Link to="/contact" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
               Contact Sales
             </Link>
