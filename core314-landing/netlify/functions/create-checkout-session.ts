@@ -16,8 +16,8 @@ const supabase = createClient(
 
 // Hardcoded Stripe price IDs (source of truth per CORE314 protocol)
 const PLAN_PRICE_IDS: Record<string, string> = {
-  intelligence: 'price_1TDmVlRvffecbIr9Gm8itXZw',
-  commandcenter: 'price_1TDmXnRvffecbIr9UUJpP5H8',
+  intelligence: 'price_1TCq6Q9s9Vjc0ojFG4t15gOO',
+  commandcenter: 'price_1TCq6a9s9Vjc0ojFifJOG9IY',
 };
 
 // Plans eligible for 14-day free trial
