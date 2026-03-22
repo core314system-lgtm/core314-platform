@@ -1,9 +1,18 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle, Minus } from 'lucide-react';
+import { ArrowRight, CheckCircle, Minus, Loader2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { PRICING, formatPrice } from '../config/pricing';
+
+// ============================================================================
+// Supabase Edge Function config — uses build-time env vars with hardcoded fallback
+// The Supabase URL and anon key are public (client-side safe)
+// ============================================================================
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ygvkegcstaowikessigx.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const CHECKOUT_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/stripe-create-checkout`;
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } };
@@ -11,14 +20,17 @@ const stagger = { visible: { transition: { staggerChildren: 0.08 } } };
 const plans = [
   {
     id: 'intelligence' as const,
+    stripePlan: 'intelligence' as const,
     highlight: false,
   },
   {
     id: 'commandCenter' as const,
+    stripePlan: 'command_center' as const,
     highlight: true,
   },
   {
     id: 'enterprise' as const,
+    stripePlan: null,
     highlight: false,
   },
 ];
@@ -51,6 +63,49 @@ const comparisonFeatures = [
 ];
 
 export default function PricingPage() {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleCheckout = async (plan: 'intelligence' | 'command_center') => {
+    console.log('[Core314] Starting checkout for plan:', plan);
+    console.log('[Core314] Edge Function URL:', CHECKOUT_FUNCTION_URL);
+    setLoading(plan);
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      // Include anon key if available (required by Supabase Edge Function gateway)
+      if (SUPABASE_ANON_KEY) {
+        headers['apikey'] = SUPABASE_ANON_KEY;
+      }
+
+      const response = await fetch(CHECKOUT_FUNCTION_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ plan }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error || `Checkout failed (${response.status})`;
+        console.error('[Core314] Checkout API error:', errorMsg, errorData);
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      console.log('[Core314] Checkout session created, redirecting to:', data.url);
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('[Core314] Checkout error:', error);
+      alert('Checkout failed. Please try again.');
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
@@ -109,9 +164,20 @@ export default function PricingPage() {
                       Contact Sales
                     </Link>
                   ) : (
-                    <Link to="/signup" className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}>
-                      Start Free Trial
-                    </Link>
+                    <button
+                      onClick={() => plan.stripePlan && handleCheckout(plan.stripePlan)}
+                      disabled={loading === plan.stripePlan}
+                      className={`block w-full ${plan.highlight ? 'py-3 text-base' : 'py-2.5 text-sm'} font-semibold rounded-lg text-center transition-colors cursor-pointer disabled:opacity-50 ${plan.highlight ? 'text-white bg-slate-900 hover:bg-slate-800' : 'text-slate-700 bg-white border border-slate-300 hover:border-slate-400'}`}
+                    >
+                      {loading === plan.stripePlan ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Redirecting...
+                        </span>
+                      ) : (
+                        'Start Free Trial'
+                      )}
+                    </button>
                   )}
                 </motion.div>
               );

@@ -1,7 +1,5 @@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
-import { createCheckoutSession } from '../services/stripe';
-import { useAuth } from '../hooks/useAuth';
-
+import { useNavigate } from 'react-router-dom';
 
 interface UpgradeModalProps {
   open: boolean;
@@ -12,18 +10,12 @@ interface UpgradeModalProps {
 }
 
 export function UpgradeModal({ open, onOpenChange, currentTier = 'current', currentCount = 0, maxCount = 0 }: UpgradeModalProps) {
-  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const handleUpgrade = async () => {
-    try {
-      await createCheckoutSession({
-        priceId: import.meta.env.VITE_STRIPE_PRICE_INTEGRATION_ADDON,
-        email: user?.email,
-        metadata: { type: 'integration_addon' },
-      });
-    } catch (error) {
-      console.error('Upgrade error:', error);
-    }
+  const handleUpgrade = () => {
+    // Redirect to pricing page where user can select a plan
+    navigate('/pricing');
+    onOpenChange(false);
   };
 
   return (
