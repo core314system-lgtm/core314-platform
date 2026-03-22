@@ -113,8 +113,8 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Normalize plan name: 'commandCenter' -> 'commandcenter' for consistent lookups
-    const planLower = plan.toLowerCase().replace(/\s+/g, '');
+    // Normalize plan name: 'command_center' / 'commandCenter' -> 'commandcenter' for consistent lookups
+    const planLower = plan.toLowerCase().replace(/[\s_]+/g, '');
     
     // Validate plan is supported
     if (!['monitor', 'intelligence', 'commandcenter'].includes(planLower)) {
@@ -368,7 +368,7 @@ export const handler: Handler = async (event) => {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: `${process.env.URL || 'https://core314.com'}/signup/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: 'https://app.core314.com/dashboard?session_id={CHECKOUT_SESSION_ID}&checkout=success',
       cancel_url: `${process.env.URL || 'https://core314.com'}/pricing`,
       customer_email: email,
       client_reference_id: userId,

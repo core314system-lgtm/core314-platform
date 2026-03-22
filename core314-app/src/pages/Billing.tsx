@@ -113,7 +113,7 @@ export default function Billing() {
         {
           event: '*',
           schema: 'public',
-          table: 'user_subscriptions',
+          table: 'subscriptions',
           filter: `user_id=eq.${user?.id}`,
         },
         () => {

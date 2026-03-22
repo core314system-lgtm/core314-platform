@@ -8,7 +8,9 @@ import { PRICING, formatMonthlyPrice } from '../config/pricing';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
-  const selectedPlan = searchParams.get('plan') || 'intelligence';
+  const rawPlan = searchParams.get('plan') || 'intelligence';
+  // Normalize: URL uses command_center but display map uses commandCenter
+  const selectedPlan = rawPlan === 'command_center' ? 'commandCenter' : rawPlan;
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -16,7 +18,7 @@ export default function SignupPage() {
     email: '',
     phone: '',
     password: '',
-    plan: selectedPlan,
+    plan: rawPlan, // Keep the raw plan name (intelligence / command_center) for Stripe metadata
     addons: [] as string[]
   });
   
@@ -123,7 +125,7 @@ export default function SignupPage() {
             </h1>
             <p className="text-xl text-slate-600">
               Selected Plan: <span className="text-sky-600 font-semibold">
-                {plans[formData.plan as keyof typeof plans]?.name} - {plans[formData.plan as keyof typeof plans]?.price}
+                {plans[selectedPlan as keyof typeof plans]?.name} - {plans[selectedPlan as keyof typeof plans]?.price}
               </span>
             </p>
             <Link to="/pricing" className="text-sm text-sky-500 hover:text-sky-600 transition-colors">
