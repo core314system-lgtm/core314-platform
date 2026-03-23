@@ -1034,6 +1034,183 @@ export function IntegrationManager() {
                           <span className="truncate" title={ui.error_message}>{ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}</span>
                         </div>
                       )}
+                      {/* Google Calendar Transparency Metrics */}
+                      {serviceName === 'google_calendar' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const totalEvents = (cfg.total_events as number) ?? 0;
+                        const meetingsWithAttendees = (cfg.meetings_with_attendees as number) ?? 0;
+                        const allDayEvents = (cfg.all_day_events as number) ?? 0;
+                        const recurringEvents = (cfg.recurring_events as number) ?? 0;
+                        const totalMeetingHours = (cfg.total_meeting_hours as number) ?? 0;
+                        const busiestDay = cfg.busiest_day as string | null;
+                        const busiestDayCount = (cfg.busiest_day_count as number) ?? 0;
+                        const calendarSyncedAt = cfg.calendar_synced_at as string | null;
+                        const calScopeWarning = cfg.scope_warning as string | null;
+                        const lastErrors = cfg.last_api_errors as string[] | null;
+
+                        if (totalEvents > 0 || calendarSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-blue-500" />
+                                Calendar Data Transparency
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Calendar className="h-3 w-3" />Events (7 days)</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{totalEvents}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Users className="h-3 w-3" />With attendees</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{meetingsWithAttendees}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Clock className="h-3 w-3" />Meeting hours</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{totalMeetingHours}h</div>
+                                {allDayEvents > 0 && (<>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Calendar className="h-3 w-3" />All-day events</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{allDayEvents}</div>
+                                </>)}
+                                {recurringEvents > 0 && (<>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><RefreshCw className="h-3 w-3" />Recurring</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{recurringEvents}</div>
+                                </>)}
+                                {busiestDay && (<>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><BarChart3 className="h-3 w-3" />Busiest day</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{busiestDay} ({busiestDayCount})</div>
+                                </>)}
+                              </div>
+                              {calendarSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(calendarSyncedAt)}
+                                </div>
+                              )}
+                              {calScopeWarning && (
+                                <div className="flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-1.5 rounded mt-1">
+                                  <ShieldAlert className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span>{calScopeWarning}</span>
+                                </div>
+                              )}
+                              {lastErrors && lastErrors.length > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-red-500 dark:text-red-400 pt-0.5">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span className="truncate" title={lastErrors[0]}>{lastErrors.length} API error{lastErrors.length > 1 ? 's' : ''} in last poll</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {/* Gmail Transparency Metrics */}
+                      {serviceName === 'gmail' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const emailAddress = cfg.email_address as string | null;
+                        const totalMessages = (cfg.total_messages as number) ?? 0;
+                        const sentCount = (cfg.sent_count as number) ?? 0;
+                        const receivedCount = (cfg.received_count as number) ?? 0;
+                        const threadCount = (cfg.thread_count as number) ?? 0;
+                        const messagesAllTime = (cfg.messages_total_all_time as number) ?? 0;
+                        const gmailSyncedAt = cfg.gmail_synced_at as string | null;
+                        const gmailScopeWarning = cfg.scope_warning as string | null;
+                        const lastErrors = cfg.last_api_errors as string[] | null;
+
+                        if (totalMessages > 0 || gmailSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-red-500" />
+                                Gmail Data Transparency
+                                {emailAddress && <span className="text-gray-400 font-normal ml-1">({emailAddress})</span>}
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Mail className="h-3 w-3" />Messages (7 days)</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{totalMessages}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><CheckCircle className="h-3 w-3" />Sent</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{sentCount}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Mail className="h-3 w-3" />Received</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{receivedCount}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><MessageSquare className="h-3 w-3" />Threads</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{threadCount}</div>
+                                {messagesAllTime > 0 && (<>
+                                  <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><Layers className="h-3 w-3" />Total all-time</div>
+                                  <div className="font-medium text-gray-700 dark:text-gray-300">{messagesAllTime.toLocaleString()}</div>
+                                </>)}
+                              </div>
+                              {gmailSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(gmailSyncedAt)}
+                                </div>
+                              )}
+                              {gmailScopeWarning && (
+                                <div className="flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-1.5 rounded mt-1">
+                                  <ShieldAlert className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span>{gmailScopeWarning}</span>
+                                </div>
+                              )}
+                              {lastErrors && lastErrors.length > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-red-500 dark:text-red-400 pt-0.5">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span className="truncate" title={lastErrors[0]}>{lastErrors.length} API error{lastErrors.length > 1 ? 's' : ''} in last poll</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {/* Google Sheets Transparency Metrics */}
+                      {serviceName === 'google_sheets' && ui?.config && (() => {
+                        const cfg = ui.config;
+                        const totalSpreadsheets = (cfg.total_spreadsheets as number) ?? 0;
+                        const recentlyModifiedCount = (cfg.recently_modified_count as number) ?? 0;
+                        const staleCount = (cfg.stale_spreadsheets_count as number) ?? 0;
+                        const sheetsSyncedAt = cfg.sheets_synced_at as string | null;
+                        const sheetsScopeWarning = cfg.scope_warning as string | null;
+                        const lastErrors = cfg.last_api_errors as string[] | null;
+                        const sheetSummary = cfg.sheet_summary as { name: string; last_modified: string }[] | null;
+
+                        if (totalSpreadsheets > 0 || sheetsSyncedAt) {
+                          return (
+                            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-md space-y-1.5 border border-gray-100 dark:border-gray-700">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                <BarChart3 className="h-3 w-3 text-green-500" />
+                                Sheets Data Transparency
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><FileSpreadsheet className="h-3 w-3" />Total spreadsheets</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{totalSpreadsheets}</div>
+                                <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400"><CheckCircle className="h-3 w-3" />Modified (7 days)</div>
+                                <div className="font-medium text-gray-700 dark:text-gray-300">{recentlyModifiedCount}</div>
+                                {staleCount > 0 && (<>
+                                  <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400"><TrendingDown className="h-3 w-3" />Stale (30+ days)</div>
+                                  <div className="font-medium text-amber-600 dark:text-amber-400">{staleCount}</div>
+                                </>)}
+                              </div>
+                              {sheetSummary && sheetSummary.length > 0 && (
+                                <div className="text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <span className="font-medium text-gray-500 dark:text-gray-400">Recent:</span>{' '}
+                                  {sheetSummary.slice(0, 3).map(s => s.name).join(', ')}
+                                  {sheetSummary.length > 3 && ` +${sheetSummary.length - 3} more`}
+                                </div>
+                              )}
+                              {sheetsSyncedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 pt-0.5">
+                                  <Clock className="h-3 w-3" />Last sync: {formatTimeAgo(sheetsSyncedAt)}
+                                </div>
+                              )}
+                              {sheetsScopeWarning && (
+                                <div className="flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-1.5 rounded mt-1">
+                                  <ShieldAlert className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span>{sheetsScopeWarning}</span>
+                                </div>
+                              )}
+                              {lastErrors && lastErrors.length > 0 && (
+                                <div className="flex items-start gap-1 text-xs text-red-500 dark:text-red-400 pt-0.5">
+                                  <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                                  <span className="truncate" title={lastErrors[0]}>{lastErrors.length} API error{lastErrors.length > 1 ? 's' : ''} in last poll</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
                         {disconnectConfirm === dbIntegration?.id ? (
                           <div className="flex items-center gap-2">
