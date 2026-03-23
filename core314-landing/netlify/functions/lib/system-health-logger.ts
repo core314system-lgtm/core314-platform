@@ -17,7 +17,7 @@ type ServiceName =
 
 type EventStatus = 'success' | 'failure';
 
-const ALERT_RECIPIENT = process.env.ALERT_RECIPIENT_EMAIL || 'support@govmatchai.com';
+const ALERT_RECIPIENT = process.env.ALERT_RECIPIENT_EMAIL || 'chris.brown@core314.com';
 
 /**
  * Log a system health event to the database.
