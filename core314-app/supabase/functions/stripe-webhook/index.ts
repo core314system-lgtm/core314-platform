@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { logSystemEvent } from "../_shared/system-health-logger.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ||
   Deno.env.get("CORE314_STRIPE_SECRET_KEY") || "";
@@ -105,6 +106,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (!email) {
     log("error", "No email found in checkout session", { session_id: session.id });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", "No email found in checkout session", { session_id: session.id });
     return;
   }
 
@@ -128,6 +130,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       session_id: session.id,
       metadata: session.metadata,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", "Could not resolve plan from checkout session", { session_id: session.id, metadata: session.metadata as Record<string, unknown> });
     return;
   }
 
@@ -145,6 +148,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     if (existing) {
       userId = existing.id;
       log("info", "User already exists — reusing", { user_id: userId, email });
+      await logSystemEvent(supabaseAdmin, "user_creation", "success", "Duplicate prevented — existing user reused", { user_id: userId, email });
     }
   }
 
@@ -168,11 +172,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         error: String(createError),
         email,
       });
+      await logSystemEvent(supabaseAdmin, "user_creation", "failure", `Failed to create user: ${String(createError)}`, { email, session_id: session.id });
       return;
     }
 
     userId = newUser.user.id;
     log("info", "User created via Supabase Admin API", { user_id: userId, email });
+    await logSystemEvent(supabaseAdmin, "user_creation", "success", "User created via Stripe checkout", { user_id: userId, email, plan });
   }
 
   // ---- STEP 3: Link Stripe customer to profile ----
@@ -214,6 +220,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       user_id: userId,
       plan,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", `Failed to upsert subscription: ${String(upsertError)}`, { user_id: userId, plan });
     return;
   }
 
@@ -251,6 +258,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
       if (!sendgridApiKey) {
         log("error", "SENDGRID_API_KEY not set — cannot send password setup email", { email });
+        await logSystemEvent(supabaseAdmin, "email_send", "failure", "SENDGRID_API_KEY not configured", { email });
       } else {
         const emailHtml = `<!DOCTYPE html>
 <html>
@@ -303,13 +311,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             body: errBody,
             email,
           });
+          await logSystemEvent(supabaseAdmin, "email_send", "failure", `SendGrid API error: status ${sgResponse.status}`, { email, status: sgResponse.status, body: errBody });
         } else {
           log("info", "Password setup email sent via SendGrid", { email });
+          await logSystemEvent(supabaseAdmin, "email_send", "success", "Password setup email sent", { email });
         }
       }
     }
   } catch (err) {
     log("error", "Exception sending password setup email", { error: String(err) });
+    await logSystemEvent(supabaseAdmin, "email_send", "failure", `Exception sending password email: ${String(err)}`, { email, error: String(err) });
   }
 
   log("info", "Checkout completed — full Stripe-first flow executed", {
@@ -319,6 +330,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     stripe_subscription_id: subscriptionId,
     email,
   });
+  await logSystemEvent(supabaseAdmin, "stripe_webhook", "success", "Checkout completed — full Stripe-first flow executed", { user_id: userId, plan, seats_allowed: seatsAllowed, stripe_subscription_id: subscriptionId, email });
 }
 
 // ============================================================================
@@ -360,10 +372,12 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       error: String(error),
       subscription_id: subscriptionId,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", `Failed to update subscription on invoice.paid: ${String(error)}`, { subscription_id: subscriptionId });
   } else {
     log("info", "Invoice paid — subscription confirmed active", {
       subscription_id: subscriptionId,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "success", "Invoice paid — subscription confirmed active", { subscription_id: subscriptionId });
   }
 }
 
@@ -401,12 +415,14 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       error: String(error),
       subscription_id: subscription.id,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", `Failed to update subscription: ${String(error)}`, { subscription_id: subscription.id });
   } else {
     log("info", "Subscription updated", {
       subscription_id: subscription.id,
       plan: plan || "unchanged",
       status: subscription.status,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "success", "Subscription updated", { subscription_id: subscription.id, plan: plan || "unchanged", status: subscription.status });
   }
 }
 
@@ -432,10 +448,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       error: String(error),
       subscription_id: subscription.id,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", `Failed to mark subscription canceled: ${String(error)}`, { subscription_id: subscription.id });
   } else {
     log("info", "Subscription canceled (user NOT deleted)", {
       subscription_id: subscription.id,
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "success", "Subscription canceled", { subscription_id: subscription.id });
   }
 }
 
@@ -466,6 +484,7 @@ serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     log("error", "Missing stripe-signature header");
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", "Missing stripe-signature header");
     return new Response(JSON.stringify({ error: "Missing signature" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
@@ -474,6 +493,7 @@ serve(async (req) => {
 
   if (!STRIPE_WEBHOOK_SECRET) {
     log("error", "STRIPE_WEBHOOK_SECRET not configured");
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", "STRIPE_WEBHOOK_SECRET not configured");
     return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
@@ -491,6 +511,7 @@ serve(async (req) => {
     );
   } catch (err) {
     log("error", "Webhook signature verification failed", { error: String(err) });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", `Webhook signature verification failed: ${String(err)}`);
     return new Response(
       JSON.stringify({ error: "Invalid signature" }),
       { status: 400, headers: { "Content-Type": "application/json" } }
@@ -534,6 +555,7 @@ serve(async (req) => {
       event_type: event.type,
       error: String(err),
     });
+    await logSystemEvent(supabaseAdmin, "stripe_webhook", "failure", `Exception processing ${event.type}: ${String(err)}`, { event_id: event.id, event_type: event.type });
     // Return 200 to prevent Stripe retry loops — error is logged
   }
 

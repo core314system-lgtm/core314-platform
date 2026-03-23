@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import { isDisposableDomain, isConsumerDomain, extractDomain } from './lib/disposable-domains';
+import { logSystemEvent } from './lib/system-health-logger';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
@@ -290,6 +291,8 @@ export const handler: Handler = async (event) => {
       allow_promotion_codes: true,
     });
 
+    await logSystemEvent(supabase, 'stripe_checkout', 'success', 'Checkout session created', { session_id: session.id, plan, email: email || 'not_provided' });
+
     return {
       statusCode: 200,
       headers,
@@ -297,6 +300,7 @@ export const handler: Handler = async (event) => {
     };
   } catch (error: any) {
     console.error('Stripe checkout error:', error);
+    await logSystemEvent(supabase, 'stripe_checkout', 'failure', `Checkout session creation failed: ${error.message || String(error)}`, { plan: JSON.parse(event.body || '{}').plan, error: error.message || String(error) }).catch(() => {});
     return {
       statusCode: 500,
       headers,
