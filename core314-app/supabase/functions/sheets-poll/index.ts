@@ -184,7 +184,7 @@ serve(async (req) => {
             await supabase.from('user_integrations').update({
               config: { ...existingCfg, sheets_synced_at: now.toISOString(), scope_warning: scopeWarning, last_api_errors: apiErrors.slice(0, 10) },
             }).eq('id', integration.user_integration_id);
-          } catch (_) { /* best effort */ }
+          } catch { /* best effort */ }
           continue;
         }
 
