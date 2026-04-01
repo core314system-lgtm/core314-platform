@@ -357,8 +357,15 @@ export function IntegrationManager() {
   };
 
   const handleConnect = async (serviceName: string) => {
-    if (!profile?.id) return;
-    if (!canAccessIntegration(serviceName)) return;
+    console.log('[handleConnect] Clicked for:', serviceName);
+    if (!profile?.id) {
+      console.error('[handleConnect] No profile.id — aborting');
+      return;
+    }
+    if (!canAccessIntegration(serviceName)) {
+      console.warn('[handleConnect] Plan check failed for:', serviceName, '(userPlan:', userPlan, ')');
+      return;
+    }
     if (API_KEY_FIELDS[serviceName]) {
       setApiKeyForm({ service: serviceName, credentials: {} });
       setApiKeyError(null);
@@ -384,15 +391,18 @@ export function IntegrationManager() {
       if (!token) throw new Error('No session');
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
+      const anonKey = await getSupabaseAnonKey();
       // Build redirect_uri pointing to the Supabase Edge Function callback,
       // not the frontend URL. OAuth providers (QuickBooks, Slack, etc.) must
       // have this exact URI whitelisted in their developer app settings.
       const supabaseUrl = await getSupabaseUrl();
       const callbackUri = `${supabaseUrl}/functions/v1/oauth-callback`;
+      console.log('[handleConnect] Calling oauth-initiate for:', serviceName, 'url:', url, 'callbackUri:', callbackUri);
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -402,13 +412,19 @@ export function IntegrationManager() {
       });
 
       const data = await response.json();
+      console.log('[handleConnect] oauth-initiate response:', response.status, data);
       if (data.authorization_url) {
+        console.log('[handleConnect] Redirecting to OAuth URL');
         window.location.href = data.authorization_url;
+      } else if (data.skipped) {
+        console.warn('[handleConnect] OAuth skipped:', data.reason, data);
       } else if (data.error) {
-        console.error('OAuth error:', data.error);
+        console.error('[handleConnect] OAuth error:', data.error, data.message || '', data.diagnostics || '');
+      } else {
+        console.error('[handleConnect] Unexpected response (no authorization_url):', data);
       }
     } catch (err) {
-      console.error('Error connecting:', err);
+      console.error('[handleConnect] Error connecting:', err);
     } finally {
       setConnecting(null);
     }
