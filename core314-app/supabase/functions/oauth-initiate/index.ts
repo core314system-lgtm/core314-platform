@@ -363,6 +363,20 @@ serve(withSentry(async (req) => {
       // - refresh_token: Perform requests at any time (offline access)
       scopeString = 'api refresh_token';
       console.log('[oauth-initiate] Salesforce: Using hardcoded scopes:', scopeString);
+    } else if (['gmail', 'google_calendar', 'google_sheets'].includes(normalizedServiceName)) {
+      // Google services: use hardcoded scopes for production consistency
+      // Base scopes for all Google services (identity + profile)
+      const googleBaseScopes = [
+        'openid',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+      ];
+      // Service-specific scopes from the database
+      const serviceScopes = integration.oauth_scopes || [];
+      // Merge base + service scopes, deduplicate
+      const allScopes = [...new Set([...googleBaseScopes, ...serviceScopes])];
+      scopeString = allScopes.join(' ');
+      console.log('[oauth-initiate] Google service scopes:', { service: normalizedServiceName, scopes: scopeString });
     } else {
       scopeString = integration.oauth_scopes.join(scopeDelimiter);
     }

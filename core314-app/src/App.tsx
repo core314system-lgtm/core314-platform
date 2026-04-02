@@ -21,6 +21,7 @@ import { ContactSales } from './pages/ContactSales';
 import { Settings } from './pages/Settings';
 import BetaInvite from './pages/BetaInvite';
 import OAuthCallback from './pages/OAuthCallback';
+import AuthCallback from './pages/AuthCallback';
 import { InviteAccept } from './pages/InviteAccept';
 import { SentryTest } from './pages/SentryTest';
 import SentryVerify from './pages/SentryVerify';
@@ -82,6 +83,7 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/beta-invite" element={<BetaInvite />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/invite" element={<InviteAccept />} />
         <Route path="/sentry-test" element={<SentryTest />} />
         {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
