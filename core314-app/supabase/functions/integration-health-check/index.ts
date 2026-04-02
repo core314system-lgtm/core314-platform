@@ -70,7 +70,19 @@ async function refreshToken(
     return { accessToken: null, error: `Failed to decrypt refresh token: ${refreshError?.message || 'no data returned'}` };
   }
 
-  const envPrefix = serviceName.toUpperCase();
+  // Map service names to the correct env var prefix
+  // Google services all share GOOGLE_ credentials
+  const SERVICE_TO_ENV_PREFIX: Record<string, string> = {
+    gmail: 'GOOGLE',
+    google_calendar: 'GOOGLE',
+    google_sheets: 'GOOGLE',
+    slack: 'SLACK',
+    hubspot: 'HUBSPOT',
+    quickbooks: 'QUICKBOOKS',
+    salesforce: 'SALESFORCE',
+    microsoft_teams: 'TEAMS',
+  };
+  const envPrefix = SERVICE_TO_ENV_PREFIX[serviceName] || serviceName.toUpperCase();
   const clientId = Deno.env.get(`${envPrefix}_CLIENT_ID`);
   const clientSecret = Deno.env.get(`${envPrefix}_CLIENT_SECRET`);
 

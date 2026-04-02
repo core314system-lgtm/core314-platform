@@ -392,11 +392,21 @@ export function IntegrationManager() {
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
       const anonKey = await getSupabaseAnonKey();
-      // Build redirect_uri pointing to the Supabase Edge Function callback,
-      // not the frontend URL. OAuth providers (QuickBooks, Slack, etc.) must
-      // have this exact URI whitelisted in their developer app settings.
-      const supabaseUrl = await getSupabaseUrl();
-      const callbackUri = `${supabaseUrl}/functions/v1/oauth-callback`;
+
+      // Google services use frontend callback for branded OAuth experience
+      // Other providers (Slack, QuickBooks) use Supabase Edge Function callback
+      const GOOGLE_SERVICES = ['gmail', 'google_calendar', 'google_sheets'];
+      let callbackUri: string;
+      if (GOOGLE_SERVICES.includes(serviceName)) {
+        // Frontend callback: Google redirects to app.core314.com/auth/callback
+        // AuthCallback.tsx extracts code + state and POSTs to google-oauth-exchange
+        callbackUri = `${window.location.origin}/auth/callback`;
+        console.log('[handleConnect] Using frontend callback for Google service:', serviceName, 'callbackUri:', callbackUri);
+      } else {
+        // Supabase Edge Function callback for non-Google providers
+        const supabaseUrl = await getSupabaseUrl();
+        callbackUri = `${supabaseUrl}/functions/v1/oauth-callback`;
+      }
       console.log('[handleConnect] Calling oauth-initiate for:', serviceName, 'url:', url, 'callbackUri:', callbackUri);
       const response = await fetch(url, {
         method: 'POST',
