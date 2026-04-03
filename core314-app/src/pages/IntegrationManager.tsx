@@ -105,6 +105,31 @@ const CORE_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks'];
 const COMMAND_CENTER_INTEGRATIONS = ['google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'];
 const ALL_INTEGRATIONS = [...CORE_INTEGRATIONS, ...COMMAND_CENTER_INTEGRATIONS];
 
+// Google services that use direct OAuth (no Supabase intermediary)
+const GOOGLE_SERVICES = ['gmail', 'google_calendar', 'google_sheets'];
+
+// Per-service Google OAuth scopes (service-specific + base identity scopes)
+const GOOGLE_SERVICE_SCOPES: Record<string, string[]> = {
+  google_calendar: [
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/calendar.readonly',
+  ],
+  gmail: [
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/gmail.readonly',
+  ],
+  google_sheets: [
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+  ],
+};
+
 const API_KEY_FIELDS: Record<string, { label: string; field: string; type: string; placeholder: string }[]> = {
   jira: [
     { label: 'Jira Domain', field: 'domain', type: 'text', placeholder: 'your-company.atlassian.net' },
@@ -356,6 +381,70 @@ export function IntegrationManager() {
     return false;
   };
 
+  /**
+   * Initiate Google OAuth directly from the frontend.
+   * Constructs the Google OAuth URL without any Supabase intermediary,
+   * so the consent screen shows "Continue to Core314" (not a Supabase domain).
+   *
+   * Flow:
+   * 1. Generate UUID state and insert into oauth_states table
+   * 2. Construct Google OAuth URL with client_id, redirect_uri, scopes
+   * 3. Redirect user to Google directly
+   * 4. Google shows "Continue to Core314" consent screen
+   * 5. Google redirects to /auth/callback
+   * 6. AuthCallback.tsx sends code+state to google-oauth-exchange Edge Function
+   */
+  const handleGoogleConnect = async (serviceName: string) => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      console.error('[handleGoogleConnect] VITE_GOOGLE_CLIENT_ID not configured');
+      return;
+    }
+
+    // Find integration_registry entry for this Google service
+    const registryEntry = integrations.find(i => i.service_name === serviceName);
+    if (!registryEntry) {
+      console.error('[handleGoogleConnect] No registry entry for:', serviceName);
+      return;
+    }
+
+    // Generate state for CSRF protection
+    const state = crypto.randomUUID();
+    const redirectUri = `${window.location.origin}/auth/callback`;
+
+    // Insert state into oauth_states table (RLS allows authenticated users)
+    const { error: stateError } = await supabase
+      .from('oauth_states')
+      .insert({
+        state,
+        user_id: profile!.id,
+        integration_registry_id: registryEntry.id,
+        redirect_uri: redirectUri,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      });
+
+    if (stateError) {
+      console.error('[handleGoogleConnect] Failed to store OAuth state:', stateError);
+      return;
+    }
+
+    // Get scopes for this Google service
+    const scopes = GOOGLE_SERVICE_SCOPES[serviceName] || GOOGLE_SERVICE_SCOPES['gmail'];
+
+    // Construct Google OAuth URL directly — no Supabase domain involved
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', googleClientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', scopes.join(' '));
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('access_type', 'offline');
+    authUrl.searchParams.set('prompt', 'consent');
+
+    // Redirect directly to Google (consent screen will show "Continue to Core314")
+    window.location.href = authUrl.toString();
+  };
+
   const handleConnect = async (serviceName: string) => {
     if (!profile?.id) return;
     if (!canAccessIntegration(serviceName)) return;
@@ -367,26 +456,29 @@ export function IntegrationManager() {
     setConnecting(serviceName);
 
     try {
+      // Google services: construct OAuth URL directly on the frontend
+      // This ensures Google consent screen shows "Continue to Core314"
+      // instead of a Supabase domain
+      if (GOOGLE_SERVICES.includes(serviceName)) {
+        await handleGoogleConnect(serviceName);
+        return;
+      }
+
       // HubSpot uses dedicated Netlify function for OAuth
       if (serviceName === 'hubspot') {
-        // Get Supabase session token for secure server-side validation
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData.session?.access_token;
         if (!accessToken) throw new Error('No session');
-        // Redirect to HubSpot OAuth via Netlify function with validated token
         window.location.href = `/.netlify/functions/hubspot-auth?access_token=${accessToken}`;
         return;
       }
 
-      // Other integrations use Supabase Edge Function
+      // Other integrations (Slack, QuickBooks) use Supabase Edge Function
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) throw new Error('No session');
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
-      // Build redirect_uri pointing to the Supabase Edge Function callback,
-      // not the frontend URL. OAuth providers (QuickBooks, Slack, etc.) must
-      // have this exact URI whitelisted in their developer app settings.
       const supabaseUrl = await getSupabaseUrl();
       const callbackUri = `${supabaseUrl}/functions/v1/oauth-callback`;
       const response = await fetch(url, {
