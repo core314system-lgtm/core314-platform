@@ -225,9 +225,10 @@ serve(withSentry(async (req) => {
         error_description: tokenData.error_description,
         full_response: tokenData,
       });
+      const googleError = tokenData.error_description || tokenData.error || 'Unknown error';
       return new Response(JSON.stringify({ 
-        error: 'Token exchange failed', 
-        reason: tokenData.error_description || tokenData.error || 'Unknown error',
+        error: `Token exchange failed: ${googleError}`, 
+        reason: googleError,
         details: tokenData 
       }), {
         status: 400,
