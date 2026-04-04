@@ -5,11 +5,19 @@ import { sendIntegrationConnectedEmail } from '../_shared/integration-notificati
 
 // Cold start: Log credential presence for key OAuth providers (never log values)
 console.log('[oauth-callback] Cold start - Credentials check:', {
+  GOOGLE_CLIENT_ID_present: !!Deno.env.get('GOOGLE_CLIENT_ID'),
+  GOOGLE_CLIENT_SECRET_present: !!Deno.env.get('GOOGLE_CLIENT_SECRET'),
   SLACK_CLIENT_ID_present: !!Deno.env.get('SLACK_CLIENT_ID'),
   SLACK_CLIENT_SECRET_present: !!Deno.env.get('SLACK_CLIENT_SECRET'),
   SALESFORCE_CLIENT_ID_present: !!Deno.env.get('SALESFORCE_CLIENT_ID'),
   TEAMS_CLIENT_ID_present: !!Deno.env.get('TEAMS_CLIENT_ID'),
 });
+
+// Google services that use direct OAuth flow
+const GOOGLE_SERVICES = ['google_calendar', 'google_meet', 'gmail', 'google_sheets'];
+
+// Canonical Google token endpoint
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -161,13 +169,32 @@ serve(withSentry(async (req) => {
     
     console.log('[oauth-callback] SUCCESS: Found credentials with prefix:', usedPrefix);
 
-    const tokenResponse = await fetch(integration.oauth_token_url, {
+    // Google services: always use the canonical Google token endpoint
+    // The integration_registry.oauth_token_url may be missing or outdated
+    const normalizedService = normalizeServiceName(integration.service_name);
+    const tokenUrl = GOOGLE_SERVICES.includes(normalizedService)
+      ? GOOGLE_TOKEN_URL
+      : integration.oauth_token_url;
+
+    // Diagnostic logging before token exchange (temporary)
+    console.log('[oauth-callback] Token exchange request:', {
+      service_name: integration.service_name,
+      token_url: tokenUrl,
+      db_token_url: integration.oauth_token_url,
+      redirect_uri: stateData.redirect_uri,
+      code_length: code.length,
+      client_id_length: clientId.length,
+      client_secret_present: !!clientSecret,
+      grant_type: 'authorization_code',
+    });
+
+    const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         code,
         client_id: clientId,
-        client_secret: clientSecret,
+        client_secret: clientSecret!,
         redirect_uri: stateData.redirect_uri,
         grant_type: 'authorization_code'
       })
@@ -175,8 +202,34 @@ serve(withSentry(async (req) => {
 
     const tokenData = await tokenResponse.json();
 
+    // Log full token exchange response for debugging
+    console.log('[oauth-callback] Token exchange response:', {
+      status: tokenResponse.status,
+      ok: tokenResponse.ok,
+      has_access_token: !!tokenData.access_token,
+      has_refresh_token: !!tokenData.refresh_token,
+      has_id_token: !!tokenData.id_token,
+      scope: tokenData.scope,
+      token_type: tokenData.token_type,
+      error: tokenData.error,
+      error_description: tokenData.error_description,
+    });
+
     if (!tokenResponse.ok || !tokenData.access_token) {
-      return new Response(JSON.stringify({ error: 'Token exchange failed', details: tokenData }), {
+      console.error('[oauth-callback] TOKEN EXCHANGE FAILED:', {
+        service: integration.service_name,
+        token_url: tokenUrl,
+        redirect_uri: stateData.redirect_uri,
+        response_status: tokenResponse.status,
+        error: tokenData.error,
+        error_description: tokenData.error_description,
+        full_response: tokenData,
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Token exchange failed', 
+        reason: tokenData.error_description || tokenData.error || 'Unknown error',
+        details: tokenData 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
