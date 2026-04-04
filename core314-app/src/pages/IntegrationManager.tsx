@@ -361,13 +361,24 @@ export function IntegrationManager() {
     }
 
     // Fetch ingestion state for all integrations
+    // Only fetch services we actually display to avoid hitting PostgREST row limits
+    // (duplicate rows from null user_integration_id upserts can accumulate)
     const { data: stateData } = await supabase
       .from('integration_ingestion_state')
       .select('service_name, last_polled_at, next_poll_after')
-      .eq('user_id', profile.id);
+      .eq('user_id', profile.id)
+      .in('service_name', ALL_INTEGRATIONS)
+      .order('last_polled_at', { ascending: false });
 
     if (stateData) {
-      setIngestionStates(stateData as IngestionState[]);
+      // Deduplicate: keep only the most recent record per service_name
+      const seen = new Set<string>();
+      const deduped = stateData.filter((s: IngestionState) => {
+        if (seen.has(s.service_name)) return false;
+        seen.add(s.service_name);
+        return true;
+      });
+      setIngestionStates(deduped as IngestionState[]);
     }
 
     setLoading(false);
