@@ -580,13 +580,13 @@ export function IntegrationManager() {
         setApiKeyError('Failed to connect. Please check your credentials.');
         return;
       }
-      if (data && !data.success) {
-        setApiKeyError(data.message || data.error || 'Connection failed');
-        return;
-      }
-      // Handle integration limit error from backend
+      // Handle integration limit error from backend (must check before generic !data.success)
       if (data?.error === 'integration_limit_reached') {
         setApiKeyError(data.message || 'Integration limit reached. Upgrade to connect more.');
+        return;
+      }
+      if (data && !data.success) {
+        setApiKeyError(data.message || data.error || 'Connection failed');
         return;
       }
       setApiKeyForm(null);
