@@ -101,6 +101,13 @@ const PLAN_TIERS: Record<string, number> = {
   enterprise: 3,
 };
 
+// Integration connection limits per plan
+const PLAN_INTEGRATION_LIMITS: Record<string, number> = {
+  intelligence: 3,
+  command_center: 10,
+  enterprise: Infinity,
+};
+
 const CORE_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks'];
 const COMMAND_CENTER_INTEGRATIONS = ['google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'];
 const ALL_INTEGRATIONS = [...CORE_INTEGRATIONS, ...COMMAND_CENTER_INTEGRATIONS];
@@ -161,6 +168,7 @@ export function IntegrationManager() {
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [limitError, setLimitError] = useState<string | null>(null);
   // CTA state: shown when a new integration connects but user already has briefs
   const [showNewDataCTA, setShowNewDataCTA] = useState(false);
 
@@ -264,6 +272,18 @@ export function IntegrationManager() {
     const oauthSuccess = searchParams.get('oauth_success');
     const oauthService = searchParams.get('service');
     const hubspotStatus = searchParams.get('hubspot');
+
+    // Handle integration limit error from OAuth redirect (oauth-callback returns this)
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'integration_limit_reached') {
+      const limitParam = searchParams.get('limit');
+      const planParam = searchParams.get('plan');
+      setLimitError(`You have reached the maximum of ${limitParam || '?'} integrations for your ${(planParam || 'current').replace(/_/g, ' ')} plan. Upgrade to connect more integrations.`);
+      searchParams.delete('error');
+      searchParams.delete('limit');
+      searchParams.delete('plan');
+      setSearchParams(searchParams, { replace: true });
+    }
 
     if (oauthSuccess === 'true' && oauthService) {
       console.log('[AutoTrigger] OAuth callback detected for:', oauthService);
@@ -405,7 +425,17 @@ export function IntegrationManager() {
    * 5. Google redirects to /auth/callback
    * 6. AuthCallback.tsx sends code+state to google-oauth-exchange Edge Function
    */
+  // Check if the user has reached their integration limit
+  const integrationLimit = PLAN_INTEGRATION_LIMITS[userPlan] ?? PLAN_INTEGRATION_LIMITS['intelligence'];
+  const isAtLimit = connectedCount >= integrationLimit;
+
   const handleGoogleConnect = async (serviceName: string) => {
+    // Frontend guard: check integration limit before redirecting to Google
+    if (isAtLimit) {
+      setLimitError(`You have reached the maximum of ${integrationLimit} integrations for your ${userPlan.replace(/_/g, ' ')} plan. Upgrade to connect more integrations.`);
+      return;
+    }
+
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId) {
       console.error('[handleGoogleConnect] VITE_GOOGLE_CLIENT_ID not configured');
@@ -459,6 +489,12 @@ export function IntegrationManager() {
   const handleConnect = async (serviceName: string) => {
     if (!profile?.id) return;
     if (!canAccessIntegration(serviceName)) return;
+
+    // Frontend guard: check integration limit
+    if (isAtLimit) {
+      setLimitError(`You have reached the maximum of ${integrationLimit} integrations for your ${userPlan.replace(/_/g, ' ')} plan. Upgrade to connect more integrations.`);
+      return;
+    }
     if (API_KEY_FIELDS[serviceName]) {
       setApiKeyForm({ service: serviceName, credentials: {} });
       setApiKeyError(null);
@@ -505,6 +541,11 @@ export function IntegrationManager() {
       });
 
       const data = await response.json();
+      if (data.error === 'integration_limit_reached') {
+        setLimitError(data.message || 'Integration limit reached. Upgrade to connect more.');
+        setConnecting(null);
+        return;
+      }
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       } else if (data.error) {
@@ -519,6 +560,13 @@ export function IntegrationManager() {
 
   const handleApiKeySubmit = async () => {
     if (!apiKeyForm || !profile?.id) return;
+
+    // Frontend guard: check integration limit
+    if (isAtLimit) {
+      setApiKeyError(`You have reached the maximum of ${integrationLimit} integrations for your ${userPlan.replace(/_/g, ' ')} plan. Upgrade to connect more.`);
+      return;
+    }
+
     setConnecting(apiKeyForm.service);
     setApiKeyError(null);
     try {
@@ -534,6 +582,11 @@ export function IntegrationManager() {
       }
       if (data && !data.success) {
         setApiKeyError(data.message || data.error || 'Connection failed');
+        return;
+      }
+      // Handle integration limit error from backend
+      if (data?.error === 'integration_limit_reached') {
+        setApiKeyError(data.message || 'Integration limit reached. Upgrade to connect more.');
         return;
       }
       setApiKeyForm(null);
@@ -759,6 +812,34 @@ export function IntegrationManager() {
         </Card>
       )}
 
+      {/* Integration Limit Error Banner */}
+      {limitError && (
+        <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  {limitError}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/account-plan')}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
+                >
+                  <ArrowUpRight className="h-4 w-4 mr-1" /> Upgrade Plan
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setLimitError(null)} className="text-red-600 hover:text-red-700">
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Connection Status Summary */}
       <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200 dark:border-indigo-800">
         <CardContent className="p-4">
@@ -766,21 +847,23 @@ export function IntegrationManager() {
             <Plug className="h-8 w-8 text-indigo-500" />
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {connectedCount} of {accessibleCount} available integrations connected
+                {connectedCount} / {integrationLimit === Infinity ? 'Unlimited' : integrationLimit} integrations used
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {connectedCount === accessibleCount && accessibleCount > 0
-                  ? 'All signal sources active. Core314 is analyzing your full operational picture.'
-                  : userPlan === 'intelligence'
-                    ? 'Connect your core integrations. Upgrade to Command Center for 7 additional integrations.'
-                    : 'Connect more integrations for richer operational insights.'}
+                {isAtLimit
+                  ? 'Integration limit reached. Upgrade your plan to connect more integrations.'
+                  : connectedCount === accessibleCount && accessibleCount > 0
+                    ? 'All signal sources active. Core314 is analyzing your full operational picture.'
+                    : userPlan === 'intelligence'
+                      ? `Connect up to ${integrationLimit} integrations. Upgrade to Command Center for up to 10.`
+                      : 'Connect more integrations for richer operational insights.'}
               </p>
             </div>
           </div>
           <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div
-              className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(connectedCount / Math.max(accessibleCount, 1)) * 100}%` }}
+              className={`h-2 rounded-full transition-all duration-500 ${isAtLimit ? 'bg-red-500' : 'bg-indigo-500'}`}
+              style={{ width: `${Math.min((connectedCount / Math.max(integrationLimit === Infinity ? connectedCount || 1 : integrationLimit, 1)) * 100, 100)}%` }}
             />
           </div>
         </CardContent>
@@ -1048,6 +1131,15 @@ export function IntegrationManager() {
                         )}
                       </div>
                     </div>
+                  ) : isAtLimit ? (
+                    <div className="space-y-2">
+                      <Button className="w-full" disabled>
+                        <Lock className="h-4 w-4 mr-2" /> Limit Reached
+                      </Button>
+                      <p className="text-xs text-center text-amber-600 dark:text-amber-400">
+                        Upgrade to connect more integrations
+                      </p>
+                    </div>
                   ) : (
                     <Button className="w-full" onClick={() => handleConnect(integration.service_name)} disabled={connecting === integration.service_name}>
                       {connecting === integration.service_name ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : isApiKeyService ? <Key className="h-4 w-4 mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
@@ -1163,6 +1255,15 @@ export function IntegrationManager() {
                       <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white" onClick={() => navigate('/account-plan')}>
                         <ArrowUpRight className="h-4 w-4 mr-2" /> Upgrade to Command Center
                       </Button>
+                    </div>
+                  ) : isAtLimit ? (
+                    <div className="space-y-2">
+                      <Button className="w-full" disabled>
+                        <Lock className="h-4 w-4 mr-2" /> Limit Reached
+                      </Button>
+                      <p className="text-xs text-center text-amber-600 dark:text-amber-400">
+                        Upgrade to connect more integrations
+                      </p>
                     </div>
                   ) : (
                     <Button className="w-full" onClick={() => handleConnect(serviceName)} disabled={connecting === serviceName}>

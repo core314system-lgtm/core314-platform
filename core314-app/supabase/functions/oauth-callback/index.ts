@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
 import { sendIntegrationConnectedEmail } from '../_shared/integration-notifications.ts';
+import { checkIntegrationLimit } from '../_shared/integration-limits.ts';
 
 // Cold start: Log credential presence for key OAuth providers (never log values)
 console.log('[oauth-callback] Cold start - Credentials check:', {
@@ -140,6 +141,20 @@ serve(withSentry(async (req) => {
       return new Response(JSON.stringify({ error: 'Integration not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // === Integration Plan Limit Check (safety net — also checked in oauth-initiate) ===
+    const limitResult = await checkIntegrationLimit(supabase, stateData.user_id);
+    if (!limitResult.allowed) {
+      console.log('[oauth-callback] Integration limit reached:', limitResult);
+      const appUrl = Deno.env.get('APP_URL') || 'http://localhost:5173';
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          'Location': `${appUrl}/integration-manager?error=integration_limit_reached&limit=${limitResult.limit}&plan=${limitResult.plan}`
+        }
       });
     }
 
