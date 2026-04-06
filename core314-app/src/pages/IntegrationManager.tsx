@@ -425,10 +425,6 @@ export function IntegrationManager() {
    * 5. Google redirects to /auth/callback
    * 6. AuthCallback.tsx sends code+state to google-oauth-exchange Edge Function
    */
-  // Check if the user has reached their integration limit
-  const integrationLimit = PLAN_INTEGRATION_LIMITS[userPlan] ?? PLAN_INTEGRATION_LIMITS['intelligence'];
-  const isAtLimit = connectedCount >= integrationLimit;
-
   const handleGoogleConnect = async (serviceName: string) => {
     // Frontend guard: check integration limit before redirecting to Google
     if (isAtLimit) {
@@ -683,6 +679,10 @@ export function IntegrationManager() {
   const commandCenterIntegrations = integrations.filter(i => COMMAND_CENTER_INTEGRATIONS.includes(i.service_name));
   const connectedCount = integrations.filter(i => isConnected(i.id)).length;
   const accessibleCount = integrations.filter(i => canAccessIntegration(i.service_name)).length;
+
+  // Check if the user has reached their integration limit
+  const integrationLimit = PLAN_INTEGRATION_LIMITS[userPlan] ?? PLAN_INTEGRATION_LIMITS['intelligence'];
+  const isAtLimit = connectedCount >= integrationLimit;
 
   if (loading) {
     return (
