@@ -469,17 +469,18 @@ serve(async (req) => {
     // First, get the integration registry entries
     const { data: registryEntries } = await supabase
       .from('integrations_master')
-      // Also query integration_registry — this is the table referenced by
-// integration_events.integration_registry_id (separate from integrations_master)
-const { data: irEntries } = await supabase
-  .from('integration_registry')
-  .select('id, service_name');
-
-const irMap: Record<string, string> = {};
-for (const entry of (irEntries || [])) {
-  irMap[(entry.service_name as string).toLowerCase()] = entry.id as string;
-}
       .select('id, integration_type, integration_name');
+
+    // Also query integration_registry — this is the table referenced by
+    // integration_events.integration_registry_id (separate from integrations_master)
+    const { data: irEntries } = await supabase
+      .from('integration_registry')
+      .select('id, service_name');
+
+    const irMap: Record<string, string> = {};
+    for (const entry of (irEntries || [])) {
+      irMap[(entry.service_name as string).toLowerCase()] = entry.id as string;
+    }
 
     const registryMap: Record<string, string> = {};
     for (const entry of (registryEntries || [])) {
@@ -505,11 +506,11 @@ for (const entry of (irEntries || [])) {
       }
 
       const irId = irMap[serviceName]
-  || irMap[intType]
-  || irMap[serviceName.replace('microsoft_', '').replace('google_', '')]
-  || irMap[serviceName.replace('_', '-')];
+        || irMap[intType]
+        || irMap[serviceName.replace('microsoft_', '').replace('google_', '')]
+        || irMap[serviceName.replace('_', '-')];
 
-registryIdMap[serviceName] = irId || registryId;
+      registryIdMap[serviceName] = irId || registryId;
 
       // Check if user already has this integration
       const { data: existing } = await supabase
