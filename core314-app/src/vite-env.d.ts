@@ -13,6 +13,7 @@ interface ImportMetaEnv {
   readonly VITE_EXTERNAL_INTELLIGENCE_API_KEY?: string;
   readonly VITE_ENABLE_AI_SUPPORT_WIDGET?: string;
   readonly VITE_ENABLE_INTELLIGENCE_DASHBOARD?: string;
+  readonly VITE_TEST_MODE?: string;
 }
 
 interface ImportMeta {
