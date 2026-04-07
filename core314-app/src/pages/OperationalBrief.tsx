@@ -22,10 +22,12 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowRight,
+  Download,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
+import { generateBriefPdf } from '../utils/generateBriefPdf';
 
 interface BriefUsage {
   plan: string;
@@ -94,6 +96,7 @@ export function OperationalBrief() {
   const [usage, setUsage] = useState<BriefUsage | null>(null);
   const [limitReached, setLimitReached] = useState(false);
   const [momentum, setMomentum] = useState<MomentumData | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
@@ -181,6 +184,27 @@ export function OperationalBrief() {
       }
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!brief) return;
+    setPdfError(null);
+    try {
+      generateBriefPdf({
+        title: brief.title,
+        created_at: brief.created_at,
+        health_score: brief.health_score,
+        confidence: brief.confidence,
+        detected_signals: brief.detected_signals,
+        business_impact: brief.business_impact,
+        recommended_actions: brief.recommended_actions,
+        risk_assessment: brief.risk_assessment,
+        momentum: momentum ?? undefined,
+        userName: profile?.full_name,
+      });
+    } catch {
+      setPdfError('Failed to generate PDF. Please try again.');
     }
   };
 
@@ -306,6 +330,16 @@ export function OperationalBrief() {
               Unlimited briefs ({usage.plan})
             </span>
           )}
+          {brief && (
+            <Button
+              onClick={handleDownloadPdf}
+              variant="outline"
+              className="border-sky-600 text-sky-600 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-400 dark:hover:bg-sky-950"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Brief
+            </Button>
+          )}
           <Button
             onClick={handleGenerateBrief}
             disabled={generating || limitReached}
@@ -320,6 +354,14 @@ export function OperationalBrief() {
           </Button>
         </div>
       </div>
+
+      {/* PDF Error Banner */}
+      {pdfError && (
+        <div className="rounded-xl p-4 flex items-start gap-3 bg-red-500/10 border border-red-500/30">
+          <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm font-medium text-red-300">{pdfError}</p>
+        </div>
+      )}
 
       {/* Error / Limit Reached Banner */}
       {error && (
