@@ -3,19 +3,14 @@ import { useAuth } from '../hooks/useAuth';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { BriefHighlights } from '../components/onboarding/BriefHighlights';
 import { supabase } from '../lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import {
   FileText,
   RefreshCw,
   AlertTriangle,
   TrendingUp,
-  Shield,
-  CheckCircle,
   Clock,
-  ChevronRight,
   Sparkles,
   AlertCircle,
   ArrowUpCircle,
@@ -23,6 +18,12 @@ import {
   ArrowDown,
   ArrowRight,
   Download,
+  Network,
+  DollarSign,
+  Target,
+  Search,
+  Calendar,
+  Users,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
@@ -63,12 +64,72 @@ interface SignalEvidence {
   summary_metrics: Record<string, unknown>;
 }
 
+interface CrossSystemPattern {
+  pattern_name: string;
+  category: string;
+  integrations: string[];
+  combined_severity: string;
+  signal_count: number;
+}
+
+interface InterCategoryPattern {
+  pattern_name: string;
+  categories: string[];
+  description: string;
+  severity: string;
+}
+
+interface FinancialImpactData {
+  overdue_total: number | null;
+  revenue_at_risk: number | null;
+  estimated_shortfall: number | null;
+  open_pipeline_value: number | null;
+  stalled_pipeline_value: number | null;
+  expense_total: number | null;
+  details: string[];
+  gpt_analysis?: {
+    summary?: string;
+    revenue_at_risk?: number | null;
+    overdue_total?: number | null;
+    estimated_shortfall?: number | null;
+  } | null;
+}
+
+interface ForecastData {
+  horizon_7d: { risk_level: string; description: string };
+  horizon_14d: { risk_level: string; description: string };
+  horizon_30d: { risk_level: string; description: string };
+  projected_health_score: number | null;
+  trend_direction: string;
+  key_risks: string[];
+  gpt_analysis?: {
+    seven_day?: string;
+    fourteen_day?: string;
+    thirty_day?: string;
+    key_risks?: string[];
+  } | null;
+}
+
+interface RootCauseItem {
+  cause: string;
+  evidence: string[];
+  affected_systems: string[];
+  severity?: string;
+}
+
+interface PrescriptiveAction {
+  who: string;
+  what: string;
+  when: string;
+  priority: string;
+}
+
 interface OperationalBriefData {
   id: string;
   title: string;
   detected_signals: string[];
   business_impact: string;
-  recommended_actions: string[];
+  recommended_actions: string[] | PrescriptiveAction[];
   risk_assessment: string;
   confidence: number;
   health_score: number | null;
@@ -76,6 +137,16 @@ interface OperationalBriefData {
   data_context?: {
     momentum?: MomentumData;
     signal_evidence?: SignalEvidence[];
+    cross_system_patterns?: CrossSystemPattern[];
+    inter_category_patterns?: InterCategoryPattern[];
+    gpt_cross_system_patterns?: Array<{ pattern: string; integrations: string[]; description: string }>;
+    financial_impact?: FinancialImpactData;
+    forecast?: ForecastData;
+    root_cause_analysis?: {
+      programmatic?: RootCauseItem[];
+      gpt_analysis?: RootCauseItem[];
+    };
+    prescriptive_actions?: string[] | PrescriptiveAction[];
     [key: string]: unknown;
   } | null;
 }
@@ -222,18 +293,16 @@ export function OperationalBrief() {
         momentum: momentum ?? undefined,
         userName: profile?.full_name,
         signal_evidence: brief.data_context?.signal_evidence,
+        cross_system_patterns: brief.data_context?.cross_system_patterns,
+        inter_category_patterns: brief.data_context?.inter_category_patterns,
+        financial_impact: brief.data_context?.financial_impact,
+        forecast: brief.data_context?.forecast,
+        root_cause_analysis: brief.data_context?.root_cause_analysis,
+        prescriptive_actions: brief.data_context?.prescriptive_actions,
       });
     } catch {
       setPdfError('Failed to generate PDF. Please try again.');
     }
-  };
-
-  const getHealthColor = (score: number | null) => {
-    if (score === null) return 'text-gray-500';
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
   };
 
   const getHealthLabel = (score: number | null) => {
@@ -576,6 +645,202 @@ export function OperationalBrief() {
               )}
             </div>
 
+            {/* Cross-System Patterns */}
+            {((brief.data_context?.cross_system_patterns && brief.data_context.cross_system_patterns.length > 0) ||
+              (brief.data_context?.inter_category_patterns && brief.data_context.inter_category_patterns.length > 0)) && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs flex items-center gap-2">
+                  <Network className="h-3.5 w-3.5" />
+                  Cross-System Patterns
+                </h4>
+                <div className="space-y-3">
+                  {brief.data_context?.cross_system_patterns?.map((p, i) => {
+                    const sevColor = p.combined_severity === 'critical' ? 'border-red-500/40 bg-red-500/5' : p.combined_severity === 'high' ? 'border-orange-500/40 bg-orange-500/5' : 'border-amber-500/40 bg-amber-500/5';
+                    return (
+                      <div key={`cs-${i}`} className={`rounded-lg border ${sevColor} p-4`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-semibold uppercase ${p.combined_severity === 'critical' ? 'text-red-400' : p.combined_severity === 'high' ? 'text-orange-400' : 'text-amber-400'}`}>
+                            {p.combined_severity}
+                          </span>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-xs text-slate-400">{p.category.replace(/_/g, ' ')}</span>
+                        </div>
+                        <p className="text-slate-300 text-sm">
+                          Detected across <span className="font-medium text-white">{p.integrations.join(', ').replace(/_/g, ' ')}</span> — {p.signal_count} signal{p.signal_count !== 1 ? 's' : ''} correlated
+                        </p>
+                      </div>
+                    );
+                  })}
+                  {brief.data_context?.inter_category_patterns?.map((p, i) => {
+                    const sevColor = p.severity === 'critical' ? 'border-red-500/40 bg-red-500/5' : p.severity === 'high' ? 'border-orange-500/40 bg-orange-500/5' : 'border-amber-500/40 bg-amber-500/5';
+                    return (
+                      <div key={`ic-${i}`} className={`rounded-lg border ${sevColor} p-4`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-semibold uppercase ${p.severity === 'critical' ? 'text-red-400' : p.severity === 'high' ? 'text-orange-400' : 'text-amber-400'}`}>
+                            {p.severity}
+                          </span>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-xs font-medium text-white">{p.pattern_name}</span>
+                        </div>
+                        <p className="text-slate-400 text-sm">{p.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {p.categories.map(c => (
+                            <span key={c} className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">{c.replace(/_/g, ' ')}</span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Financial Impact */}
+            {brief.data_context?.financial_impact && brief.data_context.financial_impact.details && brief.data_context.financial_impact.details.length > 0 && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs flex items-center gap-2">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Financial Impact
+                </h4>
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-5">
+                  {brief.data_context.financial_impact.gpt_analysis?.summary && (
+                    <p className="text-slate-300 text-sm mb-4 leading-relaxed">
+                      {brief.data_context.financial_impact.gpt_analysis.summary}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                    {brief.data_context.financial_impact.revenue_at_risk != null && (
+                      <div className="bg-slate-800/60 rounded-lg p-3">
+                        <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Revenue at Risk</div>
+                        <div className="text-lg font-bold text-red-400">${brief.data_context.financial_impact.revenue_at_risk.toLocaleString()}</div>
+                      </div>
+                    )}
+                    {brief.data_context.financial_impact.overdue_total != null && (
+                      <div className="bg-slate-800/60 rounded-lg p-3">
+                        <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Overdue Total</div>
+                        <div className="text-lg font-bold text-orange-400">${brief.data_context.financial_impact.overdue_total.toLocaleString()}</div>
+                      </div>
+                    )}
+                    {brief.data_context.financial_impact.estimated_shortfall != null && (
+                      <div className="bg-slate-800/60 rounded-lg p-3">
+                        <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Collection Shortfall</div>
+                        <div className="text-lg font-bold text-amber-400">${brief.data_context.financial_impact.estimated_shortfall.toLocaleString()}</div>
+                      </div>
+                    )}
+                    {brief.data_context.financial_impact.open_pipeline_value != null && (
+                      <div className="bg-slate-800/60 rounded-lg p-3">
+                        <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Open Pipeline</div>
+                        <div className="text-lg font-bold text-sky-400">${brief.data_context.financial_impact.open_pipeline_value.toLocaleString()}</div>
+                      </div>
+                    )}
+                  </div>
+                  <ul className="space-y-1.5">
+                    {brief.data_context.financial_impact.details.map((d, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                        <span className="text-emerald-500 mt-0.5">$</span>
+                        <span>{d}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Forecast */}
+            {brief.data_context?.forecast && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs flex items-center gap-2">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Risk Forecast
+                </h4>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {[
+                    { label: '7-Day', data: brief.data_context.forecast.horizon_7d, gpt: brief.data_context.forecast.gpt_analysis?.seven_day },
+                    { label: '14-Day', data: brief.data_context.forecast.horizon_14d, gpt: brief.data_context.forecast.gpt_analysis?.fourteen_day },
+                    { label: '30-Day', data: brief.data_context.forecast.horizon_30d, gpt: brief.data_context.forecast.gpt_analysis?.thirty_day },
+                  ].map((horizon) => {
+                    const riskColor = horizon.data.risk_level === 'critical' ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                      : horizon.data.risk_level === 'high' ? 'border-orange-500/40 bg-orange-500/10 text-orange-400'
+                      : horizon.data.risk_level === 'medium' ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                      : 'border-green-500/40 bg-green-500/10 text-green-400';
+                    return (
+                      <div key={horizon.label} className={`rounded-lg border ${riskColor} p-4 text-center`}>
+                        <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">{horizon.label}</div>
+                        <div className="text-sm font-bold uppercase mb-1">{horizon.data.risk_level}</div>
+                        <p className="text-[11px] opacity-80 leading-snug">{horizon.gpt || horizon.data.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {brief.data_context.forecast.projected_health_score != null && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
+                    <Calendar className="h-3 w-3" />
+                    <span>Projected health score: <span className="font-medium text-white">{brief.data_context.forecast.projected_health_score}/100</span></span>
+                  </div>
+                )}
+                {brief.data_context.forecast.key_risks && brief.data_context.forecast.key_risks.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wide">Key Projected Risks</span>
+                    {brief.data_context.forecast.key_risks.map((risk, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                        <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <span>{risk}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Root Cause Analysis */}
+            {brief.data_context?.root_cause_analysis && (
+              (brief.data_context.root_cause_analysis.programmatic?.length ?? 0) > 0 ||
+              (brief.data_context.root_cause_analysis.gpt_analysis?.length ?? 0) > 0
+            ) && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs flex items-center gap-2">
+                  <Search className="h-3.5 w-3.5" />
+                  Root Cause Analysis
+                </h4>
+                <div className="space-y-3">
+                  {(brief.data_context.root_cause_analysis.gpt_analysis && brief.data_context.root_cause_analysis.gpt_analysis.length > 0
+                    ? brief.data_context.root_cause_analysis.gpt_analysis
+                    : brief.data_context.root_cause_analysis.programmatic || []
+                  ).map((rc, i) => {
+                    const sevColor = rc.severity === 'critical' ? 'border-red-500/30' : rc.severity === 'high' ? 'border-orange-500/30' : 'border-slate-700/50';
+                    return (
+                      <div key={i} className={`rounded-lg border ${sevColor} bg-slate-800/40 p-4`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Target className="h-3.5 w-3.5 text-sky-400" />
+                          <span className="text-sm font-medium text-white">{rc.cause}</span>
+                          {rc.severity && (
+                            <span className={`text-[10px] uppercase font-semibold ${rc.severity === 'critical' ? 'text-red-400' : rc.severity === 'high' ? 'text-orange-400' : 'text-amber-400'}`}>
+                              {rc.severity}
+                            </span>
+                          )}
+                        </div>
+                        <ul className="space-y-1 mb-2">
+                          {rc.evidence.map((ev, j) => (
+                            <li key={j} className="text-xs text-slate-400 flex items-start gap-2">
+                              <span className="text-slate-600 mt-0.5">-</span>
+                              <span>{ev}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {rc.affected_systems.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {rc.affected_systems.map(sys => (
+                              <span key={sys} className="text-[10px] bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded-full">{sys}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Business Impact */}
             <div className="mb-8">
               <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
@@ -586,25 +851,82 @@ export function OperationalBrief() {
               </p>
             </div>
 
-            {/* Recommended Actions */}
+            {/* Prescriptive Actions (WHO/WHAT/WHEN) */}
             <div className="mb-8">
-              <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
-                Recommended Actions
+              <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs flex items-center gap-2">
+                <Users className="h-3.5 w-3.5" />
+                Prescriptive Actions
               </h4>
-              {brief.recommended_actions && brief.recommended_actions.length > 0 ? (
-                <div className="space-y-3">
-                  {brief.recommended_actions.map((action, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
-                        {i + 1}
-                      </span>
-                      <p className="text-slate-300 text-sm leading-relaxed">{action}</p>
+              {(() => {
+                // Try structured prescriptive_actions first, then fall back to recommended_actions
+                const actions = brief.data_context?.prescriptive_actions || brief.recommended_actions || [];
+                if (!actions || actions.length === 0) {
+                  return <p className="text-sm text-slate-500">No actions recommended.</p>;
+                }
+
+                // Check if actions are structured (WHO/WHAT/WHEN) or plain strings
+                const isStructured = actions.length > 0 && typeof actions[0] === 'object' && actions[0] !== null && 'what' in actions[0];
+
+                if (isStructured) {
+                  const structuredActions = actions as PrescriptiveAction[];
+                  return (
+                    <div className="space-y-3">
+                      {structuredActions.map((action, i) => {
+                        const priorityColor = action.priority === 'critical' ? 'border-red-500/40 bg-red-500/5'
+                          : action.priority === 'high' ? 'border-orange-500/40 bg-orange-500/5'
+                          : action.priority === 'medium' ? 'border-amber-500/40 bg-amber-500/5'
+                          : 'border-slate-700/50 bg-slate-800/40';
+                        const priorityText = action.priority === 'critical' ? 'text-red-400'
+                          : action.priority === 'high' ? 'text-orange-400'
+                          : action.priority === 'medium' ? 'text-amber-400'
+                          : 'text-slate-400';
+                        return (
+                          <div key={i} className={`rounded-lg border ${priorityColor} p-4`}>
+                            <div className="flex items-start gap-3">
+                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
+                                {i + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-slate-200 text-sm font-medium mb-2">{action.what}</p>
+                                <div className="flex flex-wrap gap-3 text-xs">
+                                  <span className="flex items-center gap-1 text-slate-400">
+                                    <Users className="h-3 w-3 text-sky-400" />
+                                    <span className="text-slate-500">WHO:</span>
+                                    <span className="font-medium text-white">{action.who}</span>
+                                  </span>
+                                  <span className="flex items-center gap-1 text-slate-400">
+                                    <Clock className="h-3 w-3 text-sky-400" />
+                                    <span className="text-slate-500">WHEN:</span>
+                                    <span className="font-medium text-white">{action.when}</span>
+                                  </span>
+                                  <span className={`font-semibold uppercase ${priorityText}`}>
+                                    {action.priority}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No actions recommended.</p>
-              )}
+                  );
+                }
+
+                // Fallback: plain string actions
+                const stringActions = actions as string[];
+                return (
+                  <div className="space-y-3">
+                    {stringActions.map((action, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
+                          {i + 1}
+                        </span>
+                        <p className="text-slate-300 text-sm leading-relaxed">{typeof action === 'string' ? action : JSON.stringify(action)}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Risk Assessment */}

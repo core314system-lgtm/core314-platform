@@ -18,6 +18,63 @@ interface PdfSignalEvidence {
   summary_metrics: Record<string, unknown>;
 }
 
+interface PdfCrossSystemPattern {
+  pattern_name: string;
+  category: string;
+  integrations: string[];
+  combined_severity: string;
+  signal_count: number;
+}
+
+interface PdfInterCategoryPattern {
+  pattern_name: string;
+  categories: string[];
+  description: string;
+  severity: string;
+}
+
+interface PdfFinancialImpact {
+  overdue_total: number | null;
+  revenue_at_risk: number | null;
+  estimated_shortfall: number | null;
+  open_pipeline_value: number | null;
+  stalled_pipeline_value: number | null;
+  expense_total: number | null;
+  details: string[];
+  gpt_analysis?: {
+    summary?: string;
+  } | null;
+}
+
+interface PdfForecast {
+  horizon_7d: { risk_level: string; description: string };
+  horizon_14d: { risk_level: string; description: string };
+  horizon_30d: { risk_level: string; description: string };
+  projected_health_score: number | null;
+  trend_direction: string;
+  key_risks: string[];
+  gpt_analysis?: {
+    seven_day?: string;
+    fourteen_day?: string;
+    thirty_day?: string;
+    key_risks?: string[];
+  } | null;
+}
+
+interface PdfRootCauseItem {
+  cause: string;
+  evidence: string[];
+  affected_systems: string[];
+  severity?: string;
+}
+
+interface PdfPrescriptiveAction {
+  who: string;
+  what: string;
+  when: string;
+  priority: string;
+}
+
 interface BriefPdfData {
   title: string;
   created_at: string;
@@ -25,7 +82,7 @@ interface BriefPdfData {
   confidence: number;
   detected_signals: string[];
   business_impact: string;
-  recommended_actions: string[];
+  recommended_actions: string[] | PdfPrescriptiveAction[];
   risk_assessment: string;
   momentum?: {
     classification: string;
@@ -34,6 +91,15 @@ interface BriefPdfData {
   } | null;
   userName?: string;
   signal_evidence?: PdfSignalEvidence[];
+  cross_system_patterns?: PdfCrossSystemPattern[];
+  inter_category_patterns?: PdfInterCategoryPattern[];
+  financial_impact?: PdfFinancialImpact;
+  forecast?: PdfForecast;
+  root_cause_analysis?: {
+    programmatic?: PdfRootCauseItem[];
+    gpt_analysis?: PdfRootCauseItem[];
+  };
+  prescriptive_actions?: string[] | PdfPrescriptiveAction[];
 }
 
 // Brand colors
@@ -468,6 +534,237 @@ export function generateBriefPdf(data: BriefPdfData): void {
     y += 4;
 
     // =============================================
+    // SECTION 2B: CROSS-SYSTEM PATTERNS
+    // =============================================
+    const hasPatterns = (data.cross_system_patterns && data.cross_system_patterns.length > 0) ||
+      (data.inter_category_patterns && data.inter_category_patterns.length > 0);
+    if (hasPatterns) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'CROSS-SYSTEM PATTERNS', y, marginLeft);
+
+      if (data.cross_system_patterns) {
+        for (const p of data.cross_system_patterns) {
+          y = ensureSpace(doc, y, 14, 25);
+          const sevColor = p.combined_severity === 'critical' ? COLORS.red : p.combined_severity === 'high' ? COLORS.orange : COLORS.amber;
+          doc.setFillColor(...sevColor);
+          doc.roundedRect(marginLeft, y - 3, 16, 5, 1, 1, 'F');
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.white);
+          doc.text(p.combined_severity.toUpperCase(), marginLeft + 8, y + 0.5, { align: 'center' });
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          const patternText = `${p.category.replace(/_/g, ' ')} — Detected across ${p.integrations.join(', ').replace(/_/g, ' ')} (${p.signal_count} signals)`;
+          const pLines = wrapText(doc, patternText, contentWidth - 22);
+          doc.text(pLines, marginLeft + 20, y);
+          y += pLines.length * 4.5 + 4;
+        }
+      }
+
+      if (data.inter_category_patterns) {
+        for (const p of data.inter_category_patterns) {
+          y = ensureSpace(doc, y, 14, 25);
+          const sevColor = p.severity === 'critical' ? COLORS.red : p.severity === 'high' ? COLORS.orange : COLORS.amber;
+          doc.setFillColor(...sevColor);
+          doc.roundedRect(marginLeft, y - 3, 16, 5, 1, 1, 'F');
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.white);
+          doc.text(p.severity.toUpperCase(), marginLeft + 8, y + 0.5, { align: 'center' });
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.dark);
+          doc.text(p.pattern_name, marginLeft + 20, y);
+          y += 5;
+
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          const descLines = wrapText(doc, p.description, contentWidth - 22);
+          doc.text(descLines, marginLeft + 20, y);
+          y += descLines.length * 4 + 4;
+        }
+      }
+      y += 4;
+    }
+
+    // =============================================
+    // SECTION 2C: FINANCIAL IMPACT
+    // =============================================
+    if (data.financial_impact && data.financial_impact.details && data.financial_impact.details.length > 0) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'FINANCIAL IMPACT', y, marginLeft);
+
+      if (data.financial_impact.gpt_analysis?.summary) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        const summaryLines = wrapText(doc, data.financial_impact.gpt_analysis.summary, contentWidth);
+        doc.text(summaryLines, marginLeft, y);
+        y += summaryLines.length * 4.5 + 4;
+      }
+
+      // Financial metrics row
+      const metrics: Array<{ label: string; value: string; color: [number, number, number] }> = [];
+      if (data.financial_impact.revenue_at_risk != null) metrics.push({ label: 'Revenue at Risk', value: `$${data.financial_impact.revenue_at_risk.toLocaleString()}`, color: COLORS.red });
+      if (data.financial_impact.overdue_total != null) metrics.push({ label: 'Overdue Total', value: `$${data.financial_impact.overdue_total.toLocaleString()}`, color: COLORS.orange });
+      if (data.financial_impact.estimated_shortfall != null) metrics.push({ label: 'Collection Shortfall', value: `$${data.financial_impact.estimated_shortfall.toLocaleString()}`, color: COLORS.amber });
+      if (data.financial_impact.open_pipeline_value != null) metrics.push({ label: 'Open Pipeline', value: `$${data.financial_impact.open_pipeline_value.toLocaleString()}`, color: COLORS.primary });
+
+      if (metrics.length > 0) {
+        const metricW = Math.min(40, (contentWidth - (metrics.length - 1) * 4) / metrics.length);
+        for (let mi = 0; mi < metrics.length; mi++) {
+          const mx = marginLeft + mi * (metricW + 4);
+          y = ensureSpace(doc, y, 18, 25);
+          doc.setFillColor(...COLORS.bgLight);
+          doc.roundedRect(mx, y, metricW, 16, 2, 2, 'F');
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.textLight);
+          doc.text(metrics[mi].label, mx + metricW / 2, y + 5, { align: 'center' });
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...metrics[mi].color);
+          doc.text(metrics[mi].value, mx + metricW / 2, y + 12, { align: 'center' });
+        }
+        y += 20;
+      }
+
+      // Detail lines
+      for (const detail of data.financial_impact.details) {
+        y = ensureSpace(doc, y, 6, 25);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        const dLines = wrapText(doc, `\u2022  ${detail}`, contentWidth - 4);
+        doc.text(dLines, marginLeft + 4, y);
+        y += dLines.length * 3.5 + 2;
+      }
+      y += 4;
+    }
+
+    // =============================================
+    // SECTION 2D: RISK FORECAST
+    // =============================================
+    if (data.forecast) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'RISK FORECAST', y, marginLeft);
+
+      const horizons = [
+        { label: '7-Day', data: data.forecast.horizon_7d, gpt: data.forecast.gpt_analysis?.seven_day },
+        { label: '14-Day', data: data.forecast.horizon_14d, gpt: data.forecast.gpt_analysis?.fourteen_day },
+        { label: '30-Day', data: data.forecast.horizon_30d, gpt: data.forecast.gpt_analysis?.thirty_day },
+      ];
+
+      const colW = (contentWidth - 8) / 3;
+      for (let hi = 0; hi < horizons.length; hi++) {
+        const hx = marginLeft + hi * (colW + 4);
+        const riskColor = horizons[hi].data.risk_level === 'critical' ? COLORS.red
+          : horizons[hi].data.risk_level === 'high' ? COLORS.orange
+          : horizons[hi].data.risk_level === 'medium' ? COLORS.amber
+          : COLORS.green;
+
+        y = ensureSpace(doc, y, 22, 25);
+        doc.setFillColor(...COLORS.bgLight);
+        doc.roundedRect(hx, y, colW, 20, 2, 2, 'F');
+
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.textLight);
+        doc.text(horizons[hi].label, hx + colW / 2, y + 5, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...riskColor);
+        doc.text(horizons[hi].data.risk_level.toUpperCase(), hx + colW / 2, y + 13, { align: 'center' });
+      }
+      y += 24;
+
+      // Forecast description text
+      const forecastDesc = horizons.map(h => `${h.label}: ${h.gpt || h.data.description}`).filter(s => s.length > 8);
+      for (const fd of forecastDesc) {
+        y = ensureSpace(doc, y, 6, 25);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        const fdLines = wrapText(doc, fd, contentWidth);
+        doc.text(fdLines, marginLeft, y);
+        y += fdLines.length * 3.5 + 2;
+      }
+
+      if (data.forecast.key_risks && data.forecast.key_risks.length > 0) {
+        y += 2;
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.textLight);
+        y = ensureSpace(doc, y, 6, 25);
+        doc.text('Key Projected Risks:', marginLeft, y);
+        y += 4;
+        for (const risk of data.forecast.key_risks) {
+          y = ensureSpace(doc, y, 5, 25);
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          const rLines = wrapText(doc, `\u2022  ${risk}`, contentWidth - 4);
+          doc.text(rLines, marginLeft + 4, y);
+          y += rLines.length * 3.5 + 2;
+        }
+      }
+      y += 4;
+    }
+
+    // =============================================
+    // SECTION 2E: ROOT CAUSE ANALYSIS
+    // =============================================
+    const rootCauses = data.root_cause_analysis?.gpt_analysis?.length
+      ? data.root_cause_analysis.gpt_analysis
+      : data.root_cause_analysis?.programmatic || [];
+    if (rootCauses.length > 0) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'ROOT CAUSE ANALYSIS', y, marginLeft);
+
+      for (const rc of rootCauses) {
+        y = ensureSpace(doc, y, 16, 25);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.dark);
+        doc.text(rc.cause, marginLeft, y);
+        if (rc.severity) {
+          const sevColor = rc.severity === 'critical' ? COLORS.red : rc.severity === 'high' ? COLORS.orange : COLORS.amber;
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...sevColor);
+          doc.text(` [${rc.severity.toUpperCase()}]`, marginLeft + doc.getTextWidth(rc.cause) + 2, y);
+        }
+        y += 5;
+
+        for (const ev of rc.evidence) {
+          y = ensureSpace(doc, y, 5, 25);
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          const evLines = wrapText(doc, `- ${ev}`, contentWidth - 6);
+          doc.text(evLines, marginLeft + 4, y);
+          y += evLines.length * 3.5 + 1;
+        }
+
+        if (rc.affected_systems.length > 0) {
+          y = ensureSpace(doc, y, 5, 25);
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.primary);
+          doc.text(`Systems: ${rc.affected_systems.join(', ')}`, marginLeft + 4, y);
+          y += 5;
+        }
+        y += 2;
+      }
+      y += 4;
+    }
+
+    // =============================================
     // SECTION 3: OPERATIONAL ANALYSIS
     // =============================================
     y = ensureSpace(doc, y, 30, 25);
@@ -494,32 +791,68 @@ export function generateBriefPdf(data: BriefPdfData): void {
     y += 4;
 
     // =============================================
-    // SECTION 4: RECOMMENDATIONS
+    // SECTION 4: PRESCRIPTIVE ACTIONS
     // =============================================
-    if (data.recommended_actions && data.recommended_actions.length > 0) {
+    const pActions = data.prescriptive_actions || data.recommended_actions || [];
+    if (pActions && pActions.length > 0) {
       y = ensureSpace(doc, y, 30, 25);
-      y = drawSectionHeader(doc, 'RECOMMENDATIONS', y, marginLeft);
+      y = drawSectionHeader(doc, 'PRESCRIPTIVE ACTIONS', y, marginLeft);
 
-      for (let i = 0; i < data.recommended_actions.length; i++) {
-        const action = data.recommended_actions[i];
-        y = ensureSpace(doc, y, 14, 25);
+      const isStructured = pActions.length > 0 && typeof pActions[0] === 'object' && pActions[0] !== null && 'what' in pActions[0];
 
-        // Number circle
-        const circleR = 3;
-        doc.setFillColor(...COLORS.primary);
-        doc.circle(marginLeft + circleR, y - 0.5, circleR, 'F');
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...COLORS.white);
-        doc.text(String(i + 1), marginLeft + circleR, y + 0.8, { align: 'center' });
+      if (isStructured) {
+        const structuredActions = pActions as PdfPrescriptiveAction[];
+        for (let i = 0; i < structuredActions.length; i++) {
+          const action = structuredActions[i];
+          y = ensureSpace(doc, y, 20, 25);
 
-        // Action text
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...COLORS.text);
-        const actionLines = wrapText(doc, action, contentWidth - 12);
-        doc.text(actionLines, marginLeft + 10, y);
-        y += actionLines.length * 4.5 + 4;
+          // Number circle
+          const circleR = 3;
+          doc.setFillColor(...COLORS.primary);
+          doc.circle(marginLeft + circleR, y - 0.5, circleR, 'F');
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.white);
+          doc.text(String(i + 1), marginLeft + circleR, y + 0.8, { align: 'center' });
+
+          // WHAT
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.dark);
+          const whatLines = wrapText(doc, action.what, contentWidth - 12);
+          doc.text(whatLines, marginLeft + 10, y);
+          y += whatLines.length * 4.5 + 2;
+
+          // WHO / WHEN / PRIORITY line
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.textLight);
+          const metaLine = `WHO: ${action.who}  |  WHEN: ${action.when}  |  PRIORITY: ${action.priority.toUpperCase()}`;
+          doc.text(metaLine, marginLeft + 10, y);
+          y += 6;
+        }
+      } else {
+        const stringActions = pActions as string[];
+        for (let i = 0; i < stringActions.length; i++) {
+          const action = stringActions[i];
+          y = ensureSpace(doc, y, 14, 25);
+
+          const circleR = 3;
+          doc.setFillColor(...COLORS.primary);
+          doc.circle(marginLeft + circleR, y - 0.5, circleR, 'F');
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.white);
+          doc.text(String(i + 1), marginLeft + circleR, y + 0.8, { align: 'center' });
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          const actionText = typeof action === 'string' ? action : JSON.stringify(action);
+          const actionLines = wrapText(doc, actionText, contentWidth - 12);
+          doc.text(actionLines, marginLeft + 10, y);
+          y += actionLines.length * 4.5 + 4;
+        }
       }
 
       y += 4;
