@@ -190,7 +190,15 @@ serve(async (req) => {
                 ? 'Slack OAuth connection is not active. Re-authorize the Slack integration to resume monitoring.'
                 : 'Slack is connected but no channels are accessible. The bot may need to be invited to channels for monitoring.',
               source_integration: 'slack',
-              signal_data: { category: classifySignal('integration_inactive', 'slack'), metric: 'integration_inactive', total_channels: totalChannels, oauth_connected: configOauthConnected, channels_member: channelsMember },
+              signal_data: {
+                category: classifySignal('integration_inactive', 'slack'),
+                metric: 'integration_inactive',
+                total_channels: totalChannels,
+                oauth_connected: configOauthConnected,
+                channels_member: channelsMember,
+                affected_entities: [],
+                summary_metrics: { total_channels: totalChannels, channels_member: channelsMember },
+              },
             });
           }
 
@@ -204,6 +212,18 @@ serve(async (req) => {
             // Only emit signal if data is reasonably complete (>50% channels analyzed)
             const coveragePct = channelsMember > 0 ? Math.round((channelsAnalyzed / channelsMember) * 100) : 100;
             if (coveragePct >= 50) {
+              // Extract per-channel activity from metadata for affected_entities
+              const channelActivity = (latest.channel_activity as Array<{ name: string; messages: number; id?: string }>) ?? [];
+              const lowCommEntities = channelActivity
+                .filter((ch: { name: string; messages: number }) => ch.messages === 0)
+                .slice(0, 10)
+                .map((ch: { name: string; messages: number }) => ({
+                  name: `#${ch.name}`,
+                  last_activity_type: 'no messages detected',
+                  last_activity_date: slackEvents[0].occurred_at || null,
+                  metric_value: ch.messages,
+                }));
+
               signals.push({
                 signal_type: 'low_communication',
                 severity: 'low',
@@ -212,7 +232,25 @@ serve(async (req) => {
                   ? `Slack integration is active but limited communication activity was detected in monitored channels. ${channelsAnalyzed} of ${channelsMember} channel${channelsMember > 1 ? 's' : ''} analyzed across ${totalChannels} total.${!isDataComplete ? ' Note: Not all channels were analyzed — signal confidence is reduced.' : ''}`
                   : `Only ${messageCount} Slack messages across ${channelsAnalyzed} analyzed channels (${channelsMember} monitored, ${totalChannels} total). Communication volume is below typical thresholds.${!isDataComplete ? ' Partial data — confidence adjusted.' : ''}`,
                 source_integration: 'slack',
-                signal_data: { category: classifySignal('low_communication', 'slack'), metric: 'low_communication', message_count: messageCount, active_channels: activeChannels, total_channels: totalChannels, channels_member: channelsMember, channels_analyzed: channelsAnalyzed, data_complete: isDataComplete, coverage_pct: coveragePct },
+                signal_data: {
+                  category: classifySignal('low_communication', 'slack'),
+                  metric: 'low_communication',
+                  message_count: messageCount,
+                  active_channels: activeChannels,
+                  total_channels: totalChannels,
+                  channels_member: channelsMember,
+                  channels_analyzed: channelsAnalyzed,
+                  data_complete: isDataComplete,
+                  coverage_pct: coveragePct,
+                  affected_entities: lowCommEntities,
+                  summary_metrics: {
+                    message_count: messageCount,
+                    active_channels: activeChannels,
+                    total_channels: totalChannels,
+                    channels_analyzed: channelsAnalyzed,
+                    coverage_pct: coveragePct,
+                  },
+                },
               });
             } else {
               console.warn(`[signal-detector] Skipping low_communication signal for user ${userId}: insufficient data coverage (${coveragePct}% of channels analyzed)`);
@@ -230,7 +268,16 @@ serve(async (req) => {
                 confidence: 90,
                 description: `Slack data ingestion gap: ${channelsAnalyzed} of ${channelsMember} member channels analyzed (${coveragePct}% coverage). ${gap} channel${gap > 1 ? 's' : ''} not yet ingested — signals may not reflect full workspace activity.`,
                 source_integration: 'slack',
-                signal_data: { category: classifySignal('data_ingestion_gap', 'slack'), metric: 'data_ingestion_gap', channels_member: channelsMember, channels_analyzed: channelsAnalyzed, coverage_pct: coveragePct, gap },
+                signal_data: {
+                  category: classifySignal('data_ingestion_gap', 'slack'),
+                  metric: 'data_ingestion_gap',
+                  channels_member: channelsMember,
+                  channels_analyzed: channelsAnalyzed,
+                  coverage_pct: coveragePct,
+                  gap,
+                  affected_entities: [],
+                  summary_metrics: { channels_member: channelsMember, channels_analyzed: channelsAnalyzed, coverage_pct: coveragePct, gap },
+                },
               });
             }
           }
@@ -243,7 +290,14 @@ serve(async (req) => {
               confidence: 95,
               description: 'Slack bot does not have access to private channels (missing groups:read scope). Only public channels are being monitored. Re-authorize the Slack app with the groups:read scope to include private channels.',
               source_integration: 'slack',
-              signal_data: { category: classifySignal('scope_limitation', 'slack'), metric: 'scope_limitation', private_channels_accessible: false, scope_warning: configScopeWarning },
+              signal_data: {
+                category: classifySignal('scope_limitation', 'slack'),
+                metric: 'scope_limitation',
+                private_channels_accessible: false,
+                scope_warning: configScopeWarning,
+                affected_entities: [],
+                summary_metrics: {},
+              },
             });
           }
 
@@ -252,13 +306,34 @@ serve(async (req) => {
             const prev = slackEvents[1].metadata as Record<string, number>;
             const prevMessageCount = prev.message_count ?? 0;
             if (prevMessageCount > 0 && messageCount > prevMessageCount * 2) {
+              // Extract per-channel data showing spike
+              const spikeChannelActivity = (latest.channel_activity as Array<{ name: string; messages: number }>) ?? [];
+              const spikeEntities = spikeChannelActivity
+                .filter((ch: { name: string; messages: number }) => ch.messages > 0)
+                .sort((a: { messages: number }, b: { messages: number }) => b.messages - a.messages)
+                .slice(0, 10)
+                .map((ch: { name: string; messages: number }) => ({
+                  name: `#${ch.name}`,
+                  last_activity_type: 'message activity',
+                  last_activity_date: slackEvents[0].occurred_at || null,
+                  metric_value: ch.messages,
+                }));
+
               signals.push({
                 signal_type: 'communication_spike',
                 severity: 'medium',
                 confidence: 75,
                 description: `Slack message volume surged from ${prevMessageCount} to ${messageCount} — a ${Math.round((messageCount / prevMessageCount - 1) * 100)}% increase. Investigate if this reflects a critical issue or high collaboration.`,
                 source_integration: 'slack',
-                signal_data: { category: classifySignal('communication_spike', 'slack'), metric: 'communication_spike', current: messageCount, previous: prevMessageCount, change_pct: Math.round((messageCount / prevMessageCount - 1) * 100) },
+                signal_data: {
+                  category: classifySignal('communication_spike', 'slack'),
+                  metric: 'communication_spike',
+                  current: messageCount,
+                  previous: prevMessageCount,
+                  change_pct: Math.round((messageCount / prevMessageCount - 1) * 100),
+                  affected_entities: spikeEntities,
+                  summary_metrics: { current_messages: messageCount, previous_messages: prevMessageCount, change_pct: Math.round((messageCount / prevMessageCount - 1) * 100) },
+                },
               });
             }
           }
@@ -271,7 +346,13 @@ serve(async (req) => {
               confidence: 70,
               description: `Average Slack response time is ${Math.round(avgResponseTime)} minutes. Teams responding slowly may indicate capacity or engagement issues.`,
               source_integration: 'slack',
-              signal_data: { category: classifySignal('slow_response', 'slack'), metric: 'slow_response', avg_response_time_minutes: avgResponseTime },
+              signal_data: {
+                category: classifySignal('slow_response', 'slack'),
+                metric: 'slow_response',
+                avg_response_time_minutes: avgResponseTime,
+                affected_entities: [],
+                summary_metrics: { avg_response_time_minutes: Math.round(avgResponseTime) },
+              },
             });
           }
 
@@ -283,7 +364,14 @@ serve(async (req) => {
               confidence: 80,
               description: `No active Slack users detected despite ${totalChannels} channels existing. Team engagement may need attention.`,
               source_integration: 'slack',
-              signal_data: { category: classifySignal('low_engagement', 'slack'), metric: 'low_engagement', unique_users: uniqueUsers, total_channels: totalChannels },
+              signal_data: {
+                category: classifySignal('low_engagement', 'slack'),
+                metric: 'low_engagement',
+                unique_users: uniqueUsers,
+                total_channels: totalChannels,
+                affected_entities: [],
+                summary_metrics: { unique_users: uniqueUsers, total_channels: totalChannels },
+              },
             });
           }
         }
@@ -310,7 +398,20 @@ serve(async (req) => {
               confidence: 95,
               description: `${overdueInvoices} overdue invoice${overdueInvoices > 1 ? 's' : ''} totaling $${overdueTotal.toLocaleString()}. ${invoiceAging?.aging90Plus ? `${invoiceAging.aging90Plus} are 90+ days overdue.` : 'Follow up to improve cash flow.'}`,
               source_integration: 'quickbooks',
-              signal_data: { category: classifySignal('overdue_invoices', 'quickbooks'), metric: 'overdue_invoices', overdue_invoices: overdueInvoices, overdue_total: overdueTotal, invoice_aging: invoiceAging },
+              signal_data: {
+                category: classifySignal('overdue_invoices', 'quickbooks'),
+                metric: 'overdue_invoices',
+                overdue_invoices: overdueInvoices,
+                overdue_total: overdueTotal,
+                invoice_aging: invoiceAging,
+                affected_entities: [
+                  ...(invoiceAging?.aging90Plus ? [{ name: `${invoiceAging.aging90Plus} invoices 90+ days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging90Plus }] : []),
+                  ...(invoiceAging?.aging60 ? [{ name: `${invoiceAging.aging60} invoices 60-90 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging60 }] : []),
+                  ...(invoiceAging?.aging30 ? [{ name: `${invoiceAging.aging30} invoices 30-60 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging30 }] : []),
+                  ...(invoiceAging?.current ? [{ name: `${invoiceAging.current} invoices 0-30 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.current }] : []),
+                ],
+                summary_metrics: { overdue_count: overdueInvoices, overdue_total: overdueTotal, open_invoices: openInvoices },
+              },
             });
           }
 
@@ -322,7 +423,19 @@ serve(async (req) => {
               confidence: 85,
               description: `Collection rate is ${collectionRate}% — below the 70% healthy threshold. $${(invoiceTotal - paymentTotal).toLocaleString()} remains uncollected.`,
               source_integration: 'quickbooks',
-              signal_data: { category: classifySignal('low_collection_rate', 'quickbooks'), metric: 'low_collection_rate', collection_rate: collectionRate, invoice_total: invoiceTotal, payment_total: paymentTotal },
+              signal_data: {
+                category: classifySignal('low_collection_rate', 'quickbooks'),
+                metric: 'low_collection_rate',
+                collection_rate: collectionRate,
+                invoice_total: invoiceTotal,
+                payment_total: paymentTotal,
+                affected_entities: [
+                  { name: `Invoiced: $${invoiceTotal.toLocaleString()}`, last_activity_type: 'invoiced', metric_value: invoiceTotal },
+                  { name: `Collected: $${paymentTotal.toLocaleString()}`, last_activity_type: 'payment', metric_value: paymentTotal },
+                  { name: `Uncollected: $${(invoiceTotal - paymentTotal).toLocaleString()}`, last_activity_type: 'outstanding', metric_value: invoiceTotal - paymentTotal },
+                ],
+                summary_metrics: { collection_rate: collectionRate, uncollected_amount: invoiceTotal - paymentTotal },
+              },
             });
           }
 
@@ -334,7 +447,18 @@ serve(async (req) => {
               confidence: 80,
               description: `Expenses ($${expenseTotal.toLocaleString()}) are ${Math.round(expenseTotal / paymentTotal * 100)}% of revenue ($${paymentTotal.toLocaleString()}). Margins are tight.`,
               source_integration: 'quickbooks',
-              signal_data: { category: classifySignal('high_expense_ratio', 'quickbooks'), metric: 'high_expense_ratio', expense_total: expenseTotal, payment_total: paymentTotal, ratio: Math.round(expenseTotal / paymentTotal * 100) },
+              signal_data: {
+                category: classifySignal('high_expense_ratio', 'quickbooks'),
+                metric: 'high_expense_ratio',
+                expense_total: expenseTotal,
+                payment_total: paymentTotal,
+                ratio: Math.round(expenseTotal / paymentTotal * 100),
+                affected_entities: [
+                  { name: `Revenue: $${paymentTotal.toLocaleString()}`, last_activity_type: 'revenue', metric_value: paymentTotal },
+                  { name: `Expenses: $${expenseTotal.toLocaleString()}`, last_activity_type: 'expense', metric_value: expenseTotal },
+                ],
+                summary_metrics: { expense_ratio_pct: Math.round(expenseTotal / paymentTotal * 100), margin: paymentTotal - expenseTotal },
+              },
             });
           }
 
@@ -349,7 +473,17 @@ serve(async (req) => {
                 confidence: 70,
                 description: `Payment volume dropped from $${prevPaymentTotal.toLocaleString()} to $${paymentTotal.toLocaleString()} — a ${Math.round((1 - paymentTotal / prevPaymentTotal) * 100)}% decline.`,
                 source_integration: 'quickbooks',
-                signal_data: { category: classifySignal('revenue_decline', 'quickbooks'), metric: 'revenue_decline', current: paymentTotal, previous: prevPaymentTotal },
+                signal_data: {
+                  category: classifySignal('revenue_decline', 'quickbooks'),
+                  metric: 'revenue_decline',
+                  current: paymentTotal,
+                  previous: prevPaymentTotal,
+                  affected_entities: [
+                    { name: `Previous period: $${prevPaymentTotal.toLocaleString()}`, last_activity_type: 'revenue', metric_value: prevPaymentTotal },
+                    { name: `Current period: $${paymentTotal.toLocaleString()}`, last_activity_type: 'revenue', metric_value: paymentTotal },
+                  ],
+                  summary_metrics: { decline_pct: Math.round((1 - paymentTotal / prevPaymentTotal) * 100), revenue_drop: prevPaymentTotal - paymentTotal },
+                },
               });
             }
           }
@@ -364,7 +498,13 @@ serve(async (req) => {
                 confidence: 90,
                 description: `QuickBooks is connected (${accountCount} accounts) but no invoices, payments, or expenses found in the last 90 days. This may be a new or inactive account.`,
                 source_integration: 'quickbooks',
-                signal_data: { category: classifySignal('no_financial_activity', 'quickbooks'), metric: 'no_financial_activity', account_count: accountCount },
+                signal_data: {
+                  category: classifySignal('no_financial_activity', 'quickbooks'),
+                  metric: 'no_financial_activity',
+                  account_count: accountCount,
+                  affected_entities: [],
+                  summary_metrics: { account_count: accountCount, invoices: 0, payments: 0, expenses: 0 },
+                },
               });
             }
           }
@@ -397,7 +537,19 @@ serve(async (req) => {
               confidence: 85,
               description: `${stalledDeals} deal${stalledDeals > 1 ? 's' : ''} stalled in the pipeline out of ${dealCount} total. Revenue at risk — review and take action.${dealNamesList}`,
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('stalled_deals', 'hubspot'), metric: 'stalled_deals', stalled_deals: stalledDeals, total_deals: dealCount, stalled_deal_names: stalledDealNames.slice(0, 5) },
+              signal_data: {
+                category: classifySignal('stalled_deals', 'hubspot'),
+                metric: 'stalled_deals',
+                stalled_deals: stalledDeals,
+                total_deals: dealCount,
+                stalled_deal_names: stalledDealNames.slice(0, 5),
+                affected_entities: stalledDealNames.slice(0, 10).map((name: string) => ({
+                  name,
+                  last_activity_type: 'deal stalled',
+                  last_activity_date: hubspotEvents[0].occurred_at || null,
+                })),
+                summary_metrics: { stalled_count: stalledDeals, total_deals: dealCount, pipeline_value: openPipelineValue },
+              },
             });
           }
 
@@ -409,7 +561,15 @@ serve(async (req) => {
               confidence: 80,
               description: `No new deals created in the past 7 days despite ${dealCount} existing deals. Pipeline generation may need attention.`,
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('no_new_deals', 'hubspot'), metric: 'no_new_deals', recent_deals_7d: recentDeals7d, total_deals: dealCount, open_deals: openDeals },
+              signal_data: {
+                category: classifySignal('no_new_deals', 'hubspot'),
+                metric: 'no_new_deals',
+                recent_deals_7d: recentDeals7d,
+                total_deals: dealCount,
+                open_deals: openDeals,
+                affected_entities: [],
+                summary_metrics: { recent_deals_7d: 0, total_deals: dealCount, open_deals: openDeals },
+              },
             });
           }
 
@@ -421,7 +581,15 @@ serve(async (req) => {
               confidence: 80,
               description: `${dealsStuckOver14d} deal${dealsStuckOver14d > 1 ? 's' : ''} stuck in the same stage for over 14 days (max: ${maxStageDays} days). Pipeline velocity is impaired.`,
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('deal_stage_delay', 'hubspot'), metric: 'deal_stage_delay', deals_stuck_over_14d: dealsStuckOver14d, max_stage_days: maxStageDays, avg_deal_age: avgDealAge },
+              signal_data: {
+                category: classifySignal('deal_stage_delay', 'hubspot'),
+                metric: 'deal_stage_delay',
+                deals_stuck_over_14d: dealsStuckOver14d,
+                max_stage_days: maxStageDays,
+                avg_deal_age: avgDealAge,
+                affected_entities: [],
+                summary_metrics: { stuck_count: dealsStuckOver14d, max_days_in_stage: maxStageDays, avg_deal_age_days: avgDealAge },
+              },
             });
           }
 
@@ -437,7 +605,19 @@ serve(async (req) => {
                 confidence: 70,
                 description: `Pipeline value dropped from $${prevOpenValue.toLocaleString()} to $${openPipelineValue.toLocaleString()} with ${openDeals} open deals (was ${prevOpenDeals}). Pipeline momentum is declining.`,
                 source_integration: 'hubspot',
-                signal_data: { category: classifySignal('pipeline_stagnation', 'hubspot'), metric: 'pipeline_stagnation', current_open_deals: openDeals, prev_open_deals: prevOpenDeals, current_value: openPipelineValue, prev_value: prevOpenValue },
+                signal_data: {
+                  category: classifySignal('pipeline_stagnation', 'hubspot'),
+                  metric: 'pipeline_stagnation',
+                  current_open_deals: openDeals,
+                  prev_open_deals: prevOpenDeals,
+                  current_value: openPipelineValue,
+                  prev_value: prevOpenValue,
+                  affected_entities: [
+                    { name: `Previous pipeline: $${prevOpenValue.toLocaleString()} (${prevOpenDeals} deals)`, last_activity_type: 'pipeline snapshot', metric_value: prevOpenValue },
+                    { name: `Current pipeline: $${openPipelineValue.toLocaleString()} (${openDeals} deals)`, last_activity_type: 'pipeline snapshot', metric_value: openPipelineValue },
+                  ],
+                  summary_metrics: { pipeline_change_pct: Math.round((1 - openPipelineValue / prevOpenValue) * -100), deal_change: openDeals - prevOpenDeals },
+                },
               });
             }
           }
@@ -450,7 +630,15 @@ serve(async (req) => {
               confidence: 90,
               description: 'HubSpot is connected but no contacts or deals found. Add CRM data for operational intelligence.',
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('no_crm_activity', 'hubspot'), metric: 'no_crm_activity', total_contacts: contactCount, total_deals: dealCount, total_companies: companyCount },
+              signal_data: {
+                category: classifySignal('no_crm_activity', 'hubspot'),
+                metric: 'no_crm_activity',
+                total_contacts: contactCount,
+                total_deals: dealCount,
+                total_companies: companyCount,
+                affected_entities: [],
+                summary_metrics: { contacts: 0, deals: 0, companies: 0 },
+              },
             });
           }
 
@@ -462,7 +650,15 @@ serve(async (req) => {
               confidence: 75,
               description: `HubSpot shows ${dealCount} deals but no active contacts or companies. CRM utilization is minimal.`,
               source_integration: 'hubspot',
-              signal_data: { category: classifySignal('low_crm_activity', 'hubspot'), metric: 'low_crm_activity', total_deals: dealCount, total_contacts: contactCount, total_companies: companyCount },
+              signal_data: {
+                category: classifySignal('low_crm_activity', 'hubspot'),
+                metric: 'low_crm_activity',
+                total_deals: dealCount,
+                total_contacts: contactCount,
+                total_companies: companyCount,
+                affected_entities: [],
+                summary_metrics: { total_deals: dealCount, contacts: contactCount, companies: companyCount },
+              },
             });
           }
         }
@@ -490,7 +686,15 @@ serve(async (req) => {
               confidence: 85,
               description: `${meetingsWithAttendees} meetings scheduled (${totalMeetingHours} hours) in the next 7 days. Heavy meeting load may reduce productive work time.`,
               source_integration: 'google_calendar',
-              signal_data: { category: classifySignal('meeting_overload', 'google_calendar'), metric: 'meeting_overload', meetings: meetingsWithAttendees, meeting_hours: totalMeetingHours, total_events: totalEvents },
+              signal_data: {
+                category: classifySignal('meeting_overload', 'google_calendar'),
+                metric: 'meeting_overload',
+                meetings: meetingsWithAttendees,
+                meeting_hours: totalMeetingHours,
+                total_events: totalEvents,
+                affected_entities: [],
+                summary_metrics: { meetings: meetingsWithAttendees, meeting_hours: totalMeetingHours, total_events: totalEvents },
+              },
             });
           }
 
@@ -502,7 +706,13 @@ serve(async (req) => {
               confidence: 70,
               description: 'Google Calendar is connected but no events found in the next 7 days. Calendar may be empty or permissions may need adjustment.',
               source_integration: 'google_calendar',
-              signal_data: { category: classifySignal('low_meeting_activity', 'google_calendar'), metric: 'low_meeting_activity', total_events: 0 },
+              signal_data: {
+                category: classifySignal('low_meeting_activity', 'google_calendar'),
+                metric: 'low_meeting_activity',
+                total_events: 0,
+                affected_entities: [],
+                summary_metrics: { total_events: 0 },
+              },
             });
           }
         }
@@ -530,7 +740,15 @@ serve(async (req) => {
               confidence: 80,
               description: `${totalMessages} emails in the past 7 days (${sentCount} sent, ${receivedCount} received). High email volume may indicate process inefficiency or urgent issues.`,
               source_integration: 'gmail',
-              signal_data: { category: classifySignal('email_volume_spike', 'gmail'), metric: 'email_volume_spike', total_messages: totalMessages, sent: sentCount, received: receivedCount },
+              signal_data: {
+                category: classifySignal('email_volume_spike', 'gmail'),
+                metric: 'email_volume_spike',
+                total_messages: totalMessages,
+                sent: sentCount,
+                received: receivedCount,
+                affected_entities: [],
+                summary_metrics: { total_messages: totalMessages, sent: sentCount, received: receivedCount },
+              },
             });
           }
 
@@ -542,7 +760,13 @@ serve(async (req) => {
               confidence: 70,
               description: 'Gmail is connected but no email activity detected in the past 7 days. Account may be inactive or permissions may need adjustment.',
               source_integration: 'gmail',
-              signal_data: { category: classifySignal('low_email_activity', 'gmail'), metric: 'low_email_activity', total_messages: 0 },
+              signal_data: {
+                category: classifySignal('low_email_activity', 'gmail'),
+                metric: 'low_email_activity',
+                total_messages: 0,
+                affected_entities: [],
+                summary_metrics: { total_messages: 0 },
+              },
             });
           }
 
@@ -554,7 +778,15 @@ serve(async (req) => {
               confidence: 70,
               description: `Only ${sentCount} sent emails vs ${receivedCount} received (${Math.round(sentCount / receivedCount * 100)}% response ratio). Low responsiveness may impact customer and partner relationships.`,
               source_integration: 'gmail',
-              signal_data: { category: classifySignal('low_response_ratio', 'gmail'), metric: 'low_response_ratio', sent: sentCount, received: receivedCount, ratio: Math.round(sentCount / receivedCount * 100) },
+              signal_data: {
+                category: classifySignal('low_response_ratio', 'gmail'),
+                metric: 'low_response_ratio',
+                sent: sentCount,
+                received: receivedCount,
+                ratio: Math.round(sentCount / receivedCount * 100),
+                affected_entities: [],
+                summary_metrics: { sent: sentCount, received: receivedCount, response_ratio_pct: Math.round(sentCount / receivedCount * 100) },
+              },
             });
           }
         }
@@ -585,7 +817,16 @@ serve(async (req) => {
               confidence: 90,
               description: `${overdueCount} Jira issue${overdueCount > 1 ? 's' : ''} overdue (open > 14 days) out of ${totalIssues} updated this week. ${inProgressCount} in progress, ${doneCount} completed.`,
               source_integration: 'jira',
-              signal_data: { category: classifySignal('overdue_issues', 'jira'), metric: 'overdue_issues', overdue: overdueCount, total: totalIssues, done: doneCount, in_progress: inProgressCount },
+              signal_data: {
+                category: classifySignal('overdue_issues', 'jira'),
+                metric: 'overdue_issues',
+                overdue: overdueCount,
+                total: totalIssues,
+                done: doneCount,
+                in_progress: inProgressCount,
+                affected_entities: [],
+                summary_metrics: { overdue_count: overdueCount, total_issues: totalIssues, done: doneCount, in_progress: inProgressCount },
+              },
             });
           }
 
@@ -597,7 +838,15 @@ serve(async (req) => {
               confidence: 75,
               description: `Only ${doneCount} of ${totalIssues} issues completed this week (${Math.round(doneCount / totalIssues * 100)}% done rate). Sprint velocity may be at risk.`,
               source_integration: 'jira',
-              signal_data: { category: classifySignal('low_velocity', 'jira'), metric: 'low_velocity', done: doneCount, total: totalIssues, done_rate: Math.round(doneCount / totalIssues * 100) },
+              signal_data: {
+                category: classifySignal('low_velocity', 'jira'),
+                metric: 'low_velocity',
+                done: doneCount,
+                total: totalIssues,
+                done_rate: Math.round(doneCount / totalIssues * 100),
+                affected_entities: [],
+                summary_metrics: { done_count: doneCount, total_issues: totalIssues, done_rate_pct: Math.round(doneCount / totalIssues * 100) },
+              },
             });
           }
 
@@ -610,7 +859,14 @@ serve(async (req) => {
               confidence: 90,
               description: `${blockerCount} blocker/highest-priority Jira issues detected. These may be blocking team progress across projects.`,
               source_integration: 'jira',
-              signal_data: { category: classifySignal('blocker_accumulation', 'jira'), metric: 'blocker_accumulation', blockers: blockerCount, priority_breakdown: priorityBreakdown },
+              signal_data: {
+                category: classifySignal('blocker_accumulation', 'jira'),
+                metric: 'blocker_accumulation',
+                blockers: blockerCount,
+                priority_breakdown: priorityBreakdown,
+                affected_entities: [],
+                summary_metrics: { blocker_count: blockerCount, priority_breakdown: priorityBreakdown },
+              },
             });
           }
         }
@@ -639,7 +895,15 @@ serve(async (req) => {
               confidence: 85,
               description: `${overdueCards} Trello card${overdueCards > 1 ? 's' : ''} past due date across ${totalBoards} board${totalBoards > 1 ? 's' : ''}. ${totalCards} total active cards.`,
               source_integration: 'trello',
-              signal_data: { category: classifySignal('overdue_cards', 'trello'), metric: 'overdue_cards', overdue: overdueCards, total_cards: totalCards, boards: totalBoards },
+              signal_data: {
+                category: classifySignal('overdue_cards', 'trello'),
+                metric: 'overdue_cards',
+                overdue: overdueCards,
+                total_cards: totalCards,
+                boards: totalBoards,
+                affected_entities: [],
+                summary_metrics: { overdue_count: overdueCards, total_cards: totalCards, boards: totalBoards },
+              },
             });
           }
 
@@ -651,7 +915,15 @@ serve(async (req) => {
               confidence: 70,
               description: `${totalCards} active Trello cards but no cards in "Done" lists. Work may be stalled or lists need reorganization.`,
               source_integration: 'trello',
-              signal_data: { category: classifySignal('stalled_cards', 'trello'), metric: 'stalled_cards', total_cards: totalCards, done_cards: 0, boards: totalBoards },
+              signal_data: {
+                category: classifySignal('stalled_cards', 'trello'),
+                metric: 'stalled_cards',
+                total_cards: totalCards,
+                done_cards: 0,
+                boards: totalBoards,
+                affected_entities: [],
+                summary_metrics: { total_cards: totalCards, done_cards: 0, boards: totalBoards },
+              },
             });
           }
 
@@ -663,7 +935,14 @@ serve(async (req) => {
               confidence: 65,
               description: `Trello is connected with ${totalBoards} board${totalBoards > 1 ? 's' : ''} but no active cards found. Boards may be empty or archived.`,
               source_integration: 'trello',
-              signal_data: { category: classifySignal('board_inactivity', 'trello'), metric: 'board_inactivity', boards: totalBoards, total_cards: 0 },
+              signal_data: {
+                category: classifySignal('board_inactivity', 'trello'),
+                metric: 'board_inactivity',
+                boards: totalBoards,
+                total_cards: 0,
+                affected_entities: [],
+                summary_metrics: { boards: totalBoards, total_cards: 0 },
+              },
             });
           }
         }
@@ -690,7 +969,14 @@ serve(async (req) => {
               confidence: 70,
               description: 'Microsoft Teams is connected but no joined teams detected. The account may need team membership or permissions adjustment.',
               source_integration: 'microsoft_teams',
-              signal_data: { category: classifySignal('low_team_activity', 'microsoft_teams'), metric: 'low_team_activity', teams: 0, channels: 0 },
+              signal_data: {
+                category: classifySignal('low_team_activity', 'microsoft_teams'),
+                metric: 'low_team_activity',
+                teams: 0,
+                channels: 0,
+                affected_entities: [],
+                summary_metrics: { teams: 0, channels: 0 },
+              },
             });
           }
 
@@ -702,7 +988,14 @@ serve(async (req) => {
               confidence: 75,
               description: `${totalTeams} Microsoft Teams team${totalTeams > 1 ? 's' : ''} found but no channels accessible. Channel permissions may need review.`,
               source_integration: 'microsoft_teams',
-              signal_data: { category: classifySignal('channel_inactivity', 'microsoft_teams'), metric: 'channel_inactivity', teams: totalTeams, channels: 0 },
+              signal_data: {
+                category: classifySignal('channel_inactivity', 'microsoft_teams'),
+                metric: 'channel_inactivity',
+                teams: totalTeams,
+                channels: 0,
+                affected_entities: [],
+                summary_metrics: { teams: totalTeams, channels: 0 },
+              },
             });
           }
         }
@@ -729,7 +1022,14 @@ serve(async (req) => {
               confidence: 65,
               description: `${totalSpreadsheets} Google Sheets spreadsheet${totalSpreadsheets > 1 ? 's' : ''} found but none modified in the past 7 days. KPI tracking data may be stale.`,
               source_integration: 'google_sheets',
-              signal_data: { category: classifySignal('stale_spreadsheets', 'google_sheets'), metric: 'stale_spreadsheets', total: totalSpreadsheets, recently_modified: 0 },
+              signal_data: {
+                category: classifySignal('stale_spreadsheets', 'google_sheets'),
+                metric: 'stale_spreadsheets',
+                total: totalSpreadsheets,
+                recently_modified: 0,
+                affected_entities: [],
+                summary_metrics: { total_spreadsheets: totalSpreadsheets, recently_modified: 0 },
+              },
             });
           }
 
@@ -741,7 +1041,13 @@ serve(async (req) => {
               confidence: 60,
               description: 'Google Sheets is connected but no spreadsheets found. Create or share spreadsheets for data tracking visibility.',
               source_integration: 'google_sheets',
-              signal_data: { category: classifySignal('no_sheet_activity', 'google_sheets'), metric: 'no_sheet_activity', total: 0 },
+              signal_data: {
+                category: classifySignal('no_sheet_activity', 'google_sheets'),
+                metric: 'no_sheet_activity',
+                total: 0,
+                affected_entities: [],
+                summary_metrics: { total_spreadsheets: 0 },
+              },
             });
           }
         }
@@ -771,7 +1077,16 @@ serve(async (req) => {
               confidence: 90,
               description: `${overdueTasks} Asana task${overdueTasks > 1 ? 's' : ''} past due date across ${totalProjects} project${totalProjects > 1 ? 's' : ''}. ${completedTasks} of ${totalTasks} tasks completed (${completionRate}%).`,
               source_integration: 'asana',
-              signal_data: { category: classifySignal('overdue_tasks', 'asana'), metric: 'overdue_tasks', overdue: overdueTasks, total_tasks: totalTasks, completed: completedTasks, projects: totalProjects },
+              signal_data: {
+                category: classifySignal('overdue_tasks', 'asana'),
+                metric: 'overdue_tasks',
+                overdue: overdueTasks,
+                total_tasks: totalTasks,
+                completed: completedTasks,
+                projects: totalProjects,
+                affected_entities: [],
+                summary_metrics: { overdue_count: overdueTasks, total_tasks: totalTasks, completion_rate: completionRate },
+              },
             });
           }
 
@@ -783,7 +1098,15 @@ serve(async (req) => {
               confidence: 75,
               description: `Only ${completionRate}% task completion rate in Asana (${completedTasks} of ${totalTasks} tasks). Project delivery may be at risk.`,
               source_integration: 'asana',
-              signal_data: { category: classifySignal('low_completion_rate', 'asana'), metric: 'low_completion_rate', completion_rate: completionRate, completed: completedTasks, total: totalTasks },
+              signal_data: {
+                category: classifySignal('low_completion_rate', 'asana'),
+                metric: 'low_completion_rate',
+                completion_rate: completionRate,
+                completed: completedTasks,
+                total: totalTasks,
+                affected_entities: [],
+                summary_metrics: { completion_rate: completionRate, completed: completedTasks, total_tasks: totalTasks },
+              },
             });
           }
 
@@ -795,7 +1118,15 @@ serve(async (req) => {
               confidence: 80,
               description: `${overdueTasks} overdue tasks with only ${completionRate}% completion rate. Team may be overloaded or tasks need reprioritization.`,
               source_integration: 'asana',
-              signal_data: { category: classifySignal('workload_imbalance', 'asana'), metric: 'workload_imbalance', overdue: overdueTasks, completion_rate: completionRate, total_tasks: totalTasks },
+              signal_data: {
+                category: classifySignal('workload_imbalance', 'asana'),
+                metric: 'workload_imbalance',
+                overdue: overdueTasks,
+                completion_rate: completionRate,
+                total_tasks: totalTasks,
+                affected_entities: [],
+                summary_metrics: { overdue_count: overdueTasks, completion_rate: completionRate, total_tasks: totalTasks },
+              },
             });
           }
         }

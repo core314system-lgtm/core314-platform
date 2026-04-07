@@ -45,6 +45,24 @@ interface MomentumData {
   scores_used?: number;
 }
 
+interface SignalEntity {
+  name: string;
+  last_activity_type?: string;
+  last_activity_date?: string;
+  metric_value?: number;
+}
+
+interface SignalEvidence {
+  signal_type: string;
+  source: string;
+  severity: string;
+  category: string;
+  description: string;
+  confidence: number;
+  affected_entities: SignalEntity[];
+  summary_metrics: Record<string, unknown>;
+}
+
 interface OperationalBriefData {
   id: string;
   title: string;
@@ -57,6 +75,7 @@ interface OperationalBriefData {
   created_at: string;
   data_context?: {
     momentum?: MomentumData;
+    signal_evidence?: SignalEvidence[];
     [key: string]: unknown;
   } | null;
 }
@@ -202,6 +221,7 @@ export function OperationalBrief() {
         risk_assessment: brief.risk_assessment,
         momentum: momentum ?? undefined,
         userName: profile?.full_name,
+        signal_evidence: brief.data_context?.signal_evidence,
       });
     } catch {
       setPdfError('Failed to generate PDF. Please try again.');
@@ -475,12 +495,71 @@ export function OperationalBrief() {
               )}
             </div>
 
-            {/* Detected Signals */}
+            {/* Detected Signals with Evidence */}
             <div className="mb-8">
               <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
                 Detected Signals
               </h4>
-              {brief.detected_signals && brief.detected_signals.length > 0 ? (
+              {brief.data_context?.signal_evidence && brief.data_context.signal_evidence.length > 0 ? (
+                <div className="space-y-4">
+                  {brief.data_context.signal_evidence.map((ev, i) => {
+                    const sevColor = ev.severity === 'critical' || ev.severity === 'high' ? 'bg-red-400' : ev.severity === 'medium' ? 'bg-amber-400' : 'bg-green-400';
+                    const sevBorder = ev.severity === 'critical' || ev.severity === 'high' ? 'border-red-500/30' : ev.severity === 'medium' ? 'border-amber-500/30' : 'border-green-500/30';
+                    const sevBg = ev.severity === 'critical' || ev.severity === 'high' ? 'bg-red-500/5' : ev.severity === 'medium' ? 'bg-amber-500/5' : 'bg-green-500/5';
+                    return (
+                      <div key={i} className={`rounded-lg border ${sevBorder} ${sevBg} p-4`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${sevColor}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="text-xs font-medium text-slate-400 uppercase">{ev.source.replace(/_/g, ' ')}</span>
+                              <span className="text-slate-600">·</span>
+                              <span className="text-xs text-slate-500">{ev.category.replace(/_/g, ' ')}</span>
+                              <span className="text-slate-600">·</span>
+                              <span className={`text-xs font-semibold uppercase ${ev.severity === 'critical' || ev.severity === 'high' ? 'text-red-400' : ev.severity === 'medium' ? 'text-amber-400' : 'text-green-400'}`}>{ev.severity}</span>
+                            </div>
+                            <p className="text-slate-300 text-sm leading-relaxed">
+                              {brief.detected_signals[i] || ev.description}
+                            </p>
+                            {/* Entity Evidence */}
+                            {ev.affected_entities.length > 0 && (
+                              <div className="mt-3 space-y-1.5">
+                                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Affected Items</span>
+                                <ul className="space-y-1">
+                                  {ev.affected_entities.slice(0, 10).map((ent, j) => (
+                                    <li key={j} className="flex items-center gap-2 text-xs text-slate-400">
+                                      <span className="text-slate-600">•</span>
+                                      <span className="font-medium text-slate-300">{ent.name}</span>
+                                      {ent.last_activity_type && (
+                                        <span className="text-slate-500">— {ent.last_activity_type}</span>
+                                      )}
+                                      {ent.last_activity_date && (
+                                        <span className="text-slate-600 text-[10px]">{new Date(ent.last_activity_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {/* Summary Metrics */}
+                            {Object.keys(ev.summary_metrics).length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {Object.entries(ev.summary_metrics).slice(0, 5).map(([key, val]) => (
+                                  <span key={key} className="inline-flex items-center gap-1 text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">
+                                    <span className="text-slate-500">{key.replace(/_/g, ' ')}:</span>
+                                    <span className="font-medium text-slate-300">{typeof val === 'number' ? val.toLocaleString() : String(val)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : brief.detected_signals && brief.detected_signals.length > 0 ? (
+                /* Fallback: render plain text signals for older briefs without evidence */
                 <div className="space-y-3">
                   {brief.detected_signals.map((signal, i) => {
                     const severity = getSignalSeverity(signal);

@@ -521,10 +521,40 @@ serve(async (req) => {
 
     const signalCategoriesList = [...new Set(classifiedSignals.map(s => s.category))];
 
-    // Format signals for prompt — now includes category
+    // Format signals for prompt — now includes category and entity evidence
     const signalSummary = classifiedSignals.length > 0
-      ? classifiedSignals.map(s => `- [${s.severity.toUpperCase()}] [${s.category}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`).join('\n')
+      ? classifiedSignals.map(s => {
+          const sd = (s.signal_data as Record<string, unknown>) || {};
+          const entities = (sd.affected_entities as Array<{ name: string; last_activity_type?: string; last_activity_date?: string; metric_value?: number }>) || [];
+          const metrics = (sd.summary_metrics as Record<string, unknown>) || {};
+          let line = `- [${s.severity.toUpperCase()}] [${s.category}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`;
+          if (entities.length > 0) {
+            line += '\n  Affected entities:';
+            for (const e of entities.slice(0, 10)) {
+              line += `\n    • ${e.name}${e.last_activity_type ? ` — ${e.last_activity_type}` : ''}${e.last_activity_date ? ` (${e.last_activity_date})` : ''}${e.metric_value !== undefined ? ` [${e.metric_value}]` : ''}`;
+            }
+          }
+          if (Object.keys(metrics).length > 0) {
+            line += `\n  Summary metrics: ${Object.entries(metrics).map(([k, v]) => `${k.replace(/_/g, ' ')}=${v}`).join(', ')}`;
+          }
+          return line;
+        }).join('\n')
       : 'No active signals detected.';
+
+    // Build structured signal evidence for data_context storage (used by UI)
+    const signalEvidence = classifiedSignals.map(s => {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      return {
+        signal_type: s.signal_type,
+        source: s.source_integration,
+        severity: s.severity,
+        category: s.category,
+        description: s.description,
+        confidence: s.confidence,
+        affected_entities: ((sd.affected_entities as Array<Record<string, unknown>>) || []).slice(0, 10),
+        summary_metrics: (sd.summary_metrics as Record<string, unknown>) || {},
+      };
+    });
 
     // Format correlated event context (if exists)
     let correlationContext = '';
@@ -639,7 +669,8 @@ INSTRUCTIONS:
 - Explain the RELATIONSHIP between the signals — why they likely represent a single underlying operational condition
 - Write as if you are a senior business analyst presenting to the CEO
 - Be specific — use exact numbers from the data when available
-- Do NOT invent data that isn't provided above
+- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals and operational_interpretation. Name specific deals, invoices, channels, etc.
+- Do NOT invent data that isn't provided above. If entity data is missing, state "specific entity details unavailable" rather than making up names.
 - Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
 
 Generate a JSON response with these exact fields:
@@ -682,7 +713,8 @@ Project Delivery (Asana): ${asanaSummary}
 INSTRUCTIONS:
 - Write as if you are a senior business analyst presenting to the CEO
 - Be specific — use exact numbers from the data when available
-- Do NOT invent data that isn't provided above
+- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals array. Each signal string should name the affected items (deals, invoices, channels, etc.) with their details.
+- Do NOT invent data that isn’t provided above. If entity data is missing for a signal, state "specific entity details unavailable" rather than making up names.
 - IMPORTANT: If data is limited or missing, you MUST still produce a meaningful brief:
   - Explain what data sources ARE connected and what they show (even if it's minimal)
   - Explain what data sources are NOT connected and what visibility that costs the business
@@ -803,6 +835,8 @@ Generate a JSON response with these exact fields:
           // New correlated event narrative fields
           event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
           operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
+          // Structured signal evidence for UI rendering
+          signal_evidence: signalEvidence,
           // Operational Momentum
           momentum: {
             classification: momentumClassification,
