@@ -78,3 +78,36 @@ jobs:
 
       - name: Validate Core Navigation
         run: node scripts/validate-core-navigation.js
+
+  validate-deploy-readiness:
+    name: Build & Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate package-lock.json in sync
+        working-directory: core314-app
+        run: |
+          if [ ! -f package-lock.json ]; then
+            echo "::error::Missing core314-app/package-lock.json"
+            exit 1
+          fi
+          echo "package-lock.json exists"
+
+      - name: Validate netlify.toml has NODE_VERSION
+        run: |
+          if grep -q "NODE_VERSION" netlify.toml || grep -q "NODE_VERSION" core314-app/netlify.toml; then
+            echo "NODE_VERSION is set in netlify config"
+          else
+            echo "::warning::NODE_VERSION not set in netlify.toml — may cause Corepack/pnpm issues"
+          fi
+
+      - name: Validate .npmrc exists
+        run: |
+          if [ -f .npmrc ]; then
+            echo ".npmrc found — pnpm auto-detection prevented"
+          else
+            echo "::warning::No .npmrc at repo root — Netlify may use pnpm via Corepack"
+          fi

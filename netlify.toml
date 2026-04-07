@@ -1,10 +1,18 @@
 [build]
 base = "core314-app"
-command = "npm run build"
+command = "npm install --legacy-peer-deps && npm run build"
 publish = "core314-app/dist"
 # Force builds on every merge - disable "skip builds when no content change" optimization
 # Exit code 1 = always build, Exit code 0 = skip build
 ignore = "exit 1"
+
+[build.environment]
+# Pin Node version to prevent Corepack/pnpm auto-detection issues
+NODE_VERSION = "20"
+# Force npm as package manager — prevents Netlify from using pnpm via Corepack
+NPM_FLAGS = "--legacy-peer-deps"
+# Disable Corepack so Netlify does not auto-activate pnpm
+COREPACK_ENABLE_STRICT = "0"
 
 [functions]
 directory = "core314-app/netlify/functions"

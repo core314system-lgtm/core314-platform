@@ -1,0 +1,155 @@
+name: Deploy Health Check
+
+on:
+  # Run after Netlify deploys (triggered by push to main)
+  push:
+    branches: [ main ]
+  # Allow manual trigger for diagnostics
+  workflow_dispatch:
+
+jobs:
+  pre-deploy-validation:
+    name: Pre-Deploy Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate package-lock.json exists and is in sync
+        working-directory: core314-app
+        run: |
+          set -euo pipefail
+
+          echo "Checking core314-app/package-lock.json exists..."
+          if [ ! -f package-lock.json ]; then
+            echo "::error::Missing package-lock.json in core314-app/"
+            exit 1
+          fi
+          echo "package-lock.json found"
+
+          echo "Checking package.json and package-lock.json are in sync..."
+          # Extract all dependency names from package.json
+          deps=$(node -e "
+            const pkg = require('./package.json');
+            const all = {...(pkg.dependencies||{}), ...(pkg.devDependencies||{})};
+            console.log(Object.keys(all).join('\n'));
+          ")
+
+          # Verify each dependency exists in lockfile
+          missing=0
+          while IFS= read -r dep; do
+            if ! node -e "const lock = require('./package-lock.json'); const pkgs = lock.packages || {}; const found = Object.keys(pkgs).some(k => k.includes('node_modules/$dep')); if (!found) process.exit(1);" "$dep" 2>/dev/null; then
+              echo "::warning::Dependency '$dep' in package.json but may be missing from package-lock.json"
+              missing=$((missing + 1))
+            fi
+          done <<< "$deps"
+
+          if [ "$missing" -gt 5 ]; then
+            echo "::error::Too many dependencies missing from lockfile ($missing). Run 'npm install' locally and commit the updated package-lock.json."
+            exit 1
+          fi
+
+          echo "Lockfile validation passed"
+
+      - name: Validate netlify.toml configuration
+        run: |
+          set -euo pipefail
+
+          echo "Checking root netlify.toml..."
+          if [ ! -f netlify.toml ]; then
+            echo "::error::Missing root netlify.toml"
+            exit 1
+          fi
+
+          echo "Checking core314-app/netlify.toml..."
+          if [ ! -f core314-app/netlify.toml ]; then
+            echo "::error::Missing core314-app/netlify.toml"
+            exit 1
+          fi
+
+          # Verify NODE_VERSION is set to prevent Corepack/pnpm issues
+          if ! grep -q "NODE_VERSION" netlify.toml && ! grep -q "NODE_VERSION" core314-app/netlify.toml; then
+            echo "::warning::NODE_VERSION not set in any netlify.toml. This may cause Corepack/pnpm issues on Netlify."
+          fi
+
+          echo "Netlify config validation passed"
+
+      - name: Validate .npmrc exists (pnpm prevention)
+        run: |
+          if [ ! -f .npmrc ]; then
+            echo "::warning::No .npmrc found at repo root. Netlify may auto-detect pnpm via Corepack."
+          else
+            echo ".npmrc found at repo root"
+          fi
+
+  post-deploy-health-check:
+    name: Post-Deploy Health Check
+    runs-on: ubuntu-latest
+    # Wait for Netlify deploy to complete (typically 2-4 minutes)
+    needs: pre-deploy-validation
+
+    steps:
+      - name: Wait for Netlify deploy
+        run: |
+          echo "Waiting 180 seconds for Netlify deploy to complete..."
+          sleep 180
+
+      - name: Verify site is live
+        run: |
+          set -euo pipefail
+
+          SITE_URL="https://app.core314.com"
+          echo "Checking if $SITE_URL is live..."
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SITE_URL" --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" = "000" ]; then
+            echo "::error::Site $SITE_URL is unreachable (connection timeout)"
+            exit 1
+          elif [ "$HTTP_STATUS" -ge 500 ]; then
+            echo "::error::Site $SITE_URL returned server error (HTTP $HTTP_STATUS)"
+            exit 1
+          elif [ "$HTTP_STATUS" -ge 400 ] && [ "$HTTP_STATUS" != "401" ]; then
+            echo "::warning::Site $SITE_URL returned HTTP $HTTP_STATUS"
+          else
+            echo "Site is live (HTTP $HTTP_STATUS)"
+          fi
+
+      - name: Verify critical routes
+        run: |
+          set -euo pipefail
+
+          SITE_URL="https://app.core314.com"
+          ROUTES=(
+            "/"
+            "/integration-manager"
+            "/auth/callback"
+          )
+
+          failed=0
+          for route in "${ROUTES[@]}"; do
+            full_url="${SITE_URL}${route}"
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$full_url" --max-time 30 || echo "000")
+
+            if [ "$HTTP_STATUS" = "000" ] || [ "$HTTP_STATUS" -ge 500 ]; then
+              echo "::error::Critical route $route failed (HTTP $HTTP_STATUS)"
+              failed=$((failed + 1))
+            else
+              echo "Route $route OK (HTTP $HTTP_STATUS)"
+            fi
+          done
+
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::$failed critical route(s) failed health check"
+            exit 1
+          fi
+
+          echo "All critical routes passed health check"
+
+      - name: Report deploy status
+        if: always()
+        run: |
+          echo "Deploy health check completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "If any checks failed, investigate the Netlify deploy logs at:"
+          echo "  https://app.netlify.com/projects/polite-mochi-fc5be5/deploys"
