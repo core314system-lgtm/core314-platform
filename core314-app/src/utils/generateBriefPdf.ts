@@ -1,5 +1,23 @@
 import jsPDF from 'jspdf';
 
+interface PdfSignalEntity {
+  name: string;
+  last_activity_type?: string;
+  last_activity_date?: string;
+  metric_value?: number;
+}
+
+interface PdfSignalEvidence {
+  signal_type: string;
+  source: string;
+  severity: string;
+  category: string;
+  description: string;
+  confidence: number;
+  affected_entities: PdfSignalEntity[];
+  summary_metrics: Record<string, unknown>;
+}
+
 interface BriefPdfData {
   title: string;
   created_at: string;
@@ -15,6 +33,7 @@ interface BriefPdfData {
     label: string;
   } | null;
   userName?: string;
+  signal_evidence?: PdfSignalEvidence[];
 }
 
 // Brand colors
@@ -336,13 +355,14 @@ export function generateBriefPdf(data: BriefPdfData): void {
     y = ensureSpace(doc, y, 30, 25);
     y = drawSectionHeader(doc, 'KEY SIGNALS', y, marginLeft);
 
-    if (data.detected_signals && data.detected_signals.length > 0) {
-      for (const signal of data.detected_signals) {
-        y = ensureSpace(doc, y, 14, 25);
+    if (data.signal_evidence && data.signal_evidence.length > 0) {
+      // Rich signal evidence rendering
+      for (let si = 0; si < data.signal_evidence.length; si++) {
+        const ev = data.signal_evidence[si];
+        const sevLabel = getSeverityLabel(ev.severity === 'critical' || ev.severity === 'high' ? 'high' : ev.severity === 'medium' ? 'medium' : 'low');
+        const sevColor = getSeverityColor(ev.severity === 'critical' || ev.severity === 'high' ? 'high' : ev.severity === 'medium' ? 'medium' : 'low');
 
-        const severity = getSignalSeverity(signal);
-        const sevLabel = getSeverityLabel(severity);
-        const sevColor = getSeverityColor(severity);
+        y = ensureSpace(doc, y, 20, 25);
 
         // Severity badge
         const badgeW = 16;
@@ -353,7 +373,83 @@ export function generateBriefPdf(data: BriefPdfData): void {
         doc.setTextColor(...COLORS.white);
         doc.text(sevLabel, marginLeft + badgeW / 2, y + 0.5, { align: 'center' });
 
-        // Signal text
+        // Source + category label
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.textLight);
+        doc.text(`${ev.source.replace(/_/g, ' ').toUpperCase()} · ${ev.category.replace(/_/g, ' ')}`, marginLeft + badgeW + 4, y - 1);
+
+        // Signal description text (prefer GPT narrative if available)
+        const signalText = data.detected_signals[si] || ev.description;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        const signalLines = wrapText(doc, signalText, contentWidth - badgeW - 6);
+        doc.text(signalLines, marginLeft + badgeW + 4, y + 4);
+        y += signalLines.length * 4.5 + 5;
+
+        // Affected entities (bullet list)
+        if (ev.affected_entities.length > 0) {
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.textLight);
+          y = ensureSpace(doc, y, 6, 25);
+          doc.text('Affected Items:', marginLeft + badgeW + 4, y);
+          y += 4;
+
+          for (const ent of ev.affected_entities.slice(0, 10)) {
+            y = ensureSpace(doc, y, 5, 25);
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...COLORS.text);
+            let entLine = `\u2022  ${ent.name}`;
+            if (ent.last_activity_type) entLine += ` \u2014 ${ent.last_activity_type}`;
+            if (ent.last_activity_date) {
+              const d = new Date(ent.last_activity_date);
+              entLine += ` (${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+            }
+            const entLines = wrapText(doc, entLine, contentWidth - badgeW - 10);
+            doc.text(entLines, marginLeft + badgeW + 8, y);
+            y += entLines.length * 3.5 + 1;
+          }
+          y += 2;
+        }
+
+        // Summary metrics as inline tags
+        const metricKeys = Object.keys(ev.summary_metrics);
+        if (metricKeys.length > 0) {
+          y = ensureSpace(doc, y, 6, 25);
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.textLight);
+          const metricsStr = metricKeys.slice(0, 5).map(k => {
+            const v = ev.summary_metrics[k];
+            return `${k.replace(/_/g, ' ')}: ${typeof v === 'number' ? v.toLocaleString() : String(v)}`;
+          }).join('  |  ');
+          const metricLines = wrapText(doc, metricsStr, contentWidth - badgeW - 6);
+          doc.text(metricLines, marginLeft + badgeW + 4, y);
+          y += metricLines.length * 3.5 + 2;
+        }
+
+        y += 3;
+      }
+    } else if (data.detected_signals && data.detected_signals.length > 0) {
+      // Fallback: plain text signals for older briefs
+      for (const signal of data.detected_signals) {
+        y = ensureSpace(doc, y, 14, 25);
+
+        const severity = getSignalSeverity(signal);
+        const sevLabel = getSeverityLabel(severity);
+        const sevColor = getSeverityColor(severity);
+
+        const badgeW = 16;
+        doc.setFillColor(...sevColor);
+        doc.roundedRect(marginLeft, y - 3, badgeW, 5, 1, 1, 'F');
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.white);
+        doc.text(sevLabel, marginLeft + badgeW / 2, y + 0.5, { align: 'center' });
+
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...COLORS.text);
