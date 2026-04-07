@@ -556,6 +556,371 @@ serve(async (req) => {
       };
     });
 
+    // ── Intelligence Engine: Cross-System Patterns ──────────────────────
+    // Group signals by category and detect cross-system patterns
+    const categoryGroups = new Map<string, Array<{ source: string; type: string; severity: string; description: string }>>();
+    for (const s of classifiedSignals) {
+      const cat = s.category;
+      if (!categoryGroups.has(cat)) categoryGroups.set(cat, []);
+      categoryGroups.get(cat)!.push({
+        source: s.source_integration,
+        type: s.signal_type,
+        severity: s.severity,
+        description: s.description,
+      });
+    }
+
+    // Detect cross-system patterns: categories with signals from 2+ integrations
+    const crossSystemPatterns: Array<{
+      pattern_name: string;
+      category: string;
+      integrations: string[];
+      signals: Array<{ source: string; type: string; severity: string; description: string }>;
+      combined_severity: string;
+    }> = [];
+
+    for (const [cat, signals_in_cat] of categoryGroups) {
+      const uniqueIntegrations = [...new Set(signals_in_cat.map(s => s.source))];
+      if (uniqueIntegrations.length >= 2) {
+        const severities = signals_in_cat.map(s => s.severity);
+        const combined = severities.includes('critical') ? 'critical'
+          : severities.filter(s => s === 'high').length >= 2 ? 'high'
+          : severities.includes('high') ? 'medium' : 'medium';
+        crossSystemPatterns.push({
+          pattern_name: `cross_system_${cat}`,
+          category: cat,
+          integrations: uniqueIntegrations,
+          signals: signals_in_cat,
+          combined_severity: combined,
+        });
+      }
+    }
+
+    // Also detect inter-category patterns (e.g., communication + financial = revenue risk)
+    const activeCats = [...categoryGroups.keys()];
+    const interCategoryPatterns: Array<{
+      pattern_name: string;
+      categories: string[];
+      description: string;
+      severity: string;
+    }> = [];
+
+    const INTER_CATEGORY_RULES: Array<{ cats: string[]; name: string; desc: string }> = [
+      { cats: ['sales_pipeline', 'financial_activity'], name: 'Revenue Pipeline Risk', desc: 'CRM inactivity combined with financial anomalies indicates revenue generation is at risk.' },
+      { cats: ['communication', 'sales_pipeline'], name: 'Sales Coordination Breakdown', desc: 'Declining communication paired with stalled sales activity suggests team coordination failure.' },
+      { cats: ['communication', 'financial_activity'], name: 'Business Activity Decline', desc: 'Communication drop and financial inactivity together signal broad business slowdown.' },
+      { cats: ['project_delivery', 'communication'], name: 'Delivery Coordination Gap', desc: 'Project delivery issues combined with communication decline indicate coordination breakdown.' },
+      { cats: ['scheduling', 'project_delivery'], name: 'Capacity Overload', desc: 'Meeting overload combined with delivery delays suggests team capacity is consumed by coordination overhead.' },
+      { cats: ['sales_pipeline', 'communication', 'financial_activity'], name: 'Full Revenue Chain Disruption', desc: 'Sales, communication, and financial systems all showing issues — the entire revenue chain is affected.' },
+      { cats: ['project_delivery', 'financial_activity'], name: 'Delivery-Revenue Disconnect', desc: 'Project delivery problems paired with financial anomalies suggest deliverables are not converting to revenue.' },
+    ];
+
+    for (const rule of INTER_CATEGORY_RULES) {
+      if (rule.cats.every(c => activeCats.includes(c))) {
+        // Determine severity from the involved categories
+        const involvedSignals = rule.cats.flatMap(c => categoryGroups.get(c) || []);
+        const sev = involvedSignals.some(s => s.severity === 'critical') ? 'critical'
+          : involvedSignals.filter(s => s.severity === 'high').length >= 2 ? 'high' : 'medium';
+        interCategoryPatterns.push({
+          pattern_name: rule.name,
+          categories: rule.cats,
+          description: rule.desc,
+          severity: sev,
+        });
+      }
+    }
+
+    const crossSystemPatternsContext = crossSystemPatterns.length > 0 || interCategoryPatterns.length > 0
+      ? `\nCROSS-SYSTEM PATTERNS DETECTED:\n` +
+        crossSystemPatterns.map(p =>
+          `- ${p.category.replace(/_/g, ' ').toUpperCase()} across ${p.integrations.join(', ')} [${p.combined_severity}]: ${p.signals.map(s => s.description).join('; ')}`
+        ).join('\n') +
+        (interCategoryPatterns.length > 0 ? '\n\nINTER-CATEGORY PATTERNS:\n' +
+          interCategoryPatterns.map(p =>
+            `- ${p.pattern_name} [${p.severity}] (${p.categories.join(' + ')}): ${p.description}`
+          ).join('\n') : '')
+      : '';
+
+    console.log(`[operational-brief] Cross-system patterns: ${crossSystemPatterns.length}, inter-category: ${interCategoryPatterns.length}`);
+
+    // ── Intelligence Engine: Financial Impact Quantification ──────────
+    const financialImpact: {
+      overdue_total: number | null;
+      revenue_at_risk: number | null;
+      estimated_shortfall: number | null;
+      open_pipeline_value: number | null;
+      stalled_pipeline_value: number | null;
+      expense_total: number | null;
+      details: string[];
+    } = {
+      overdue_total: null,
+      revenue_at_risk: null,
+      estimated_shortfall: null,
+      open_pipeline_value: null,
+      stalled_pipeline_value: null,
+      expense_total: null,
+      details: [],
+    };
+
+    // Extract from QuickBooks data
+    if (hasQbData && qbMeta) {
+      const overdueCount = (qbMeta.overdue_invoices as number) || 0;
+      const invoiceTotal = (qbMeta.invoice_total as number) || 0;
+      const paymentTotal = (qbMeta.payment_total as number) || 0;
+      const expenseTotal = (qbMeta.expense_total as number) || 0;
+      const overdueTotal = (qbMeta.overdue_total as number) || 0;
+
+      if (overdueTotal > 0) {
+        financialImpact.overdue_total = overdueTotal;
+        financialImpact.details.push(`$${overdueTotal.toLocaleString()} in overdue invoices (${overdueCount} invoices)`);
+      } else if (overdueCount > 0 && invoiceTotal > 0) {
+        // Estimate overdue amount as proportion of total
+        const invoiceCount = (qbMeta.invoice_count as number) || 1;
+        const estimatedOverdue = Math.round((overdueCount / invoiceCount) * invoiceTotal);
+        financialImpact.overdue_total = estimatedOverdue;
+        financialImpact.details.push(`~$${estimatedOverdue.toLocaleString()} estimated overdue (${overdueCount} of ${invoiceCount} invoices)`);
+      }
+
+      if (invoiceTotal > 0 && paymentTotal < invoiceTotal) {
+        const gap = invoiceTotal - paymentTotal;
+        financialImpact.estimated_shortfall = gap;
+        financialImpact.details.push(`$${gap.toLocaleString()} collection shortfall (invoiced: $${invoiceTotal.toLocaleString()}, collected: $${paymentTotal.toLocaleString()})`);
+      }
+
+      if (expenseTotal > 0) {
+        financialImpact.expense_total = expenseTotal;
+      }
+    }
+
+    // Extract from HubSpot data
+    if (hasHubspotData && hubspotMeta) {
+      const openPipeline = (hubspotMeta.open_pipeline_value as number) || 0;
+      const stalledDeals = (hubspotMeta.stalled_deals as number) || 0;
+      const totalDeals = (hubspotMeta.total_deals as number) || 0;
+
+      if (openPipeline > 0) {
+        financialImpact.open_pipeline_value = openPipeline;
+        financialImpact.details.push(`$${openPipeline.toLocaleString()} in open pipeline`);
+      }
+
+      if (stalledDeals > 0 && openPipeline > 0 && totalDeals > 0) {
+        const stalledValue = Math.round((stalledDeals / totalDeals) * openPipeline);
+        financialImpact.stalled_pipeline_value = stalledValue;
+        financialImpact.revenue_at_risk = stalledValue + (financialImpact.overdue_total || 0);
+        financialImpact.details.push(`$${stalledValue.toLocaleString()} revenue at risk from ${stalledDeals} stalled deals`);
+      } else if (financialImpact.overdue_total) {
+        financialImpact.revenue_at_risk = financialImpact.overdue_total;
+      }
+    }
+
+    const financialImpactContext = financialImpact.details.length > 0
+      ? `\nFINANCIAL IMPACT ASSESSMENT:\n${financialImpact.details.map(d => `- ${d}`).join('\n')}\nTotal revenue at risk: ${financialImpact.revenue_at_risk ? '$' + financialImpact.revenue_at_risk.toLocaleString() : 'Not calculable from available data'}`
+      : '\nFINANCIAL IMPACT: Insufficient financial data to quantify impact. Connect QuickBooks and HubSpot for financial analysis.';
+
+    console.log(`[operational-brief] Financial impact: revenue_at_risk=$${financialImpact.revenue_at_risk || 0}, overdue=$${financialImpact.overdue_total || 0}`);
+
+    // ── Intelligence Engine: Forecast Engine ─────────────────────────
+    // Build 7/14/30 day risk projections based on signal trends and momentum
+    const forecast: {
+      horizon_7d: { risk_level: string; description: string };
+      horizon_14d: { risk_level: string; description: string };
+      horizon_30d: { risk_level: string; description: string };
+      projected_health_score: number | null;
+      trend_direction: string;
+      key_risks: string[];
+    } = {
+      horizon_7d: { risk_level: 'low', description: '' },
+      horizon_14d: { risk_level: 'low', description: '' },
+      horizon_30d: { risk_level: 'low', description: '' },
+      projected_health_score: null,
+      trend_direction: momentumClassification,
+      key_risks: [],
+    };
+
+    // Calculate base risk from signal severity distribution
+    const criticalCount = activeSignals.filter(s => s.severity === 'critical').length;
+    const highCount = activeSignals.filter(s => s.severity === 'high').length;
+    const mediumCount = activeSignals.filter(s => s.severity === 'medium').length;
+    const signalRiskScore = criticalCount * 4 + highCount * 3 + mediumCount * 1.5;
+
+    // Momentum-adjusted risk
+    const momentumMultiplier = momentumClassification === 'critical_decline' ? 1.5
+      : momentumClassification === 'declining' ? 1.3
+      : momentumClassification === 'stable' ? 1.0
+      : momentumClassification === 'improving' ? 0.8
+      : 0.6; // strong_improvement
+
+    const adjustedRisk = signalRiskScore * momentumMultiplier;
+
+    // Cross-system amplification
+    const patternAmplifier = 1 + (crossSystemPatterns.length * 0.15) + (interCategoryPatterns.length * 0.2);
+    const totalRisk = adjustedRisk * patternAmplifier;
+
+    // 7-day projection
+    if (totalRisk >= 12) {
+      forecast.horizon_7d = { risk_level: 'critical', description: 'Immediate operational disruption likely if current signals persist.' };
+    } else if (totalRisk >= 7) {
+      forecast.horizon_7d = { risk_level: 'high', description: 'Significant operational risk within 7 days without intervention.' };
+    } else if (totalRisk >= 3) {
+      forecast.horizon_7d = { risk_level: 'medium', description: 'Moderate risk — monitor closely for escalation.' };
+    } else {
+      forecast.horizon_7d = { risk_level: 'low', description: 'Low short-term risk based on current signals.' };
+    }
+
+    // 14-day projection (risk compounds)
+    const risk14 = totalRisk * (momentumClassification.includes('declin') ? 1.4 : 1.15);
+    if (risk14 >= 12) {
+      forecast.horizon_14d = { risk_level: 'critical', description: 'High probability of measurable business impact within 14 days.' };
+    } else if (risk14 >= 7) {
+      forecast.horizon_14d = { risk_level: 'high', description: 'Risk escalation expected within 14 days if trends continue.' };
+    } else if (risk14 >= 3) {
+      forecast.horizon_14d = { risk_level: 'medium', description: 'Moderate risk — current trajectory suggests growing concerns.' };
+    } else {
+      forecast.horizon_14d = { risk_level: 'low', description: 'Low 14-day outlook based on current trajectory.' };
+    }
+
+    // 30-day projection
+    const risk30 = totalRisk * (momentumClassification.includes('declin') ? 1.8 : 1.3);
+    if (risk30 >= 12) {
+      forecast.horizon_30d = { risk_level: 'critical', description: 'Sustained operational degradation expected over 30 days without corrective action.' };
+    } else if (risk30 >= 7) {
+      forecast.horizon_30d = { risk_level: 'high', description: 'Significant 30-day risk — compound effects from unresolved issues likely.' };
+    } else if (risk30 >= 3) {
+      forecast.horizon_30d = { risk_level: 'medium', description: 'Watch for progressive deterioration over 30 days.' };
+    } else {
+      forecast.horizon_30d = { risk_level: 'low', description: 'Favorable 30-day outlook based on current health and trends.' };
+    }
+
+    // Project health score
+    if (healthScore !== null) {
+      const projectedDelta = momentumDelta * (momentumClassification.includes('declin') ? 1.5 : 1.0);
+      forecast.projected_health_score = Math.max(0, Math.min(100, Math.round(healthScore + projectedDelta)));
+    }
+
+    // Key forecast risks
+    if (financialImpact.revenue_at_risk && financialImpact.revenue_at_risk > 0) {
+      forecast.key_risks.push(`$${financialImpact.revenue_at_risk.toLocaleString()} revenue at risk if pipeline and collection issues persist`);
+    }
+    if (crossSystemPatterns.length > 0) {
+      forecast.key_risks.push(`${crossSystemPatterns.length} cross-system pattern(s) detected — compound risk of multi-system failure`);
+    }
+    if (interCategoryPatterns.length > 0) {
+      forecast.key_risks.push(`${interCategoryPatterns.length} inter-category pattern(s) suggest systemic operational issues`);
+    }
+    if (momentumClassification.includes('declin')) {
+      forecast.key_risks.push(`Health score trending downward (${momentumDelta >= 0 ? '+' : ''}${momentumDelta}) — declining momentum amplifies all risks`);
+    }
+
+    const forecastContext = `\nFORECAST (RISK PROJECTIONS):
+7-day outlook: ${forecast.horizon_7d.risk_level.toUpperCase()} — ${forecast.horizon_7d.description}
+14-day outlook: ${forecast.horizon_14d.risk_level.toUpperCase()} — ${forecast.horizon_14d.description}
+30-day outlook: ${forecast.horizon_30d.risk_level.toUpperCase()} — ${forecast.horizon_30d.description}
+${forecast.projected_health_score !== null ? `Projected health score: ${forecast.projected_health_score}/100 (current: ${healthScore}/100)` : ''}
+Trend direction: ${momentumClassification.replace(/_/g, ' ')}
+${forecast.key_risks.length > 0 ? 'Key projected risks:\n' + forecast.key_risks.map(r => `- ${r}`).join('\n') : ''}`;
+
+    console.log(`[operational-brief] Forecast: 7d=${forecast.horizon_7d.risk_level}, 14d=${forecast.horizon_14d.risk_level}, 30d=${forecast.horizon_30d.risk_level}`);
+
+    // ── Intelligence Engine: Root Cause Analysis ─────────────────────
+    // Identify shared operational drivers across integrations
+    const rootCauses: Array<{
+      cause: string;
+      evidence: string[];
+      affected_systems: string[];
+      severity: string;
+    }> = [];
+
+    // Rule-based root cause detection from signal combinations
+    const hasCrmInactivity = classifiedSignals.some(s => ['no_crm_activity', 'stalled_deals', 'deal_pipeline_stall', 'lead_activity_drop'].includes(s.signal_type));
+    const hasCommDrop = classifiedSignals.some(s => ['low_communication', 'message_volume_drop', 'channel_activity_drop', 'low_email_activity'].includes(s.signal_type));
+    const hasCalendarGaps = classifiedSignals.some(s => ['low_meeting_activity'].includes(s.signal_type));
+    const hasCalendarOverload = classifiedSignals.some(s => ['meeting_overload', 'scheduling_conflicts', 'after_hours_meetings'].includes(s.signal_type));
+    const hasFinancialInactivity = classifiedSignals.some(s => ['no_financial_activity', 'invoice_inactivity', 'payment_inactivity'].includes(s.signal_type));
+    const hasOverdueInvoices = classifiedSignals.some(s => ['overdue_invoices', 'low_collection_rate'].includes(s.signal_type));
+    const hasDeliveryIssues = classifiedSignals.some(s => ['sprint_at_risk', 'blocker_accumulation', 'low_velocity', 'overdue_issues', 'stalled_cards', 'overdue_cards', 'overdue_tasks', 'low_completion_rate'].includes(s.signal_type));
+
+    if (hasCrmInactivity && hasCommDrop && hasCalendarGaps) {
+      rootCauses.push({
+        cause: 'Sales Team Disengagement',
+        evidence: ['CRM pipeline activity has stalled', 'Internal communication volume has dropped', 'Meeting/calendar activity is low'],
+        affected_systems: ['HubSpot', 'Slack', 'Google Calendar'].filter(s => {
+          const mapped: Record<string, boolean> = { 'HubSpot': hasHubspot, 'Slack': hasSlack, 'Google Calendar': hasGcal };
+          return mapped[s];
+        }),
+        severity: 'high',
+      });
+    }
+
+    if (hasCrmInactivity && hasCommDrop) {
+      rootCauses.push({
+        cause: 'Sales Coordination Breakdown',
+        evidence: ['CRM shows stalled or inactive pipeline', 'Communication channels show reduced activity'],
+        affected_systems: ['HubSpot', 'Slack'].filter(s => {
+          const mapped: Record<string, boolean> = { 'HubSpot': hasHubspot, 'Slack': hasSlack };
+          return mapped[s];
+        }),
+        severity: 'high',
+      });
+    }
+
+    if (hasFinancialInactivity && hasOverdueInvoices) {
+      rootCauses.push({
+        cause: 'Cash Flow Management Failure',
+        evidence: ['Invoicing activity has slowed', 'Overdue invoices are accumulating', 'Collection rate is declining'],
+        affected_systems: ['QuickBooks'],
+        severity: 'critical',
+      });
+    }
+
+    if (hasDeliveryIssues && hasCommDrop) {
+      rootCauses.push({
+        cause: 'Delivery Team Coordination Failure',
+        evidence: ['Project delivery metrics show delays or blockers', 'Team communication is declining'],
+        affected_systems: connectedServices.filter(s => ['jira', 'trello', 'asana', 'slack', 'microsoft_teams'].includes(s)).map(s => s.replace(/_/g, ' ')),
+        severity: 'high',
+      });
+    }
+
+    if (hasCalendarOverload && hasDeliveryIssues) {
+      rootCauses.push({
+        cause: 'Meeting Overhead Blocking Execution',
+        evidence: ['Calendar shows meeting overload or scheduling conflicts', 'Project delivery is delayed'],
+        affected_systems: connectedServices.filter(s => ['google_calendar', 'jira', 'trello', 'asana'].includes(s)).map(s => s.replace(/_/g, ' ')),
+        severity: 'medium',
+      });
+    }
+
+    if (hasOverdueInvoices && hasCrmInactivity) {
+      rootCauses.push({
+        cause: 'Revenue Generation Stall',
+        evidence: ['Sales pipeline is inactive or stalled', 'Outstanding invoices are not being collected'],
+        affected_systems: ['HubSpot', 'QuickBooks'].filter(s => {
+          const mapped: Record<string, boolean> = { 'HubSpot': hasHubspot, 'QuickBooks': hasQuickbooks };
+          return mapped[s];
+        }),
+        severity: 'critical',
+      });
+    }
+
+    // Deduplicate root causes by name (keep highest severity)
+    const uniqueRootCauses = Array.from(
+      rootCauses.reduce((map, rc) => {
+        const existing = map.get(rc.cause);
+        if (!existing || ['critical', 'high'].indexOf(rc.severity) < ['critical', 'high'].indexOf(existing.severity)) {
+          map.set(rc.cause, rc);
+        }
+        return map;
+      }, new Map<string, typeof rootCauses[0]>()).values()
+    );
+
+    const rootCauseContext = uniqueRootCauses.length > 0
+      ? `\nROOT CAUSE ANALYSIS:\n${uniqueRootCauses.map(rc =>
+          `- ${rc.cause} [${rc.severity.toUpperCase()}]\n  Evidence: ${rc.evidence.join('; ')}\n  Affected systems: ${rc.affected_systems.join(', ')}`
+        ).join('\n')}`
+      : '\nROOT CAUSE ANALYSIS: Insufficient cross-system signal overlap to identify shared root causes.';
+
+    console.log(`[operational-brief] Root causes identified: ${uniqueRootCauses.length}`);
+
     // Format correlated event context (if exists)
     let correlationContext = '';
     let hasCorrelatedEvent = false;
@@ -635,7 +1000,7 @@ Command Center integrations: Google Calendar ${hasGcalData ? 'has data' : hasGca
     if (hasCorrelatedEvent) {
       // ── Correlated Event Brief Format ──────────────────────────────
       // When correlated signals exist, produce a unified "Operational Event Detected" narrative
-      gptPrompt = `You are Core314, an AI operations analyst. A correlated operational pattern has been detected across multiple integrations for ${orgName}. Generate a structured Operational Event brief.
+      gptPrompt = `You are Core314, an AI operations analyst with advanced intelligence capabilities. A correlated operational pattern has been detected across multiple integrations for ${orgName}. Generate a comprehensive Intelligence Brief.
 
 Date: ${today}
 Operational Health Score: ${healthScore !== null ? `${healthScore}/100 (${healthLabel})` : 'Not yet calculated'}
@@ -644,6 +1009,10 @@ Operational Momentum: ${momentumLabel}
 INTEGRATION STATUS:
 ${integrationStatus}
 ${correlationContext}
+${crossSystemPatternsContext}
+${financialImpactContext}
+${forecastContext}
+${rootCauseContext}
 
 ALL ACTIVE SIGNALS:
 ${signalSummary}
@@ -669,22 +1038,30 @@ INSTRUCTIONS:
 - Explain the RELATIONSHIP between the signals — why they likely represent a single underlying operational condition
 - Write as if you are a senior business analyst presenting to the CEO
 - Be specific — use exact numbers from the data when available
-- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals and operational_interpretation. Name specific deals, invoices, channels, etc.
+- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals and operational_interpretation
 - Do NOT invent data that isn't provided above. If entity data is missing, state "specific entity details unavailable" rather than making up names.
-- Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
+- Include the operational momentum trend in your interpretation
+- Use the FINANCIAL IMPACT data to quantify business exposure
+- Use the FORECAST projections to frame urgency
+- Use the ROOT CAUSE ANALYSIS to explain WHY signals are occurring together
+- Each recommended_action MUST include WHO (role/person), WHAT (specific action), and WHEN (timeline)
 
 Generate a JSON response with these exact fields:
 1. "title": ${patternTitle ? `Use EXACTLY this title: "Operational Event Detected — ${patternTitle} — ${today}". Do NOT change the pattern name.` : `Use: "Operational Event Detected — Cross-Integration Pattern — ${today}"`}
-2. "event_summary": 1-2 sentence description of the correlated operational event (e.g., "A correlated operational pattern has been detected across Slack and QuickBooks, indicating potential operational disruption affecting both communication and financial workflows.")
-3. "detected_signals": Array of signal descriptions in plain business English. Each entry should name the integration and the operational category (e.g., "Slack communication activity drop detected — limited message volume across monitored channels")
-4. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other and what operational condition they likely represent. This is the core analytical value — connect the dots across integrations.
-5. "business_impact": 1-2 paragraphs describing the potential operational impact on the business. Be specific about what could happen if the condition persists.
-6. "recommended_actions": Array of 3-5 specific, prioritized corrective recommendations. Each should address a specific aspect of the correlated event.
-7. "risk_assessment": Brief risk outlook (1-2 sentences) based on the combined severity of the correlated signals.
-8. "confidence": Score 0-100 based on data quality and correlation strength.`;
+2. "event_summary": 1-2 sentence description of the correlated operational event
+3. "detected_signals": Array of signal descriptions in plain business English
+4. "cross_system_patterns": Array of objects, each with "pattern" (string name), "integrations" (array of integration names), "description" (1-2 sentences explaining the cross-system relationship)
+5. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other
+6. "root_cause_analysis": Array of objects, each with "cause" (string), "evidence" (array of strings), "affected_systems" (array of strings)
+7. "financial_impact": Object with "summary" (1-2 sentence overview), "revenue_at_risk" (dollar amount or null), "overdue_total" (dollar amount or null), "estimated_shortfall" (dollar amount or null). Use ONLY the financial data provided above — do NOT invent numbers.
+8. "forecast": Object with "seven_day" (string outlook), "fourteen_day" (string outlook), "thirty_day" (string outlook), "key_risks" (array of projected risk strings)
+9. "business_impact": 1-2 paragraphs describing operational impact with financial quantification
+10. "recommended_actions": Array of objects, each with "who" (role/team responsible), "what" (specific action to take), "when" (timeline — e.g., "Immediately", "Within 48 hours", "This week", "Within 14 days"), "priority" ("critical"|"high"|"medium"|"low")
+11. "risk_assessment": Brief risk outlook (1-2 sentences)
+12. "confidence": Score 0-100 based on data quality and correlation strength.`;
     } else {
       // ── Standard Brief Format (no correlated events) ───────────────
-      gptPrompt = `You are Core314, an AI operations analyst. Generate a clear, executive-friendly Operational Brief for ${orgName}.
+      gptPrompt = `You are Core314, an AI operations analyst with advanced intelligence capabilities. Generate a comprehensive Intelligence Brief for ${orgName}.
 
 Date: ${today}
 Operational Health Score: ${healthScore !== null ? `${healthScore}/100 (${healthLabel})` : 'Not yet calculated'}
@@ -692,6 +1069,10 @@ Operational Momentum: ${momentumLabel}
 
 INTEGRATION STATUS:
 ${integrationStatus}
+${crossSystemPatternsContext}
+${financialImpactContext}
+${forecastContext}
+${rootCauseContext}
 
 DETECTED OPERATIONAL SIGNALS:
 ${signalSummary}
@@ -713,25 +1094,29 @@ Project Delivery (Asana): ${asanaSummary}
 INSTRUCTIONS:
 - Write as if you are a senior business analyst presenting to the CEO
 - Be specific — use exact numbers from the data when available
-- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals array. Each signal string should name the affected items (deals, invoices, channels, etc.) with their details.
-- Do NOT invent data that isn’t provided above. If entity data is missing for a signal, state "specific entity details unavailable" rather than making up names.
-- IMPORTANT: If data is limited or missing, you MUST still produce a meaningful brief:
-  - Explain what data sources ARE connected and what they show (even if it's minimal)
-  - Explain what data sources are NOT connected and what visibility that costs the business
-  - Provide reasoning about what the current state means (e.g., "No signals detected could mean operations are stable, or it could mean we lack sufficient data coverage")
-  - Recommend specific next steps to improve data coverage and operational visibility
+- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics
+- Do NOT invent data that isn't provided above. If entity data is missing, state "specific entity details unavailable" rather than making up names.
+- IMPORTANT: If data is limited or missing, you MUST still produce a meaningful brief
 - Focus on what the data MEANS for the business, not just what the numbers are
-- Explain the operational trend using the Momentum data — whether health is improving, stable, or declining compared to recent cycles
-- Identify patterns across data sources when possible
-- If this is a first brief with minimal data, frame it as an "Initial Operational Assessment" and focus on onboarding recommendations
+- Explain the operational trend using the Momentum data
+- Use the CROSS-SYSTEM PATTERNS to identify relationships between integrations
+- Use the FINANCIAL IMPACT data to quantify business exposure in dollar terms
+- Use the FORECAST projections to frame urgency and time horizons
+- Use the ROOT CAUSE ANALYSIS to explain WHY multiple signals are occurring
+- Each recommended_action MUST include WHO (role/team), WHAT (specific action), and WHEN (timeline)
+- If this is a first brief with minimal data, frame it as an "Initial Operational Assessment"
 
 Generate a JSON response with these exact fields:
-1. "title": Concise brief title (e.g., "Weekly Operations Summary — ${today}" or "Initial Operational Assessment — ${today}" if data is sparse)
-2. "detected_signals": Array of signal summary strings in plain business English. If no signals, include at least one entry explaining why (e.g., "No operational anomalies detected — monitoring is active across N connected systems")
-3. "business_impact": 1-2 paragraph analysis of what the current operational state means for the business. Always provide reasoning, even with minimal data.
-4. "recommended_actions": Array of 3-5 specific, actionable recommendations. Include data coverage improvements if integrations are missing.
-5. "risk_assessment": Brief risk outlook (1-2 sentences). If data is sparse, note that limited visibility is itself a risk.
-6. "confidence": Score 0-100 based on data quality and coverage. Lower if data sources are missing (e.g., 20-30 with no data, 40-60 with partial data, 70-90 with full data).`;
+1. "title": Concise brief title (e.g., "Operational Intelligence Report — ${today}" or "Initial Operational Assessment — ${today}" if data is sparse)
+2. "detected_signals": Array of signal summary strings in plain business English
+3. "cross_system_patterns": Array of objects, each with "pattern" (string name), "integrations" (array of integration names), "description" (1-2 sentences). Empty array if no patterns detected.
+4. "root_cause_analysis": Array of objects, each with "cause" (string), "evidence" (array of strings), "affected_systems" (array of strings). Empty array if insufficient data.
+5. "financial_impact": Object with "summary" (1-2 sentence overview), "revenue_at_risk" (dollar amount or null), "overdue_total" (dollar amount or null), "estimated_shortfall" (dollar amount or null). Use ONLY the financial data provided — do NOT invent numbers.
+6. "forecast": Object with "seven_day" (string outlook), "fourteen_day" (string outlook), "thirty_day" (string outlook), "key_risks" (array of projected risk strings)
+7. "business_impact": 1-2 paragraph analysis with financial quantification where data exists
+8. "recommended_actions": Array of objects, each with "who" (role/team responsible), "what" (specific action to take), "when" (timeline — e.g., "Immediately", "Within 48 hours", "This week", "Within 14 days"), "priority" ("critical"|"high"|"medium"|"low")
+9. "risk_assessment": Brief risk outlook (1-2 sentences)
+10. "confidence": Score 0-100 based on data quality and coverage.`;
     }
 
     console.log('[operational-brief] Generating brief for user:', user.id, {
@@ -832,7 +1217,7 @@ Generate a JSON response with these exact fields:
             signal_count: (correlatedEvent.signal_ids as string[])?.length || 0,
             failure_pattern: correlatedEvent.failure_pattern || null,
           } : null,
-          // New correlated event narrative fields
+          // Correlated event narrative fields
           event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
           operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
           // Structured signal evidence for UI rendering
@@ -846,6 +1231,40 @@ Generate a JSON response with these exact fields:
             historical_average: momentumHistoricalAvg,
             scores_used: momentumScoresUsed,
           },
+          // ── Intelligence Engine Data ──
+          // Cross-system patterns (programmatic detection)
+          cross_system_patterns: crossSystemPatterns.map(p => ({
+            pattern_name: p.pattern_name,
+            category: p.category,
+            integrations: p.integrations,
+            combined_severity: p.combined_severity,
+            signal_count: p.signals.length,
+          })),
+          inter_category_patterns: interCategoryPatterns.map(p => ({
+            pattern_name: p.pattern_name,
+            categories: p.categories,
+            description: p.description,
+            severity: p.severity,
+          })),
+          // GPT-generated cross-system patterns (AI analysis)
+          gpt_cross_system_patterns: narrative.cross_system_patterns || [],
+          // Financial impact quantification
+          financial_impact: {
+            ...financialImpact,
+            gpt_analysis: narrative.financial_impact || null,
+          },
+          // Forecast engine (7/14/30 day projections)
+          forecast: {
+            ...forecast,
+            gpt_analysis: narrative.forecast || null,
+          },
+          // Root cause analysis
+          root_cause_analysis: {
+            programmatic: uniqueRootCauses,
+            gpt_analysis: narrative.root_cause_analysis || [],
+          },
+          // Prescriptive actions with WHO/WHAT/WHEN
+          prescriptive_actions: narrative.recommended_actions || [],
         },
       })
       .select()
@@ -907,7 +1326,20 @@ Generate a JSON response with these exact fields:
     } else if (activeSignals.length >= 3) {
       multiSignalPenalty = 5;
     }
-    const totalSignalPenalties = rawSignalPenalties + multiSignalPenalty;
+
+    // Cross-system pattern penalty: correlated signals across integrations are worse than isolated ones
+    let crossSystemPenalty = 0;
+    crossSystemPenalty += crossSystemPatterns.length * 3; // 3 pts per cross-system pattern
+    crossSystemPenalty += interCategoryPatterns.length * 5; // 5 pts per inter-category pattern (more severe)
+
+    // Forecast risk penalty: if forecast shows escalating risk, penalize health score
+    let forecastPenalty = 0;
+    const riskLevels: Record<string, number> = { 'critical': 4, 'high': 2, 'medium': 1, 'low': 0 };
+    forecastPenalty += riskLevels[forecast.horizon_7d.risk_level] || 0;
+    forecastPenalty += riskLevels[forecast.horizon_14d.risk_level] || 0;
+    forecastPenalty += riskLevels[forecast.horizon_30d.risk_level] || 0;
+
+    const totalSignalPenalties = rawSignalPenalties + multiSignalPenalty + crossSystemPenalty + forecastPenalty;
 
     // Integration coverage: bonus capped at +3 (prevents offsetting major issues)
     const coverageBonus = Math.min(connectedCount, 3);
@@ -937,6 +1369,8 @@ Generate a JSON response with these exact fields:
             signal_penalties: signalPenaltyDetails,
             total_signal_deductions: Math.round(totalSignalPenalties * 10) / 10,
             multi_signal_penalty: multiSignalPenalty,
+            cross_system_penalty: crossSystemPenalty,
+            forecast_penalty: forecastPenalty,
             integration_coverage: connectedCount,
             coverage_bonus: coverageBonus,
             data_freshness_bonus: -freshnessPenalty,
