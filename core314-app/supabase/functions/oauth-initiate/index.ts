@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { checkIntegrationLimit, integrationLimitErrorResponse } from '../_shared/integration-limits.ts';
 
 // Cold start: Log credential presence for key OAuth providers (never log values)
 console.log('[oauth-initiate] Cold start - Credentials check:', {
@@ -129,6 +130,13 @@ serve(withSentry(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // === Integration Plan Limit Check ===
+    const limitResult = await checkIntegrationLimit(supabase, user.id);
+    if (!limitResult.allowed) {
+      console.log('[oauth-initiate] Integration limit reached:', limitResult);
+      return integrationLimitErrorResponse(limitResult, corsHeaders);
+    }
 
     const { data: integration, error: integrationError } = await supabase
       .from('integration_registry')

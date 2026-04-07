@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { sendIntegrationConnectedEmail } from '../_shared/integration-notifications.ts';
+import { checkIntegrationLimit, integrationLimitErrorResponse } from '../_shared/integration-limits.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,6 +81,17 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // === Integration Plan Limit Check ===
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    const limitResult = await checkIntegrationLimit(supabaseAdmin, user.id);
+    if (!limitResult.allowed) {
+      console.log('[connect-api-key] Integration limit reached:', limitResult);
+      return integrationLimitErrorResponse(limitResult, corsHeaders);
     }
 
     // Validate credentials by making a test API call

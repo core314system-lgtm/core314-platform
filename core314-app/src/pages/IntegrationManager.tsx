@@ -95,15 +95,14 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
   asana: 'Track project milestones, task completion rates, and team workload to detect delivery risks and resource constraints.',
 };
 
-const PLAN_TIERS: Record<string, number> = {
-  intelligence: 1,
-  command_center: 2,
-  enterprise: 3,
+// Integration connection limits per plan
+const PLAN_INTEGRATION_LIMITS: Record<string, number> = {
+  intelligence: 3,
+  command_center: 10,
+  enterprise: Infinity,
 };
 
-const CORE_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks'];
-const COMMAND_CENTER_INTEGRATIONS = ['google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'];
-const ALL_INTEGRATIONS = [...CORE_INTEGRATIONS, ...COMMAND_CENTER_INTEGRATIONS];
+const ALL_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'];
 
 // Google services that use direct OAuth (no Supabase intermediary)
 const GOOGLE_SERVICES = ['gmail', 'google_calendar', 'google_sheets'];
@@ -161,6 +160,7 @@ export function IntegrationManager() {
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [limitError, setLimitError] = useState<string | null>(null);
   // CTA state: shown when a new integration connects but user already has briefs
   const [showNewDataCTA, setShowNewDataCTA] = useState(false);
 
@@ -264,6 +264,18 @@ export function IntegrationManager() {
     const oauthSuccess = searchParams.get('oauth_success');
     const oauthService = searchParams.get('service');
     const hubspotStatus = searchParams.get('hubspot');
+
+    // Handle integration limit error from OAuth redirect (oauth-callback returns this)
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'integration_limit_reached') {
+      const limitParam = searchParams.get('limit');
+      const planParam = searchParams.get('plan');
+      setLimitError(`You have reached the maximum of ${limitParam || '?'} integrations for your ${(planParam || 'current').replace(/_/g, ' ')} plan. Upgrade to connect more integrations.`);
+      searchParams.delete('error');
+      searchParams.delete('limit');
+      searchParams.delete('plan');
+      setSearchParams(searchParams, { replace: true });
+    }
 
     if (oauthSuccess === 'true' && oauthService) {
       console.log('[AutoTrigger] OAuth callback detected for:', oauthService);
@@ -384,13 +396,6 @@ export function IntegrationManager() {
     setLoading(false);
   };
 
-  const canAccessIntegration = (serviceName: string): boolean => {
-    if (CORE_INTEGRATIONS.includes(serviceName)) return true;
-    if (COMMAND_CENTER_INTEGRATIONS.includes(serviceName)) {
-      return (PLAN_TIERS[userPlan] || 0) >= PLAN_TIERS['command_center'];
-    }
-    return false;
-  };
 
   /**
    * Initiate Google OAuth directly from the frontend.
@@ -406,6 +411,12 @@ export function IntegrationManager() {
    * 6. AuthCallback.tsx sends code+state to google-oauth-exchange Edge Function
    */
   const handleGoogleConnect = async (serviceName: string) => {
+    // Frontend guard: check integration limit before redirecting to Google
+    if (isAtLimit) {
+      setLimitError(`You have reached the maximum of ${integrationLimit} integrations for your ${userPlan.replace(/_/g, ' ')} plan. Upgrade to connect more integrations.`);
+      return;
+    }
+
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId) {
       console.error('[handleGoogleConnect] VITE_GOOGLE_CLIENT_ID not configured');
@@ -458,7 +469,12 @@ export function IntegrationManager() {
 
   const handleConnect = async (serviceName: string) => {
     if (!profile?.id) return;
-    if (!canAccessIntegration(serviceName)) return;
+
+    // Frontend guard: check integration limit
+    if (isAtLimit) {
+      setLimitError(`You have reached the maximum of ${integrationLimit} integrations for your ${userPlan.replace(/_/g, ' ')} plan. Upgrade to connect more integrations.`);
+      return;
+    }
     if (API_KEY_FIELDS[serviceName]) {
       setApiKeyForm({ service: serviceName, credentials: {} });
       setApiKeyError(null);
@@ -505,6 +521,11 @@ export function IntegrationManager() {
       });
 
       const data = await response.json();
+      if (data.error === 'integration_limit_reached') {
+        setLimitError(data.message || 'Integration limit reached. Upgrade to connect more.');
+        setConnecting(null);
+        return;
+      }
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       } else if (data.error) {
@@ -519,6 +540,13 @@ export function IntegrationManager() {
 
   const handleApiKeySubmit = async () => {
     if (!apiKeyForm || !profile?.id) return;
+
+    // Frontend guard: check integration limit
+    if (isAtLimit) {
+      setApiKeyError(`You have reached the maximum of ${integrationLimit} integrations for your ${userPlan.replace(/_/g, ' ')} plan. Upgrade to connect more.`);
+      return;
+    }
+
     setConnecting(apiKeyForm.service);
     setApiKeyError(null);
     try {
@@ -530,6 +558,11 @@ export function IntegrationManager() {
       });
       if (error) {
         setApiKeyError('Failed to connect. Please check your credentials.');
+        return;
+      }
+      // Handle integration limit error from backend (must check before generic !data.success)
+      if (data?.error === 'integration_limit_reached') {
+        setApiKeyError(data.message || 'Integration limit reached. Upgrade to connect more.');
         return;
       }
       if (data && !data.success) {
@@ -626,10 +659,11 @@ export function IntegrationManager() {
     return { label: 'Connected', color: 'text-green-600' };
   };
 
-  const coreIntegrations = integrations.filter(i => CORE_INTEGRATIONS.includes(i.service_name));
-  const commandCenterIntegrations = integrations.filter(i => COMMAND_CENTER_INTEGRATIONS.includes(i.service_name));
   const connectedCount = integrations.filter(i => isConnected(i.id)).length;
-  const accessibleCount = integrations.filter(i => canAccessIntegration(i.service_name)).length;
+
+  // Check if the user has reached their integration limit
+  const integrationLimit = PLAN_INTEGRATION_LIMITS[userPlan] ?? PLAN_INTEGRATION_LIMITS['intelligence'];
+  const isAtLimit = connectedCount >= integrationLimit;
 
   if (loading) {
     return (
@@ -759,6 +793,34 @@ export function IntegrationManager() {
         </Card>
       )}
 
+      {/* Integration Limit Error Banner */}
+      {limitError && (
+        <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  {limitError}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/account-plan')}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
+                >
+                  <ArrowUpRight className="h-4 w-4 mr-1" /> Upgrade Plan
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setLimitError(null)} className="text-red-600 hover:text-red-700">
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Connection Status Summary */}
       <Card className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200 dark:border-indigo-800">
         <CardContent className="p-4">
@@ -766,36 +828,31 @@ export function IntegrationManager() {
             <Plug className="h-8 w-8 text-indigo-500" />
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {connectedCount} of {accessibleCount} available integrations connected
+                {connectedCount} / {integrationLimit === Infinity ? 'Unlimited' : integrationLimit} integrations used
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {connectedCount === accessibleCount && accessibleCount > 0
-                  ? 'All signal sources active. Core314 is analyzing your full operational picture.'
-                  : userPlan === 'intelligence'
-                    ? 'Connect your core integrations. Upgrade to Command Center for 7 additional integrations.'
-                    : 'Connect more integrations for richer operational insights.'}
+                {isAtLimit
+                  ? 'Integration limit reached. Upgrade your plan to connect more.'
+                  : 'You can connect any integration. Your plan determines how many you can use.'}
               </p>
             </div>
           </div>
           <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div
-              className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(connectedCount / Math.max(accessibleCount, 1)) * 100}%` }}
+              className={`h-2 rounded-full transition-all duration-500 ${isAtLimit ? 'bg-red-500' : 'bg-indigo-500'}`}
+              style={{ width: `${Math.min((connectedCount / Math.max(integrationLimit === Infinity ? connectedCount || 1 : integrationLimit, 1)) * 100, 100)}%` }}
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Core Integrations Section */}
+      {/* All Integrations — Unified List */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Core Integrations</h2>
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-0">
-            All Plans
-          </Badge>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Available Integrations</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {coreIntegrations.map((integration, idx) => {
+          {integrations.map((integration, idx) => {
             const Icon = SERVICE_ICONS[integration.service_name] || Layers;
             const connected = isConnected(integration.id);
             const connDate = getConnectionDate(integration.id);
@@ -817,6 +874,11 @@ export function IntegrationManager() {
                         <Badge variant="outline" className="text-xs text-green-600 border-green-300">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Connected
+                        </Badge>
+                      )}
+                      {isApiKeyService && !connected && (
+                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
+                          <Key className="h-3 w-3 mr-1" /> API Key
                         </Badge>
                       )}
                     </div>
@@ -1048,126 +1110,19 @@ export function IntegrationManager() {
                         )}
                       </div>
                     </div>
+                  ) : isAtLimit ? (
+                    <div className="space-y-2">
+                      <Button className="w-full" disabled>
+                        <Lock className="h-4 w-4 mr-2" /> Limit Reached
+                      </Button>
+                      <p className="text-xs text-center text-amber-600 dark:text-amber-400">
+                        Upgrade to connect more integrations
+                      </p>
+                    </div>
                   ) : (
                     <Button className="w-full" onClick={() => handleConnect(integration.service_name)} disabled={connecting === integration.service_name}>
                       {connecting === integration.service_name ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : isApiKeyService ? <Key className="h-4 w-4 mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
                       {connecting === integration.service_name ? 'Connecting...' : `Connect ${integration.display_name}`}
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Command Center Integrations Section */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Command Center Integrations</h2>
-          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-0">
-            Command Center+
-          </Badge>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {COMMAND_CENTER_INTEGRATIONS.map(serviceName => {
-            const dbIntegration = commandCenterIntegrations.find(i => i.service_name === serviceName);
-            const locked = !canAccessIntegration(serviceName);
-            const Icon = SERVICE_ICONS[serviceName] || Layers;
-            const displayName = dbIntegration?.display_name || serviceName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const description = SERVICE_DESCRIPTIONS[serviceName] || dbIntegration?.description || 'Connect this integration for operational intelligence.';
-            const connected = dbIntegration ? isConnected(dbIntegration.id) : false;
-            const connDate = dbIntegration ? getConnectionDate(dbIntegration.id) : null;
-            const ui = dbIntegration ? getUserIntegration(dbIntegration.id) : null;
-            const state = getIngestionState(serviceName);
-            const health = getHealthStatus(ui);
-            const isApiKeyService = !!API_KEY_FIELDS[serviceName];
-
-            return (
-              <Card key={serviceName} className={`${connected ? 'border-green-200 dark:border-green-800' : ''} ${locked ? 'opacity-75' : ''} relative`}>
-                {locked && (
-                  <div className="absolute top-3 right-3">
-                    <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-300">
-                      <Lock className="h-3 w-3 mr-1" /> Command Center
-                    </Badge>
-                  </div>
-                )}
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : locked ? 'bg-gray-100 dark:bg-gray-800' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
-                      <Icon className={`h-5 w-5 ${connected ? 'text-green-600' : locked ? 'text-gray-400' : 'text-indigo-600'}`} />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{displayName}</CardTitle>
-                      {connected && (
-                        <Badge variant="outline" className="text-xs text-green-600 border-green-300">
-                          <CheckCircle className="h-3 w-3 mr-1" /> Connected
-                        </Badge>
-                      )}
-                      {isApiKeyService && !locked && !connected && (
-                        <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
-                          <Key className="h-3 w-3 mr-1" /> API Key
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{description}</p>
-                  {connected ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Clock className="h-3 w-3" />
-                        Connected {connDate ? new Date(connDate).toLocaleDateString() : ''}
-                      </div>
-                      <div className={`flex items-center gap-2 text-xs ${health.color}`}>
-                        <CheckCircle className="h-3 w-3" />
-                        {health.label}
-                        {ui?.last_verified_at && <span className="text-gray-400">({formatTimeAgo(ui.last_verified_at)})</span>}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <RefreshCw className={`h-3 w-3 ${state?.last_polled_at ? '' : 'text-gray-300'}`} />
-                        {state?.last_polled_at ? (
-                          <span>Last polled {formatTimeAgo(state.last_polled_at)}<span className="text-gray-400 ml-1">(every 15 min)</span></span>
-                        ) : (<span className="text-gray-400">Awaiting first poll...</span>)}
-                      </div>
-                      {ui?.error_message && ui.consecutive_failures > 0 && (
-                        <div className="flex items-center gap-2 text-xs text-red-500">
-                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate" title={ui.error_message}>{ui.error_message.length > 60 ? ui.error_message.slice(0, 60) + '...' : ui.error_message}</span>
-                        </div>
-                      )}
-                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                        {disconnectConfirm === dbIntegration?.id ? (
-                          <div className="flex items-center gap-2">
-                            <Button variant="destructive" size="sm" className="text-xs h-7" onClick={() => handleDisconnect(serviceName, dbIntegration!.id)} disabled={disconnecting === serviceName}>
-                              {disconnecting === serviceName ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <Unplug className="h-3 w-3 mr-1" />}
-                              Confirm Disconnect
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setDisconnectConfirm(null)}>Cancel</Button>
-                          </div>
-                        ) : (
-                          <Button variant="ghost" size="sm" className="text-xs h-7 text-gray-400 hover:text-red-500" onClick={() => handleDisconnect(serviceName, dbIntegration!.id)}>
-                            <Unplug className="h-3 w-3 mr-1" /> Disconnect
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ) : locked ? (
-                    <div className="space-y-3">
-                      <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-                        <p className="text-xs text-amber-700 dark:text-amber-300">
-                          Available on the <span className="font-semibold">Command Center</span> plan and above.
-                        </p>
-                      </div>
-                      <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white" onClick={() => navigate('/account-plan')}>
-                        <ArrowUpRight className="h-4 w-4 mr-2" /> Upgrade to Command Center
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button className="w-full" onClick={() => handleConnect(serviceName)} disabled={connecting === serviceName}>
-                      {connecting === serviceName ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : isApiKeyService ? <Key className="h-4 w-4 mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
-                      {connecting === serviceName ? 'Connecting...' : `Connect ${displayName}`}
                     </Button>
                   )}
                 </CardContent>

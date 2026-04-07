@@ -100,6 +100,53 @@ export const handler: Handler = async (event: HandlerEvent) => {
       };
     }
 
+    // === Integration Plan Limit Check ===
+    const supabaseServiceUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseServiceUrl && supabaseServiceKey) {
+      const adminClient = createClient(supabaseServiceUrl, supabaseServiceKey);
+
+      // Resolve user plan
+      const { data: subscription } = await adminClient
+        .from('user_subscriptions')
+        .select('plan_name')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      let plan = 'intelligence';
+      if (subscription?.plan_name) {
+        const pn = subscription.plan_name.toLowerCase();
+        if (pn.includes('command') || pn.includes('center')) plan = 'command_center';
+        else if (pn.includes('enterprise')) plan = 'enterprise';
+      }
+
+      const planLimits: Record<string, number> = { intelligence: 3, command_center: 10, enterprise: Infinity };
+      const limit = planLimits[plan] ?? 3;
+
+      // Count active integrations
+      const { count } = await adminClient
+        .from('user_integrations')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('status', 'active');
+
+      const currentCount = count ?? 0;
+      if (currentCount >= limit) {
+        console.log(`[hubspot-auth] Integration limit reached: ${currentCount}/${limit} for plan ${plan}`);
+        return {
+          statusCode: 302,
+          headers: {
+            ...headers,
+            Location: `https://app.core314.com/integration-manager?error=integration_limit_reached&limit=${limit}&plan=${plan}`,
+          },
+          body: '',
+        };
+      }
+    }
+
     // Scopes required for CRM data access (must match HubSpot app's required scopes)
     const scopes = [
       "oauth",
