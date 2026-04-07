@@ -309,7 +309,7 @@ export function OperationalBrief() {
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <FileText className="h-6 w-6 text-sky-500" />
@@ -319,7 +319,7 @@ export function OperationalBrief() {
             AI-generated analysis of your business operations
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {usage && usage.limit !== -1 && (
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {usage.used} / {usage.limit} briefs used this month
@@ -536,6 +536,21 @@ export function OperationalBrief() {
               <p className="text-slate-300 text-sm leading-relaxed">
                 {brief.risk_assessment}
               </p>
+            </div>
+
+            {/* Download Brief Button — inside brief container for visibility */}
+            <div className="pt-6 mt-6 border-t border-slate-700/50 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                Generated {new Date(brief.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <Button
+                onClick={handleDownloadPdf}
+                variant="outline"
+                className="border-sky-500 text-sky-400 hover:bg-sky-950 hover:text-sky-300"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Brief
+              </Button>
             </div>
           </div>
 
