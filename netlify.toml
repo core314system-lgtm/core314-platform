@@ -11,8 +11,10 @@ ignore = "exit 1"
 NODE_VERSION = "20"
 # Force npm as package manager — prevents Netlify from using pnpm via Corepack
 NPM_FLAGS = "--legacy-peer-deps"
-# Disable Corepack so Netlify does not auto-activate pnpm
+# Fully disable Corepack so Netlify does not auto-activate pnpm
+# COREPACK_ENABLE_STRICT=0 only disables strict mode; COREPACK_ENABLE=0 disables it entirely
 COREPACK_ENABLE_STRICT = "0"
+COREPACK_ENABLE = "0"
 
 [functions]
 directory = "core314-app/netlify/functions"
