@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-    "scripts": {
-      "dev": "vite",
-      "build": "tsc -b && vite build",
-      "postbuild": "node ./scripts/verify-no-secrets.js",
-      "lint": "eslint .",
-      "preview": "vite preview"
-    },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "postbuild": "node ./scripts/verify-no-secrets.js",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@netlify/functions": "^4.3.0",
@@ -51,6 +51,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^11.18.2",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.364.0",
     "next-themes": "^0.4.6",
     "openai": "^4.104.0",
