@@ -37,6 +37,15 @@ function generateRevenueSlowdown(now: string) {
     'Apex Solutions - Expansion Deal',
   ];
 
+  // Individual deal objects with full entity detail for pipeline propagation
+  const stalledDealDetails = [
+    { id: 'deal-001', name: 'Acme Corp - Enterprise License', value: 85000, stage: 'Qualified to Buy', owner: 'John Smith', last_activity_date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 28 },
+    { id: 'deal-002', name: 'GlobalTech - Platform Migration', value: 120000, stage: 'Presentation Scheduled', owner: 'Sarah Lee', last_activity_date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 21 },
+    { id: 'deal-003', name: 'Nexus Industries - Annual Renewal', value: 45000, stage: 'Qualified to Buy', owner: 'Mike Chen', last_activity_date: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 22 },
+    { id: 'deal-004', name: 'Summit Partners - Implementation', value: 38000, stage: 'Decision Maker Bought-In', owner: 'Sarah Lee', last_activity_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 15 },
+    { id: 'deal-005', name: 'Apex Solutions - Expansion Deal', value: 32000, stage: 'Appointment Scheduled', owner: 'John Smith', last_activity_date: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 25 },
+  ];
+
   const hubspotEvent = {
     service_name: 'hubspot',
     event_type: 'hubspot.crm_activity',
@@ -49,6 +58,7 @@ function generateRevenueSlowdown(now: string) {
       lost_deals: 2,
       stalled_deals: 5,
       stalled_deal_names: stalledDealNames,
+      stalled_deal_details: stalledDealDetails,
       recent_deals_7d: 0,
       deals_stuck_over_14d: 3,
       max_stage_days: 28,
@@ -69,6 +79,13 @@ function generateRevenueSlowdown(now: string) {
     },
   };
 
+  // Individual invoice objects with full entity detail
+  const overdueInvoiceDetails = [
+    { id: 'INV-1042', customer_name: 'Acme Corp', amount: 12500, due_date: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 35, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-1038', customer_name: 'GlobalTech', amount: 8750, due_date: new Date(Date.now() - 52 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 52, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-1035', customer_name: 'Nexus Industries', amount: 7500, due_date: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 28, status: 'overdue', assigned_to: 'Finance Team' },
+  ];
+
   const qbEvent = {
     service_name: 'quickbooks',
     event_type: 'quickbooks.financial_activity',
@@ -79,6 +96,7 @@ function generateRevenueSlowdown(now: string) {
       open_invoices: 8,
       paid_invoices: 16,
       overdue_invoices: 3,
+      overdue_invoice_details: overdueInvoiceDetails,
       payment_count: 16,
       payment_total: 142000,
       expense_count: 38,
@@ -142,6 +160,12 @@ function generateRevenueSlowdown(now: string) {
 }
 
 function generateCashFlowRisk(now: string) {
+  const stalledDealDetails = [
+    { id: 'deal-010', name: 'Meridian Group - Pilot', value: 65000, stage: 'Qualified to Buy', owner: 'Alex Rivera', last_activity_date: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 35 },
+    { id: 'deal-011', name: 'DataFlow Inc - Integration', value: 55000, stage: 'Presentation Scheduled', owner: 'Pat Morgan', last_activity_date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 28 },
+    { id: 'deal-012', name: 'CloudBase - Setup', value: 45000, stage: 'Qualified to Buy', owner: 'Alex Rivera', last_activity_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 30 },
+  ];
+
   const hubspotEvent = {
     service_name: 'hubspot',
     event_type: 'hubspot.crm_activity',
@@ -154,6 +178,7 @@ function generateCashFlowRisk(now: string) {
       lost_deals: 1,
       stalled_deals: 3,
       stalled_deal_names: ['Meridian Group - Pilot', 'DataFlow Inc - Integration', 'CloudBase - Setup'],
+      stalled_deal_details: stalledDealDetails,
       recent_deals_7d: 0,
       deals_stuck_over_14d: 2,
       max_stage_days: 35,
@@ -174,6 +199,19 @@ function generateCashFlowRisk(now: string) {
     },
   };
 
+  const overdueInvoiceDetails = [
+    { id: 'INV-2001', customer_name: 'Meridian Group', amount: 15000, due_date: new Date(Date.now() - 95 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 95, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2003', customer_name: 'DataFlow Inc', amount: 12000, due_date: new Date(Date.now() - 92 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 92, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2008', customer_name: 'CloudBase', amount: 9500, due_date: new Date(Date.now() - 68 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 68, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2012', customer_name: 'Vertex Solutions', amount: 8200, due_date: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 55, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2015', customer_name: 'Quantum Labs', amount: 7800, due_date: new Date(Date.now() - 48 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 48, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2019', customer_name: 'Atlas Corp', amount: 6500, due_date: new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 42, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2022', customer_name: 'Pinnacle Tech', amount: 8000, due_date: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 35, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2025', customer_name: 'Nova Systems', amount: 5500, due_date: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 28, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2028', customer_name: 'Crestline Partners', amount: 9000, due_date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 18, status: 'overdue', assigned_to: 'Finance Team' },
+    { id: 'INV-2031', customer_name: 'Horizon Dynamics', amount: 6000, due_date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 12, status: 'overdue', assigned_to: 'Finance Team' },
+  ];
+
   const qbEvent = {
     service_name: 'quickbooks',
     event_type: 'quickbooks.financial_activity',
@@ -184,6 +222,7 @@ function generateCashFlowRisk(now: string) {
       open_invoices: 18,
       paid_invoices: 17,
       overdue_invoices: 10,
+      overdue_invoice_details: overdueInvoiceDetails,
       payment_count: 17,
       payment_total: 156000,
       expense_count: 52,
@@ -232,6 +271,17 @@ function generateCashFlowRisk(now: string) {
 }
 
 function generateOperationalBreakdown(now: string) {
+  const overdueCardDetails = [
+    { id: 'card-001', name: 'Q2 Feature Release', board: 'Product Roadmap', due_date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 14, list: 'Doing', owner: 'Engineering Lead' },
+    { id: 'card-002', name: 'API Documentation Update', board: 'Engineering Sprint', due_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 10, list: 'Doing', owner: 'Dev Team' },
+    { id: 'card-003', name: 'Customer Onboarding Flow', board: 'Product Roadmap', due_date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 8, list: 'Todo', owner: 'Product Team' },
+    { id: 'card-004', name: 'Email Campaign Launch', board: 'Marketing Campaigns', due_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 7, list: 'Doing', owner: 'Marketing Team' },
+    { id: 'card-005', name: 'Security Audit Remediation', board: 'Engineering Sprint', due_date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 12, list: 'Doing', owner: 'Security Team' },
+    { id: 'card-006', name: 'Partner Integration Testing', board: 'Engineering Sprint', due_date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 6, list: 'Todo', owner: 'Dev Team' },
+    { id: 'card-007', name: 'Quarterly Business Review Prep', board: 'Operations', due_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 5, list: 'Todo', owner: 'Operations Lead' },
+    { id: 'card-008', name: 'Social Media Content Calendar', board: 'Marketing Campaigns', due_date: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 9, list: 'Todo', owner: 'Marketing Team' },
+  ];
+
   const trelloEvent = {
     service_name: 'trello',
     event_type: 'trello.board_summary',
@@ -241,6 +291,7 @@ function generateOperationalBreakdown(now: string) {
       total_cards: 42,
       done_cards: 0,
       overdue_cards: 15,
+      overdue_card_details: overdueCardDetails,
       lists_by_board: {
         'Product Roadmap': { todo: 8, doing: 5, done: 0 },
         'Marketing Campaigns': { todo: 6, doing: 3, done: 0 },
@@ -289,6 +340,10 @@ function generateOperationalBreakdown(now: string) {
       lost_deals: 1,
       stalled_deals: 2,
       stalled_deal_names: ['Legacy Client - Support Contract', 'New Prospect - Discovery'],
+      stalled_deal_details: [
+        { id: 'deal-020', name: 'Legacy Client - Support Contract', value: 25000, stage: 'Appointment Scheduled', owner: 'Account Manager', last_activity_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 42 },
+        { id: 'deal-021', name: 'New Prospect - Discovery', value: 30000, stage: 'Qualified to Buy', owner: 'Sales Rep', last_activity_date: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(), days_in_stage: 35 },
+      ],
       recent_deals_7d: 0,
       deals_stuck_over_14d: 2,
       max_stage_days: 42,
@@ -416,6 +471,17 @@ serve(async (req) => {
       .from('integrations_master')
       .select('id, integration_type, integration_name');
 
+    // Also query integration_registry — this is the table referenced by
+    // integration_events.integration_registry_id (separate from integrations_master)
+    const { data: irEntries } = await supabase
+      .from('integration_registry')
+      .select('id, service_name');
+
+    const irMap: Record<string, string> = {};
+    for (const entry of (irEntries || [])) {
+      irMap[(entry.service_name as string).toLowerCase()] = entry.id as string;
+    }
+
     const registryMap: Record<string, string> = {};
     for (const entry of (registryEntries || [])) {
       const key = (entry.integration_type as string).toLowerCase();
@@ -439,7 +505,12 @@ serve(async (req) => {
         continue;
       }
 
-      registryIdMap[serviceName] = registryId;
+      const irId = irMap[serviceName]
+        || irMap[intType]
+        || irMap[serviceName.replace('microsoft_', '').replace('google_', '')]
+        || irMap[serviceName.replace('_', '-')];
+
+      registryIdMap[serviceName] = irId || registryId;
 
       // Check if user already has this integration
       const { data: existing } = await supabase

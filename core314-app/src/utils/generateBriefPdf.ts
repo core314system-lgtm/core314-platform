@@ -2,9 +2,40 @@ import jsPDF from 'jspdf';
 
 interface PdfSignalEntity {
   name: string;
+  entity_id?: string;
+  entity_type?: string;
+  value?: number;
+  owner?: string;
+  status?: string;
   last_activity_type?: string;
   last_activity_date?: string;
+  days_in_current_state?: number;
   metric_value?: number;
+}
+
+interface PdfAccountabilityItem {
+  entity: string;
+  owner: string;
+  issue: string;
+}
+
+interface PdfPrescriptiveAction {
+  who: string;
+  what: string;
+  when: string;
+}
+
+interface PdfBusinessImpactStructured {
+  revenue_at_risk?: string;
+  overdue_cash?: string;
+  operational_delays?: string;
+  narrative?: string;
+}
+
+interface PdfForecastData {
+  '7_day'?: string;
+  '14_day'?: string;
+  '30_day'?: string;
 }
 
 interface PdfSignalEvidence {
@@ -34,6 +65,11 @@ interface BriefPdfData {
   } | null;
   userName?: string;
   signal_evidence?: PdfSignalEvidence[];
+  root_cause_analysis?: string[];
+  cross_system_correlation?: string;
+  business_impact_structured?: PdfBusinessImpactStructured;
+  forecast?: PdfForecastData;
+  accountability?: PdfAccountabilityItem[];
 }
 
 // Brand colors
@@ -388,29 +424,56 @@ export function generateBriefPdf(data: BriefPdfData): void {
         doc.text(signalLines, marginLeft + badgeW + 4, y + 4);
         y += signalLines.length * 4.5 + 5;
 
-        // Affected entities (bullet list)
+        // Affected entities — full entity-level detail
         if (ev.affected_entities.length > 0) {
           doc.setFontSize(7);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(...COLORS.textLight);
           y = ensureSpace(doc, y, 6, 25);
-          doc.text('Affected Items:', marginLeft + badgeW + 4, y);
+          doc.text(`Entity Details (${ev.affected_entities.length}):`, marginLeft + badgeW + 4, y);
           y += 4;
 
-          for (const ent of ev.affected_entities.slice(0, 10)) {
-            y = ensureSpace(doc, y, 5, 25);
+          const entitiesToShow = ev.affected_entities.slice(0, 10);
+          for (const ent of entitiesToShow) {
+            y = ensureSpace(doc, y, 10, 25);
+            // Entity name (bold)
             doc.setFontSize(7.5);
-            doc.setFont('helvetica', 'normal');
+            doc.setFont('helvetica', 'bold');
             doc.setTextColor(...COLORS.text);
-            let entLine = `\u2022  ${ent.name}`;
-            if (ent.last_activity_type) entLine += ` \u2014 ${ent.last_activity_type}`;
+            doc.text(`\u2022  ${ent.name}`, marginLeft + badgeW + 8, y);
+            y += 3.5;
+
+            // Entity metadata line
+            const metaParts: string[] = [];
+            if (ent.entity_id) metaParts.push(`ID: ${ent.entity_id}`);
+            if (ent.value !== undefined) metaParts.push(`$${ent.value.toLocaleString()}`);
+            if (ent.owner) metaParts.push(`Owner: ${ent.owner}`);
+            if (ent.status) metaParts.push(`Status: ${ent.status}`);
             if (ent.last_activity_date) {
               const d = new Date(ent.last_activity_date);
-              entLine += ` (${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+              metaParts.push(`Last Activity: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
             }
-            const entLines = wrapText(doc, entLine, contentWidth - badgeW - 10);
-            doc.text(entLines, marginLeft + badgeW + 8, y);
-            y += entLines.length * 3.5 + 1;
+            if (ent.days_in_current_state !== undefined) metaParts.push(`${ent.days_in_current_state} days in state`);
+            if (ent.last_activity_type) metaParts.push(ent.last_activity_type);
+
+            if (metaParts.length > 0) {
+              doc.setFontSize(6.5);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(...COLORS.textLight);
+              const metaLine = metaParts.join('  |  ');
+              const metaLines = wrapText(doc, metaLine, contentWidth - badgeW - 14);
+              doc.text(metaLines, marginLeft + badgeW + 12, y);
+              y += metaLines.length * 3 + 1;
+            }
+            y += 1;
+          }
+
+          if (ev.affected_entities.length > 10) {
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(...COLORS.textLight);
+            doc.text(`+${ev.affected_entities.length - 10} more items`, marginLeft + badgeW + 8, y);
+            y += 4;
           }
           y += 2;
         }
@@ -468,22 +531,71 @@ export function generateBriefPdf(data: BriefPdfData): void {
     y += 4;
 
     // =============================================
-    // SECTION 3: OPERATIONAL ANALYSIS
+    // SECTION 3: CROSS-SYSTEM CORRELATION
     // =============================================
-    y = ensureSpace(doc, y, 30, 25);
-    y = drawSectionHeader(doc, 'OPERATIONAL ANALYSIS', y, marginLeft);
+    if (data.cross_system_correlation) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'CROSS-SYSTEM CORRELATION', y, marginLeft);
 
-    if (data.business_impact) {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...COLORS.text);
+      const corrLines = wrapText(doc, data.cross_system_correlation, contentWidth);
+      doc.text(corrLines, marginLeft, y);
+      y += corrLines.length * 4.5 + 6;
+    }
 
-      // Split by paragraphs first, then wrap each
+    // =============================================
+    // SECTION 4: BUSINESS IMPACT (QUANTIFIED)
+    // =============================================
+    y = ensureSpace(doc, y, 30, 25);
+    y = drawSectionHeader(doc, 'BUSINESS IMPACT', y, marginLeft);
+
+    if (data.business_impact_structured) {
+      const bis = data.business_impact_structured;
+      // Impact metrics row
+      const impactItems: { label: string; value: string; color: [number, number, number] }[] = [];
+      if (bis.revenue_at_risk) impactItems.push({ label: 'Revenue at Risk', value: bis.revenue_at_risk, color: COLORS.red });
+      if (bis.overdue_cash) impactItems.push({ label: 'Overdue Cash', value: bis.overdue_cash, color: COLORS.amber });
+      if (bis.operational_delays) impactItems.push({ label: 'Operational Delays', value: bis.operational_delays, color: COLORS.orange });
+
+      if (impactItems.length > 0) {
+        const colW = contentWidth / impactItems.length;
+        for (let idx = 0; idx < impactItems.length; idx++) {
+          const item = impactItems[idx];
+          const colX = marginLeft + idx * colW;
+
+          // Label
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.textLight);
+          doc.text(item.label.toUpperCase(), colX + 2, y);
+
+          // Value
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...item.color);
+          doc.text(item.value, colX + 2, y + 6);
+        }
+        y += 14;
+      }
+
+      if (bis.narrative) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        const narrativeLines = wrapText(doc, bis.narrative, contentWidth);
+        doc.text(narrativeLines, marginLeft, y);
+        y += narrativeLines.length * 4.5 + 3;
+      }
+    } else if (data.business_impact) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...COLORS.text);
       const paragraphs = data.business_impact.split(/\n+/);
       for (const para of paragraphs) {
         const trimmed = para.trim();
         if (!trimmed) continue;
-
         y = ensureSpace(doc, y, 12, 25);
         const lines = wrapText(doc, trimmed, contentWidth);
         doc.text(lines, marginLeft, y);
@@ -494,32 +606,157 @@ export function generateBriefPdf(data: BriefPdfData): void {
     y += 4;
 
     // =============================================
-    // SECTION 4: RECOMMENDATIONS
+    // SECTION 5: ROOT CAUSE ANALYSIS
     // =============================================
-    if (data.recommended_actions && data.recommended_actions.length > 0) {
+    if (data.root_cause_analysis && data.root_cause_analysis.length > 0) {
       y = ensureSpace(doc, y, 30, 25);
-      y = drawSectionHeader(doc, 'RECOMMENDATIONS', y, marginLeft);
+      y = drawSectionHeader(doc, 'ROOT CAUSE ANALYSIS', y, marginLeft);
 
-      for (let i = 0; i < data.recommended_actions.length; i++) {
-        const action = data.recommended_actions[i];
-        y = ensureSpace(doc, y, 14, 25);
-
-        // Number circle
-        const circleR = 3;
-        doc.setFillColor(...COLORS.primary);
-        doc.circle(marginLeft + circleR, y - 0.5, circleR, 'F');
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...COLORS.white);
-        doc.text(String(i + 1), marginLeft + circleR, y + 0.8, { align: 'center' });
-
-        // Action text
+      for (const cause of data.root_cause_analysis) {
+        y = ensureSpace(doc, y, 10, 25);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...COLORS.text);
-        const actionLines = wrapText(doc, action, contentWidth - 12);
-        doc.text(actionLines, marginLeft + 10, y);
-        y += actionLines.length * 4.5 + 4;
+        const causeLines = wrapText(doc, `\u2022  ${cause}`, contentWidth - 4);
+        doc.text(causeLines, marginLeft + 4, y);
+        y += causeLines.length * 4.5 + 2;
+      }
+      y += 4;
+    }
+
+    // =============================================
+    // SECTION 6: FORECAST PROJECTIONS
+    // =============================================
+    if (data.forecast && (data.forecast['7_day'] || data.forecast['14_day'] || data.forecast['30_day'])) {
+      y = ensureSpace(doc, y, 40, 25);
+      y = drawSectionHeader(doc, 'FORECAST PROJECTIONS', y, marginLeft);
+
+      const forecasts: { label: string; text: string }[] = [];
+      if (data.forecast['7_day']) forecasts.push({ label: '7-Day', text: data.forecast['7_day'] });
+      if (data.forecast['14_day']) forecasts.push({ label: '14-Day', text: data.forecast['14_day'] });
+      if (data.forecast['30_day']) forecasts.push({ label: '30-Day', text: data.forecast['30_day'] });
+
+      for (const fc of forecasts) {
+        y = ensureSpace(doc, y, 12, 25);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.primary);
+        doc.text(`${fc.label}:`, marginLeft, y);
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        const fcLines = wrapText(doc, fc.text, contentWidth - 20);
+        doc.text(fcLines, marginLeft + 18, y);
+        y += fcLines.length * 4 + 3;
+      }
+      y += 4;
+    }
+
+    // =============================================
+    // SECTION 7: ACCOUNTABILITY
+    // =============================================
+    if (data.accountability && data.accountability.length > 0) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'ACCOUNTABILITY', y, marginLeft);
+
+      // Table header
+      const colWidths = [contentWidth * 0.3, contentWidth * 0.3, contentWidth * 0.4];
+      doc.setFillColor(...COLORS.bgLight);
+      doc.rect(marginLeft, y - 3, contentWidth, 7, 'F');
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...COLORS.textLight);
+      doc.text('ENTITY', marginLeft + 2, y + 1);
+      doc.text('OWNER', marginLeft + colWidths[0] + 2, y + 1);
+      doc.text('ISSUE', marginLeft + colWidths[0] + colWidths[1] + 2, y + 1);
+      y += 7;
+
+      for (const item of data.accountability) {
+        y = ensureSpace(doc, y, 8, 25);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...COLORS.text);
+        doc.text(wrapText(doc, item.entity, colWidths[0] - 4).join(' '), marginLeft + 2, y);
+        doc.setTextColor(...COLORS.primary);
+        doc.text(wrapText(doc, item.owner, colWidths[1] - 4).join(' '), marginLeft + colWidths[0] + 2, y);
+        doc.setTextColor(...COLORS.textLight);
+        doc.text(wrapText(doc, item.issue, colWidths[2] - 4).join(' '), marginLeft + colWidths[0] + colWidths[1] + 2, y);
+        y += 5;
+
+        // Divider
+        doc.setDrawColor(...COLORS.divider);
+        doc.setLineWidth(0.2);
+        doc.line(marginLeft, y, marginLeft + contentWidth, y);
+        y += 2;
+      }
+      y += 4;
+    }
+
+    // =============================================
+    // SECTION 8: RECOMMENDATIONS (WHO — WHAT — WHEN)
+    // =============================================
+    if (data.recommended_actions && data.recommended_actions.length > 0) {
+      y = ensureSpace(doc, y, 30, 25);
+      y = drawSectionHeader(doc, 'PRESCRIPTIVE ACTIONS', y, marginLeft);
+
+      // Check if actions are structured (WHO-WHAT-WHEN objects)
+      const firstAction = data.recommended_actions[0];
+      if (typeof firstAction === 'object' && 'who' in (firstAction as Record<string, unknown>)) {
+        // Structured WHO-WHAT-WHEN table
+        const colWidths = [contentWidth * 0.25, contentWidth * 0.50, contentWidth * 0.25];
+        doc.setFillColor(...COLORS.bgLight);
+        doc.rect(marginLeft, y - 3, contentWidth, 7, 'F');
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...COLORS.textLight);
+        doc.text('WHO', marginLeft + 2, y + 1);
+        doc.text('WHAT', marginLeft + colWidths[0] + 2, y + 1);
+        doc.text('WHEN', marginLeft + colWidths[0] + colWidths[1] + 2, y + 1);
+        y += 7;
+
+        for (const rawAction of data.recommended_actions) {
+          const action = rawAction as unknown as PdfPrescriptiveAction;
+          y = ensureSpace(doc, y, 8, 25);
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.primary);
+          doc.text(wrapText(doc, action.who || '', colWidths[0] - 4).join(' '), marginLeft + 2, y);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          doc.text(wrapText(doc, action.what || '', colWidths[1] - 4).join(' '), marginLeft + colWidths[0] + 2, y);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.amber);
+          doc.text(wrapText(doc, action.when || '', colWidths[2] - 4).join(' '), marginLeft + colWidths[0] + colWidths[1] + 2, y);
+          y += 5;
+
+          doc.setDrawColor(...COLORS.divider);
+          doc.setLineWidth(0.2);
+          doc.line(marginLeft, y, marginLeft + contentWidth, y);
+          y += 2;
+        }
+      } else {
+        // Fallback: plain text actions
+        for (let i = 0; i < data.recommended_actions.length; i++) {
+          const action = data.recommended_actions[i];
+          y = ensureSpace(doc, y, 14, 25);
+
+          const circleR = 3;
+          doc.setFillColor(...COLORS.primary);
+          doc.circle(marginLeft + circleR, y - 0.5, circleR, 'F');
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...COLORS.white);
+          doc.text(String(i + 1), marginLeft + circleR, y + 0.8, { align: 'center' });
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...COLORS.text);
+          const actionText = typeof action === 'string' ? action : JSON.stringify(action);
+          const actionLines = wrapText(doc, actionText, contentWidth - 12);
+          doc.text(actionLines, marginLeft + 10, y);
+          y += actionLines.length * 4.5 + 4;
+        }
       }
 
       y += 4;

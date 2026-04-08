@@ -388,10 +388,34 @@ serve(async (req) => {
           const overdueTotal = (latest.overdue_total as number) ?? 0;
           const invoiceCount = (latest.invoice_count as number) ?? 0;
           const invoiceAging = latest.invoice_aging as { current?: number; aging30?: number; aging60?: number; aging90Plus?: number } | null;
+          // Extract individual invoice detail objects when available (injected by test-scenario or enhanced pollers)
+          const overdueInvoiceDetails = (latest.overdue_invoice_details as Array<{ id: string; customer_name: string; amount: number; due_date: string; days_overdue: number; status?: string; assigned_to?: string }>) ?? [];
 
           // Signal: Overdue invoices
           if (overdueInvoices > 0) {
             const severity = overdueInvoices >= 5 ? 'critical' : overdueInvoices >= 3 ? 'high' : 'medium';
+
+            // Build affected_entities: prefer individual invoice objects, fall back to aging buckets
+            const overdueEntities = overdueInvoiceDetails.length > 0
+              ? overdueInvoiceDetails.slice(0, 10).map((inv) => ({
+                  name: `${inv.id}: ${inv.customer_name} — $${inv.amount.toLocaleString()}`,
+                  entity_id: inv.id,
+                  entity_type: 'invoice' as const,
+                  value: inv.amount,
+                  owner: inv.assigned_to || 'Owner data not available from integration',
+                  status: inv.status || 'overdue',
+                  last_activity_type: `${inv.days_overdue} days overdue`,
+                  last_activity_date: inv.due_date,
+                  days_in_current_state: inv.days_overdue,
+                  metric_value: inv.amount,
+                }))
+              : [
+                  ...(invoiceAging?.aging90Plus ? [{ name: `${invoiceAging.aging90Plus} invoices 90+ days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging90Plus }] : []),
+                  ...(invoiceAging?.aging60 ? [{ name: `${invoiceAging.aging60} invoices 60-90 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging60 }] : []),
+                  ...(invoiceAging?.aging30 ? [{ name: `${invoiceAging.aging30} invoices 30-60 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging30 }] : []),
+                  ...(invoiceAging?.current ? [{ name: `${invoiceAging.current} invoices 0-30 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.current }] : []),
+                ];
+
             signals.push({
               signal_type: 'overdue_invoices',
               severity,
@@ -404,12 +428,7 @@ serve(async (req) => {
                 overdue_invoices: overdueInvoices,
                 overdue_total: overdueTotal,
                 invoice_aging: invoiceAging,
-                affected_entities: [
-                  ...(invoiceAging?.aging90Plus ? [{ name: `${invoiceAging.aging90Plus} invoices 90+ days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging90Plus }] : []),
-                  ...(invoiceAging?.aging60 ? [{ name: `${invoiceAging.aging60} invoices 60-90 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging60 }] : []),
-                  ...(invoiceAging?.aging30 ? [{ name: `${invoiceAging.aging30} invoices 30-60 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.aging30 }] : []),
-                  ...(invoiceAging?.current ? [{ name: `${invoiceAging.current} invoices 0-30 days overdue`, last_activity_type: 'overdue', metric_value: invoiceAging.current }] : []),
-                ],
+                affected_entities: overdueEntities,
                 summary_metrics: { overdue_count: overdueInvoices, overdue_total: overdueTotal, open_invoices: openInvoices },
               },
             });
@@ -527,10 +546,33 @@ serve(async (req) => {
           const avgDealAge = (latest.avg_deal_age_days as number) ?? 0;
           const openPipelineValue = (latest.open_pipeline_value as number) ?? 0;
           const stalledDealNames = (latest.stalled_deal_names as string[]) ?? [];
+          // Extract individual deal detail objects when available (injected by test-scenario or enhanced pollers)
+          const stalledDealDetails = (latest.stalled_deal_details as Array<{ id: string; name: string; value: number; stage: string; owner?: string; last_activity_date: string; days_in_stage: number }>) ?? [];
 
           // Signal: Stalled deals (no activity > 6 days)
           if (stalledDeals > 0) {
             const dealNamesList = stalledDealNames.length > 0 ? ` Including: ${stalledDealNames.slice(0, 3).join(', ')}.` : '';
+
+            // Build affected_entities: prefer individual deal objects with value/stage, fall back to name-only
+            const stalledEntities = stalledDealDetails.length > 0
+              ? stalledDealDetails.slice(0, 10).map((deal) => ({
+                  name: `${deal.name} — $${deal.value.toLocaleString()} (${deal.stage})`,
+                  entity_id: deal.id,
+                  entity_type: 'deal' as const,
+                  value: deal.value,
+                  owner: deal.owner || 'Owner data not available from integration',
+                  status: deal.stage,
+                  last_activity_type: `stalled ${deal.days_in_stage} days`,
+                  last_activity_date: deal.last_activity_date,
+                  days_in_current_state: deal.days_in_stage,
+                  metric_value: deal.value,
+                }))
+              : stalledDealNames.slice(0, 10).map((name: string) => ({
+                  name,
+                  last_activity_type: 'deal stalled',
+                  last_activity_date: hubspotEvents[0].occurred_at || null,
+                }));
+
             signals.push({
               signal_type: 'stalled_deals',
               severity: stalledDeals >= 5 ? 'high' : 'medium',
@@ -543,11 +585,7 @@ serve(async (req) => {
                 stalled_deals: stalledDeals,
                 total_deals: dealCount,
                 stalled_deal_names: stalledDealNames.slice(0, 5),
-                affected_entities: stalledDealNames.slice(0, 10).map((name: string) => ({
-                  name,
-                  last_activity_type: 'deal stalled',
-                  last_activity_date: hubspotEvents[0].occurred_at || null,
-                })),
+                affected_entities: stalledEntities,
                 summary_metrics: { stalled_count: stalledDeals, total_deals: dealCount, pipeline_value: openPipelineValue },
               },
             });
@@ -886,9 +924,26 @@ serve(async (req) => {
           const doneCards = (latest.done_cards as number) ?? 0;
           const overdueCards = (latest.overdue_cards as number) ?? 0;
           const totalBoards = (latest.total_boards as number) ?? 0;
+          // Extract individual card detail objects when available (injected by test-scenario or enhanced pollers)
+          const overdueCardDetails = (latest.overdue_card_details as Array<{ id: string; name: string; board: string; due_date: string; days_overdue: number; list?: string; owner?: string }>) ?? [];
 
           // Signal: Overdue cards
           if (overdueCards > 0) {
+            // Build affected_entities: prefer individual card objects, fall back to empty
+            const cardEntities = overdueCardDetails.length > 0
+              ? overdueCardDetails.slice(0, 10).map((card) => ({
+                  name: `${card.name} (${card.board})`,
+                  entity_id: card.id,
+                  entity_type: 'card' as const,
+                  owner: card.owner || 'Owner data not available from integration',
+                  status: card.list || 'unknown',
+                  last_activity_type: `${card.days_overdue} days overdue`,
+                  last_activity_date: card.due_date,
+                  days_in_current_state: card.days_overdue,
+                  metric_value: card.days_overdue,
+                }))
+              : [];
+
             signals.push({
               signal_type: 'overdue_cards',
               severity: overdueCards >= 10 ? 'high' : overdueCards >= 5 ? 'medium' : 'low',
@@ -901,7 +956,7 @@ serve(async (req) => {
                 overdue: overdueCards,
                 total_cards: totalCards,
                 boards: totalBoards,
-                affected_entities: [],
+                affected_entities: cardEntities,
                 summary_metrics: { overdue_count: overdueCards, total_cards: totalCards, boards: totalBoards },
               },
             });

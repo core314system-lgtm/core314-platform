@@ -49,9 +49,40 @@ interface MomentumData {
 
 interface SignalEntity {
   name: string;
+  entity_id?: string;
+  entity_type?: string;
+  value?: number;
+  owner?: string;
+  status?: string;
   last_activity_type?: string;
   last_activity_date?: string;
+  days_in_current_state?: number;
   metric_value?: number;
+}
+
+interface AccountabilityItem {
+  entity: string;
+  owner: string;
+  issue: string;
+}
+
+interface PrescriptiveAction {
+  who: string;
+  what: string;
+  when: string;
+}
+
+interface BusinessImpactStructured {
+  revenue_at_risk?: string;
+  overdue_cash?: string;
+  operational_delays?: string;
+  narrative?: string;
+}
+
+interface ForecastData {
+  '7_day'?: string;
+  '14_day'?: string;
+  '30_day'?: string;
 }
 
 interface SignalEvidence {
@@ -78,6 +109,11 @@ interface OperationalBriefData {
   data_context?: {
     momentum?: MomentumData;
     signal_evidence?: SignalEvidence[];
+    root_cause_analysis?: string[] | null;
+    cross_system_correlation?: string | null;
+    business_impact_structured?: BusinessImpactStructured | null;
+    forecast?: ForecastData | null;
+    accountability?: AccountabilityItem[] | null;
     [key: string]: unknown;
   } | null;
 }
@@ -277,6 +313,11 @@ export function OperationalBrief() {
         momentum: momentum ?? undefined,
         userName: profile?.full_name,
         signal_evidence: brief.data_context?.signal_evidence,
+        root_cause_analysis: brief.data_context?.root_cause_analysis ?? undefined,
+        cross_system_correlation: brief.data_context?.cross_system_correlation ?? undefined,
+        business_impact_structured: brief.data_context?.business_impact_structured ?? undefined,
+        forecast: brief.data_context?.forecast ?? undefined,
+        accountability: brief.data_context?.accountability ?? undefined,
       });
     } catch {
       setPdfError('Failed to generate PDF. Please try again.');
@@ -630,24 +671,43 @@ export function OperationalBrief() {
                             <p className="text-slate-300 text-sm leading-relaxed">
                               {brief.detected_signals[i] || ev.description}
                             </p>
-                            {/* Entity Evidence */}
+                            {/* Entity Evidence — Full Detail */}
                             {ev.affected_entities.length > 0 && (
                               <div className="mt-3 space-y-1.5">
-                                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Affected Items</span>
-                                <ul className="space-y-1">
+                                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Entity Details ({ev.affected_entities.length})</span>
+                                <ul className="space-y-1.5">
                                   {ev.affected_entities.slice(0, 10).map((ent, j) => (
-                                    <li key={j} className="flex items-center gap-2 text-xs text-slate-400">
-                                      <span className="text-slate-600">•</span>
+                                    <li key={j} className="text-xs text-slate-400 border-l-2 border-slate-700 pl-3 py-1">
                                       <span className="font-medium text-slate-300">{ent.name}</span>
-                                      {ent.last_activity_type && (
-                                        <span className="text-slate-500">— {ent.last_activity_type}</span>
-                                      )}
-                                      {ent.last_activity_date && (
-                                        <span className="text-slate-600 text-[10px]">{new Date(ent.last_activity_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                      )}
+                                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                                        {ent.entity_id && (
+                                          <span className="text-slate-500">ID: <span className="text-slate-400">{ent.entity_id}</span></span>
+                                        )}
+                                        {ent.value !== undefined && (
+                                          <span className="text-slate-500">Value: <span className="text-emerald-400 font-medium">${ent.value.toLocaleString()}</span></span>
+                                        )}
+                                        {ent.owner && (
+                                          <span className="text-slate-500">Owner: <span className="text-sky-400">{ent.owner}</span></span>
+                                        )}
+                                        {ent.status && (
+                                          <span className="text-slate-500">Status: <span className="text-amber-400">{ent.status}</span></span>
+                                        )}
+                                        {ent.last_activity_date && (
+                                          <span className="text-slate-500">Last Activity: <span className="text-slate-400">{new Date(ent.last_activity_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></span>
+                                        )}
+                                        {ent.days_in_current_state !== undefined && (
+                                          <span className="text-slate-500">Days in State: <span className="text-orange-400 font-medium">{ent.days_in_current_state}</span></span>
+                                        )}
+                                        {ent.last_activity_type && (
+                                          <span className="text-slate-500">{ent.last_activity_type}</span>
+                                        )}
+                                      </div>
                                     </li>
                                   ))}
                                 </ul>
+                                {ev.affected_entities.length > 10 && (
+                                  <p className="text-[10px] text-slate-500 italic">+{ev.affected_entities.length - 10} more items</p>
+                                )}
                               </div>
                             )}
                             {/* Summary Metrics */}
@@ -685,32 +745,174 @@ export function OperationalBrief() {
               )}
             </div>
 
-            {/* Business Impact */}
+            {/* Cross-System Correlation */}
+            {brief.data_context?.cross_system_correlation && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
+                  Cross-System Correlation
+                </h4>
+                <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4">
+                  <p className="text-slate-300 text-sm leading-relaxed">
+                    {brief.data_context.cross_system_correlation}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Business Impact — Quantified */}
             <div className="mb-8">
               <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
                 Business Impact
               </h4>
-              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
-                {brief.business_impact}
-              </p>
+              {brief.data_context?.business_impact_structured ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {brief.data_context.business_impact_structured.revenue_at_risk && (
+                      <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-center">
+                        <p className="text-[10px] text-red-400/70 uppercase tracking-wider font-medium">Revenue at Risk</p>
+                        <p className="text-lg font-bold text-red-400 mt-1">{brief.data_context.business_impact_structured.revenue_at_risk}</p>
+                      </div>
+                    )}
+                    {brief.data_context.business_impact_structured.overdue_cash && (
+                      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-center">
+                        <p className="text-[10px] text-amber-400/70 uppercase tracking-wider font-medium">Overdue Cash</p>
+                        <p className="text-lg font-bold text-amber-400 mt-1">{brief.data_context.business_impact_structured.overdue_cash}</p>
+                      </div>
+                    )}
+                    {brief.data_context.business_impact_structured.operational_delays && (
+                      <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 text-center">
+                        <p className="text-[10px] text-orange-400/70 uppercase tracking-wider font-medium">Operational Delays</p>
+                        <p className="text-lg font-bold text-orange-400 mt-1">{brief.data_context.business_impact_structured.operational_delays}</p>
+                      </div>
+                    )}
+                  </div>
+                  {brief.data_context.business_impact_structured.narrative && (
+                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
+                      {brief.data_context.business_impact_structured.narrative}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
+                  {brief.business_impact}
+                </p>
+              )}
             </div>
 
-            {/* Recommended Actions */}
+            {/* Root Cause Analysis */}
+            {brief.data_context?.root_cause_analysis && brief.data_context.root_cause_analysis.length > 0 && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
+                  Root Cause Analysis
+                </h4>
+                <div className="space-y-2">
+                  {brief.data_context.root_cause_analysis.map((cause, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <p className="text-slate-300 text-sm leading-relaxed">{cause}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Forecast Engine */}
+            {brief.data_context?.forecast && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
+                  Forecast Projections
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {brief.data_context.forecast['7_day'] && (
+                    <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">7-Day Outlook</p>
+                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{brief.data_context.forecast['7_day']}</p>
+                    </div>
+                  )}
+                  {brief.data_context.forecast['14_day'] && (
+                    <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">14-Day Outlook</p>
+                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{brief.data_context.forecast['14_day']}</p>
+                    </div>
+                  )}
+                  {brief.data_context.forecast['30_day'] && (
+                    <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">30-Day Outlook</p>
+                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{brief.data_context.forecast['30_day']}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Accountability */}
+            {brief.data_context?.accountability && brief.data_context.accountability.length > 0 && (
+              <div className="mb-8">
+                <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
+                  Accountability
+                </h4>
+                <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-800/80">
+                        <th className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider">Entity</th>
+                        <th className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider">Owner</th>
+                        <th className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider">Issue</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/50">
+                      {(brief.data_context.accountability as AccountabilityItem[]).map((item, i) => (
+                        <tr key={i} className="hover:bg-slate-800/40">
+                          <td className="px-3 py-2 text-slate-300 font-medium">{item.entity}</td>
+                          <td className="px-3 py-2 text-sky-400">{item.owner}</td>
+                          <td className="px-3 py-2 text-slate-400">{item.issue}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Prescriptive Actions (WHO — WHAT — WHEN) */}
             <div className="mb-8">
               <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
                 Recommended Actions
               </h4>
               {brief.recommended_actions && brief.recommended_actions.length > 0 ? (
-                <div className="space-y-3">
-                  {brief.recommended_actions.map((action, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
-                        {i + 1}
-                      </span>
-                      <p className="text-slate-300 text-sm leading-relaxed">{action}</p>
-                    </div>
-                  ))}
-                </div>
+                typeof brief.recommended_actions[0] === 'object' ? (
+                  <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-800/80">
+                          <th className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider">Who</th>
+                          <th className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider">What</th>
+                          <th className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider">When</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/50">
+                        {(brief.recommended_actions as unknown as PrescriptiveAction[]).map((action, i) => (
+                          <tr key={i} className="hover:bg-slate-800/40">
+                            <td className="px-3 py-2 text-sky-400 font-medium">{action.who}</td>
+                            <td className="px-3 py-2 text-slate-300">{action.what}</td>
+                            <td className="px-3 py-2 text-amber-400 font-medium">{action.when}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {brief.recommended_actions.map((action, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
+                          {i + 1}
+                        </span>
+                        <p className="text-slate-300 text-sm leading-relaxed">{typeof action === 'string' ? action : JSON.stringify(action)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )
               ) : (
                 <p className="text-sm text-slate-500">No actions recommended.</p>
               )}
