@@ -118,6 +118,14 @@ interface OperationalBriefData {
   } | null;
 }
 
+// Safely render any value as a string — prevents React error #31 (objects as children)
+function safeString(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  try { return JSON.stringify(val); } catch { return String(val); }
+}
+
 // Safely parse JSONB fields that may be double-encoded as JSON strings
 function parseJsonArray(value: unknown): string[] {
   if (Array.isArray(value)) return value;
@@ -134,10 +142,38 @@ function parseJsonArray(value: unknown): string[] {
 }
 
 function normalizeBrief(raw: Record<string, unknown>): OperationalBriefData {
+  // Parse detected_signals: always strings
+  const detectedSignals = parseJsonArray(raw.detected_signals);
+
+  // recommended_actions can be string[] OR object[] (WHO-WHAT-WHEN) from GPT
+  let recommendedActions: string[] = [];
+  const rawActions = raw.recommended_actions;
+  if (Array.isArray(rawActions)) {
+    // Check if GPT returned structured objects
+    if (rawActions.length > 0 && typeof rawActions[0] === 'object' && rawActions[0] !== null) {
+      // Keep as-is — the UI will detect objects and render the WHO-WHAT-WHEN table
+      recommendedActions = rawActions as unknown as string[];
+    } else {
+      recommendedActions = rawActions.map(a => safeString(a));
+    }
+  } else if (typeof rawActions === 'string') {
+    recommendedActions = parseJsonArray(rawActions);
+  }
+
+  // business_impact can be string or object from GPT
+  const rawImpact = raw.business_impact;
+  const businessImpact = typeof rawImpact === 'string' ? rawImpact : safeString(rawImpact);
+
+  // risk_assessment can be string or object from GPT
+  const rawRisk = raw.risk_assessment;
+  const riskAssessment = typeof rawRisk === 'string' ? rawRisk : safeString(rawRisk);
+
   return {
     ...raw,
-    detected_signals: parseJsonArray(raw.detected_signals),
-    recommended_actions: parseJsonArray(raw.recommended_actions),
+    detected_signals: detectedSignals,
+    recommended_actions: recommendedActions,
+    business_impact: businessImpact,
+    risk_assessment: riskAssessment,
   } as OperationalBriefData;
 }
 
@@ -669,37 +705,37 @@ export function OperationalBrief() {
                               <span className={`text-xs font-semibold uppercase ${ev.severity === 'critical' || ev.severity === 'high' ? 'text-red-400' : ev.severity === 'medium' ? 'text-amber-400' : 'text-green-400'}`}>{ev.severity}</span>
                             </div>
                             <p className="text-slate-300 text-sm leading-relaxed">
-                              {brief.detected_signals[i] || ev.description}
+                              {safeString(brief.detected_signals[i]) || safeString(ev.description)}
                             </p>
                             {/* Entity Evidence — Full Detail */}
-                            {ev.affected_entities.length > 0 && (
+                            {Array.isArray(ev.affected_entities) && ev.affected_entities.length > 0 && (
                               <div className="mt-3 space-y-1.5">
                                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Entity Details ({ev.affected_entities.length})</span>
                                 <ul className="space-y-1.5">
                                   {ev.affected_entities.slice(0, 10).map((ent, j) => (
                                     <li key={j} className="text-xs text-slate-400 border-l-2 border-slate-700 pl-3 py-1">
-                                      <span className="font-medium text-slate-300">{ent.name}</span>
+                                      <span className="font-medium text-slate-300">{safeString(ent.name) || 'Unknown'}</span>
                                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
                                         {ent.entity_id && (
-                                          <span className="text-slate-500">ID: <span className="text-slate-400">{ent.entity_id}</span></span>
+                                          <span className="text-slate-500">ID: <span className="text-slate-400">{safeString(ent.entity_id)}</span></span>
                                         )}
                                         {ent.value !== undefined && (
                                           <span className="text-slate-500">Value: <span className="text-emerald-400 font-medium">${ent.value.toLocaleString()}</span></span>
                                         )}
                                         {ent.owner && (
-                                          <span className="text-slate-500">Owner: <span className="text-sky-400">{ent.owner}</span></span>
+                                          <span className="text-slate-500">Owner: <span className="text-sky-400">{safeString(ent.owner)}</span></span>
                                         )}
                                         {ent.status && (
-                                          <span className="text-slate-500">Status: <span className="text-amber-400">{ent.status}</span></span>
+                                          <span className="text-slate-500">Status: <span className="text-amber-400">{safeString(ent.status)}</span></span>
                                         )}
                                         {ent.last_activity_date && (
                                           <span className="text-slate-500">Last Activity: <span className="text-slate-400">{new Date(ent.last_activity_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></span>
                                         )}
                                         {ent.days_in_current_state !== undefined && (
-                                          <span className="text-slate-500">Days in State: <span className="text-orange-400 font-medium">{ent.days_in_current_state}</span></span>
+                                          <span className="text-slate-500">Days in State: <span className="text-orange-400 font-medium">{safeString(ent.days_in_current_state)}</span></span>
                                         )}
                                         {ent.last_activity_type && (
-                                          <span className="text-slate-500">{ent.last_activity_type}</span>
+                                          <span className="text-slate-500">{safeString(ent.last_activity_type)}</span>
                                         )}
                                       </div>
                                     </li>
@@ -716,7 +752,7 @@ export function OperationalBrief() {
                                 {Object.entries(ev.summary_metrics).slice(0, 5).map(([key, val]) => (
                                   <span key={key} className="inline-flex items-center gap-1 text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">
                                     <span className="text-slate-500">{key.replace(/_/g, ' ')}:</span>
-                                    <span className="font-medium text-slate-300">{typeof val === 'number' ? val.toLocaleString() : String(val)}</span>
+                                    <span className="font-medium text-slate-300">{safeString(val)}</span>
                                   </span>
                                 ))}
                               </div>
@@ -753,7 +789,7 @@ export function OperationalBrief() {
                 </h4>
                 <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4">
                   <p className="text-slate-300 text-sm leading-relaxed">
-                    {brief.data_context.cross_system_correlation}
+                    {safeString(brief.data_context.cross_system_correlation)}
                   </p>
                 </div>
               </div>
@@ -770,25 +806,25 @@ export function OperationalBrief() {
                     {brief.data_context.business_impact_structured.revenue_at_risk && (
                       <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-center">
                         <p className="text-[10px] text-red-400/70 uppercase tracking-wider font-medium">Revenue at Risk</p>
-                        <p className="text-lg font-bold text-red-400 mt-1">{brief.data_context.business_impact_structured.revenue_at_risk}</p>
+                        <p className="text-lg font-bold text-red-400 mt-1">{safeString(brief.data_context.business_impact_structured.revenue_at_risk)}</p>
                       </div>
                     )}
                     {brief.data_context.business_impact_structured.overdue_cash && (
                       <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-center">
                         <p className="text-[10px] text-amber-400/70 uppercase tracking-wider font-medium">Overdue Cash</p>
-                        <p className="text-lg font-bold text-amber-400 mt-1">{brief.data_context.business_impact_structured.overdue_cash}</p>
+                        <p className="text-lg font-bold text-amber-400 mt-1">{safeString(brief.data_context.business_impact_structured.overdue_cash)}</p>
                       </div>
                     )}
                     {brief.data_context.business_impact_structured.operational_delays && (
                       <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 p-3 text-center">
                         <p className="text-[10px] text-orange-400/70 uppercase tracking-wider font-medium">Operational Delays</p>
-                        <p className="text-lg font-bold text-orange-400 mt-1">{brief.data_context.business_impact_structured.operational_delays}</p>
+                        <p className="text-lg font-bold text-orange-400 mt-1">{safeString(brief.data_context.business_impact_structured.operational_delays)}</p>
                       </div>
                     )}
                   </div>
                   {brief.data_context.business_impact_structured.narrative && (
                     <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
-                      {brief.data_context.business_impact_structured.narrative}
+                      {safeString(brief.data_context.business_impact_structured.narrative)}
                     </p>
                   )}
                 </div>
@@ -800,7 +836,7 @@ export function OperationalBrief() {
             </div>
 
             {/* Root Cause Analysis */}
-            {brief.data_context?.root_cause_analysis && brief.data_context.root_cause_analysis.length > 0 && (
+            {Array.isArray(brief.data_context?.root_cause_analysis) && brief.data_context.root_cause_analysis.length > 0 && (
               <div className="mb-8">
                 <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
                   Root Cause Analysis
@@ -809,7 +845,7 @@ export function OperationalBrief() {
                   {brief.data_context.root_cause_analysis.map((cause, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-slate-300 text-sm leading-relaxed">{cause}</p>
+                      <p className="text-slate-300 text-sm leading-relaxed">{safeString(cause)}</p>
                     </div>
                   ))}
                 </div>
@@ -826,19 +862,19 @@ export function OperationalBrief() {
                   {brief.data_context.forecast['7_day'] && (
                     <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">7-Day Outlook</p>
-                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{brief.data_context.forecast['7_day']}</p>
+                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{safeString(brief.data_context.forecast['7_day'])}</p>
                     </div>
                   )}
                   {brief.data_context.forecast['14_day'] && (
                     <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">14-Day Outlook</p>
-                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{brief.data_context.forecast['14_day']}</p>
+                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{safeString(brief.data_context.forecast['14_day'])}</p>
                     </div>
                   )}
                   {brief.data_context.forecast['30_day'] && (
                     <div className="rounded-lg bg-slate-800/60 border border-slate-700/50 p-3">
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">30-Day Outlook</p>
-                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{brief.data_context.forecast['30_day']}</p>
+                      <p className="text-slate-300 text-xs mt-1 leading-relaxed">{safeString(brief.data_context.forecast['30_day'])}</p>
                     </div>
                   )}
                 </div>
@@ -846,7 +882,7 @@ export function OperationalBrief() {
             )}
 
             {/* Accountability */}
-            {brief.data_context?.accountability && brief.data_context.accountability.length > 0 && (
+            {Array.isArray(brief.data_context?.accountability) && brief.data_context.accountability.length > 0 && (
               <div className="mb-8">
                 <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
                   Accountability
@@ -863,9 +899,9 @@ export function OperationalBrief() {
                     <tbody className="divide-y divide-slate-700/50">
                       {(brief.data_context.accountability as AccountabilityItem[]).map((item, i) => (
                         <tr key={i} className="hover:bg-slate-800/40">
-                          <td className="px-3 py-2 text-slate-300 font-medium">{item.entity}</td>
-                          <td className="px-3 py-2 text-sky-400">{item.owner}</td>
-                          <td className="px-3 py-2 text-slate-400">{item.issue}</td>
+                          <td className="px-3 py-2 text-slate-300 font-medium">{safeString(item.entity)}</td>
+                          <td className="px-3 py-2 text-sky-400">{safeString(item.owner)}</td>
+                          <td className="px-3 py-2 text-slate-400">{safeString(item.issue)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -893,9 +929,9 @@ export function OperationalBrief() {
                       <tbody className="divide-y divide-slate-700/50">
                         {(brief.recommended_actions as unknown as PrescriptiveAction[]).map((action, i) => (
                           <tr key={i} className="hover:bg-slate-800/40">
-                            <td className="px-3 py-2 text-sky-400 font-medium">{action.who}</td>
-                            <td className="px-3 py-2 text-slate-300">{action.what}</td>
-                            <td className="px-3 py-2 text-amber-400 font-medium">{action.when}</td>
+                            <td className="px-3 py-2 text-sky-400 font-medium">{safeString(action.who)}</td>
+                            <td className="px-3 py-2 text-slate-300">{safeString(action.what)}</td>
+                            <td className="px-3 py-2 text-amber-400 font-medium">{safeString(action.when)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -908,7 +944,7 @@ export function OperationalBrief() {
                         <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs font-bold mt-0.5">
                           {i + 1}
                         </span>
-                        <p className="text-slate-300 text-sm leading-relaxed">{typeof action === 'string' ? action : JSON.stringify(action)}</p>
+                        <p className="text-slate-300 text-sm leading-relaxed">{safeString(action)}</p>
                       </div>
                     ))}
                   </div>
