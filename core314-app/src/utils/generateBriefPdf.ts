@@ -40,6 +40,7 @@ interface PdfForecastData {
 
 interface PdfSignalEvidence {
   signal_type: string;
+  signal_subtype?: string;
   source: string;
   severity: string;
   category: string;
@@ -98,10 +99,12 @@ function getHealthColor(score: number | null): [number, number, number] {
 
 function getHealthLabel(score: number | null): string {
   if (score === null) return 'Unknown';
-  if (score >= 80) return 'Healthy';
-  if (score >= 60) return 'Moderate';
-  if (score >= 40) return 'At Risk';
-  return 'Critical';
+  if (score >= 90) return 'Excellent';
+  if (score >= 70) return 'Good';
+  if (score >= 50) return 'Moderate';
+  if (score >= 30) return 'At Risk';
+  if (score >= 10) return 'Critical';
+  return 'System Failure';
 }
 
 function getSignalSeverity(signal: string): 'high' | 'medium' | 'low' {
@@ -409,11 +412,14 @@ export function generateBriefPdf(data: BriefPdfData): void {
         doc.setTextColor(...COLORS.white);
         doc.text(sevLabel, marginLeft + badgeW / 2, y + 0.5, { align: 'center' });
 
-        // Source + category label
+        // Source + subtype label
         doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...COLORS.textLight);
-        doc.text(`${ev.source.replace(/_/g, ' ').toUpperCase()} · ${ev.category.replace(/_/g, ' ')}`, marginLeft + badgeW + 4, y - 1);
+        const sourceLabel = ev.signal_subtype
+          ? `${ev.source.replace(/_/g, ' ').toUpperCase()} — ${ev.signal_subtype}`
+          : `${ev.source.replace(/_/g, ' ').toUpperCase()} · ${ev.category.replace(/_/g, ' ')}`;
+        doc.text(sourceLabel, marginLeft + badgeW + 4, y - 1);
 
         // Signal description text — use signal_evidence.description (source-of-truth, bound to correct integration)
         const signalText = ev.description;

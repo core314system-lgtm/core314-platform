@@ -512,6 +512,84 @@ serve(async (req) => {
       ? `${asanaMeta.total_projects || 0} projects, ${asanaMeta.total_tasks || 0} tasks, ${asanaMeta.completed_tasks || 0} completed, ${asanaMeta.overdue_tasks || 0} overdue (${asanaMeta.completion_rate || 0}% completion)`
       : hasAsana ? 'Asana connected, awaiting first data sync.' : 'Not connected.';
 
+    // ── Signal subtype mapping: human-readable labels for each signal_type ──
+    const SIGNAL_SUBTYPE_LABELS: Record<string, string> = {
+      // HubSpot
+      stalled_deals: 'Stage Stagnation',
+      pipeline_stagnation: 'Pipeline Risk',
+      deal_velocity_decline: 'Deal Velocity Drop',
+      deal_stage_delay: 'Stage Delay',
+      no_new_deals: 'Pipeline Generation',
+      no_crm_activity: 'CRM Inactivity',
+      low_crm_activity: 'Low CRM Activity',
+      // QuickBooks
+      overdue_invoices: 'Overdue Invoices',
+      low_collection_rate: 'Cash Flow Risk',
+      high_expense_ratio: 'Expense Risk',
+      revenue_decline: 'Revenue Gap',
+      no_financial_activity: 'Financial Inactivity',
+      // Slack
+      low_communication: 'Communication Drop',
+      communication_spike: 'Communication Spike',
+      slow_response: 'Response Delay',
+      low_engagement: 'Engagement Gap',
+      integration_inactive: 'Integration Inactive',
+      data_ingestion_gap: 'Data Gap',
+      scope_limitation: 'Scope Limitation',
+      // Google Calendar
+      meeting_overload: 'Meeting Overload',
+      low_meeting_activity: 'Meeting Inactivity',
+      // Gmail
+      email_volume_spike: 'Email Volume Spike',
+      low_email_activity: 'Email Inactivity',
+      low_response_ratio: 'Low Response Ratio',
+      // Jira
+      overdue_issues: 'Issue Delays',
+      low_velocity: 'Low Velocity',
+      blocker_accumulation: 'Blockers',
+      // Trello
+      overdue_cards: 'Delivery Delay',
+      stalled_cards: 'Board Stagnation',
+      board_inactivity: 'Board Inactivity',
+      // Microsoft Teams
+      low_team_activity: 'Team Inactivity',
+      channel_inactivity: 'Channel Inactivity',
+      // Google Sheets
+      stale_spreadsheets: 'Stale Data',
+      no_sheet_activity: 'Sheet Inactivity',
+      // Asana
+      overdue_tasks: 'Task Delays',
+      low_completion_rate: 'Low Completion',
+      workload_imbalance: 'Workload Imbalance',
+    };
+
+    function getSignalSubtype(signalType: string): string {
+      return SIGNAL_SUBTYPE_LABELS[signalType] || signalType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // ── Signal → health score category mapping ──
+    const SIGNAL_HEALTH_CATEGORY: Record<string, string> = {
+      // revenue
+      stalled_deals: 'revenue', pipeline_stagnation: 'revenue', deal_velocity_decline: 'revenue',
+      deal_stage_delay: 'revenue', no_new_deals: 'revenue', no_crm_activity: 'revenue',
+      low_crm_activity: 'revenue', revenue_decline: 'revenue',
+      // cash_flow
+      overdue_invoices: 'cash_flow', low_collection_rate: 'cash_flow', high_expense_ratio: 'cash_flow',
+      no_financial_activity: 'cash_flow',
+      // operations
+      overdue_cards: 'operations', stalled_cards: 'operations', board_inactivity: 'operations',
+      overdue_issues: 'operations', low_velocity: 'operations', blocker_accumulation: 'operations',
+      overdue_tasks: 'operations', low_completion_rate: 'operations', workload_imbalance: 'operations',
+      stale_spreadsheets: 'operations', no_sheet_activity: 'operations',
+      // communication
+      low_communication: 'communication', communication_spike: 'communication', slow_response: 'communication',
+      low_engagement: 'communication', low_team_activity: 'communication', channel_inactivity: 'communication',
+      integration_inactive: 'communication', data_ingestion_gap: 'communication', scope_limitation: 'communication',
+      email_volume_spike: 'communication', low_email_activity: 'communication', low_response_ratio: 'communication',
+      // scheduling
+      meeting_overload: 'scheduling', low_meeting_activity: 'scheduling',
+    };
+
     // Classify each signal and collect unique categories
     const classifiedSignals = activeSignals.map(s => {
       const signalData = (s.signal_data as Record<string, unknown>) || {};
@@ -582,6 +660,7 @@ serve(async (req) => {
       const sd = (s.signal_data as Record<string, unknown>) || {};
       return {
         signal_type: s.signal_type,
+        signal_subtype: getSignalSubtype(s.signal_type),
         source: s.source_integration,
         severity: s.severity,
         category: s.category,
@@ -1024,70 +1103,106 @@ Generate a JSON response with these exact fields:
     console.log('[operational-brief] Brief generated:', savedBrief?.id);
 
     // ── Step 9: Persist health score to operational_health_scores ─────
-    // Calculate a health score based on available data and signal severity
-    const baseScore = 100;
+    // Category-based health score calibration model
+    // Prevents over-penalization and collapsing to 0 too easily
+    let calculatedScore = 100;
 
-    // Build per-signal penalty breakdown for UI transparency
-    // Calibrated severity weights aligned with real-world business conditions
+    // Severity weights per signal
     const SEVERITY_WEIGHTS: Record<string, number> = {
-      'critical': 30,
+      'critical': 20,
       'high': 20,
-      'medium': 12,
-      'low': 6,
+      'medium': 10,
+      'low': 5,
     };
 
-    // Business-critical signal types get amplified penalties (1.8x)
-    const CRITICAL_BUSINESS_SIGNALS = new Set([
-      'no_financial_activity',
-      'no_crm_activity',
-      'revenue_pipeline_stagnation',
-      'financial_inactivity',
-      'overdue_invoices',
-    ]);
-    const CATEGORY_AMPLIFICATION = 1.5;
+    // Category penalty caps
+    const CATEGORY_CAPS: Record<string, number> = {
+      revenue: 30,
+      cash_flow: 25,
+      operations: 20,
+      communication: 15,
+      scheduling: 10,
+    };
 
-    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; amplified: boolean }[] = [];
-    let rawSignalPenalties = 0;
+    // Accumulate penalties per category
+    const categoryPenalties: Record<string, number> = {};
+    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; category: string }[] = [];
+
     for (const s of activeSignals) {
-      const basePenalty = SEVERITY_WEIGHTS[s.severity] || 6;
-      const confidence = (s.confidence as number) || 100;
-      const isCriticalBusiness = CRITICAL_BUSINESS_SIGNALS.has(s.signal_type);
-      const amplifier = isCriticalBusiness ? CATEGORY_AMPLIFICATION : 1.0;
-      const scaledPenalty = Math.round((basePenalty * amplifier * (confidence / 100)) * 10) / 10;
-      rawSignalPenalties += scaledPenalty;
+      const cat = SIGNAL_HEALTH_CATEGORY[s.signal_type] || 'operations';
+      const weight = SEVERITY_WEIGHTS[s.severity] || 5;
+      if (!categoryPenalties[cat]) categoryPenalties[cat] = 0;
+      categoryPenalties[cat] += weight;
       signalPenaltyDetails.push({
         type: s.signal_type,
         severity: s.severity,
-        penalty: scaledPenalty,
+        penalty: weight,
         source: s.source_integration || 'unknown',
         description: (s.description as string) || s.signal_type.replace(/_/g, ' '),
-        amplified: isCriticalBusiness,
+        category: cat,
       });
     }
 
-    // Multi-signal amplification: compounding penalty for widespread issues
-    let multiSignalPenalty = 0;
-    if (activeSignals.length >= 5) {
-      multiSignalPenalty = 10;
-    } else if (activeSignals.length >= 3) {
-      multiSignalPenalty = 5;
+    // Apply capped category penalties
+    let totalCappedPenalty = 0;
+    const cappedCategoryPenalties: Record<string, number> = {};
+    const impactedCategories: string[] = [];
+    for (const [cat, rawPenalty] of Object.entries(categoryPenalties)) {
+      const cap = CATEGORY_CAPS[cat] || 20;
+      const capped = Math.min(rawPenalty, cap);
+      cappedCategoryPenalties[cat] = capped;
+      totalCappedPenalty += capped;
+      if (capped > 0) impactedCategories.push(cat);
     }
-    const totalSignalPenalties = rawSignalPenalties + multiSignalPenalty;
 
-    // Integration coverage: bonus capped at +3 (prevents offsetting major issues)
-    const coverageBonus = Math.min(connectedCount, 3);
+    calculatedScore -= totalCappedPenalty;
 
-    // Data freshness: check how many integrations were updated within last 24 hours
-    const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const freshIntegrations = (connectedIntegrations || []).filter(
-      i => i.updated_at && i.updated_at > oneHourAgo
-    ).length;
-    const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 1) : 0;
+    // Cross-system correlation penalty
+    let crossSystemPenalty = 0;
+    if (impactedCategories.length >= 3) {
+      crossSystemPenalty = 15;
+    } else if (impactedCategories.length >= 2) {
+      crossSystemPenalty = 10;
+    }
+    calculatedScore -= crossSystemPenalty;
 
-    const calculatedScore = Math.max(0, Math.min(100, Math.round(
-      baseScore - totalSignalPenalties + coverageBonus - freshnessPenalty
-    )));
-    const scoreLabel = calculatedScore >= 80 ? 'Healthy' : calculatedScore >= 60 ? 'Moderate' : calculatedScore >= 40 ? 'At Risk' : 'Critical';
+    // Positive offset: recovery buffer if any active signals show positive activity
+    // (e.g., open pipeline, active deals, payments in last 30 days)
+    let recoveryBuffer = 0;
+    const hasActivePipeline = activeSignals.some(s => {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      const metrics = (sd.summary_metrics as Record<string, unknown>) || {};
+      return (metrics.pipeline_value as number) > 0 || (metrics.total_deals as number) > 0;
+    });
+    const hasRecentPayments = activeSignals.some(s => {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      return (sd.payment_total as number) > 0;
+    });
+    if (hasActivePipeline && hasRecentPayments) {
+      recoveryBuffer = 15;
+    } else if (hasActivePipeline || hasRecentPayments) {
+      recoveryBuffer = 10;
+    } else if (activeSignals.length > 0) {
+      recoveryBuffer = 5;
+    }
+    calculatedScore += recoveryBuffer;
+
+    // Floor constraint: minimum 10 unless ALL integrations show inactivity
+    const allInactive = activeSignals.length > 0 && activeSignals.every(s =>
+      s.signal_type.includes('no_') || s.signal_type.includes('inactiv') || s.signal_type === 'integration_inactive'
+    );
+    if (allInactive && activeSignals.length > 0) {
+      calculatedScore = Math.max(0, Math.min(100, Math.round(calculatedScore)));
+    } else {
+      calculatedScore = Math.max(10, Math.min(100, Math.round(calculatedScore)));
+    }
+
+    const scoreLabel = calculatedScore >= 90 ? 'Excellent'
+      : calculatedScore >= 70 ? 'Good'
+      : calculatedScore >= 50 ? 'Moderate'
+      : calculatedScore >= 30 ? 'At Risk'
+      : calculatedScore >= 10 ? 'Critical'
+      : 'System Failure';
 
     try {
       await supabase
@@ -1098,19 +1213,18 @@ Generate a JSON response with these exact fields:
           score: calculatedScore,
           label: scoreLabel,
           score_breakdown: {
-            base_score: baseScore,
+            base_score: 100,
             signal_penalties: signalPenaltyDetails,
-            total_signal_deductions: Math.round(totalSignalPenalties * 10) / 10,
-            multi_signal_penalty: multiSignalPenalty,
-            integration_coverage: connectedCount,
-            coverage_bonus: coverageBonus,
-            data_freshness_bonus: -freshnessPenalty,
-            fresh_integrations: freshIntegrations,
+            category_penalties_raw: categoryPenalties,
+            category_penalties_capped: cappedCategoryPenalties,
+            total_capped_penalty: totalCappedPenalty,
+            cross_system_penalty: crossSystemPenalty,
+            impacted_categories: impactedCategories,
+            recovery_buffer: recoveryBuffer,
             connected_services: connectedServices,
           },
           integration_coverage: {
             connected: connectedCount,
-            fresh: freshIntegrations,
           },
           signal_count: activeSignals.length,
           calculated_at: new Date().toISOString(),

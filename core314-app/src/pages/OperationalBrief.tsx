@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
 import { generateBriefPdf } from '../utils/generateBriefPdf';
+import { HealthScoreLegend } from '../components/HealthScoreLegend';
 
 interface BriefUsage {
   plan: string;
@@ -87,6 +88,7 @@ interface ForecastData {
 
 interface SignalEvidence {
   signal_type: string;
+  signal_subtype?: string;
   source: string;
   severity: string;
   category: string;
@@ -380,10 +382,12 @@ export function OperationalBrief() {
 
   const getHealthLabel = (score: number | null) => {
     if (score === null) return 'Unknown';
-    if (score >= 80) return 'Healthy';
-    if (score >= 60) return 'Moderate';
-    if (score >= 40) return 'At Risk';
-    return 'Critical';
+    if (score >= 90) return 'Excellent';
+    if (score >= 70) return 'Good';
+    if (score >= 50) return 'Moderate';
+    if (score >= 30) return 'At Risk';
+    if (score >= 10) return 'Critical';
+    return 'System Failure';
   };
 
   const getConfidenceBadge = (confidence: number) => {
@@ -431,26 +435,32 @@ export function OperationalBrief() {
 
   const getScoreBadgeStyle = (score: number | null) => {
     if (score === null) return 'bg-slate-500/20 text-slate-300';
-    if (score >= 80) return 'bg-green-500/20 text-green-400';
-    if (score >= 60) return 'bg-amber-500/20 text-amber-400';
-    if (score >= 40) return 'bg-orange-500/20 text-orange-400';
-    return 'bg-red-500/20 text-red-400';
+    if (score >= 90) return 'bg-green-500/20 text-green-400';
+    if (score >= 70) return 'bg-emerald-500/20 text-emerald-400';
+    if (score >= 50) return 'bg-amber-500/20 text-amber-400';
+    if (score >= 30) return 'bg-orange-500/20 text-orange-400';
+    if (score >= 10) return 'bg-red-500/20 text-red-400';
+    return 'bg-red-700/20 text-red-500';
   };
 
   const getRiskBadgeStyle = (score: number | null) => {
     if (score === null) return 'bg-slate-500/20 text-slate-300';
-    if (score >= 80) return 'bg-green-500/20 text-green-400';
-    if (score >= 60) return 'bg-amber-500/20 text-amber-400';
-    if (score >= 40) return 'bg-orange-500/20 text-orange-400';
-    return 'bg-red-500/20 text-red-400';
+    if (score >= 90) return 'bg-green-500/20 text-green-400';
+    if (score >= 70) return 'bg-emerald-500/20 text-emerald-400';
+    if (score >= 50) return 'bg-amber-500/20 text-amber-400';
+    if (score >= 30) return 'bg-orange-500/20 text-orange-400';
+    if (score >= 10) return 'bg-red-500/20 text-red-400';
+    return 'bg-red-700/20 text-red-500';
   };
 
   const getHealthColorDark = (score: number | null) => {
     if (score === null) return 'text-slate-400';
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-amber-400';
-    if (score >= 40) return 'text-orange-400';
-    return 'text-red-400';
+    if (score >= 90) return 'text-green-400';
+    if (score >= 70) return 'text-emerald-400';
+    if (score >= 50) return 'text-amber-400';
+    if (score >= 30) return 'text-orange-400';
+    if (score >= 10) return 'text-red-400';
+    return 'text-red-500';
   };
 
   if (loading) {
@@ -691,6 +701,13 @@ export function OperationalBrief() {
               )}
             </div>
 
+            {/* Health Score Legend */}
+            {brief.health_score !== null && (
+              <div className="mb-8">
+                <HealthScoreLegend currentScore={brief.health_score} />
+              </div>
+            )}
+
             {/* Detected Signals with Evidence */}
             <div className="mb-8">
               <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
@@ -709,8 +726,12 @@ export function OperationalBrief() {
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="text-xs font-medium text-slate-400 uppercase">{ev.source.replace(/_/g, ' ')}</span>
-                              <span className="text-slate-600">·</span>
-                              <span className="text-xs text-slate-500">{ev.category.replace(/_/g, ' ')}</span>
+                              {ev.signal_subtype && (
+                                <>
+                                  <span className="text-slate-600">&mdash;</span>
+                                  <span className="text-xs font-semibold text-slate-300">{ev.signal_subtype}</span>
+                                </>
+                              )}
                               <span className="text-slate-600">·</span>
                               <span className={`text-xs font-semibold uppercase ${ev.severity === 'critical' || ev.severity === 'high' ? 'text-red-400' : ev.severity === 'medium' ? 'text-amber-400' : 'text-green-400'}`}>{ev.severity}</span>
                             </div>
