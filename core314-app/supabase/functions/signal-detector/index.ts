@@ -389,7 +389,7 @@ serve(async (req) => {
           const invoiceCount = (latest.invoice_count as number) ?? 0;
           const invoiceAging = latest.invoice_aging as { current?: number; aging30?: number; aging60?: number; aging90Plus?: number } | null;
           // Extract individual invoice detail objects when available (injected by test-scenario or enhanced pollers)
-          const overdueInvoiceDetails = (latest.overdue_invoice_details as Array<{ id: string; customer_name: string; amount: number; due_date: string; days_overdue: number; status?: string }>) ?? [];
+          const overdueInvoiceDetails = (latest.overdue_invoice_details as Array<{ id: string; customer_name: string; amount: number; due_date: string; days_overdue: number; status?: string; assigned_to?: string }>) ?? [];
 
           // Signal: Overdue invoices
           if (overdueInvoices > 0) {
@@ -399,8 +399,14 @@ serve(async (req) => {
             const overdueEntities = overdueInvoiceDetails.length > 0
               ? overdueInvoiceDetails.slice(0, 10).map((inv) => ({
                   name: `${inv.id}: ${inv.customer_name} — $${inv.amount.toLocaleString()}`,
+                  entity_id: inv.id,
+                  entity_type: 'invoice' as const,
+                  value: inv.amount,
+                  owner: inv.assigned_to || 'Owner data not available from integration',
+                  status: inv.status || 'overdue',
                   last_activity_type: `${inv.days_overdue} days overdue`,
                   last_activity_date: inv.due_date,
+                  days_in_current_state: inv.days_overdue,
                   metric_value: inv.amount,
                 }))
               : [
@@ -541,7 +547,7 @@ serve(async (req) => {
           const openPipelineValue = (latest.open_pipeline_value as number) ?? 0;
           const stalledDealNames = (latest.stalled_deal_names as string[]) ?? [];
           // Extract individual deal detail objects when available (injected by test-scenario or enhanced pollers)
-          const stalledDealDetails = (latest.stalled_deal_details as Array<{ id: string; name: string; value: number; stage: string; last_activity_date: string; days_in_stage: number }>) ?? [];
+          const stalledDealDetails = (latest.stalled_deal_details as Array<{ id: string; name: string; value: number; stage: string; owner?: string; last_activity_date: string; days_in_stage: number }>) ?? [];
 
           // Signal: Stalled deals (no activity > 6 days)
           if (stalledDeals > 0) {
@@ -551,8 +557,14 @@ serve(async (req) => {
             const stalledEntities = stalledDealDetails.length > 0
               ? stalledDealDetails.slice(0, 10).map((deal) => ({
                   name: `${deal.name} — $${deal.value.toLocaleString()} (${deal.stage})`,
+                  entity_id: deal.id,
+                  entity_type: 'deal' as const,
+                  value: deal.value,
+                  owner: deal.owner || 'Owner data not available from integration',
+                  status: deal.stage,
                   last_activity_type: `stalled ${deal.days_in_stage} days`,
                   last_activity_date: deal.last_activity_date,
+                  days_in_current_state: deal.days_in_stage,
                   metric_value: deal.value,
                 }))
               : stalledDealNames.slice(0, 10).map((name: string) => ({
@@ -913,7 +925,7 @@ serve(async (req) => {
           const overdueCards = (latest.overdue_cards as number) ?? 0;
           const totalBoards = (latest.total_boards as number) ?? 0;
           // Extract individual card detail objects when available (injected by test-scenario or enhanced pollers)
-          const overdueCardDetails = (latest.overdue_card_details as Array<{ id: string; name: string; board: string; due_date: string; days_overdue: number; list?: string }>) ?? [];
+          const overdueCardDetails = (latest.overdue_card_details as Array<{ id: string; name: string; board: string; due_date: string; days_overdue: number; list?: string; owner?: string }>) ?? [];
 
           // Signal: Overdue cards
           if (overdueCards > 0) {
@@ -921,8 +933,13 @@ serve(async (req) => {
             const cardEntities = overdueCardDetails.length > 0
               ? overdueCardDetails.slice(0, 10).map((card) => ({
                   name: `${card.name} (${card.board})`,
+                  entity_id: card.id,
+                  entity_type: 'card' as const,
+                  owner: card.owner || 'Owner data not available from integration',
+                  status: card.list || 'unknown',
                   last_activity_type: `${card.days_overdue} days overdue`,
                   last_activity_date: card.due_date,
+                  days_in_current_state: card.days_overdue,
                   metric_value: card.days_overdue,
                 }))
               : [];

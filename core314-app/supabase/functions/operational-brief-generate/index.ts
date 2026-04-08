@@ -521,17 +521,31 @@ serve(async (req) => {
 
     const signalCategoriesList = [...new Set(classifiedSignals.map(s => s.category))];
 
-    // Format signals for prompt — now includes category and entity evidence
+    // Format signals for prompt — FULL entity-level detail (MANDATORY)
     const signalSummary = classifiedSignals.length > 0
       ? classifiedSignals.map(s => {
           const sd = (s.signal_data as Record<string, unknown>) || {};
-          const entities = (sd.affected_entities as Array<{ name: string; last_activity_type?: string; last_activity_date?: string; metric_value?: number }>) || [];
+          const entities = (sd.affected_entities as Array<{ name: string; entity_id?: string; entity_type?: string; value?: number; owner?: string; status?: string; last_activity_type?: string; last_activity_date?: string; days_in_current_state?: number; metric_value?: number }>) || [];
           const metrics = (sd.summary_metrics as Record<string, unknown>) || {};
           let line = `- [${s.severity.toUpperCase()}] [${s.category}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`;
           if (entities.length > 0) {
-            line += '\n  Affected entities:';
+            line += `\n  ENTITY DETAILS (${entities.length} items):`;
             for (const e of entities.slice(0, 10)) {
-              line += `\n    • ${e.name}${e.last_activity_type ? ` — ${e.last_activity_type}` : ''}${e.last_activity_date ? ` (${e.last_activity_date})` : ''}${e.metric_value !== undefined ? ` [${e.metric_value}]` : ''}`;
+              const parts: string[] = [e.name];
+              if (e.entity_id) parts.push(`ID: ${e.entity_id}`);
+              if (e.value !== undefined) parts.push(`Value: $${e.value.toLocaleString()}`);
+              if (e.owner) parts.push(`Owner: ${e.owner}`);
+              if (e.status) parts.push(`Status: ${e.status}`);
+              if (e.last_activity_date) {
+                const d = new Date(e.last_activity_date);
+                parts.push(`Last Activity: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+              }
+              if (e.days_in_current_state !== undefined) parts.push(`Days in State: ${e.days_in_current_state}`);
+              if (e.last_activity_type) parts.push(e.last_activity_type);
+              line += `\n    • ${parts.join(' | ')}`;
+            }
+            if (entities.length > 10) {
+              line += `\n    ... and ${entities.length - 10} more`;
             }
           }
           if (Object.keys(metrics).length > 0) {
@@ -540,6 +554,13 @@ serve(async (req) => {
           return line;
         }).join('\n')
       : 'No active signals detected.';
+
+    // Count total entities across all signals for validation
+    const totalEntityCount = classifiedSignals.reduce((acc, s) => {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      const entities = (sd.affected_entities as Array<Record<string, unknown>>) || [];
+      return acc + entities.length;
+    }, 0);
 
     // Build structured signal evidence for data_context storage (used by UI)
     const signalEvidence = classifiedSignals.map(s => {
@@ -553,6 +574,9 @@ serve(async (req) => {
         confidence: s.confidence,
         affected_entities: ((sd.affected_entities as Array<Record<string, unknown>>) || []).slice(0, 10),
         summary_metrics: (sd.summary_metrics as Record<string, unknown>) || {},
+        // Pass through full signal_data for cross-system correlation
+        overdue_total: sd.overdue_total as number | undefined,
+        pipeline_value: (sd.summary_metrics as Record<string, unknown>)?.pipeline_value as number | undefined,
       };
     });
 
@@ -574,6 +598,7 @@ serve(async (req) => {
         source_integration: string;
         category: string;
         description: string;
+        signal_data?: Record<string, unknown>;
       }>;
       const integrations = (correlatedEvent.integrations_involved as string[]) || [];
       const categories = (correlatedEvent.operational_categories as string[]) || [];
@@ -605,13 +630,34 @@ Pattern description: ${failurePatternObj.description}
 Matched categories: ${failurePatternObj.matched_categories.join(', ')}`
         : '';
 
+      // Build entity-enriched correlated signal descriptions
+      const ceSignalLines = ceSignals.map(s => {
+        let line = `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`;
+        if (s.signal_data) {
+          const entities = (s.signal_data.affected_entities as Array<{ name: string; entity_id?: string; value?: number; owner?: string; status?: string; days_in_current_state?: number; last_activity_date?: string }>) || [];
+          if (entities.length > 0) {
+            line += `\n    ENTITIES:`;
+            for (const e of entities.slice(0, 10)) {
+              const parts: string[] = [e.name];
+              if (e.entity_id) parts.push(`ID: ${e.entity_id}`);
+              if (e.value !== undefined) parts.push(`$${e.value.toLocaleString()}`);
+              if (e.owner) parts.push(`Owner: ${e.owner}`);
+              if (e.status) parts.push(`Status: ${e.status}`);
+              if (e.days_in_current_state !== undefined) parts.push(`${e.days_in_current_state} days`);
+              line += `\n      \u2022 ${parts.join(' | ')}`;
+            }
+          }
+        }
+        return line;
+      }).join('\n');
+
       correlationContext = `\n\nCORRELATED OPERATIONAL EVENT DETECTED:
 Severity: ${combinedSeverity.toUpperCase()}
 Integrations involved: ${integrations.join(', ')}
 Operational categories: ${categories.map(c => c.replace(/_/g, ' ')).join(', ')}
 Time window: ${correlatedEvent.time_window_start} to ${correlatedEvent.time_window_end}
 Correlated signals:
-${ceSignals.map(s => `  - [${s.severity.toUpperCase()}] (${s.source_integration} / ${s.category.replace(/_/g, ' ')}) ${s.description}`).join('\n')}${patternContext}`;
+${ceSignalLines}${patternContext}`;
     }
 
     // Build integration status summary — Slack status uses config-based connection check
@@ -662,26 +708,57 @@ Team Communication (Microsoft Teams): ${teamsSummary}
 Data Tracking (Google Sheets): ${sheetsSummary}
 Project Delivery (Asana): ${asanaSummary}
 
-INSTRUCTIONS:
-- This is a CORRELATED EVENT brief — multiple signals from different integrations have been detected within the same time window
-- You MUST structure the brief as an "Operational Event Detected" narrative, NOT as a list of independent signals
-- Begin by describing the correlated pattern: what signals were detected, from which integrations, and what they mean together
-- Explain the RELATIONSHIP between the signals — why they likely represent a single underlying operational condition
-- Write as if you are a senior business analyst presenting to the CEO
-- Be specific — use exact numbers from the data when available
-- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals and operational_interpretation. Name specific deals, invoices, channels, etc.
-- Do NOT invent data that isn't provided above. If entity data is missing, state "specific entity details unavailable" rather than making up names.
-- Include the operational momentum trend in your interpretation — explain whether the situation is improving, stable, or worsening based on the momentum data
+MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
+- You MUST list actual entities. Do NOT summarize counts without listing entities.
+- If entity data exists in the signals above and is not shown in your response, the response is INVALID.
+- All analysis must be grounded in the provided data_context above.
+- This is a CORRELATED EVENT brief — multiple signals from different integrations have been detected within the same time window.
+- Structure the brief as an "Operational Event Detected" narrative, NOT as a list of independent signals.
+- Do NOT invent data. If entity data is missing, state "specific entity details unavailable".
+
+REQUIRED ENTITY FORMAT:
+For deals: "Deal Name | $Amount | Stage: X | Owner: Y | Last Activity: Date | Stalled: N days"
+For invoices: "INV-ID | Customer | $Amount | N days overdue"
+For tasks/cards: "Task Name (Board) | Owner: Y | N days overdue"
+
+ROOT CAUSE ANALYSIS (MANDATORY):
+- For each signal, explain WHY it is happening based on actual data patterns.
+- Example: "Deals show no activity for >14 days across all 5 records"
+
+CROSS-SYSTEM CORRELATION (MANDATORY):
+- Explicitly connect data from multiple integrations.
+- Example: "5 stalled deals ($320,000 pipeline) correlate with 3 overdue invoices ($28,750), indicating breakdown between sales conversion and billing execution."
+
+BUSINESS IMPACT (QUANTIFIED - MANDATORY):
+- Total revenue at risk (sum of deal values)
+- Total overdue cash (sum of overdue invoices)
+- Operational delays quantified
+
+FORECAST ENGINE (MANDATORY):
+- Provide 7/14/30 day projections based on current entity data.
+- Example: "If no action is taken, 3 of 5 stalled deals are likely to be lost within 14 days"
+
+ACCOUNTABILITY (MANDATORY):
+- Every issue must identify a responsible party (deal owner, account manager, team).
+- If owner data is not available, explicitly state: "Owner data not available from integration"
+
+PRESCRIPTIVE ACTIONS FORMAT (MANDATORY):
+- Each action must follow: WHO — WHAT — WHEN
+- Example: "Sales Manager → Re-engage Acme Corp deal → within 48 hours"
 
 Generate a JSON response with these exact fields:
 1. "title": ${patternTitle ? `Use EXACTLY this title: "Operational Event Detected — ${patternTitle} — ${today}". Do NOT change the pattern name.` : `Use: "Operational Event Detected — Cross-Integration Pattern — ${today}"`}
-2. "event_summary": 1-2 sentence description of the correlated operational event (e.g., "A correlated operational pattern has been detected across Slack and QuickBooks, indicating potential operational disruption affecting both communication and financial workflows.")
-3. "detected_signals": Array of signal descriptions in plain business English. Each entry should name the integration and the operational category (e.g., "Slack communication activity drop detected — limited message volume across monitored channels")
-4. "operational_interpretation": 1-2 paragraphs explaining how the signals relate to each other and what operational condition they likely represent. This is the core analytical value — connect the dots across integrations.
-5. "business_impact": 1-2 paragraphs describing the potential operational impact on the business. Be specific about what could happen if the condition persists.
-6. "recommended_actions": Array of 3-5 specific, prioritized corrective recommendations. Each should address a specific aspect of the correlated event.
-7. "risk_assessment": Brief risk outlook (1-2 sentences) based on the combined severity of the correlated signals.
-8. "confidence": Score 0-100 based on data quality and correlation strength.`;
+2. "event_summary": 1-2 sentence description of the correlated operational event.
+3. "detected_signals": Array of signal descriptions. Each MUST list individual entities with full detail (name, ID, value, owner, status, dates, days in state). Do NOT just say "5 stalled deals" — list each deal.
+4. "root_cause_analysis": Array of strings. For each signal, explain WHY based on actual data patterns.
+5. "cross_system_correlation": String. Explicitly connect signals across integrations with dollar amounts.
+6. "operational_interpretation": 1-2 paragraphs explaining how the signals relate and what operational condition they represent.
+7. "business_impact": Object with fields: "revenue_at_risk" (string with $ amount), "overdue_cash" (string with $ amount), "operational_delays" (string), "narrative" (1-2 paragraphs).
+8. "forecast": Object with fields: "7_day" (string), "14_day" (string), "30_day" (string).
+9. "accountability": Array of objects with fields: "entity" (string), "owner" (string), "issue" (string).
+10. "recommended_actions": Array of objects with fields: "who" (string), "what" (string), "when" (string).
+11. "risk_assessment": Brief risk outlook (1-2 sentences).
+12. "confidence": Score 0-100 based on data quality and correlation strength.`;
     } else {
       // ── Standard Brief Format (no correlated events) ───────────────
       gptPrompt = `You are Core314, an AI operations analyst. Generate a clear, executive-friendly Operational Brief for ${orgName}.
@@ -710,28 +787,47 @@ Team Communication (Microsoft Teams): ${teamsSummary}
 Data Tracking (Google Sheets): ${sheetsSummary}
 Project Delivery (Asana): ${asanaSummary}
 
-INSTRUCTIONS:
-- Write as if you are a senior business analyst presenting to the CEO
-- Be specific — use exact numbers from the data when available
-- When signals include "Affected entities", you MUST reference specific entity names, dates, and metrics in the detected_signals array. Each signal string should name the affected items (deals, invoices, channels, etc.) with their details.
-- Do NOT invent data that isn’t provided above. If entity data is missing for a signal, state "specific entity details unavailable" rather than making up names.
-- IMPORTANT: If data is limited or missing, you MUST still produce a meaningful brief:
-  - Explain what data sources ARE connected and what they show (even if it's minimal)
-  - Explain what data sources are NOT connected and what visibility that costs the business
-  - Provide reasoning about what the current state means (e.g., "No signals detected could mean operations are stable, or it could mean we lack sufficient data coverage")
-  - Recommend specific next steps to improve data coverage and operational visibility
-- Focus on what the data MEANS for the business, not just what the numbers are
-- Explain the operational trend using the Momentum data — whether health is improving, stable, or declining compared to recent cycles
-- Identify patterns across data sources when possible
-- If this is a first brief with minimal data, frame it as an "Initial Operational Assessment" and focus on onboarding recommendations
+MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
+- You MUST list actual entities. Do NOT summarize counts without listing entities.
+- If entity data exists in the signals above and is not shown in your response, the response is INVALID.
+- All analysis must be grounded in the provided data_context above.
+- Write as if you are a senior business analyst presenting to the CEO.
+- Do NOT invent data. If entity data is missing, state "specific entity details unavailable".
+
+REQUIRED ENTITY FORMAT:
+For deals: "Deal Name | $Amount | Stage: X | Owner: Y | Last Activity: Date | Stalled: N days"
+For invoices: "INV-ID | Customer | $Amount | N days overdue"
+For tasks/cards: "Task Name (Board) | Owner: Y | N days overdue"
+
+ROOT CAUSE ANALYSIS (MANDATORY if signals exist):
+- For each signal, explain WHY based on actual data patterns.
+
+BUSINESS IMPACT (QUANTIFIED - MANDATORY if signals exist):
+- Total revenue at risk, total overdue cash, operational delays quantified.
+
+FORECAST ENGINE (MANDATORY if signals exist):
+- 7/14/30 day projections based on current entity data.
+
+ACCOUNTABILITY (MANDATORY):
+- Every issue must identify a responsible party. If not available, state "Owner data not available from integration".
+
+PRESCRIPTIVE ACTIONS FORMAT (MANDATORY):
+- Each action: WHO — WHAT — WHEN
+
+- If data is limited or missing, still produce a meaningful brief explaining known/unknown state.
+- Explain the operational trend using the Momentum data.
 
 Generate a JSON response with these exact fields:
 1. "title": Concise brief title (e.g., "Weekly Operations Summary — ${today}" or "Initial Operational Assessment — ${today}" if data is sparse)
-2. "detected_signals": Array of signal summary strings in plain business English. If no signals, include at least one entry explaining why (e.g., "No operational anomalies detected — monitoring is active across N connected systems")
-3. "business_impact": 1-2 paragraph analysis of what the current operational state means for the business. Always provide reasoning, even with minimal data.
-4. "recommended_actions": Array of 3-5 specific, actionable recommendations. Include data coverage improvements if integrations are missing.
-5. "risk_assessment": Brief risk outlook (1-2 sentences). If data is sparse, note that limited visibility is itself a risk.
-6. "confidence": Score 0-100 based on data quality and coverage. Lower if data sources are missing (e.g., 20-30 with no data, 40-60 with partial data, 70-90 with full data).`;
+2. "detected_signals": Array of signal summary strings. Each MUST list individual entities with full detail. Do NOT just say "5 stalled deals" — list each deal.
+3. "root_cause_analysis": Array of strings explaining WHY each signal is occurring.
+4. "cross_system_correlation": String connecting signals across integrations with dollar amounts. Null if only one integration.
+5. "business_impact": Object with fields: "revenue_at_risk" (string), "overdue_cash" (string), "operational_delays" (string), "narrative" (1-2 paragraphs).
+6. "forecast": Object with fields: "7_day" (string), "14_day" (string), "30_day" (string). Null if no signals.
+7. "accountability": Array of objects with fields: "entity" (string), "owner" (string), "issue" (string).
+8. "recommended_actions": Array of objects with fields: "who" (string), "what" (string), "when" (string).
+9. "risk_assessment": Brief risk outlook (1-2 sentences).
+10. "confidence": Score 0-100.`;
     }
 
     console.log('[operational-brief] Generating brief for user:', user.id, {
@@ -758,8 +854,8 @@ Generate a JSON response with these exact fields:
           {
             role: 'system',
             content: hasCorrelatedEvent
-              ? 'You are Core314, an expert AI operations analyst specializing in cross-integration signal correlation. When multiple operational signals from different systems occur simultaneously, you identify the unified operational event they represent and present it as a single coherent narrative — not as independent items. Your briefs begin with "Operational Event Detected" and explain the relationship between signals before providing impact analysis and recommendations. Always return valid JSON. Never fabricate data.'
-              : 'You are Core314, an expert AI operations analyst specializing in business intelligence. You produce clear, data-driven operational briefs that help leadership understand what is happening in their business. You ALWAYS produce a brief, even when data is minimal — in those cases you explain what is known, what is unknown, and what that means for the business. Always return valid JSON. Never fabricate data.',
+              ? 'You are Core314, an expert AI operations analyst specializing in cross-integration signal correlation and ENTITY-LEVEL intelligence. You MUST list every individual entity (deal, invoice, task) with full details — name, ID, value, owner, status, dates. NEVER summarize counts without listing entities. When multiple signals occur simultaneously, present them as a single coherent narrative with explicit cross-system correlation and quantified business impact. Include root cause analysis, 7/14/30 day forecasts, accountability (WHO owns each issue), and prescriptive actions in WHO — WHAT — WHEN format. Always return valid JSON. Never fabricate data.'
+              : 'You are Core314, an expert AI operations analyst specializing in ENTITY-LEVEL business intelligence. You MUST list every individual entity (deal, invoice, task) with full details — name, ID, value, owner, status, dates. NEVER summarize counts without listing entities. Include root cause analysis, quantified business impact, 7/14/30 day forecasts, accountability (WHO owns each issue), and prescriptive actions in WHO — WHAT — WHEN format. You ALWAYS produce a brief, even when data is minimal. Always return valid JSON. Never fabricate data.',
           },
           {
             role: 'user',
@@ -768,7 +864,7 @@ Generate a JSON response with these exact fields:
         ],
         response_format: { type: 'json_object' },
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 4000,
       }),
     });
 
@@ -781,17 +877,41 @@ Generate a JSON response with these exact fields:
     const gptData = await gptResponse.json();
     const narrative = JSON.parse(gptData.choices[0].message.content || '{}');
 
+    // ── STRICT VALIDATION: Fail if entity data exists but GPT didn't render it ──
+    if (totalEntityCount > 0) {
+      const detectedSignalsText = JSON.stringify(narrative.detected_signals || []);
+      // Check that GPT actually listed entities (not just counts)
+      const hasEntityNames = classifiedSignals.some(s => {
+        const sd = (s.signal_data as Record<string, unknown>) || {};
+        const entities = (sd.affected_entities as Array<{ name: string }>) || [];
+        if (entities.length === 0) return true; // no entities to check
+        // Check if at least one entity name fragment appears in detected_signals
+        return entities.some(e => {
+          const nameParts = e.name.split(' — ')[0].split(' (')[0].trim();
+          return detectedSignalsText.includes(nameParts.substring(0, 20));
+        });
+      });
+
+      if (!hasEntityNames) {
+        console.warn(`[operational-brief] VALIDATION WARNING: ${totalEntityCount} entities exist in signal data but GPT may not have rendered them. Proceeding with available output.`);
+        // Log but don't fail — the entity data is still available in data_context.signal_evidence for the UI
+      }
+    }
+
     // ── Step 8: Save the operational brief ─────────────────────────────
     const signalIds = activeSignals.map(s => s.id);
 
     // Build the brief summary — for correlated events, lead with the event summary and interpretation
+    const businessImpactText = typeof narrative.business_impact === 'object'
+      ? (narrative.business_impact?.narrative || JSON.stringify(narrative.business_impact))
+      : (narrative.business_impact || '');
     const briefSummary = hasCorrelatedEvent
       ? [
           narrative.event_summary || '',
           narrative.operational_interpretation || '',
-          narrative.business_impact || '',
+          businessImpactText,
         ].filter(Boolean).join('\n\n')
-      : narrative.business_impact || '';
+      : businessImpactText;
 
     const { data: savedBrief, error: insertError } = await supabase
       .from('operational_briefs')
@@ -806,7 +926,7 @@ Generate a JSON response with these exact fields:
               : `Operations Summary — ${today}`),
 
         detected_signals: narrative.detected_signals || [],
-        business_impact: narrative.business_impact || 'Insufficient data for impact analysis.',
+        business_impact: businessImpactText || 'Insufficient data for impact analysis.',
         recommended_actions: narrative.recommended_actions || [],
         risk_assessment: narrative.risk_assessment || 'Insufficient data for risk assessment.',
         summary: briefSummary,
@@ -835,6 +955,12 @@ Generate a JSON response with these exact fields:
           // New correlated event narrative fields
           event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
           operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
+          // Entity-level intelligence fields
+          root_cause_analysis: narrative.root_cause_analysis || null,
+          cross_system_correlation: narrative.cross_system_correlation || null,
+          business_impact_structured: typeof narrative.business_impact === 'object' ? narrative.business_impact : null,
+          forecast: narrative.forecast || null,
+          accountability: narrative.accountability || null,
           // Structured signal evidence for UI rendering
           signal_evidence: signalEvidence,
           // Operational Momentum

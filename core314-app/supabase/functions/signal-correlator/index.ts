@@ -74,6 +74,7 @@ interface CorrelatedEvent {
     source_integration: string;
     category: string;
     description: string;
+    signal_data: Record<string, unknown>;
   }>;
   failure_pattern: DetectedPattern | null;
 }
@@ -249,6 +250,7 @@ serve(async (req) => {
             source_integration: s.source_integration,
             category: s.category,
             description: s.description,
+            signal_data: s.signal_data || {},
           })),
           failure_pattern: detectedPattern,
         };
