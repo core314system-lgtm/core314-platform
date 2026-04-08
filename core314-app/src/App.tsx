@@ -38,6 +38,7 @@ import { SignalDashboard } from './pages/SignalDashboard';
 import { HealthScore } from './pages/HealthScore';
 import { IntegrationManager } from './pages/IntegrationManager';
 import { TeamMembers } from './pages/TeamMembers';
+import { IntegrationRequests } from './pages/admin/IntegrationRequests';
 
 // Feature flag to enable/disable AI Support widget
 // Disabled by default until backend Edge Functions are properly deployed
@@ -137,6 +138,9 @@ function App() {
             {/* integration-hub hidden for Phase 1 — only 3 integrations active */}
             <Route path="integrations/slack/configure" element={<SlackConfigure />} />
             <Route path="integrations/microsoft_teams/configure" element={<TeamsConfigure />} />
+            
+            {/* Admin routes */}
+            <Route path="admin/integration-requests" element={<IntegrationRequests />} />
           </Route>
         </Route>
         </Routes>

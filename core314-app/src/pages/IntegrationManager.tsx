@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { format } from 'date-fns';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -31,11 +32,14 @@ import {
   ShieldAlert,
   Hash,
   TrendingDown,
+  Plus,
+  Inbox,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AnalysisProcessingScreen } from '../components/onboarding/AnalysisProcessingScreen';
+import { RequestIntegrationModal } from '../components/integrations/RequestIntegrationModal';
 
 interface IntegrationInfo {
   id: string;
@@ -163,6 +167,16 @@ export function IntegrationManager() {
   const [limitError, setLimitError] = useState<string | null>(null);
   // CTA state: shown when a new integration connects but user already has briefs
   const [showNewDataCTA, setShowNewDataCTA] = useState(false);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [myRequests, setMyRequests] = useState<Array<{
+    id: string;
+    integration_name: string;
+    category: string;
+    status: string;
+    admin_notes: string | null;
+    created_at: string;
+  }>>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
 
   // Track whether an OAuth callback was detected that should trigger brief generation
   const [pendingAutoTrigger, setPendingAutoTrigger] = useState(false);
@@ -313,8 +327,28 @@ export function IntegrationManager() {
     if (profile?.id) {
       fetchIntegrations();
       fetchUserPlan();
+      fetchMyRequests();
     }
   }, [profile?.id]);
+
+  const fetchMyRequests = async () => {
+    if (!profile?.id) return;
+    setLoadingRequests(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_requests')
+        .select('id, integration_name, category, status, admin_notes, created_at')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setMyRequests(data);
+      }
+    } catch (err) {
+      console.error('[IntegrationRequests] Failed to fetch requests:', err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
 
   const fetchUserPlan = async () => {
     if (!profile?.id) return;
@@ -689,6 +723,12 @@ export function IntegrationManager() {
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Connect your business tools to enable operational intelligence
         </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button onClick={() => setRequestModalOpen(true)} variant="outline">
+          <Plus className="h-4 w-4 mr-2" />
+          Request Integration
+        </Button>
       </div>
 
       {/* Connection Success Banner */}
@@ -1132,6 +1172,66 @@ export function IntegrationManager() {
         </div>
       </div>
 
+      {/* Request Integration - Secondary CTA */}
+      <div className="flex justify-center">
+        <Button
+          variant="ghost"
+          className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+          onClick={() => setRequestModalOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Don&apos;t see your tool? Request an integration
+        </Button>
+      </div>
+
+      {/* My Integration Requests */}
+      {myRequests.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Inbox className="h-4 w-4 text-indigo-500" />
+              My Integration Requests ({myRequests.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Integration</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Category</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Status</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Admin Notes</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Submitted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myRequests.map((req) => (
+                    <tr key={req.id} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">{req.integration_name}</td>
+                      <td className="py-2 px-3 text-gray-600 dark:text-gray-400">{req.category}</td>
+                      <td className="py-2 px-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          req.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                          req.status === 'planned' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                          req.status === 'reviewing' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                          req.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}>
+                          {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-gray-600 dark:text-gray-400 max-w-xs truncate">{req.admin_notes || '—'}</td>
+                      <td className="py-2 px-3 text-gray-500 dark:text-gray-500 text-xs">{format(new Date(req.created_at), 'MMM d, yyyy')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* How It Works */}
       <Card>
         <CardHeader>
@@ -1169,6 +1269,12 @@ export function IntegrationManager() {
           </div>
         </CardContent>
       </Card>
+      {/* Request Integration Modal */}
+      <RequestIntegrationModal
+        open={requestModalOpen}
+        onOpenChange={setRequestModalOpen}
+        onSubmitted={fetchMyRequests}
+      />
     </div>
   );
 }
