@@ -50,6 +50,16 @@ interface PdfSignalEvidence {
   summary_metrics: Record<string, unknown>;
 }
 
+interface PdfScoreBreakdown {
+  base_score: number;
+  category_penalties_capped: Record<string, number>;
+  total_capped_penalty: number;
+  cross_system_penalty: number;
+  recovery_buffer: number;
+  impacted_categories: string[];
+  final_score: number;
+}
+
 interface BriefPdfData {
   title: string;
   created_at: string;
@@ -71,6 +81,7 @@ interface BriefPdfData {
   business_impact_structured?: PdfBusinessImpactStructured;
   forecast?: PdfForecastData;
   accountability?: PdfAccountabilityItem[];
+  score_breakdown?: PdfScoreBreakdown | null;
 }
 
 // Brand colors
@@ -388,6 +399,80 @@ export function generateBriefPdf(data: BriefPdfData): void {
     }
 
     y += boxH + 10;
+
+    // =============================================
+    // SECTION 1b: HEALTH SCORE BREAKDOWN
+    // =============================================
+    if (data.score_breakdown) {
+      const bd = data.score_breakdown;
+      const CATEGORY_LABELS: Record<string, string> = {
+        revenue: 'Revenue Impact',
+        cash_flow: 'Cash Flow Impact',
+        operations: 'Operations Impact',
+        communication: 'Communication Impact',
+        scheduling: 'Scheduling Impact',
+      };
+
+      y = ensureSpace(doc, y, 60, 25);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...COLORS.primary);
+      doc.text('HEALTH SCORE BREAKDOWN', marginLeft, y);
+      y += 6;
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+
+      // Base score
+      doc.setTextColor(...COLORS.textLight);
+      doc.text('Base Score', marginLeft, y);
+      doc.setTextColor(...COLORS.text);
+      doc.text(String(bd.base_score), marginLeft + 80, y);
+      y += 5;
+
+      // Category penalties
+      for (const [cat, penalty] of Object.entries(bd.category_penalties_capped || {})) {
+        const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        doc.setTextColor(...COLORS.textLight);
+        doc.text(label, marginLeft, y);
+        doc.setTextColor(...(penalty > 0 ? COLORS.red : COLORS.textLight));
+        doc.text(penalty > 0 ? `-${penalty}` : '0', marginLeft + 80, y);
+        y += 5;
+      }
+
+      // Cross-system correlation penalty
+      if (bd.cross_system_penalty > 0) {
+        doc.setTextColor(...COLORS.textLight);
+        doc.text('Correlation Penalty', marginLeft, y);
+        doc.setTextColor(...COLORS.red);
+        doc.text(`-${bd.cross_system_penalty}`, marginLeft + 80, y);
+        y += 5;
+      }
+
+      // Recovery buffer
+      if (bd.recovery_buffer > 0) {
+        doc.setTextColor(...COLORS.textLight);
+        doc.text('Recovery Offset', marginLeft, y);
+        doc.setTextColor(...COLORS.green);
+        doc.text(`+${bd.recovery_buffer}`, marginLeft + 80, y);
+        y += 5;
+      }
+
+      // Divider line
+      doc.setDrawColor(...COLORS.divider);
+      doc.setLineWidth(0.2);
+      doc.line(marginLeft, y, marginLeft + 100, y);
+      y += 4;
+
+      // Final score
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...COLORS.text);
+      doc.text('Final Score', marginLeft, y);
+      const finalColor = getHealthColor(bd.final_score);
+      doc.setTextColor(...finalColor);
+      doc.text(String(bd.final_score), marginLeft + 80, y);
+      y += 10;
+    }
 
     // =============================================
     // SECTION 2: KEY SIGNALS

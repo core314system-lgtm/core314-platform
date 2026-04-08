@@ -1183,6 +1183,16 @@ Generate a JSON response with these exact fields:
           accountability: narrative.accountability || null,
           // Structured signal evidence for UI rendering
           signal_evidence: signalEvidence,
+          // Health score breakdown for UI rendering
+          score_breakdown: {
+            base_score: 100,
+            category_penalties_capped: cappedCategoryPenalties,
+            total_capped_penalty: totalCappedPenalty,
+            cross_system_penalty: crossSystemPenalty,
+            recovery_buffer: recoveryBuffer,
+            impacted_categories: impactedCategories,
+            final_score: calculatedScore,
+          },
           // Operational Momentum
           momentum: {
             classification: momentumClassification,

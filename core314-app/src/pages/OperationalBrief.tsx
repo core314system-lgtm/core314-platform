@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Clock,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   AlertCircle,
   ArrowUpCircle,
@@ -98,6 +99,16 @@ interface SignalEvidence {
   summary_metrics: Record<string, unknown>;
 }
 
+interface ScoreBreakdown {
+  base_score: number;
+  category_penalties_capped: Record<string, number>;
+  total_capped_penalty: number;
+  cross_system_penalty: number;
+  recovery_buffer: number;
+  impacted_categories: string[];
+  final_score: number;
+}
+
 interface OperationalBriefData {
   id: string;
   title: string;
@@ -116,6 +127,7 @@ interface OperationalBriefData {
     business_impact_structured?: BusinessImpactStructured | null;
     forecast?: ForecastData | null;
     accountability?: AccountabilityItem[] | null;
+    score_breakdown?: ScoreBreakdown | null;
     [key: string]: unknown;
   } | null;
 }
@@ -208,6 +220,7 @@ export function OperationalBrief() {
   const [selectedScenario, setSelectedScenario] = useState('revenue_slowdown');
   const [injecting, setInjecting] = useState(false);
   const [injectResult, setInjectResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -366,6 +379,7 @@ export function OperationalBrief() {
         business_impact_structured: brief.data_context?.business_impact_structured ?? undefined,
         forecast: brief.data_context?.forecast ?? undefined,
         accountability: brief.data_context?.accountability ?? undefined,
+        score_breakdown: brief.data_context?.score_breakdown ?? undefined,
       });
     } catch {
       setPdfError('Failed to generate PDF. Please try again.');
@@ -705,10 +719,81 @@ export function OperationalBrief() {
 
             {/* Health Score Legend */}
             {brief.health_score !== null && (
-              <div className="mb-8">
+              <div className="mb-4">
                 <HealthScoreLegend currentScore={brief.health_score} />
               </div>
             )}
+
+            {/* Health Score Breakdown */}
+            {brief.data_context?.score_breakdown && (() => {
+              const bd = brief.data_context.score_breakdown;
+              const CATEGORY_LABELS: Record<string, string> = {
+                revenue: 'Revenue Impact',
+                cash_flow: 'Cash Flow Impact',
+                operations: 'Operations Impact',
+                communication: 'Communication Impact',
+                scheduling: 'Scheduling Impact',
+              };
+              return (
+                <div className="mb-8">
+                  <button
+                    onClick={() => setBreakdownOpen(!breakdownOpen)}
+                    className="w-full flex items-center justify-between bg-slate-800/50 hover:bg-slate-800/70 transition-colors rounded-lg px-4 py-3 text-left border border-slate-700/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-slate-400" />
+                      <span className="text-sm font-medium text-slate-300">Health Score Breakdown</span>
+                    </div>
+                    {breakdownOpen ? (
+                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                    )}
+                  </button>
+                  {breakdownOpen && (
+                    <div className="mt-2 bg-slate-800/30 rounded-lg border border-slate-700/40 p-4 space-y-2">
+                      {/* Base score */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">Base Score</span>
+                        <span className="text-slate-200 font-mono">{bd.base_score}</span>
+                      </div>
+                      <div className="border-t border-slate-700/40 my-1" />
+                      {/* Category penalties */}
+                      {Object.entries(bd.category_penalties_capped || {}).map(([cat, penalty]) => (
+                        <div key={cat} className="flex justify-between text-sm">
+                          <span className="text-slate-400">{CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                          <span className={`font-mono ${penalty > 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                            {penalty > 0 ? `-${penalty}` : '0'}
+                          </span>
+                        </div>
+                      ))}
+                      {/* Cross-system correlation penalty */}
+                      {bd.cross_system_penalty > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-400">Correlation Penalty</span>
+                          <span className="text-red-400 font-mono">-{bd.cross_system_penalty}</span>
+                        </div>
+                      )}
+                      {/* Recovery buffer */}
+                      {bd.recovery_buffer > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-400">Recovery Offset</span>
+                          <span className="text-emerald-400 font-mono">+{bd.recovery_buffer}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-slate-700/40 my-1" />
+                      {/* Final score */}
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span className="text-slate-200">Final Score</span>
+                        <span className={`font-mono ${bd.final_score >= 70 ? 'text-emerald-400' : bd.final_score >= 50 ? 'text-amber-400' : bd.final_score >= 30 ? 'text-orange-400' : 'text-red-400'}`}>
+                          {bd.final_score}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Detected Signals with Evidence */}
             <div className="mb-8">
