@@ -22,7 +22,7 @@ import {
 } from '../../components/ui/select';
 import { Textarea } from '../../components/ui/textarea';
 import { useToast } from '../../hooks/use-toast';
-import { RefreshCw, Inbox, Save, X } from 'lucide-react';
+import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface IntegrationRequest {
@@ -37,6 +37,17 @@ interface IntegrationRequest {
   admin_notes: string | null;
   reviewed_at: string | null;
   completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  integration_catalog_id: string | null;
+}
+
+interface CatalogEntry {
+  id: string;
+  canonical_name: string;
+  normalized_key: string;
+  category: string | null;
+  total_requests: number;
   created_at: string;
   updated_at: string;
 }
@@ -60,13 +71,22 @@ const getPriorityBadgeColor = (priority: number) => {
   return 'bg-gray-100 text-gray-800 border-gray-300';
 };
 
+const getDemandBadgeColor = (count: number) => {
+  if (count >= 10) return 'bg-red-100 text-red-800 border-red-300';
+  if (count >= 5) return 'bg-orange-100 text-orange-800 border-orange-300';
+  if (count >= 3) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+  return 'bg-blue-100 text-blue-800 border-blue-300';
+};
+
 export function IntegrationRequests() {
   const { profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const [requests, setRequests] = useState<IntegrationRequest[]>([]);
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
     status: string;
@@ -74,6 +94,7 @@ export function IntegrationRequests() {
     admin_notes: string;
   }>({ status: '', priority: 0, admin_notes: '' });
   const [saving, setSaving] = useState(false);
+  const [expandedCatalogId, setExpandedCatalogId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile && !isAdmin()) {
@@ -84,6 +105,7 @@ export function IntegrationRequests() {
   useEffect(() => {
     if (profile?.id && isAdmin()) {
       fetchRequests();
+      fetchCatalog();
     }
   }, [profile?.id]);
 
@@ -106,6 +128,25 @@ export function IntegrationRequests() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCatalog = async () => {
+    setLoadingCatalog(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_catalog')
+        .select('*')
+        .order('total_requests', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setCatalog(data || []);
+      console.log('[AdminIntegrationRequests] Catalog fetched:', data?.length, 'entries');
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching catalog:', error);
+    } finally {
+      setLoadingCatalog(false);
     }
   };
 
@@ -177,6 +218,27 @@ export function IntegrationRequests() {
     }
   };
 
+  const handleRefresh = () => {
+    fetchRequests();
+    fetchCatalog();
+  };
+
+  const toggleCatalogExpand = (catalogId: string) => {
+    setExpandedCatalogId(expandedCatalogId === catalogId ? null : catalogId);
+  };
+
+  const getLinkedRequests = (catalogId: string): IntegrationRequest[] => {
+    return requests.filter(r => r.integration_catalog_id === catalogId);
+  };
+
+  const getStatusDistribution = (linkedRequests: IntegrationRequest[]) => {
+    const dist: Record<string, number> = {};
+    linkedRequests.forEach(r => {
+      dist[r.status] = (dist[r.status] || 0) + 1;
+    });
+    return dist;
+  };
+
   const statusCounts = {
     pending: requests.filter(r => r.status === 'pending').length,
     reviewing: requests.filter(r => r.status === 'reviewing').length,
@@ -197,7 +259,7 @@ export function IntegrationRequests() {
             Manage user-submitted integration requests
           </p>
         </div>
-        <Button onClick={fetchRequests} disabled={loading}>
+        <Button onClick={handleRefresh} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -236,6 +298,124 @@ export function IntegrationRequests() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Top Requested Integrations — Demand Intelligence */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-indigo-500" />
+            Top Requested Integrations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingCatalog ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : catalog.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No catalog entries yet. Requests will appear here once submitted.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {catalog.map((entry, index) => {
+                const isExpanded = expandedCatalogId === entry.id;
+                const linkedRequests = isExpanded ? getLinkedRequests(entry.id) : [];
+                const statusDist = isExpanded ? getStatusDistribution(linkedRequests) : {};
+
+                return (
+                  <div key={entry.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    {/* Catalog row — clickable */}
+                    <button
+                      onClick={() => toggleCatalogExpand(entry.id)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-mono text-gray-400 w-6 text-right">
+                          {index + 1}.
+                        </span>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {entry.canonical_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {entry.category || 'Uncategorized'} &middot; Key: {entry.normalized_key}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge className={getDemandBadgeColor(entry.total_requests)}>
+                          {entry.total_requests} request{entry.total_requests !== 1 ? 's' : ''}
+                        </Badge>
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded detail view */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 px-4 py-3 space-y-3">
+                        {/* Status distribution */}
+                        {Object.keys(statusDist).length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-gray-500 font-medium">Status:</span>
+                            {Object.entries(statusDist).map(([status, count]) => (
+                              <Badge key={status} className={`${getStatusBadgeColor(status)} text-xs`}>
+                                {status.charAt(0).toUpperCase() + status.slice(1)}: {count}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Linked requests table */}
+                        {linkedRequests.length === 0 ? (
+                          <p className="text-sm text-gray-500">No linked requests found (may be unlinked legacy data).</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs">User ID</TableHead>
+                                  <TableHead className="text-xs">Use Case</TableHead>
+                                  <TableHead className="text-xs">Status</TableHead>
+                                  <TableHead className="text-xs">Created</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {linkedRequests.map((req) => (
+                                  <TableRow key={req.id}>
+                                    <TableCell className="text-xs font-mono text-gray-500">
+                                      {req.user_id.substring(0, 8)}...
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-600 dark:text-gray-400 max-w-sm">
+                                      <p className="truncate" title={req.use_case}>{req.use_case}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={`${getStatusBadgeColor(req.status)} text-xs`}>
+                                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500">
+                                      {format(new Date(req.created_at), 'MMM d, yyyy')}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Requests Table */}
       <Card>
