@@ -715,7 +715,7 @@ export function OperationalBrief() {
                               <span className={`text-xs font-semibold uppercase ${ev.severity === 'critical' || ev.severity === 'high' ? 'text-red-400' : ev.severity === 'medium' ? 'text-amber-400' : 'text-green-400'}`}>{ev.severity}</span>
                             </div>
                             <p className="text-slate-300 text-sm leading-relaxed">
-                              {safeString(brief.detected_signals[i]) || safeString(ev.description)}
+                              {safeString(ev.description)}
                             </p>
                             {/* Entity Evidence — Full Detail */}
                             {Array.isArray(ev.affected_entities) && ev.affected_entities.length > 0 && (

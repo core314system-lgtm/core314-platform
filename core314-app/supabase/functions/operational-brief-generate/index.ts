@@ -521,38 +521,53 @@ serve(async (req) => {
 
     const signalCategoriesList = [...new Set(classifiedSignals.map(s => s.category))];
 
-    // Format signals for prompt — FULL entity-level detail (MANDATORY)
+    // Format signals for prompt — GROUPED BY source_integration (MANDATORY)
+    // This prevents GPT from re-ordering or re-assigning signals to wrong integrations
+    const formatSignalLine = (s: typeof classifiedSignals[0]) => {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      const entities = (sd.affected_entities as Array<{ name: string; entity_id?: string; entity_type?: string; value?: number; owner?: string; status?: string; last_activity_type?: string; last_activity_date?: string; days_in_current_state?: number; metric_value?: number }>) || [];
+      const metrics = (sd.summary_metrics as Record<string, unknown>) || {};
+      let line = `  - [${s.severity.toUpperCase()}] [${s.category}] ${s.description} (signal_type: ${s.signal_type}, confidence: ${s.confidence}%)`;
+      if (entities.length > 0) {
+        line += `\n    ENTITY DETAILS (${entities.length} items):`;
+        for (const e of entities.slice(0, 10)) {
+          const parts: string[] = [e.name];
+          if (e.entity_id) parts.push(`ID: ${e.entity_id}`);
+          if (e.value !== undefined) parts.push(`Value: $${e.value.toLocaleString()}`);
+          if (e.owner) parts.push(`Owner: ${e.owner}`);
+          if (e.status) parts.push(`Status: ${e.status}`);
+          if (e.last_activity_date) {
+            const d = new Date(e.last_activity_date);
+            parts.push(`Last Activity: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+          }
+          if (e.days_in_current_state !== undefined) parts.push(`Days in State: ${e.days_in_current_state}`);
+          if (e.last_activity_type) parts.push(e.last_activity_type);
+          line += `\n      • ${parts.join(' | ')}`;
+        }
+        if (entities.length > 10) {
+          line += `\n      ... and ${entities.length - 10} more`;
+        }
+      }
+      if (Object.keys(metrics).length > 0) {
+        line += `\n    Summary metrics: ${Object.entries(metrics).map(([k, v]) => `${k.replace(/_/g, ' ')}=${v}`).join(', ')}`;
+      }
+      return line;
+    };
+
+    // Group signals by source_integration for strict mapping
+    const signalsBySource: Record<string, typeof classifiedSignals> = {};
+    for (const s of classifiedSignals) {
+      const src = s.source_integration || 'unknown';
+      if (!signalsBySource[src]) signalsBySource[src] = [];
+      signalsBySource[src].push(s);
+    }
+
     const signalSummary = classifiedSignals.length > 0
-      ? classifiedSignals.map(s => {
-          const sd = (s.signal_data as Record<string, unknown>) || {};
-          const entities = (sd.affected_entities as Array<{ name: string; entity_id?: string; entity_type?: string; value?: number; owner?: string; status?: string; last_activity_type?: string; last_activity_date?: string; days_in_current_state?: number; metric_value?: number }>) || [];
-          const metrics = (sd.summary_metrics as Record<string, unknown>) || {};
-          let line = `- [${s.severity.toUpperCase()}] [${s.category}] ${s.description} (source: ${s.source_integration}, confidence: ${s.confidence}%)`;
-          if (entities.length > 0) {
-            line += `\n  ENTITY DETAILS (${entities.length} items):`;
-            for (const e of entities.slice(0, 10)) {
-              const parts: string[] = [e.name];
-              if (e.entity_id) parts.push(`ID: ${e.entity_id}`);
-              if (e.value !== undefined) parts.push(`Value: $${e.value.toLocaleString()}`);
-              if (e.owner) parts.push(`Owner: ${e.owner}`);
-              if (e.status) parts.push(`Status: ${e.status}`);
-              if (e.last_activity_date) {
-                const d = new Date(e.last_activity_date);
-                parts.push(`Last Activity: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
-              }
-              if (e.days_in_current_state !== undefined) parts.push(`Days in State: ${e.days_in_current_state}`);
-              if (e.last_activity_type) parts.push(e.last_activity_type);
-              line += `\n    • ${parts.join(' | ')}`;
-            }
-            if (entities.length > 10) {
-              line += `\n    ... and ${entities.length - 10} more`;
-            }
-          }
-          if (Object.keys(metrics).length > 0) {
-            line += `\n  Summary metrics: ${Object.entries(metrics).map(([k, v]) => `${k.replace(/_/g, ' ')}=${v}`).join(', ')}`;
-          }
-          return line;
-        }).join('\n')
+      ? Object.entries(signalsBySource).map(([source, signals]) => {
+          const header = `[SOURCE: ${source.toUpperCase()}] (${signals.length} signal${signals.length > 1 ? 's' : ''})`;
+          const lines = signals.map(s => formatSignalLine(s)).join('\n');
+          return `${header}\n${lines}`;
+        }).join('\n\n')
       : 'No active signals detected.';
 
     // Count total entities across all signals for validation
@@ -716,6 +731,18 @@ MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
 - Structure the brief as an "Operational Event Detected" narrative, NOT as a list of independent signals.
 - Do NOT invent data. If entity data is missing, state "specific entity details unavailable".
 
+STRICT SIGNAL-TO-INTEGRATION MAPPING (MANDATORY):
+- Each signal above is grouped under its SOURCE integration (e.g., [SOURCE: HUBSPOT], [SOURCE: QUICKBOOKS]).
+- You MUST preserve this mapping exactly. Do NOT reassign signals to different integrations.
+- HubSpot signals: stalled_deals, deal_velocity_decline, pipeline_stagnation, no_crm_activity, lead_activity_drop
+- QuickBooks signals: overdue_invoices, cash_flow_risk, missing_payments, revenue_decline, no_financial_activity
+- Slack signals: low_communication, communication_spike, slow_response, message_volume_drop
+- Google Calendar signals: scheduling_gaps, meeting_decline
+- Trello signals: overdue_tasks, board_inactivity
+- Microsoft Teams signals: engagement_gap
+- In your detected_signals output, each entry MUST be prefixed with the source integration name in brackets, e.g., "[HubSpot] 5 deals stalled..." or "[QuickBooks] 3 overdue invoices..."
+- Do NOT put deal/pipeline signals under QuickBooks. Do NOT put invoice/payment signals under HubSpot.
+
 REQUIRED ENTITY FORMAT:
 For deals: "Deal Name | $Amount | Stage: X | Owner: Y | Last Activity: Date | Stalled: N days"
 For invoices: "INV-ID | Customer | $Amount | N days overdue"
@@ -749,7 +776,7 @@ PRESCRIPTIVE ACTIONS FORMAT (MANDATORY):
 Generate a JSON response with these exact fields:
 1. "title": ${patternTitle ? `Use EXACTLY this title: "Operational Event Detected — ${patternTitle} — ${today}". Do NOT change the pattern name.` : `Use: "Operational Event Detected — Cross-Integration Pattern — ${today}"`}
 2. "event_summary": 1-2 sentence description of the correlated operational event.
-3. "detected_signals": Array of signal descriptions. Each MUST list individual entities with full detail (name, ID, value, owner, status, dates, days in state). Do NOT just say "5 stalled deals" — list each deal.
+3. "detected_signals": Array of signal descriptions, one per signal. Each MUST be prefixed with the source integration in brackets (e.g., "[HubSpot] ...", "[QuickBooks] ..."). Each MUST list individual entities with full detail (name, ID, value, owner, status, dates, days in state). Do NOT just say "5 stalled deals" — list each deal. The order MUST match the order of signals in the ALL ACTIVE SIGNALS section above.
 4. "root_cause_analysis": Array of strings. For each signal, explain WHY based on actual data patterns.
 5. "cross_system_correlation": String. Explicitly connect signals across integrations with dollar amounts.
 6. "operational_interpretation": 1-2 paragraphs explaining how the signals relate and what operational condition they represent.
@@ -794,6 +821,18 @@ MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
 - Write as if you are a senior business analyst presenting to the CEO.
 - Do NOT invent data. If entity data is missing, state "specific entity details unavailable".
 
+STRICT SIGNAL-TO-INTEGRATION MAPPING (MANDATORY):
+- Each signal above is grouped under its SOURCE integration (e.g., [SOURCE: HUBSPOT], [SOURCE: QUICKBOOKS]).
+- You MUST preserve this mapping exactly. Do NOT reassign signals to different integrations.
+- HubSpot signals: stalled_deals, deal_velocity_decline, pipeline_stagnation, no_crm_activity, lead_activity_drop
+- QuickBooks signals: overdue_invoices, cash_flow_risk, missing_payments, revenue_decline, no_financial_activity
+- Slack signals: low_communication, communication_spike, slow_response, message_volume_drop
+- Google Calendar signals: scheduling_gaps, meeting_decline
+- Trello signals: overdue_tasks, board_inactivity
+- Microsoft Teams signals: engagement_gap
+- In your detected_signals output, each entry MUST be prefixed with the source integration name in brackets, e.g., "[HubSpot] 5 deals stalled..." or "[QuickBooks] 3 overdue invoices..."
+- Do NOT put deal/pipeline signals under QuickBooks. Do NOT put invoice/payment signals under HubSpot.
+
 REQUIRED ENTITY FORMAT:
 For deals: "Deal Name | $Amount | Stage: X | Owner: Y | Last Activity: Date | Stalled: N days"
 For invoices: "INV-ID | Customer | $Amount | N days overdue"
@@ -819,7 +858,7 @@ PRESCRIPTIVE ACTIONS FORMAT (MANDATORY):
 
 Generate a JSON response with these exact fields:
 1. "title": Concise brief title (e.g., "Weekly Operations Summary — ${today}" or "Initial Operational Assessment — ${today}" if data is sparse)
-2. "detected_signals": Array of signal summary strings. Each MUST list individual entities with full detail. Do NOT just say "5 stalled deals" — list each deal.
+2. "detected_signals": Array of signal summary strings, one per signal. Each MUST be prefixed with the source integration in brackets (e.g., "[HubSpot] ...", "[QuickBooks] ..."). Each MUST list individual entities with full detail. Do NOT just say "5 stalled deals" — list each deal. The order MUST match the order of signals in the DETECTED OPERATIONAL SIGNALS section above.
 3. "root_cause_analysis": Array of strings explaining WHY each signal is occurring.
 4. "cross_system_correlation": String connecting signals across integrations with dollar amounts. Null if only one integration.
 5. "business_impact": Object with fields: "revenue_at_risk" (string), "overdue_cash" (string), "operational_delays" (string), "narrative" (1-2 paragraphs).

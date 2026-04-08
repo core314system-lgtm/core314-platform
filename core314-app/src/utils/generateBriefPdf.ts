@@ -415,8 +415,8 @@ export function generateBriefPdf(data: BriefPdfData): void {
         doc.setTextColor(...COLORS.textLight);
         doc.text(`${ev.source.replace(/_/g, ' ').toUpperCase()} · ${ev.category.replace(/_/g, ' ')}`, marginLeft + badgeW + 4, y - 1);
 
-        // Signal description text (prefer GPT narrative if available)
-        const signalText = data.detected_signals[si] || ev.description;
+        // Signal description text — use signal_evidence.description (source-of-truth, bound to correct integration)
+        const signalText = ev.description;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...COLORS.text);
