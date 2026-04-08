@@ -374,10 +374,12 @@ export function OperationalBrief() {
 
   const getHealthColor = (score: number | null) => {
     if (score === null) return 'text-gray-500';
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
+    if (score >= 90) return 'text-green-600';
+    if (score >= 70) return 'text-emerald-600';
+    if (score >= 50) return 'text-yellow-600';
+    if (score >= 30) return 'text-orange-600';
+    if (score >= 10) return 'text-red-600';
+    return 'text-red-800';
   };
 
   const getHealthLabel = (score: number | null) => {

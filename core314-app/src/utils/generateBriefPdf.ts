@@ -91,9 +91,10 @@ const COLORS = {
 
 function getHealthColor(score: number | null): [number, number, number] {
   if (score === null) return COLORS.textLight;
-  if (score >= 80) return COLORS.green;
-  if (score >= 60) return COLORS.amber;
-  if (score >= 40) return COLORS.orange;
+  if (score >= 90) return COLORS.green;
+  if (score >= 70) return COLORS.green;
+  if (score >= 50) return COLORS.amber;
+  if (score >= 30) return COLORS.orange;
   return COLORS.red;
 }
 
