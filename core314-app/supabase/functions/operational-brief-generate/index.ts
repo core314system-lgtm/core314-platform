@@ -1031,78 +1031,7 @@ Generate a JSON response with these exact fields:
         ].filter(Boolean).join('\n\n')
       : businessImpactText;
 
-    const { data: savedBrief, error: insertError } = await supabase
-      .from('operational_briefs')
-      .insert({
-        user_id: user.id,
-        organization_id: organizationId,
-        // Programmatic title: when pattern is detected, ALWAYS use pattern title (don't rely on GPT)
-        title: hasCorrelatedEvent && patternTitle
-            ? `Operational Event Detected — ${patternTitle} — ${today}`
-            : narrative.title || (hasCorrelatedEvent
-              ? `Operational Event Detected — Cross-Integration Pattern — ${today}`
-              : `Operations Summary — ${today}`),
-
-        detected_signals: narrative.detected_signals || [],
-        business_impact: businessImpactText || 'Insufficient data for impact analysis.',
-        recommended_actions: narrative.recommended_actions || [],
-        risk_assessment: narrative.risk_assessment || 'Insufficient data for risk assessment.',
-        summary: briefSummary,
-        confidence: narrative.confidence || 50,
-        health_score: healthScore,
-        signal_ids: signalIds,
-        brief_type: hasCorrelatedEvent ? 'correlated_event' : 'operational',
-        data_context: {
-          crm: hubspotMeta,
-          communication: slackMeta,
-          financial: qbMeta,
-          signal_count: activeSignals.length,
-          signal_categories: signalCategoriesList,
-          health_score: healthScore,
-          health_label: healthLabel,
-          connected_integrations: connectedServices,
-          has_data: hasAnyData,
-          correlated_event: correlatedEvent ? {
-            correlation_id: correlatedEvent.correlation_id,
-            integrations_involved: correlatedEvent.integrations_involved,
-            operational_categories: correlatedEvent.operational_categories,
-            combined_severity: correlatedEvent.combined_severity,
-            signal_count: (correlatedEvent.signal_ids as string[])?.length || 0,
-            failure_pattern: correlatedEvent.failure_pattern || null,
-          } : null,
-          // New correlated event narrative fields
-          event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
-          operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
-          // Entity-level intelligence fields
-          root_cause_analysis: narrative.root_cause_analysis || null,
-          cross_system_correlation: narrative.cross_system_correlation || null,
-          business_impact_structured: typeof narrative.business_impact === 'object' ? narrative.business_impact : null,
-          forecast: narrative.forecast || null,
-          accountability: narrative.accountability || null,
-          // Structured signal evidence for UI rendering
-          signal_evidence: signalEvidence,
-          // Operational Momentum
-          momentum: {
-            classification: momentumClassification,
-            delta: momentumDelta,
-            label: momentumLabel,
-            current_score: momentumCurrentScore,
-            historical_average: momentumHistoricalAvg,
-            scores_used: momentumScoresUsed,
-          },
-        },
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('[operational-brief] Insert error:', insertError);
-      throw insertError;
-    }
-
-    console.log('[operational-brief] Brief generated:', savedBrief?.id);
-
-    // ── Step 9: Persist health score to operational_health_scores ─────
+    // ── Step 8a: Calculate health score BEFORE saving brief ─────────
     // Category-based health score calibration model
     // Prevents over-penalization and collapsing to 0 too easily
     let calculatedScore = 100;
@@ -1197,13 +1126,85 @@ Generate a JSON response with these exact fields:
       calculatedScore = Math.max(10, Math.min(100, Math.round(calculatedScore)));
     }
 
-    const scoreLabel = calculatedScore >= 90 ? 'Excellent'
+    const newScoreLabel = calculatedScore >= 90 ? 'Excellent'
       : calculatedScore >= 70 ? 'Good'
       : calculatedScore >= 50 ? 'Moderate'
       : calculatedScore >= 30 ? 'At Risk'
       : calculatedScore >= 10 ? 'Critical'
       : 'System Failure';
 
+    const { data: savedBrief, error: insertError } = await supabase
+      .from('operational_briefs')
+      .insert({
+        user_id: user.id,
+        organization_id: organizationId,
+        // Programmatic title: when pattern is detected, ALWAYS use pattern title (don't rely on GPT)
+        title: hasCorrelatedEvent && patternTitle
+            ? `Operational Event Detected — ${patternTitle} — ${today}`
+            : narrative.title || (hasCorrelatedEvent
+              ? `Operational Event Detected — Cross-Integration Pattern — ${today}`
+              : `Operations Summary — ${today}`),
+
+        detected_signals: narrative.detected_signals || [],
+        business_impact: businessImpactText || 'Insufficient data for impact analysis.',
+        recommended_actions: narrative.recommended_actions || [],
+        risk_assessment: narrative.risk_assessment || 'Insufficient data for risk assessment.',
+        summary: briefSummary,
+        confidence: narrative.confidence || 50,
+        health_score: calculatedScore,
+        signal_ids: signalIds,
+        brief_type: hasCorrelatedEvent ? 'correlated_event' : 'operational',
+        data_context: {
+          crm: hubspotMeta,
+          communication: slackMeta,
+          financial: qbMeta,
+          signal_count: activeSignals.length,
+          signal_categories: signalCategoriesList,
+          health_score: calculatedScore,
+          health_label: newScoreLabel,
+          connected_integrations: connectedServices,
+          has_data: hasAnyData,
+          correlated_event: correlatedEvent ? {
+            correlation_id: correlatedEvent.correlation_id,
+            integrations_involved: correlatedEvent.integrations_involved,
+            operational_categories: correlatedEvent.operational_categories,
+            combined_severity: correlatedEvent.combined_severity,
+            signal_count: (correlatedEvent.signal_ids as string[])?.length || 0,
+            failure_pattern: correlatedEvent.failure_pattern || null,
+          } : null,
+          // New correlated event narrative fields
+          event_summary: hasCorrelatedEvent ? (narrative.event_summary || null) : null,
+          operational_interpretation: hasCorrelatedEvent ? (narrative.operational_interpretation || null) : null,
+          // Entity-level intelligence fields
+          root_cause_analysis: narrative.root_cause_analysis || null,
+          cross_system_correlation: narrative.cross_system_correlation || null,
+          business_impact_structured: typeof narrative.business_impact === 'object' ? narrative.business_impact : null,
+          forecast: narrative.forecast || null,
+          accountability: narrative.accountability || null,
+          // Structured signal evidence for UI rendering
+          signal_evidence: signalEvidence,
+          // Operational Momentum
+          momentum: {
+            classification: momentumClassification,
+            delta: momentumDelta,
+            label: momentumLabel,
+            current_score: momentumCurrentScore,
+            historical_average: momentumHistoricalAvg,
+            scores_used: momentumScoresUsed,
+          },
+        },
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[operational-brief] Insert error:', insertError);
+      throw insertError;
+    }
+
+    console.log('[operational-brief] Brief generated:', savedBrief?.id);
+
+    // ── Step 9: Persist health score to operational_health_scores ─────
     try {
       await supabase
         .from('operational_health_scores')
@@ -1211,7 +1212,7 @@ Generate a JSON response with these exact fields:
           user_id: user.id,
           organization_id: organizationId,
           score: calculatedScore,
-          label: scoreLabel,
+          label: newScoreLabel,
           score_breakdown: {
             base_score: 100,
             signal_penalties: signalPenaltyDetails,
@@ -1229,7 +1230,7 @@ Generate a JSON response with these exact fields:
           signal_count: activeSignals.length,
           calculated_at: new Date().toISOString(),
         });
-      console.log(`[operational-brief] Health score persisted: ${calculatedScore} (${connectedCount} integrations, ${activeSignals.length} signals, penalties=${Math.round(totalSignalPenalties * 10) / 10})`);
+      console.log(`[operational-brief] Health score persisted: ${calculatedScore} (${connectedCount} integrations, ${activeSignals.length} signals, penalty=${totalCappedPenalty}, cross=${crossSystemPenalty}, recovery=${recoveryBuffer})`);
     } catch (healthErr) {
       console.error('[operational-brief] Health score insert error (non-fatal):', healthErr);
     }
