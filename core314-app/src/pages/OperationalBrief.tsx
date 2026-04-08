@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Clock,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   AlertCircle,
   ArrowUpCircle,
@@ -30,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
 import { generateBriefPdf } from '../utils/generateBriefPdf';
+import { HealthScoreLegend } from '../components/HealthScoreLegend';
 
 interface BriefUsage {
   plan: string;
@@ -87,6 +89,7 @@ interface ForecastData {
 
 interface SignalEvidence {
   signal_type: string;
+  signal_subtype?: string;
   source: string;
   severity: string;
   category: string;
@@ -94,6 +97,16 @@ interface SignalEvidence {
   confidence: number;
   affected_entities: SignalEntity[];
   summary_metrics: Record<string, unknown>;
+}
+
+interface ScoreBreakdown {
+  base_score: number;
+  category_penalties_capped: Record<string, number>;
+  total_capped_penalty: number;
+  cross_system_penalty: number;
+  recovery_buffer: number;
+  impacted_categories: string[];
+  final_score: number;
 }
 
 interface OperationalBriefData {
@@ -114,6 +127,7 @@ interface OperationalBriefData {
     business_impact_structured?: BusinessImpactStructured | null;
     forecast?: ForecastData | null;
     accountability?: AccountabilityItem[] | null;
+    score_breakdown?: ScoreBreakdown | null;
     [key: string]: unknown;
   } | null;
 }
@@ -206,6 +220,7 @@ export function OperationalBrief() {
   const [selectedScenario, setSelectedScenario] = useState('revenue_slowdown');
   const [injecting, setInjecting] = useState(false);
   const [injectResult, setInjectResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.id) {
@@ -364,6 +379,7 @@ export function OperationalBrief() {
         business_impact_structured: brief.data_context?.business_impact_structured ?? undefined,
         forecast: brief.data_context?.forecast ?? undefined,
         accountability: brief.data_context?.accountability ?? undefined,
+        score_breakdown: brief.data_context?.score_breakdown ?? undefined,
       });
     } catch {
       setPdfError('Failed to generate PDF. Please try again.');
@@ -372,18 +388,22 @@ export function OperationalBrief() {
 
   const getHealthColor = (score: number | null) => {
     if (score === null) return 'text-gray-500';
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
+    if (score >= 90) return 'text-green-600';
+    if (score >= 70) return 'text-emerald-600';
+    if (score >= 50) return 'text-yellow-600';
+    if (score >= 30) return 'text-orange-600';
+    if (score >= 10) return 'text-red-600';
+    return 'text-red-800';
   };
 
   const getHealthLabel = (score: number | null) => {
     if (score === null) return 'Unknown';
-    if (score >= 80) return 'Healthy';
-    if (score >= 60) return 'Moderate';
-    if (score >= 40) return 'At Risk';
-    return 'Critical';
+    if (score >= 90) return 'Excellent';
+    if (score >= 70) return 'Good';
+    if (score >= 50) return 'Moderate';
+    if (score >= 30) return 'At Risk';
+    if (score >= 10) return 'Critical';
+    return 'System Failure';
   };
 
   const getConfidenceBadge = (confidence: number) => {
@@ -431,26 +451,32 @@ export function OperationalBrief() {
 
   const getScoreBadgeStyle = (score: number | null) => {
     if (score === null) return 'bg-slate-500/20 text-slate-300';
-    if (score >= 80) return 'bg-green-500/20 text-green-400';
-    if (score >= 60) return 'bg-amber-500/20 text-amber-400';
-    if (score >= 40) return 'bg-orange-500/20 text-orange-400';
-    return 'bg-red-500/20 text-red-400';
+    if (score >= 90) return 'bg-green-500/20 text-green-400';
+    if (score >= 70) return 'bg-emerald-500/20 text-emerald-400';
+    if (score >= 50) return 'bg-amber-500/20 text-amber-400';
+    if (score >= 30) return 'bg-orange-500/20 text-orange-400';
+    if (score >= 10) return 'bg-red-500/20 text-red-400';
+    return 'bg-red-700/20 text-red-500';
   };
 
   const getRiskBadgeStyle = (score: number | null) => {
     if (score === null) return 'bg-slate-500/20 text-slate-300';
-    if (score >= 80) return 'bg-green-500/20 text-green-400';
-    if (score >= 60) return 'bg-amber-500/20 text-amber-400';
-    if (score >= 40) return 'bg-orange-500/20 text-orange-400';
-    return 'bg-red-500/20 text-red-400';
+    if (score >= 90) return 'bg-green-500/20 text-green-400';
+    if (score >= 70) return 'bg-emerald-500/20 text-emerald-400';
+    if (score >= 50) return 'bg-amber-500/20 text-amber-400';
+    if (score >= 30) return 'bg-orange-500/20 text-orange-400';
+    if (score >= 10) return 'bg-red-500/20 text-red-400';
+    return 'bg-red-700/20 text-red-500';
   };
 
   const getHealthColorDark = (score: number | null) => {
     if (score === null) return 'text-slate-400';
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-amber-400';
-    if (score >= 40) return 'text-orange-400';
-    return 'text-red-400';
+    if (score >= 90) return 'text-green-400';
+    if (score >= 70) return 'text-emerald-400';
+    if (score >= 50) return 'text-amber-400';
+    if (score >= 30) return 'text-orange-400';
+    if (score >= 10) return 'text-red-400';
+    return 'text-red-500';
   };
 
   if (loading) {
@@ -691,6 +717,84 @@ export function OperationalBrief() {
               )}
             </div>
 
+            {/* Health Score Legend */}
+            {brief.health_score !== null && (
+              <div className="mb-4">
+                <HealthScoreLegend currentScore={brief.health_score} />
+              </div>
+            )}
+
+            {/* Health Score Breakdown */}
+            {brief.data_context?.score_breakdown && (() => {
+              const bd = brief.data_context.score_breakdown;
+              const CATEGORY_LABELS: Record<string, string> = {
+                revenue: 'Revenue Impact',
+                cash_flow: 'Cash Flow Impact',
+                operations: 'Operations Impact',
+                communication: 'Communication Impact',
+                scheduling: 'Scheduling Impact',
+              };
+              return (
+                <div className="mb-8">
+                  <button
+                    onClick={() => setBreakdownOpen(!breakdownOpen)}
+                    className="w-full flex items-center justify-between bg-slate-800/50 hover:bg-slate-800/70 transition-colors rounded-lg px-4 py-3 text-left border border-slate-700/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-slate-400" />
+                      <span className="text-sm font-medium text-slate-300">Health Score Breakdown</span>
+                    </div>
+                    {breakdownOpen ? (
+                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                    )}
+                  </button>
+                  {breakdownOpen && (
+                    <div className="mt-2 bg-slate-800/30 rounded-lg border border-slate-700/40 p-4 space-y-2">
+                      {/* Base score */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">Base Score</span>
+                        <span className="text-slate-200 font-mono">{bd.base_score}</span>
+                      </div>
+                      <div className="border-t border-slate-700/40 my-1" />
+                      {/* Category penalties */}
+                      {Object.entries(bd.category_penalties_capped || {}).map(([cat, penalty]) => (
+                        <div key={cat} className="flex justify-between text-sm">
+                          <span className="text-slate-400">{CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                          <span className={`font-mono ${penalty > 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                            {penalty > 0 ? `-${penalty}` : '0'}
+                          </span>
+                        </div>
+                      ))}
+                      {/* Cross-system correlation penalty */}
+                      {bd.cross_system_penalty > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-400">Correlation Penalty</span>
+                          <span className="text-red-400 font-mono">-{bd.cross_system_penalty}</span>
+                        </div>
+                      )}
+                      {/* Recovery buffer */}
+                      {bd.recovery_buffer > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-400">Recovery Offset</span>
+                          <span className="text-emerald-400 font-mono">+{bd.recovery_buffer}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-slate-700/40 my-1" />
+                      {/* Final score */}
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span className="text-slate-200">Final Score</span>
+                        <span className={`font-mono ${bd.final_score >= 70 ? 'text-emerald-400' : bd.final_score >= 50 ? 'text-amber-400' : bd.final_score >= 30 ? 'text-orange-400' : 'text-red-400'}`}>
+                          {bd.final_score}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Detected Signals with Evidence */}
             <div className="mb-8">
               <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">
@@ -709,8 +813,12 @@ export function OperationalBrief() {
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="text-xs font-medium text-slate-400 uppercase">{ev.source.replace(/_/g, ' ')}</span>
-                              <span className="text-slate-600">·</span>
-                              <span className="text-xs text-slate-500">{ev.category.replace(/_/g, ' ')}</span>
+                              {ev.signal_subtype && (
+                                <>
+                                  <span className="text-slate-600">&mdash;</span>
+                                  <span className="text-xs font-semibold text-slate-300">{ev.signal_subtype}</span>
+                                </>
+                              )}
                               <span className="text-slate-600">·</span>
                               <span className={`text-xs font-semibold uppercase ${ev.severity === 'critical' || ev.severity === 'high' ? 'text-red-400' : ev.severity === 'medium' ? 'text-amber-400' : 'text-green-400'}`}>{ev.severity}</span>
                             </div>
