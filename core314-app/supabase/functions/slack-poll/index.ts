@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { withSentry } from '../_shared/sentry.ts';
 
 // Cold start: Log credential presence (never log values)
 const slackClientIdPresent = !!Deno.env.get('SLACK_CLIENT_ID');
@@ -376,7 +377,7 @@ async function fetchSlackMetrics(accessToken: string, supabase: ReturnType<typeo
   return metrics;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -597,4 +598,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: 'slack-poll' }));

@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { dispatchAlert, getChannelForSeverity } from "./alert-dispatcher.ts";
 
 type ServiceName =
   | "stripe_webhook"
@@ -18,6 +19,24 @@ type ServiceName =
   | "user_creation"
   | "email_send"
   | "integration_ingestion"
+  | "signal_detector"
+  | "signal_correlator"
+  | "operational_brief"
+  | "integration_scheduler"
+  | "hubspot_poll"
+  | "slack_poll"
+  | "quickbooks_poll"
+  | "gmail_poll"
+  | "google_calendar_poll"
+  | "jira_poll"
+  | "trello_poll"
+  | "teams_poll"
+  | "sheets_poll"
+  | "asana_poll"
+  | "integrity_check"
+  | "rls_audit"
+  | "cleanup_job"
+  | "admin_action"
   | string;
 
 type EventStatus = "success" | "failure";
@@ -25,8 +44,27 @@ type EventStatus = "success" | "failure";
 const ALERT_RECIPIENT = Deno.env.get("ALERT_RECIPIENT_EMAIL") || "chris.brown@core314.com";
 
 /**
+ * Map service failure to alert severity for the dispatcher.
+ */
+function getSeverityForService(service: string, metadata?: Record<string, unknown>): 'low' | 'moderate' | 'high' | 'critical' {
+  // Critical services get higher severity on failure
+  const criticalServices = ['stripe_webhook', 'stripe_checkout', 'integrity_check'];
+  const highServices = ['signal_detector', 'signal_correlator', 'operational_brief', 'integration_scheduler'];
+
+  if (criticalServices.includes(service)) return 'critical';
+  if (highServices.includes(service)) return 'high';
+
+  // Check metadata for explicit severity
+  if (metadata?.severity === 'critical') return 'critical';
+  if (metadata?.severity === 'high') return 'high';
+
+  return 'moderate';
+}
+
+/**
  * Log a system health event to the database.
- * If status is "failure", also sends an alert email via SendGrid.
+ * If status is "failure", dispatches alert via alert-dispatcher (Slack/Email/System)
+ * and also sends a failure alert email via SendGrid as fallback.
  */
 export async function logSystemEvent(
   supabase: SupabaseClient,
@@ -61,8 +99,26 @@ export async function logSystemEvent(
     );
   }
 
-  // 2. If failure, send alert email
+  // 2. If failure, dispatch alert via alert-dispatcher AND send email
   if (status === "failure") {
+    // Dispatch via alert-dispatcher (routes to Slack/Email/System based on severity)
+    const severity = getSeverityForService(service, metadata);
+    const channel = getChannelForSeverity(severity);
+    try {
+      await dispatchAlert({
+        event_type: `${service}_failure`,
+        severity,
+        message: `[${service}] ${message}`,
+        channel,
+        metadata: metadata || {},
+      });
+    } catch (dispatchErr) {
+      console.error(
+        `[SystemHealthLogger] Alert dispatch failed (non-fatal): ${String(dispatchErr)}`
+      );
+    }
+
+    // Also send email as fallback
     await sendFailureAlert(service, message, metadata);
   }
 }

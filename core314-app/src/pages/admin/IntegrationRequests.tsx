@@ -534,6 +534,7 @@ export function IntegrationRequests() {
 
       if (error) throw error;
       toast({ title: 'Updated', description: 'Execution record updated' });
+      await logAdminAudit('execution_status_change', { exec_id: execId, catalog_id: catalogId, old_status: oldExec?.status, new_status: executionForm.status });
       setEditingExecutionId(null);
       await fetchExecutionRecords();
 
@@ -604,6 +605,7 @@ export function IntegrationRequests() {
         });
       if (error) throw error;
       toast({ title: 'Offer Sent', description: 'Private offer created and delivered to user' });
+      await logAdminAudit('private_offer_created', { catalog_id: offerModal.catalogId, catalog_name: offerModal.catalogName, user_id: offerForm.user_id, offer_title: offerForm.offer_title });
       setOfferModal({ open: false, catalogId: '', catalogName: '' });
       setOfferForm({ user_id: '', offer_title: '', offer_description: '' });
       await fetchPrivateOffers();
@@ -887,6 +889,20 @@ export function IntegrationRequests() {
     }
   };
 
+  // P1 Hardening: Audit log admin actions to system_health_logs
+  const logAdminAudit = async (action: string, details: Record<string, unknown>) => {
+    try {
+      await supabase.from('system_health_logs').insert({
+        service: 'admin_audit',
+        status: 'success',
+        message: action,
+        metadata: { ...details, admin_id: profile?.id, timestamp: new Date().toISOString() },
+      });
+    } catch (e) {
+      console.error('[AdminAudit] Failed to log:', e);
+    }
+  };
+
   // Phase 2B: Add alias manually
   const handleAddAlias = async () => {
     if (!newAliasName.trim()) return;
@@ -952,6 +968,7 @@ export function IntegrationRequests() {
 
       if (error) throw error;
       toast({ title: 'Alias Reassigned', description: 'Alias mapped to new integration' });
+      await logAdminAudit('alias_reassign', { alias_id: aliasId, new_catalog_id: newCatalogId });
       fetchAliases();
       await recalculateAllCounts();
       fetchCatalog();
@@ -1009,6 +1026,7 @@ export function IntegrationRequests() {
 
       console.log('[AdminIntegrationRequests] Merge complete with priority recalculation');
 
+      await logAdminAudit('catalog_merge', { source_id: sourceId, target_id: targetId, source_name: mergeModal.sourceName });
       toast({ title: 'Merge Complete', description: 'Merged into target. Priority score recalculated.' });
       setMergeModal({ open: false, sourceId: '', sourceName: '' });
       setMergeTargetId('');
