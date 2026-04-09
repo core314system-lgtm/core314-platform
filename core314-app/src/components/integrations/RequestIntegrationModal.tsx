@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/use-toast';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../../utils/authenticatedFetch';
+import { normalizeIntegrationName } from '../../utils/normalizeIntegrationName';
 import {
   Dialog,
   DialogContent,
@@ -86,15 +87,58 @@ export function RequestIntegrationModal({ open, onOpenChange, onSubmitted }: Req
     console.log('[IntegrationRequest] Submission attempt:', { integrationName, category, url, useCase });
 
     try {
+      // Step 1: Normalize integration name
+      const normalizedKey = normalizeIntegrationName(integrationName);
+      const trimmedName = integrationName.trim();
+      console.log('[IntegrationRequest] Normalized key:', normalizedKey);
+
+      // Step 2: Match or create catalog entry
+      let catalogId: string;
+      const { data: existingCatalog } = await supabase
+        .from('integration_catalog')
+        .select('id')
+        .eq('normalized_key', normalizedKey)
+        .limit(1)
+        .single();
+
+      if (existingCatalog) {
+        catalogId = existingCatalog.id;
+        console.log('[IntegrationRequest] Matched existing catalog entry:', catalogId);
+      } else {
+        const { data: newCatalog, error: catalogError } = await supabase
+          .from('integration_catalog')
+          .insert([{
+            canonical_name: trimmedName,
+            normalized_key: normalizedKey,
+            category,
+          }])
+          .select()
+          .single();
+
+        if (catalogError) {
+          console.error('[IntegrationRequest] Catalog insert error:', catalogError);
+          toast({
+            title: 'Error',
+            description: 'Failed to submit request. Please try again.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        catalogId = newCatalog.id;
+        console.log('[IntegrationRequest] Created new catalog entry:', catalogId);
+      }
+
+      // Step 3: Insert the integration request linked to catalog
       const { data, error } = await supabase
         .from('integration_requests')
         .insert([
           {
             user_id: profile.id,
-            integration_name: integrationName.trim(),
+            integration_name: trimmedName,
             category,
             url: url.trim() || null,
             use_case: useCase.trim(),
+            integration_catalog_id: catalogId,
           },
         ])
         .select()
@@ -111,6 +155,22 @@ export function RequestIntegrationModal({ open, onOpenChange, onSubmitted }: Req
       }
 
       console.log('[IntegrationRequest] Insert success:', data);
+
+      // Step 4: Update demand count in catalog
+      const { count } = await supabase
+        .from('integration_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('integration_catalog_id', catalogId);
+
+      await supabase
+        .from('integration_catalog')
+        .update({
+          total_requests: count ?? 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', catalogId);
+
+      console.log('[IntegrationRequest] Catalog count updated:', count);
 
       // Trigger Slack notification via edge function
       try {
