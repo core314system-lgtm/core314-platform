@@ -191,21 +191,47 @@ export function RequestIntegrationModal({ open, onOpenChange, onSubmitted }: Req
 
       console.log('[IntegrationRequest] Insert success:', data);
 
-      // Step 4: Update demand count in catalog
+      // Step 4: Update demand count + priority score in catalog
       const { count } = await supabase
         .from('integration_requests')
         .select('id', { count: 'exact', head: true })
         .eq('integration_catalog_id', catalogId);
 
+      const { count: uniqueUsersCount } = await supabase
+        .from('integration_requests')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('integration_catalog_id', catalogId);
+
+      // Fetch category weight
+      const { data: weightData } = await supabase
+        .from('integration_category_weights')
+        .select('weight')
+        .eq('category', category)
+        .limit(1)
+        .single();
+
+      const categoryWeight = weightData?.weight ?? 1.0;
+      const recencyScore = 1.0; // Just submitted = within 7 days
+      const totalReqs = count ?? 1;
+      const uniqueUsers = uniqueUsersCount ?? 1;
+
+      const priorityScore = (totalReqs * 0.4)
+        + (uniqueUsers * 0.3)
+        + (recencyScore * 0.2)
+        + (categoryWeight * 0.1);
+
       await supabase
         .from('integration_catalog')
         .update({
-          total_requests: count ?? 1,
+          total_requests: totalReqs,
+          unique_users_count: uniqueUsers,
+          last_requested_at: new Date().toISOString(),
+          priority_score: priorityScore,
           updated_at: new Date().toISOString(),
         })
         .eq('id', catalogId);
 
-      console.log('[IntegrationRequest] Catalog count updated:', count, '(match source:', matchSource, ')');
+      console.log('[IntegrationRequest] Catalog updated — count:', totalReqs, 'unique_users:', uniqueUsers, 'priority_score:', priorityScore.toFixed(2), '(match source:', matchSource, ')');
 
       // Trigger Slack notification via edge function
       try {

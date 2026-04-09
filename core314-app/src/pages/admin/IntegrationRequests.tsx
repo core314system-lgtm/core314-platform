@@ -32,7 +32,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../../components/ui/dialog';
-import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2 } from 'lucide-react';
+import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface IntegrationRequest {
@@ -58,8 +58,18 @@ interface CatalogEntry {
   normalized_key: string;
   category: string | null;
   total_requests: number;
+  priority_score: number;
+  unique_users_count: number;
+  last_requested_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface CategoryWeight {
+  id: string;
+  category: string;
+  weight: number;
+  created_at: string;
 }
 
 interface AliasEntry {
@@ -124,6 +134,13 @@ export function IntegrationRequests() {
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [merging, setMerging] = useState(false);
 
+  // Phase 2C: Priority Scoring state
+  const [categoryWeights, setCategoryWeights] = useState<CategoryWeight[]>([]);
+  const [loadingWeights, setLoadingWeights] = useState(false);
+  const [editingWeightId, setEditingWeightId] = useState<string | null>(null);
+  const [editWeightValue, setEditWeightValue] = useState('');
+  const [savingWeight, setSavingWeight] = useState(false);
+
   useEffect(() => {
     if (profile && !isAdmin()) {
       navigate('/brief');
@@ -135,6 +152,7 @@ export function IntegrationRequests() {
       fetchRequests();
       fetchCatalog();
       fetchAliases();
+      fetchCategoryWeights();
     }
   }, [profile?.id]);
 
@@ -166,7 +184,7 @@ export function IntegrationRequests() {
       const { data, error } = await supabase
         .from('integration_catalog')
         .select('*')
-        .order('total_requests', { ascending: false })
+        .order('priority_score', { ascending: false })
         .limit(20);
 
       if (error) throw error;
@@ -176,6 +194,24 @@ export function IntegrationRequests() {
       console.error('[AdminIntegrationRequests] Error fetching catalog:', error);
     } finally {
       setLoadingCatalog(false);
+    }
+  };
+
+  const fetchCategoryWeights = async () => {
+    setLoadingWeights(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_category_weights')
+        .select('*')
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+      setCategoryWeights(data || []);
+      console.log('[AdminIntegrationRequests] Category weights fetched:', data?.length);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching category weights:', error);
+    } finally {
+      setLoadingWeights(false);
     }
   };
 
@@ -269,6 +305,7 @@ export function IntegrationRequests() {
     fetchRequests();
     fetchCatalog();
     fetchAliases();
+    fetchCategoryWeights();
   };
 
   // Phase 2B: Add alias manually
@@ -384,23 +421,13 @@ export function IntegrationRequests() {
       if (deleteError) throw deleteError;
       console.log('[AdminIntegrationRequests] Source catalog entry deleted');
 
-      // Step 4: Recalculate demand count on target
-      const { count } = await supabase
-        .from('integration_requests')
-        .select('id', { count: 'exact', head: true })
-        .eq('integration_catalog_id', targetId);
+      // Step 4: Recalculate demand count + priority score on target
+      const targetEntry = catalog.find(c => c.id === targetId);
+      await recalculateCatalogEntry(targetId, targetEntry?.category ?? null);
 
-      await supabase
-        .from('integration_catalog')
-        .update({
-          total_requests: count ?? 0,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', targetId);
+      console.log('[AdminIntegrationRequests] Merge complete with priority recalculation');
 
-      console.log('[AdminIntegrationRequests] Merge complete. Target count:', count);
-
-      toast({ title: 'Merge Complete', description: `Merged into target. Total requests: ${count}` });
+      toast({ title: 'Merge Complete', description: 'Merged into target. Priority score recalculated.' });
       setMergeModal({ open: false, sourceId: '', sourceName: '' });
       setMergeTargetId('');
       fetchCatalog();
@@ -414,26 +441,129 @@ export function IntegrationRequests() {
     }
   };
 
-  // Phase 2B: Recalculate all catalog counts
+  // Recalculate all catalog counts + priority scores
   const recalculateAllCounts = async () => {
     try {
       for (const entry of catalog) {
-        const { count } = await supabase
-          .from('integration_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('integration_catalog_id', entry.id);
-
-        await supabase
-          .from('integration_catalog')
-          .update({
-            total_requests: count ?? 0,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', entry.id);
+        await recalculateCatalogEntry(entry.id, entry.category);
       }
-      console.log('[AdminIntegrationRequests] All counts recalculated');
+      console.log('[AdminIntegrationRequests] All counts and scores recalculated');
     } catch (error) {
       console.error('[AdminIntegrationRequests] Recalculate error:', error);
+    }
+  };
+
+  // Phase 2C: Recalculate a single catalog entry's priority score
+  const recalculateCatalogEntry = async (catalogId: string, category: string | null) => {
+    const { count: totalReqs } = await supabase
+      .from('integration_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('integration_catalog_id', catalogId);
+
+    const { count: uniqueUsers } = await supabase
+      .from('integration_requests')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('integration_catalog_id', catalogId);
+
+    const { data: lastReqData } = await supabase
+      .from('integration_requests')
+      .select('created_at')
+      .eq('integration_catalog_id', catalogId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const lastRequestedAt = lastReqData?.created_at ?? null;
+
+    // Recency score
+    let recencyScore = 0.1;
+    if (lastRequestedAt) {
+      const daysSince = (Date.now() - new Date(lastRequestedAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince <= 7) recencyScore = 1.0;
+      else if (daysSince <= 30) recencyScore = 0.7;
+      else if (daysSince <= 90) recencyScore = 0.4;
+    }
+
+    // Category weight
+    const weight = categoryWeights.find(w => w.category === category);
+    const categoryWeight = weight?.weight ?? 1.0;
+
+    const total = totalReqs ?? 0;
+    const unique = uniqueUsers ?? 0;
+    const priorityScore = (total * 0.4) + (unique * 0.3) + (recencyScore * 0.2) + (categoryWeight * 0.1);
+
+    await supabase
+      .from('integration_catalog')
+      .update({
+        total_requests: total,
+        unique_users_count: unique,
+        last_requested_at: lastRequestedAt,
+        priority_score: priorityScore,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', catalogId);
+
+    console.log('[AdminIntegrationRequests] Recalculated:', catalogId, '→ score:', priorityScore.toFixed(2));
+  };
+
+  // Phase 2C: Save category weight
+  const handleSaveWeight = async (weightId: string) => {
+    setSavingWeight(true);
+    try {
+      const newWeight = parseFloat(editWeightValue);
+      if (isNaN(newWeight) || newWeight < 0 || newWeight > 5) {
+        toast({ title: 'Invalid', description: 'Weight must be a number between 0 and 5', variant: 'destructive' });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('integration_category_weights')
+        .update({ weight: newWeight })
+        .eq('id', weightId);
+
+      if (error) throw error;
+
+      console.log('[AdminIntegrationRequests] Category weight updated:', weightId, '→', newWeight);
+      toast({ title: 'Weight Updated', description: `Category weight set to ${newWeight}` });
+      setEditingWeightId(null);
+      setEditWeightValue('');
+      fetchCategoryWeights();
+
+      // Recalculate all priority scores with new weight
+      await recalculateAllCounts();
+      fetchCatalog();
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Save weight error:', error);
+      toast({ title: 'Error', description: 'Failed to update weight', variant: 'destructive' });
+    } finally {
+      setSavingWeight(false);
+    }
+  };
+
+  // Phase 2C: Priority tier for visual indicators
+  const getPriorityTier = (score: number, allScores: number[]): 'high' | 'medium' | 'low' => {
+    if (allScores.length === 0) return 'medium';
+    const sorted = [...allScores].sort((a, b) => b - a);
+    const topThreshold = sorted[Math.floor(sorted.length * 0.2)] ?? 0;
+    const bottomThreshold = sorted[Math.floor(sorted.length * 0.6)] ?? 0;
+    if (score >= topThreshold && topThreshold > 0) return 'high';
+    if (score <= bottomThreshold) return 'low';
+    return 'medium';
+  };
+
+  const getPriorityTierStyle = (tier: 'high' | 'medium' | 'low') => {
+    switch (tier) {
+      case 'high': return 'bg-red-50 border-l-4 border-l-red-500';
+      case 'low': return 'opacity-60';
+      default: return '';
+    }
+  };
+
+  const getPriorityScoreBadge = (tier: 'high' | 'medium' | 'low') => {
+    switch (tier) {
+      case 'high': return 'bg-red-100 text-red-800 border-red-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'low': return 'bg-gray-100 text-gray-500 border-gray-300';
     }
   };
 
@@ -517,7 +647,78 @@ export function IntegrationRequests() {
         </Card>
       </div>
 
-      {/* Top Requested Integrations — Demand Intelligence */}
+      {/* Phase 2C: Integration Priority Rankings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-indigo-500" />
+            Integration Priority Rankings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingCatalog ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : catalog.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No integrations ranked yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs w-8">#</TableHead>
+                    <TableHead className="text-xs">Integration</TableHead>
+                    <TableHead className="text-xs">Category</TableHead>
+                    <TableHead className="text-xs text-center">Total Requests</TableHead>
+                    <TableHead className="text-xs text-center">Unique Users</TableHead>
+                    <TableHead className="text-xs">Last Requested</TableHead>
+                    <TableHead className="text-xs text-center">Priority Score</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const allScores = catalog.map(c => c.priority_score ?? 0);
+                    return catalog.map((entry, index) => {
+                      const tier = getPriorityTier(entry.priority_score ?? 0, allScores);
+                      return (
+                        <TableRow key={entry.id} className={getPriorityTierStyle(tier)}>
+                          <TableCell className="text-xs font-mono text-gray-400">{index + 1}</TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {entry.canonical_name}
+                            <p className="text-xs text-gray-400 font-mono">{entry.normalized_key}</p>
+                          </TableCell>
+                          <TableCell className="text-xs">{entry.category || 'N/A'}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={getDemandBadgeColor(entry.total_requests)}>
+                              {entry.total_requests}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center text-sm">{entry.unique_users_count ?? 0}</TableCell>
+                          <TableCell className="text-xs text-gray-500">
+                            {entry.last_requested_at
+                              ? format(new Date(entry.last_requested_at), 'MMM d, yyyy')
+                              : 'Never'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={getPriorityScoreBadge(tier)}>
+                              {(entry.priority_score ?? 0).toFixed(2)}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Top Requested Integrations — Demand Intelligence (expanded detail view) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -949,6 +1150,98 @@ export function IntegrationRequests() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Phase 2C: Category Weights Editor */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-indigo-500" />
+            Category Weights
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingWeights ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : categoryWeights.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No category weights configured.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Category</TableHead>
+                    <TableHead className="text-xs text-center">Weight</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categoryWeights.map((w) => (
+                    <TableRow key={w.id}>
+                      <TableCell className="font-medium text-sm">{w.category}</TableCell>
+                      <TableCell className="text-center">
+                        {editingWeightId === w.id ? (
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="5"
+                            value={editWeightValue}
+                            onChange={(e) => setEditWeightValue(e.target.value)}
+                            className="w-20 h-7 text-xs text-center mx-auto"
+                          />
+                        ) : (
+                          <Badge className="bg-indigo-100 text-indigo-800 border-indigo-300">
+                            {w.weight.toFixed(1)}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editingWeightId === w.id ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveWeight(w.id)}
+                              disabled={savingWeight}
+                              className="h-7 text-xs"
+                            >
+                              {savingWeight ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => { setEditingWeightId(null); setEditWeightValue(''); }}
+                              className="h-7 text-xs"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setEditingWeightId(w.id); setEditWeightValue(w.weight.toString()); }}
+                            className="h-7 text-xs"
+                          >
+                            Edit
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <p className="text-xs text-gray-400 mt-2">
+                Higher weights increase priority score for integrations in that category. Changes trigger automatic score recalculation.
+              </p>
             </div>
           )}
         </CardContent>
