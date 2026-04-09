@@ -180,7 +180,7 @@ export function IntegrationManager() {
     admin_notes: string | null;
     created_at: string;
   }>>([]);
-  const [loadingRequests] = useState(false);
+  const [loadingRequests, setLoadingRequests] = useState(false);
 
   // Phase 3A: Commitments + Execution
   interface Commitment {
