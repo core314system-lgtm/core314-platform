@@ -896,7 +896,7 @@ export function IntegrationRequests() {
         service: 'admin_audit',
         status: 'success',
         message: action,
-        metadata: { ...details, admin_id: user?.id, timestamp: new Date().toISOString() },
+        metadata: { ...details, admin_id: profile?.id, timestamp: new Date().toISOString() },
       });
     } catch (e) {
       console.error('[AdminAudit] Failed to log:', e);
