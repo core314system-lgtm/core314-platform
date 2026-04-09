@@ -21,6 +21,8 @@ export function RequireAdmin({ children }: RequireAdminProps) {
     );
   }
 
+  console.log('RequireAdmin — ROLE:', profile?.role, '| loading:', loading);
+
   if (!profile || profile.role !== 'admin') {
     return <Navigate to="/brief" replace />;
   }

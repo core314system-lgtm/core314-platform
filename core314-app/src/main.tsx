@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { initSentry } from './lib/sentry'
 import { SupabaseClientProvider } from './contexts/SupabaseClientContext'
+import { AuthProvider } from './contexts/AuthContext'
 
 initSentry()
 
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Sentry.ErrorBoundary fallback={<ErrorFallback />} showDialog>
       <SupabaseClientProvider>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </SupabaseClientProvider>
     </Sentry.ErrorBoundary>
   </StrictMode>,
