@@ -2,6 +2,9 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getSignalCategory } from '../_shared/signal-classification.ts';
 import { detectFailurePattern, type DetectedPattern } from '../_shared/detectFailurePattern.ts';
+import { withSentry } from '../_shared/sentry.ts';
+import { logSystemEvent } from '../_shared/system-health-logger.ts';
+import { withRetry } from '../_shared/retry.ts';
 
 /**
  * Signal Correlator
@@ -138,7 +141,7 @@ function clusterByTimeWindow(
   return clusters;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -155,15 +158,14 @@ serve(async (req) => {
     // ── Step 1: Query active signals from the last 60 minutes ─────────
     const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-    const { data: recentSignals, error: signalsError } = await supabase
-      .from('operational_signals')
-      .select('*')
-      .eq('is_active', true)
-      .gte('detected_at', sixtyMinutesAgo)
-      .order('detected_at', { ascending: true });
+    const { data: recentSignals, error: signalsError } = await withRetry(
+      () => supabase.from('operational_signals').select('*').eq('is_active', true).gte('detected_at', sixtyMinutesAgo).order('detected_at', { ascending: true }),
+      { maxRetries: 2, functionName: 'signal-correlator' }
+    );
 
     if (signalsError) {
       console.error('[signal-correlator] Error fetching signals:', signalsError);
+      await logSystemEvent(supabase, 'signal_correlator', 'failure', 'Failed to fetch signals', { error: signalsError });
       return new Response(JSON.stringify({ error: 'Failed to fetch signals' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -279,6 +281,13 @@ serve(async (req) => {
       `${signals.length} signals analyzed, ${correlatedEvents.length} correlated events`
     );
 
+    // Log success to system health
+    await logSystemEvent(supabase, 'signal_correlator', 'success', `Completed: ${signals.length} signals analyzed, ${correlatedEvents.length} correlated`, {
+      signals_analyzed: signals.length,
+      correlated_events: correlatedEvents.length,
+      duration_ms: duration,
+    });
+
     return new Response(JSON.stringify({
       success: true,
       signals_analyzed: signals.length,
@@ -291,9 +300,15 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[signal-correlator] Fatal error:', error);
+
+    try {
+      const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+      await logSystemEvent(supabase, 'signal_correlator', 'failure', errorMessage, { fatal: true });
+    } catch { /* logging should not prevent error response */ }
+
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: 'signal-correlator' }));

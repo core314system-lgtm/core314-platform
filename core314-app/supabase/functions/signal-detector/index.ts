@@ -1,6 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { classifySignal } from '../_shared/signal-classification.ts';
+import { withSentry } from '../_shared/sentry.ts';
+import { logSystemEvent } from '../_shared/system-health-logger.ts';
+import { withRetry } from '../_shared/retry.ts';
 
 /**
  * Signal Detector
@@ -65,7 +68,7 @@ interface SignalCandidate {
   signal_data: Record<string, unknown>;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -79,14 +82,15 @@ serve(async (req) => {
 
     console.log('[signal-detector] Starting signal detection run');
 
-    // Get all users who have active integrations
-    const { data: activeUsers, error: usersError } = await supabase
-      .from('user_integrations')
-      .select('user_id')
-      .eq('status', 'active');
+    // Get all users who have active integrations (with retry for transient failures)
+    const { data: activeUsers, error: usersError } = await withRetry(
+      () => supabase.from('user_integrations').select('user_id').eq('status', 'active'),
+      { maxRetries: 2, functionName: 'signal-detector' }
+    );
 
     if (usersError || !activeUsers) {
       console.error('[signal-detector] Error fetching active users:', usersError);
+      await logSystemEvent(supabase, 'signal_detector', 'failure', 'Failed to fetch active users', { error: usersError });
       return new Response(JSON.stringify({ error: 'Failed to fetch active users' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1283,6 +1287,15 @@ serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[signal-detector] Complete in ${duration}ms: ${totalSignalsCreated} created, ${totalSignalsDeactivated} deactivated`);
 
+    // Log success to system health
+    await logSystemEvent(supabase, 'signal_detector', 'success', `Completed: ${totalSignalsCreated} created, ${totalSignalsDeactivated} deactivated`, {
+      users_processed: userIds.length,
+      signals_created: totalSignalsCreated,
+      signals_deactivated: totalSignalsDeactivated,
+      duration_ms: duration,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+
     return new Response(JSON.stringify({
       success: true,
       users_processed: userIds.length,
@@ -1296,9 +1309,16 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[signal-detector] Fatal error:', error);
+
+    // Log failure to system health
+    try {
+      const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+      await logSystemEvent(supabase, 'signal_detector', 'failure', errorMessage, { fatal: true });
+    } catch { /* logging should not prevent error response */ }
+
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: 'signal-detector' }));

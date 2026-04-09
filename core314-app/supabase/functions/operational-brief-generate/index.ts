@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getSignalCategory } from '../_shared/signal-classification.ts';
+import { withSentry } from '../_shared/sentry.ts';
+import { logSystemEvent } from '../_shared/system-health-logger.ts';
 
 /**
  * Operational Brief Generator
@@ -42,7 +44,7 @@ function getBriefLimit(planName: string): number {
   return BRIEF_LIMITS[planName] ?? 30; // default to Intelligence tier limit
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -1270,9 +1272,15 @@ Generate a JSON response with these exact fields:
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[operational-brief] Error:', error);
+
+    try {
+      const sb = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+      await logSystemEvent(sb, 'operational_brief', 'failure', errorMessage, { fatal: true });
+    } catch { /* logging should not prevent error response */ }
+
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: 'operational-brief-generate' }));

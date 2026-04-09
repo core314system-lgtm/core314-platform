@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { withSentry } from '../_shared/sentry.ts';
 
 /**
  * HubSpot Poll Function
@@ -322,7 +323,7 @@ async function fetchHubSpotMetrics(accessToken: string): Promise<HubSpotMetrics>
   return metrics;
 }
 
-serve(async (req) => {
+serve(withSentry(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -560,4 +561,4 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+}, { name: 'hubspot-poll' }));
