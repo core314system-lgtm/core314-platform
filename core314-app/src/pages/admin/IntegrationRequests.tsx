@@ -1915,7 +1915,7 @@ export function IntegrationRequests() {
                             <TableCell className="font-medium text-sm">{catEntry?.canonical_name || 'Unknown'}</TableCell>
                             <TableCell>
                               {catEntry ? (
-                                <Badge className={getPriorityScoreBadge(catEntry.priority_score)}>
+                                <Badge className={getPriorityScoreBadge(getPriorityTier(catEntry.priority_score, catalog.map(c => c.priority_score)))}>
                                   {catEntry.priority_score.toFixed(2)}
                                 </Badge>
                               ) : '—'}
