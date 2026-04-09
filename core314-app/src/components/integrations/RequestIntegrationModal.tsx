@@ -92,8 +92,9 @@ export function RequestIntegrationModal({ open, onOpenChange, onSubmitted }: Req
       const trimmedName = integrationName.trim();
       console.log('[IntegrationRequest] Normalized key:', normalizedKey);
 
-      // Step 2: Match or create catalog entry
+      // Step 2: Match catalog directly by normalized_key
       let catalogId: string;
+      let matchSource: 'catalog' | 'alias' | 'new' = 'new';
       const { data: existingCatalog } = await supabase
         .from('integration_catalog')
         .select('id')
@@ -103,30 +104,64 @@ export function RequestIntegrationModal({ open, onOpenChange, onSubmitted }: Req
 
       if (existingCatalog) {
         catalogId = existingCatalog.id;
+        matchSource = 'catalog';
         console.log('[IntegrationRequest] Matched existing catalog entry:', catalogId);
       } else {
-        const { data: newCatalog, error: catalogError } = await supabase
-          .from('integration_catalog')
-          .insert([{
-            canonical_name: trimmedName,
-            normalized_key: normalizedKey,
-            category,
-          }])
-          .select()
+        // Step 2b: Check aliases table for a match
+        const { data: existingAlias } = await supabase
+          .from('integration_aliases')
+          .select('integration_catalog_id')
+          .eq('normalized_key', normalizedKey)
+          .limit(1)
           .single();
 
-        if (catalogError) {
-          console.error('[IntegrationRequest] Catalog insert error:', catalogError);
-          toast({
-            title: 'Error',
-            description: 'Failed to submit request. Please try again.',
-            variant: 'destructive',
-          });
-          return;
+        if (existingAlias) {
+          catalogId = existingAlias.integration_catalog_id;
+          matchSource = 'alias';
+          console.log('[IntegrationRequest] Matched via alias → catalog:', catalogId);
+        } else {
+          // Step 2c: Create new catalog entry
+          const { data: newCatalog, error: catalogError } = await supabase
+            .from('integration_catalog')
+            .insert([{
+              canonical_name: trimmedName,
+              normalized_key: normalizedKey,
+              category,
+            }])
+            .select()
+            .single();
+
+          if (catalogError) {
+            console.error('[IntegrationRequest] Catalog insert error:', catalogError);
+            toast({
+              title: 'Error',
+              description: 'Failed to submit request. Please try again.',
+              variant: 'destructive',
+            });
+            return;
+          }
+          catalogId = newCatalog.id;
+          matchSource = 'new';
+          console.log('[IntegrationRequest] Created new catalog entry:', catalogId);
+
+          // Step 2d: Auto-create alias for the new catalog entry
+          const { error: aliasError } = await supabase
+            .from('integration_aliases')
+            .insert([{
+              integration_catalog_id: catalogId,
+              alias_name: trimmedName,
+              normalized_key: normalizedKey,
+            }]);
+
+          if (aliasError) {
+            console.error('[IntegrationRequest] Auto-alias creation error:', aliasError);
+          } else {
+            console.log('[IntegrationRequest] Auto-alias created for new catalog entry');
+          }
         }
-        catalogId = newCatalog.id;
-        console.log('[IntegrationRequest] Created new catalog entry:', catalogId);
       }
+
+      console.log('[IntegrationRequest] Match source:', matchSource);
 
       // Step 3: Insert the integration request linked to catalog
       const { data, error } = await supabase
@@ -170,7 +205,7 @@ export function RequestIntegrationModal({ open, onOpenChange, onSubmitted }: Req
         })
         .eq('id', catalogId);
 
-      console.log('[IntegrationRequest] Catalog count updated:', count);
+      console.log('[IntegrationRequest] Catalog count updated:', count, '(match source:', matchSource, ')');
 
       // Trigger Slack notification via edge function
       try {
