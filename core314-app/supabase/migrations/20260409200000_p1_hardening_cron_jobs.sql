@@ -10,6 +10,81 @@
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 -- ============================================================================
+-- PREREQUISITE FUNCTIONS — Required by cron jobs below
+-- ============================================================================
+
+-- run_integrity_checks(): Validates data consistency across integration tables
+CREATE OR REPLACE FUNCTION run_integrity_checks()
+RETURNS TABLE(check_name TEXT, anomaly_count INTEGER, details JSONB) AS $$
+BEGIN
+  -- Check 1: Orphaned integration_requests (catalog_id pointing to non-existent catalog)
+  RETURN QUERY
+  SELECT
+    'orphaned_integration_requests'::TEXT AS check_name,
+    COUNT(*)::INTEGER AS anomaly_count,
+    jsonb_build_object('orphaned_ids', COALESCE(jsonb_agg(ir.id), '[]'::jsonb)) AS details
+  FROM integration_requests ir
+  LEFT JOIN integration_catalog ic ON ir.integration_catalog_id = ic.id
+  WHERE ir.integration_catalog_id IS NOT NULL AND ic.id IS NULL;
+
+  -- Check 2: Duplicate normalized keys in integration_catalog
+  RETURN QUERY
+  SELECT
+    'duplicate_catalog_keys'::TEXT,
+    COUNT(*)::INTEGER,
+    jsonb_build_object('duplicates', COALESCE(jsonb_agg(jsonb_build_object('key', normalized_key, 'count', cnt)), '[]'::jsonb))
+  FROM (
+    SELECT normalized_key, COUNT(*) AS cnt
+    FROM integration_catalog
+    GROUP BY normalized_key
+    HAVING COUNT(*) > 1
+  ) dupes;
+
+  -- Check 3: Aliases pointing to non-existent catalog entries
+  RETURN QUERY
+  SELECT
+    'orphaned_aliases'::TEXT,
+    COUNT(*)::INTEGER,
+    jsonb_build_object('orphaned_ids', COALESCE(jsonb_agg(ia.id), '[]'::jsonb))
+  FROM integration_aliases ia
+  LEFT JOIN integration_catalog ic ON ia.integration_catalog_id = ic.id
+  WHERE ic.id IS NULL;
+
+  -- Check 4: Commitments referencing non-existent catalog entries
+  RETURN QUERY
+  SELECT
+    'orphaned_commitments'::TEXT,
+    COUNT(*)::INTEGER,
+    jsonb_build_object('orphaned_ids', COALESCE(jsonb_agg(ico.id), '[]'::jsonb))
+  FROM integration_commitments ico
+  LEFT JOIN integration_catalog ic ON ico.integration_catalog_id = ic.id
+  WHERE ic.id IS NULL;
+
+  -- Check 5: Execution entries with invalid status
+  RETURN QUERY
+  SELECT
+    'invalid_execution_status'::TEXT,
+    COUNT(*)::INTEGER,
+    jsonb_build_object('invalid_ids', COALESCE(jsonb_agg(ie.id), '[]'::jsonb))
+  FROM integration_execution ie
+  WHERE ie.status NOT IN ('planned', 'in_progress', 'testing', 'launched', 'cancelled');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- cleanup_old_ops_events(): Removes ops_events older than specified days
+CREATE OR REPLACE FUNCTION cleanup_old_ops_events(days_to_keep INTEGER DEFAULT 30)
+RETURNS INTEGER AS $$
+DECLARE
+  v_deleted INTEGER;
+BEGIN
+  DELETE FROM ops_events
+  WHERE created_at < NOW() - (days_to_keep || ' days')::INTERVAL;
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
 -- 1. INTEGRITY CHECKS — Every 6 hours
 -- Runs run_integrity_checks() and logs results + alerts on anomalies
 -- ============================================================================
