@@ -16,6 +16,7 @@ import {
   Users,
   ChevronDown,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { OnboardingNudge } from './onboarding/OnboardingNudge';
@@ -35,7 +36,7 @@ interface NavItem {
   badge?: string;
 }
 
-const getNavItems = (_integrationBadge?: string, _isAdmin?: boolean, _subscriptionTier?: string, canAccessBilling?: boolean): NavItem[] => {
+const getNavItems = (_integrationBadge?: string, isAdmin?: boolean, _subscriptionTier?: string, canAccessBilling?: boolean): NavItem[] => {
   // Phase 1: Simplified Operational Intelligence navigation
   const baseItems: NavItem[] = [
     { path: '/brief', label: 'Operational Brief', icon: FileText },
@@ -48,6 +49,11 @@ const getNavItems = (_integrationBadge?: string, _isAdmin?: boolean, _subscripti
   // Billing is visible to Org Owners and Org Admins
   if (canAccessBilling) {
     baseItems.push({ path: '/billing', label: 'Billing', icon: CreditCard });
+  }
+
+  // Admin section — only visible to admin users
+  if (isAdmin) {
+    baseItems.push({ path: '/admin/integration-requests', label: 'Admin Dashboard', icon: ShieldCheck });
   }
   
   return baseItems;

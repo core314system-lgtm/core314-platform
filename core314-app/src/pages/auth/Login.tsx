@@ -22,7 +22,8 @@ export function Login() {
     try {
       const { error } = await signIn(email, password);
       if (error) throw error;
-      navigate('/dashboard');
+      // Navigate to root — App will redirect based on role (admin → admin dashboard, user → brief)
+      navigate('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {

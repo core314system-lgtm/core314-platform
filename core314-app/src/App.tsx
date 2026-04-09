@@ -62,6 +62,18 @@ function AppShell() {
   );
 }
 
+/**
+ * Role-aware default redirect.
+ * Admins land on /admin/integration-requests; everyone else on /brief.
+ */
+function DefaultRedirect() {
+  const { profile } = useAuth();
+  if (profile?.role === 'admin') {
+    return <Navigate to="/admin/integration-requests" replace />;
+  }
+  return <Navigate to="/brief" replace />;
+}
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -77,9 +89,9 @@ function App() {
     <Router>
       <Routes>
         {/* Public routes - no auth required */}
-        <Route path="/login" element={user ? <Navigate to="/brief" /> : <Login />} />
-        <Route path="/signup" element={user ? <Navigate to="/brief" /> : <Signup />} />
-        <Route path="/reset-password" element={user ? <Navigate to="/brief" /> : <ResetPassword />} />
+        <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+        <Route path="/signup" element={user ? <Navigate to="/" /> : <Signup />} />
+        <Route path="/reset-password" element={user ? <Navigate to="/" /> : <ResetPassword />} />
         <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
         <Route path="/auth/confirm" element={<AuthConfirm />} />
         <Route path="/pricing" element={<Pricing />} />
@@ -107,8 +119,8 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Default redirect - Operational Brief is the centerpiece */}
-          <Route index element={<Navigate to="/brief" replace />} />
+          {/* Default redirect — role-aware: admins → admin dashboard, users → brief */}
+          <Route index element={<DefaultRedirect />} />
           
           {/* Account-only routes: NO sidebar */}
           <Route element={<AccountLayout />}>
@@ -130,8 +142,8 @@ function App() {
             <Route path="integration-manager" element={<IntegrationManager />} />
             <Route path="team-members" element={<TeamMembers />} />
             
-            {/* Legacy dashboard redirect */}
-            <Route path="dashboard" element={<Navigate to="/brief" replace />} />
+            {/* Legacy dashboard redirect — role-aware */}
+            <Route path="dashboard" element={<DefaultRedirect />} />
             
             {/* Kept routes for existing functionality */}
             <Route path="integrations" element={<Navigate to="/integration-manager" replace />} />
