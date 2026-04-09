@@ -32,7 +32,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../../components/ui/dialog';
-import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2 } from 'lucide-react';
+import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2, Lightbulb, Zap, Target, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface IntegrationRequest {
@@ -79,6 +79,57 @@ interface AliasEntry {
   normalized_key: string;
   created_at: string;
 }
+
+interface Recommendation {
+  id: string;
+  integration_catalog_id: string | null;
+  recommendation_type: string;
+  title: string;
+  description: string;
+  priority_score_snapshot: number | null;
+  created_at: string;
+}
+
+const RECOMMENDATION_TYPE_ORDER: Record<string, number> = {
+  'build_now': 0,
+  'high_demand': 1,
+  'trending_up': 2,
+  'category_gap': 3,
+  'low_priority': 4,
+};
+
+const getRecommendationBadgeColor = (type: string) => {
+  switch (type) {
+    case 'build_now': return 'bg-red-100 text-red-800 border-red-300';
+    case 'high_demand': return 'bg-orange-100 text-orange-800 border-orange-300';
+    case 'trending_up': return 'bg-green-100 text-green-800 border-green-300';
+    case 'category_gap': return 'bg-purple-100 text-purple-800 border-purple-300';
+    case 'low_priority': return 'bg-gray-100 text-gray-500 border-gray-300';
+    default: return 'bg-blue-100 text-blue-800 border-blue-300';
+  }
+};
+
+const getRecommendationIcon = (type: string) => {
+  switch (type) {
+    case 'build_now': return Zap;
+    case 'high_demand': return TrendingUp;
+    case 'trending_up': return TrendingUp;
+    case 'category_gap': return Target;
+    case 'low_priority': return ArrowDown;
+    default: return Lightbulb;
+  }
+};
+
+const formatRecommendationType = (type: string) => {
+  switch (type) {
+    case 'build_now': return 'Build Now';
+    case 'high_demand': return 'High Demand';
+    case 'trending_up': return 'Trending Up';
+    case 'category_gap': return 'Category Gap';
+    case 'low_priority': return 'Low Priority';
+    default: return type;
+  }
+};
 
 const STATUS_OPTIONS = ['pending', 'reviewing', 'planned', 'rejected', 'completed'];
 const PRIORITY_OPTIONS = [0, 1, 2, 3, 4, 5];
@@ -141,6 +192,13 @@ export function IntegrationRequests() {
   const [editWeightValue, setEditWeightValue] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
 
+  // Phase 2D: AI Recommendations state
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [generatingRecommendations, setGeneratingRecommendations] = useState(false);
+  const [recFilterType, setRecFilterType] = useState<string>('all');
+  const [recFilterCategory, setRecFilterCategory] = useState<string>('all');
+
   useEffect(() => {
     if (profile && !isAdmin()) {
       navigate('/brief');
@@ -153,6 +211,7 @@ export function IntegrationRequests() {
       fetchCatalog();
       fetchAliases();
       fetchCategoryWeights();
+      fetchRecommendations();
     }
   }, [profile?.id]);
 
@@ -306,6 +365,210 @@ export function IntegrationRequests() {
     fetchCatalog();
     fetchAliases();
     fetchCategoryWeights();
+    fetchRecommendations();
+  };
+
+  // Phase 2D: Fetch recommendations
+  const fetchRecommendations = async () => {
+    setLoadingRecommendations(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_recommendations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      // Sort by recommendation type importance
+      const sorted = (data || []).sort((a, b) => {
+        const aOrder = RECOMMENDATION_TYPE_ORDER[a.recommendation_type] ?? 99;
+        const bOrder = RECOMMENDATION_TYPE_ORDER[b.recommendation_type] ?? 99;
+        return aOrder - bOrder;
+      });
+      setRecommendations(sorted);
+      console.log('[AdminIntegrationRequests] Recommendations fetched:', sorted.length);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching recommendations:', error);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
+  // Phase 2D: Generate recommendations engine
+  const generateIntegrationRecommendations = async () => {
+    setGeneratingRecommendations(true);
+    console.log('[AdminIntegrationRequests] Recommendation generation started');
+    try {
+      // Fetch fresh catalog data for computation
+      const { data: catalogData, error: catError } = await supabase
+        .from('integration_catalog')
+        .select('*')
+        .order('priority_score', { ascending: false });
+
+      if (catError) throw catError;
+      const allEntries: CatalogEntry[] = catalogData || [];
+      if (allEntries.length === 0) {
+        console.log('[AdminIntegrationRequests] No catalog entries, skipping recommendation generation');
+        setGeneratingRecommendations(false);
+        return;
+      }
+
+      // Step 1: Clear existing recommendations
+      const { error: deleteError } = await supabase
+        .from('integration_recommendations')
+        .delete()
+        .gte('created_at', '1970-01-01T00:00:00Z');
+
+      if (deleteError) throw deleteError;
+      console.log('[AdminIntegrationRequests] Cleared existing recommendations');
+
+      const newRecs: Array<{
+        integration_catalog_id: string | null;
+        recommendation_type: string;
+        title: string;
+        description: string;
+        priority_score_snapshot: number | null;
+      }> = [];
+
+      // Compute thresholds
+      const scores = allEntries.map(e => e.priority_score ?? 0);
+      const sortedScores = [...scores].sort((a, b) => b - a);
+      const top10Idx = Math.max(0, Math.floor(sortedScores.length * 0.1) - 1);
+      const bottom30Idx = Math.floor(sortedScores.length * 0.7);
+      const top10Threshold = sortedScores[top10Idx] ?? 0;
+      const bottom30Threshold = sortedScores[bottom30Idx] ?? 0;
+
+      // Count integrations per category
+      const categoryCounts: Record<string, number> = {};
+      allEntries.forEach(e => {
+        const cat = e.category || 'Other';
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+      });
+      const avgPerCategory = allEntries.length / Math.max(Object.keys(categoryCounts).length, 1);
+
+      // Fetch recent requests for trending detection
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      for (const entry of allEntries) {
+        const score = entry.priority_score ?? 0;
+
+        // BUILD NOW: top 10% priority score
+        if (score >= top10Threshold && top10Threshold > 0) {
+          newRecs.push({
+            integration_catalog_id: entry.id,
+            recommendation_type: 'build_now',
+            title: `Build ${entry.canonical_name} Next`,
+            description: 'This integration has one of the highest priority scores based on demand, recency, and user distribution.',
+            priority_score_snapshot: score,
+          });
+        }
+
+        // HIGH DEMAND: total_requests >= 5 or top 30%
+        if (entry.total_requests >= 5) {
+          newRecs.push({
+            integration_catalog_id: entry.id,
+            recommendation_type: 'high_demand',
+            title: 'High Demand Integration',
+            description: `This integration has been requested ${entry.total_requests} times by multiple users.`,
+            priority_score_snapshot: score,
+          });
+        }
+
+        // TRENDING UP: requests in last 7 days vs 30-day avg
+        const { count: recentCount } = await supabase
+          .from('integration_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('integration_catalog_id', entry.id)
+          .gte('created_at', sevenDaysAgo);
+
+        const { count: monthCount } = await supabase
+          .from('integration_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('integration_catalog_id', entry.id)
+          .gte('created_at', thirtyDaysAgo);
+
+        const recent = recentCount ?? 0;
+        const monthly = monthCount ?? 0;
+        const weeklyAvg = monthly > 0 ? (monthly / 4.3) : 0;
+
+        if (recent > 0 && (weeklyAvg === 0 || recent > weeklyAvg * 1.5)) {
+          newRecs.push({
+            integration_catalog_id: entry.id,
+            recommendation_type: 'trending_up',
+            title: 'Trending Integration',
+            description: `Recent demand for ${entry.canonical_name} has increased significantly (${recent} requests in the last 7 days).`,
+            priority_score_snapshot: score,
+          });
+        }
+
+        // LOW PRIORITY: bottom 30%
+        if (score <= bottom30Threshold && score < top10Threshold) {
+          newRecs.push({
+            integration_catalog_id: entry.id,
+            recommendation_type: 'low_priority',
+            title: 'Low Priority Integration',
+            description: 'This integration currently has low demand and priority.',
+            priority_score_snapshot: score,
+          });
+        }
+      }
+
+      // CATEGORY GAP: underrepresented categories
+      const allWeightCategories = categoryWeights.map(w => w.category);
+      for (const cat of allWeightCategories) {
+        const count = categoryCounts[cat] || 0;
+        if (count < avgPerCategory * 0.5 && count > 0) {
+          newRecs.push({
+            integration_catalog_id: null,
+            recommendation_type: 'category_gap',
+            title: 'Category Opportunity Detected',
+            description: `The ${cat} category has relatively low coverage (${count} integration${count !== 1 ? 's' : ''}) but emerging demand.`,
+            priority_score_snapshot: null,
+          });
+        }
+      }
+
+      // Also detect categories with demand but zero integrations in catalog
+      for (const cat of allWeightCategories) {
+        if (!categoryCounts[cat]) {
+          // Check if there are any requests in this category
+          const { count: reqCount } = await supabase
+            .from('integration_requests')
+            .select('id', { count: 'exact', head: true })
+            .eq('category', cat);
+
+          if ((reqCount ?? 0) > 0) {
+            newRecs.push({
+              integration_catalog_id: null,
+              recommendation_type: 'category_gap',
+              title: 'Category Opportunity Detected',
+              description: `The ${cat} category has ${reqCount} request${(reqCount ?? 0) !== 1 ? 's' : ''} but no catalog entries yet.`,
+              priority_score_snapshot: null,
+            });
+          }
+        }
+      }
+
+      // Insert all recommendations (skip duplicates via unique index)
+      if (newRecs.length > 0) {
+        const { error: insertError } = await supabase
+          .from('integration_recommendations')
+          .insert(newRecs);
+
+        if (insertError) {
+          console.error('[AdminIntegrationRequests] Recommendation insert error:', insertError);
+        }
+      }
+
+      console.log('[AdminIntegrationRequests] Recommendation generation complete:', newRecs.length, 'recommendations created');
+      toast({ title: 'Recommendations Updated', description: `${newRecs.length} recommendations generated` });
+      fetchRecommendations();
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Recommendation generation error:', error);
+      toast({ title: 'Error', description: 'Failed to generate recommendations', variant: 'destructive' });
+    } finally {
+      setGeneratingRecommendations(false);
+    }
   };
 
   // Phase 2B: Add alias manually
@@ -376,6 +639,9 @@ export function IntegrationRequests() {
       fetchAliases();
       await recalculateAllCounts();
       fetchCatalog();
+
+      // Phase 2D: Regenerate recommendations after alias reassign
+      generateIntegrationRecommendations();
     } catch (error) {
       console.error('[AdminIntegrationRequests] Reassign alias error:', error);
       toast({ title: 'Error', description: 'Failed to reassign alias', variant: 'destructive' });
@@ -433,6 +699,9 @@ export function IntegrationRequests() {
       fetchCatalog();
       fetchAliases();
       fetchRequests();
+
+      // Phase 2D: Regenerate recommendations after merge
+      generateIntegrationRecommendations();
     } catch (error) {
       console.error('[AdminIntegrationRequests] Merge error:', error);
       toast({ title: 'Error', description: 'Failed to merge integrations', variant: 'destructive' });
@@ -532,6 +801,9 @@ export function IntegrationRequests() {
       // Recalculate all priority scores with new weight
       await recalculateAllCounts();
       fetchCatalog();
+
+      // Phase 2D: Regenerate recommendations after weight change
+      generateIntegrationRecommendations();
     } catch (error) {
       console.error('[AdminIntegrationRequests] Save weight error:', error);
       toast({ title: 'Error', description: 'Failed to update weight', variant: 'destructive' });
@@ -646,6 +918,145 @@ export function IntegrationRequests() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Phase 2D: AI Recommendations */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-amber-500" />
+              AI Recommendations ({recommendations.length})
+            </CardTitle>
+            <Button
+              size="sm"
+              onClick={generateIntegrationRecommendations}
+              disabled={generatingRecommendations}
+            >
+              {generatingRecommendations ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {generatingRecommendations ? 'Generating...' : 'Regenerate'}
+            </Button>
+          </div>
+          {/* Filters */}
+          <div className="flex gap-3 mt-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-gray-500">Type:</Label>
+              <Select value={recFilterType} onValueChange={setRecFilterType}>
+                <SelectTrigger className="w-36 h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="build_now">Build Now</SelectItem>
+                  <SelectItem value="high_demand">High Demand</SelectItem>
+                  <SelectItem value="trending_up">Trending Up</SelectItem>
+                  <SelectItem value="category_gap">Category Gap</SelectItem>
+                  <SelectItem value="low_priority">Low Priority</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-gray-500">Category:</Label>
+              <Select value={recFilterCategory} onValueChange={setRecFilterCategory}>
+                <SelectTrigger className="w-40 h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categoryWeights.map((w) => (
+                    <SelectItem key={w.category} value={w.category}>{w.category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingRecommendations ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+            </div>
+          ) : recommendations.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No recommendations yet. Click &quot;Regenerate&quot; to generate AI recommendations based on current data.
+            </div>
+          ) : (() => {
+            const filtered = recommendations.filter(rec => {
+              if (recFilterType !== 'all' && rec.recommendation_type !== recFilterType) return false;
+              if (recFilterCategory !== 'all') {
+                const catEntry = catalog.find(c => c.id === rec.integration_catalog_id);
+                if (catEntry && catEntry.category !== recFilterCategory) return false;
+                if (!catEntry && rec.recommendation_type !== 'category_gap') return false;
+              }
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="text-center py-8 text-gray-500">
+                  No recommendations match the current filters.
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {filtered.map((rec) => {
+                  const Icon = getRecommendationIcon(rec.recommendation_type);
+                  const catEntry = catalog.find(c => c.id === rec.integration_catalog_id);
+                  return (
+                    <div
+                      key={rec.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border ${
+                        rec.recommendation_type === 'build_now'
+                          ? 'border-red-200 bg-red-50 dark:bg-red-900/10'
+                          : rec.recommendation_type === 'low_priority'
+                          ? 'border-gray-200 bg-gray-50 dark:bg-gray-800/30 opacity-70'
+                          : 'border-gray-200 bg-white dark:bg-gray-800/50'
+                      }`}
+                    >
+                      <div className="mt-0.5">
+                        <Icon className={`h-5 w-5 ${
+                          rec.recommendation_type === 'build_now' ? 'text-red-500' :
+                          rec.recommendation_type === 'trending_up' ? 'text-green-500' :
+                          rec.recommendation_type === 'high_demand' ? 'text-orange-500' :
+                          rec.recommendation_type === 'category_gap' ? 'text-purple-500' :
+                          'text-gray-400'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className={getRecommendationBadgeColor(rec.recommendation_type)}>
+                            {formatRecommendationType(rec.recommendation_type)}
+                          </Badge>
+                          {catEntry && (
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {catEntry.canonical_name}
+                            </span>
+                          )}
+                          {rec.priority_score_snapshot !== null && (
+                            <span className="text-xs text-gray-400">
+                              Score: {rec.priority_score_snapshot.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{rec.title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{rec.description}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {format(new Date(rec.created_at), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Phase 2C: Integration Priority Rankings */}
       <Card>
