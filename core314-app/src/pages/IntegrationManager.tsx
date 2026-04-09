@@ -34,6 +34,10 @@ import {
   TrendingDown,
   Plus,
   Inbox,
+  Heart,
+  Star,
+  Loader2,
+  Rocket,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
@@ -176,7 +180,37 @@ export function IntegrationManager() {
     admin_notes: string | null;
     created_at: string;
   }>>([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [loadingRequests] = useState(false);
+
+  // Phase 3A: Commitments + Execution
+  interface Commitment {
+    id: string;
+    integration_catalog_id: string;
+    user_id: string;
+    commitment_type: string;
+    created_at: string;
+  }
+  interface ExecutionRecord {
+    id: string;
+    integration_catalog_id: string;
+    status: string;
+    estimated_completion_date: string | null;
+    notes: string | null;
+    created_at: string;
+  }
+  interface CatalogEntryUser {
+    id: string;
+    canonical_name: string;
+    category: string | null;
+    total_requests: number;
+    priority_score: number;
+  }
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [executionRecords, setExecutionRecords] = useState<ExecutionRecord[]>([]);
+  const [catalogEntries, setCatalogEntries] = useState<CatalogEntryUser[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [committingTo, setCommittingTo] = useState<string | null>(null);
+  const [allCommitmentCounts, setAllCommitmentCounts] = useState<Record<string, { interested: number; high_priority: number }>>({});
 
   // Track whether an OAuth callback was detected that should trigger brief generation
   const [pendingAutoTrigger, setPendingAutoTrigger] = useState(false);
@@ -328,8 +362,152 @@ export function IntegrationManager() {
       fetchIntegrations();
       fetchUserPlan();
       fetchMyRequests();
+      fetchCatalogForCommitments();
+      fetchMyCommitments();
+      fetchExecutionRecords();
+      fetchAllCommitmentCounts();
     }
   }, [profile?.id]);
+
+  const fetchCatalogForCommitments = async () => {
+    setLoadingCatalog(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_catalog')
+        .select('id, canonical_name, category, total_requests, priority_score')
+        .order('priority_score', { ascending: false });
+      if (!error && data) {
+        setCatalogEntries(data);
+      }
+    } catch (err) {
+      console.error('[IntegrationManager] Failed to fetch catalog:', err);
+    } finally {
+      setLoadingCatalog(false);
+    }
+  };
+
+  const fetchMyCommitments = async () => {
+    if (!profile?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('integration_commitments')
+        .select('*')
+        .eq('user_id', profile.id);
+      if (!error && data) {
+        setCommitments(data);
+        console.log('[IntegrationManager] Commitments fetched:', data.length);
+      }
+    } catch (err) {
+      console.error('[IntegrationManager] Failed to fetch commitments:', err);
+    }
+  };
+
+  const fetchAllCommitmentCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('integration_commitments')
+        .select('integration_catalog_id, commitment_type');
+      if (!error && data) {
+        const counts: Record<string, { interested: number; high_priority: number }> = {};
+        data.forEach((c: { integration_catalog_id: string; commitment_type: string }) => {
+          if (!counts[c.integration_catalog_id]) {
+            counts[c.integration_catalog_id] = { interested: 0, high_priority: 0 };
+          }
+          if (c.commitment_type === 'high_priority') {
+            counts[c.integration_catalog_id].high_priority++;
+          } else {
+            counts[c.integration_catalog_id].interested++;
+          }
+        });
+        setAllCommitmentCounts(counts);
+      }
+    } catch (err) {
+      console.error('[IntegrationManager] Failed to fetch commitment counts:', err);
+    }
+  };
+
+  const fetchExecutionRecords = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('integration_execution')
+        .select('id, integration_catalog_id, status, estimated_completion_date, notes, created_at');
+      if (!error && data) {
+        setExecutionRecords(data);
+        console.log('[IntegrationManager] Execution records fetched:', data.length);
+      }
+    } catch (err) {
+      console.error('[IntegrationManager] Failed to fetch execution records:', err);
+    }
+  };
+
+  const handleCommitment = async (catalogId: string, type: 'interested' | 'high_priority') => {
+    if (!profile?.id) return;
+    setCommittingTo(catalogId);
+    console.log('[IntegrationManager] Commitment action:', catalogId, type);
+    try {
+      const existing = commitments.find(c => c.integration_catalog_id === catalogId);
+      if (existing) {
+        if (existing.commitment_type === type) {
+          // Already same type — no-op
+          console.log('[IntegrationManager] Same commitment already exists');
+          setCommittingTo(null);
+          return;
+        }
+        // Upgrade from interested → high_priority
+        const { error } = await supabase
+          .from('integration_commitments')
+          .update({ commitment_type: type })
+          .eq('id', existing.id);
+        if (error) throw error;
+        console.log('[IntegrationManager] Commitment upgraded to:', type);
+      } else {
+        const { error } = await supabase
+          .from('integration_commitments')
+          .insert({
+            integration_catalog_id: catalogId,
+            user_id: profile.id,
+            commitment_type: type,
+          });
+        if (error) throw error;
+        console.log('[IntegrationManager] New commitment created:', type);
+      }
+      await fetchMyCommitments();
+      await fetchAllCommitmentCounts();
+    } catch (err) {
+      console.error('[IntegrationManager] Commitment error:', err);
+    } finally {
+      setCommittingTo(null);
+    }
+  };
+
+  const getMyCommitment = (catalogId: string) => {
+    return commitments.find(c => c.integration_catalog_id === catalogId);
+  };
+
+  const getExecution = (catalogId: string) => {
+    return executionRecords.find(e => e.integration_catalog_id === catalogId);
+  };
+
+  const getExecutionStatusLabel = (status: string) => {
+    switch (status) {
+      case 'not_started': return 'Not Started';
+      case 'planned': return 'Planned';
+      case 'in_progress': return 'In Progress';
+      case 'beta': return 'Beta';
+      case 'completed': return 'Completed';
+      default: return status;
+    }
+  };
+
+  const getExecutionStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'beta': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'in_progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'planned': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    }
+  };
 
   const fetchMyRequests = async () => {
     if (!profile?.id) return;
@@ -1183,6 +1361,105 @@ export function IntegrationManager() {
           Don&apos;t see your tool? Request an integration
         </Button>
       </div>
+
+      {/* My Requested Integrations — with commitment buttons + execution status */}
+      {catalogEntries.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Rocket className="h-4 w-4 text-indigo-500" />
+              Requested Integrations ({catalogEntries.length})
+            </CardTitle>
+            <p className="text-xs text-gray-500 mt-1">
+              Express your interest to help us prioritize what to build next.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {loadingCatalog ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {catalogEntries.map((entry) => {
+                  const myCommitment = getMyCommitment(entry.id);
+                  const execution = getExecution(entry.id);
+                  const counts = allCommitmentCounts[entry.id] || { interested: 0, high_priority: 0 };
+                  const totalCommitments = counts.interested + counts.high_priority;
+                  return (
+                    <div key={entry.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{entry.canonical_name}</span>
+                          {entry.category && (
+                            <Badge variant="outline" className="text-xs">{entry.category}</Badge>
+                          )}
+                          {execution && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getExecutionStatusColor(execution.status)}`}>
+                              {getExecutionStatusLabel(execution.status)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span>{entry.total_requests} request{entry.total_requests !== 1 ? 's' : ''}</span>
+                          {totalCommitments > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {totalCommitments} committed
+                              {counts.high_priority > 0 && (
+                                <span className="text-amber-600">({counts.high_priority} high priority)</span>
+                              )}
+                            </span>
+                          )}
+                          {execution?.estimated_completion_date && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              ETA: {format(new Date(execution.estimated_completion_date), 'MMM d, yyyy')}
+                            </span>
+                          )}
+                          {execution?.notes && (
+                            <span className="max-w-xs truncate">{execution.notes}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant={myCommitment?.commitment_type === 'interested' ? 'default' : 'outline'}
+                          className="h-7 text-xs"
+                          onClick={() => handleCommitment(entry.id, 'interested')}
+                          disabled={committingTo === entry.id || myCommitment?.commitment_type === 'interested'}
+                        >
+                          {committingTo === entry.id ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Heart className={`h-3 w-3 mr-1 ${myCommitment?.commitment_type === 'interested' ? 'fill-current' : ''}`} />
+                          )}
+                          Interested
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={myCommitment?.commitment_type === 'high_priority' ? 'default' : 'outline'}
+                          className={`h-7 text-xs ${myCommitment?.commitment_type === 'high_priority' ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
+                          onClick={() => handleCommitment(entry.id, 'high_priority')}
+                          disabled={committingTo === entry.id || myCommitment?.commitment_type === 'high_priority'}
+                        >
+                          {committingTo === entry.id ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Star className={`h-3 w-3 mr-1 ${myCommitment?.commitment_type === 'high_priority' ? 'fill-current' : ''}`} />
+                          )}
+                          High Priority
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* My Integration Requests */}
       {myRequests.length > 0 && (

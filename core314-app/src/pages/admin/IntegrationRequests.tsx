@@ -32,7 +32,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../../components/ui/dialog';
-import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2, Lightbulb, Zap, Target, ArrowDown } from 'lucide-react';
+import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2, Lightbulb, Zap, Target, ArrowDown, Rocket, Play, Users, Star, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface IntegrationRequest {
@@ -78,6 +78,24 @@ interface AliasEntry {
   alias_name: string;
   normalized_key: string;
   created_at: string;
+}
+
+interface ExecutionRecord {
+  id: string;
+  integration_catalog_id: string;
+  status: string;
+  estimated_completion_date: string | null;
+  notes: string | null;
+  monetization_potential: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface CommitmentCount {
+  integration_catalog_id: string;
+  interested: number;
+  high_priority: number;
+  total: number;
 }
 
 interface Recommendation {
@@ -199,6 +217,20 @@ export function IntegrationRequests() {
   const [recFilterType, setRecFilterType] = useState<string>('all');
   const [recFilterCategory, setRecFilterCategory] = useState<string>('all');
 
+  // Phase 3A: Execution Pipeline + Commitments state
+  const [executionRecords, setExecutionRecords] = useState<ExecutionRecord[]>([]);
+  const [loadingExecution, setLoadingExecution] = useState(false);
+  const [commitmentCounts, setCommitmentCounts] = useState<CommitmentCount[]>([]);
+  const [editingExecutionId, setEditingExecutionId] = useState<string | null>(null);
+  const [executionForm, setExecutionForm] = useState<{
+    status: string;
+    estimated_completion_date: string;
+    notes: string;
+    monetization_potential: string;
+  }>({ status: 'not_started', estimated_completion_date: '', notes: '', monetization_potential: 'low' });
+  const [savingExecution, setSavingExecution] = useState(false);
+  const [creatingExecution, setCreatingExecution] = useState(false);
+
   useEffect(() => {
     if (profile && !isAdmin()) {
       navigate('/brief');
@@ -212,6 +244,8 @@ export function IntegrationRequests() {
       fetchAliases();
       fetchCategoryWeights();
       fetchRecommendations();
+      fetchExecutionRecords();
+      fetchCommitmentCounts();
     }
   }, [profile?.id]);
 
@@ -366,6 +400,172 @@ export function IntegrationRequests() {
     fetchAliases();
     fetchCategoryWeights();
     fetchRecommendations();
+    fetchExecutionRecords();
+    fetchCommitmentCounts();
+  };
+
+  // Phase 3A: Fetch execution records
+  const fetchExecutionRecords = async () => {
+    setLoadingExecution(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_execution')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setExecutionRecords(data || []);
+      console.log('[AdminIntegrationRequests] Execution records fetched:', data?.length);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching execution records:', error);
+    } finally {
+      setLoadingExecution(false);
+    }
+  };
+
+  // Phase 3A: Fetch commitment counts (aggregated)
+  const fetchCommitmentCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('integration_commitments')
+        .select('integration_catalog_id, commitment_type');
+
+      if (error) throw error;
+      const counts: Record<string, CommitmentCount> = {};
+      (data || []).forEach((c: { integration_catalog_id: string; commitment_type: string }) => {
+        if (!counts[c.integration_catalog_id]) {
+          counts[c.integration_catalog_id] = { integration_catalog_id: c.integration_catalog_id, interested: 0, high_priority: 0, total: 0 };
+        }
+        if (c.commitment_type === 'high_priority') {
+          counts[c.integration_catalog_id].high_priority++;
+        } else {
+          counts[c.integration_catalog_id].interested++;
+        }
+        counts[c.integration_catalog_id].total++;
+      });
+      setCommitmentCounts(Object.values(counts));
+      console.log('[AdminIntegrationRequests] Commitment counts fetched:', Object.keys(counts).length);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching commitment counts:', error);
+    }
+  };
+
+  // Phase 3A: Create execution record
+  const handleCreateExecution = async (catalogId: string) => {
+    setCreatingExecution(true);
+    console.log('[AdminIntegrationRequests] Creating execution record for:', catalogId);
+    try {
+      const { error } = await supabase
+        .from('integration_execution')
+        .insert({
+          integration_catalog_id: catalogId,
+          status: 'planned',
+          monetization_potential: 'low',
+        });
+      if (error) throw error;
+      toast({ title: 'Execution Created', description: 'Integration added to execution pipeline' });
+      await fetchExecutionRecords();
+      // Trigger notification structure
+      notifyUsersOnStatusChange(catalogId, 'not_started', 'planned');
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Create execution error:', error);
+      toast({ title: 'Error', description: 'Failed to create execution record', variant: 'destructive' });
+    } finally {
+      setCreatingExecution(false);
+    }
+  };
+
+  // Phase 3A: Start editing execution record
+  const startEditingExecution = (exec: ExecutionRecord) => {
+    setEditingExecutionId(exec.id);
+    setExecutionForm({
+      status: exec.status,
+      estimated_completion_date: exec.estimated_completion_date ? exec.estimated_completion_date.split('T')[0] : '',
+      notes: exec.notes || '',
+      monetization_potential: exec.monetization_potential,
+    });
+  };
+
+  // Phase 3A: Save execution record updates
+  const handleSaveExecution = async (execId: string, catalogId: string) => {
+    setSavingExecution(true);
+    console.log('[AdminIntegrationRequests] Updating execution:', execId, executionForm);
+    try {
+      const oldExec = executionRecords.find(e => e.id === execId);
+      const { error } = await supabase
+        .from('integration_execution')
+        .update({
+          status: executionForm.status,
+          estimated_completion_date: executionForm.estimated_completion_date || null,
+          notes: executionForm.notes || null,
+          monetization_potential: executionForm.monetization_potential,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', execId);
+
+      if (error) throw error;
+      toast({ title: 'Updated', description: 'Execution record updated' });
+      setEditingExecutionId(null);
+      await fetchExecutionRecords();
+
+      // Phase 3A: Notify on status change
+      if (oldExec && oldExec.status !== executionForm.status) {
+        notifyUsersOnStatusChange(catalogId, oldExec.status, executionForm.status);
+      }
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Save execution error:', error);
+      toast({ title: 'Error', description: 'Failed to update execution record', variant: 'destructive' });
+    } finally {
+      setSavingExecution(false);
+    }
+  };
+
+  // Phase 3A: Notification hook structure (no external service yet)
+  const notifyUsersOnStatusChange = (catalogId: string, oldStatus: string, newStatus: string) => {
+    console.log(`[AdminIntegrationRequests] Status change notification: ${catalogId} changed from ${oldStatus} to ${newStatus}`);
+    console.log('[AdminIntegrationRequests] TODO: Wire to email/push notification service when ready');
+  };
+
+  // Phase 3A: Get execution record for a catalog entry
+  const getExecutionForCatalog = (catalogId: string) => {
+    return executionRecords.find(e => e.integration_catalog_id === catalogId);
+  };
+
+  // Phase 3A: Get commitment counts for a catalog entry
+  const getCommitmentCountsForCatalog = (catalogId: string) => {
+    return commitmentCounts.find(c => c.integration_catalog_id === catalogId) || { interested: 0, high_priority: 0, total: 0 };
+  };
+
+  const EXECUTION_STATUS_OPTIONS = ['not_started', 'planned', 'in_progress', 'beta', 'completed'];
+  const MONETIZATION_OPTIONS = ['low', 'medium', 'high'];
+
+  const getExecutionStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+      case 'beta': return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'planned': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const getMonetizationColor = (level: string) => {
+    switch (level) {
+      case 'high': return 'bg-green-100 text-green-800 border-green-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const formatExecutionStatus = (status: string) => {
+    switch (status) {
+      case 'not_started': return 'Not Started';
+      case 'planned': return 'Planned';
+      case 'in_progress': return 'In Progress';
+      case 'beta': return 'Beta';
+      case 'completed': return 'Completed';
+      default: return status;
+    }
   };
 
   // Phase 2D: Fetch recommendations
@@ -1049,6 +1249,20 @@ export function IntegrationRequests() {
                           {format(new Date(rec.created_at), 'MMM d, yyyy h:mm a')}
                         </p>
                       </div>
+                      {/* Phase 3A: Start Build action for build_now recommendations */}
+                      {rec.recommendation_type === 'build_now' && rec.integration_catalog_id && !getExecutionForCatalog(rec.integration_catalog_id) && (
+                        <div className="flex-shrink-0 self-center">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleCreateExecution(rec.integration_catalog_id!)}
+                            disabled={creatingExecution}
+                          >
+                            {creatingExecution ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Play className="h-3 w-3 mr-1" />}
+                            Start Build
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1654,6 +1868,206 @@ export function IntegrationRequests() {
                 Higher weights increase priority score for integrations in that category. Changes trigger automatic score recalculation.
               </p>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Phase 3A: Integration Execution Pipeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Rocket className="h-5 w-5 text-indigo-500" />
+            Integration Execution Pipeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingExecution ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : (
+            <>
+              {/* Execution table for integrations that have execution records */}
+              {executionRecords.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Integration</TableHead>
+                        <TableHead className="text-xs">Priority Score</TableHead>
+                        <TableHead className="text-xs">Requests</TableHead>
+                        <TableHead className="text-xs">Commitments</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead className="text-xs">ETA</TableHead>
+                        <TableHead className="text-xs">Monetization</TableHead>
+                        <TableHead className="text-xs">Notes</TableHead>
+                        <TableHead className="text-xs">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {executionRecords.map((exec) => {
+                        const catEntry = catalog.find(c => c.id === exec.integration_catalog_id);
+                        const counts = getCommitmentCountsForCatalog(exec.integration_catalog_id);
+                        const isEditing = editingExecutionId === exec.id;
+
+                        return (
+                          <TableRow key={exec.id}>
+                            <TableCell className="font-medium text-sm">{catEntry?.canonical_name || 'Unknown'}</TableCell>
+                            <TableCell>
+                              {catEntry ? (
+                                <Badge className={getPriorityScoreBadge(catEntry.priority_score)}>
+                                  {catEntry.priority_score.toFixed(2)}
+                                </Badge>
+                              ) : '—'}
+                            </TableCell>
+                            <TableCell className="text-sm">{catEntry?.total_requests || 0}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1 text-xs">
+                                <Users className="h-3 w-3 text-gray-400" />
+                                <span>{counts.total}</span>
+                                {counts.high_priority > 0 && (
+                                  <span className="text-amber-600 ml-1">
+                                    <Star className="h-3 w-3 inline" /> {counts.high_priority}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Select value={executionForm.status} onValueChange={(v) => setExecutionForm({ ...executionForm, status: v })}>
+                                  <SelectTrigger className="w-32 h-7 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {EXECUTION_STATUS_OPTIONS.map(s => (
+                                      <SelectItem key={s} value={s}>{formatExecutionStatus(s)}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Badge className={getExecutionStatusColor(exec.status)}>
+                                  {formatExecutionStatus(exec.status)}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Input
+                                  type="date"
+                                  value={executionForm.estimated_completion_date}
+                                  onChange={(e) => setExecutionForm({ ...executionForm, estimated_completion_date: e.target.value })}
+                                  className="w-36 h-7 text-xs"
+                                />
+                              ) : (
+                                <span className="text-xs text-gray-600">
+                                  {exec.estimated_completion_date ? format(new Date(exec.estimated_completion_date), 'MMM d, yyyy') : '—'}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Select value={executionForm.monetization_potential} onValueChange={(v) => setExecutionForm({ ...executionForm, monetization_potential: v })}>
+                                  <SelectTrigger className="w-24 h-7 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {MONETIZATION_OPTIONS.map(m => (
+                                      <SelectItem key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Badge className={getMonetizationColor(exec.monetization_potential)}>
+                                  {exec.monetization_potential.charAt(0).toUpperCase() + exec.monetization_potential.slice(1)}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <Input
+                                  value={executionForm.notes}
+                                  onChange={(e) => setExecutionForm({ ...executionForm, notes: e.target.value })}
+                                  className="w-40 h-7 text-xs"
+                                  placeholder="Add notes..."
+                                />
+                              ) : (
+                                <span className="text-xs text-gray-500 max-w-[150px] truncate block">
+                                  {exec.notes || '—'}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleSaveExecution(exec.id, exec.integration_catalog_id)}
+                                    disabled={savingExecution}
+                                    className="h-7 text-xs"
+                                  >
+                                    {savingExecution ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setEditingExecutionId(null)}
+                                    className="h-7 text-xs"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startEditingExecution(exec)}
+                                  className="h-7 text-xs"
+                                >
+                                  <Edit className="h-3 w-3 mr-1" />
+                                  Edit
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No integrations in execution pipeline. Use &quot;Start Build&quot; on Build Now recommendations or create execution records manually.
+                </div>
+              )}
+
+              {/* Quick-add: catalog entries without execution records */}
+              {(() => {
+                const execCatalogIds = new Set(executionRecords.map(e => e.integration_catalog_id));
+                const untracked = catalog.filter(c => !execCatalogIds.has(c.id));
+                if (untracked.length === 0) return null;
+                return (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-500 mb-2">Not yet in pipeline:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {untracked.map(c => (
+                        <Button
+                          key={c.id}
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => handleCreateExecution(c.id)}
+                          disabled={creatingExecution}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          {c.canonical_name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
           )}
         </CardContent>
       </Card>
