@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -195,7 +194,6 @@ const getDemandBadgeColor = (count: number) => {
 
 export function IntegrationRequests() {
   const { profile, isAdmin } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [requests, setRequests] = useState<IntegrationRequest[]>([]);
@@ -256,12 +254,6 @@ export function IntegrationRequests() {
   const [offerModal, setOfferModal] = useState<{ open: boolean; catalogId: string; catalogName: string }>({ open: false, catalogId: '', catalogName: '' });
   const [offerForm, setOfferForm] = useState<{ user_id: string; offer_title: string; offer_description: string }>({ user_id: '', offer_title: '', offer_description: '' });
   const [sendingOffer, setSendingOffer] = useState(false);
-
-  useEffect(() => {
-    if (profile && !isAdmin()) {
-      navigate('/brief');
-    }
-  }, [profile, navigate, isAdmin]);
 
   useEffect(() => {
     if (profile?.id && isAdmin()) {
@@ -1182,6 +1174,11 @@ export function IntegrationRequests() {
     completed: requests.filter(r => r.status === 'completed').length,
     rejected: requests.filter(r => r.status === 'rejected').length,
   };
+
+  // Hard safety check — render nothing if not admin (defense-in-depth)
+  if (profile && !isAdmin()) {
+    return null;
+  }
 
   return (
     <div className="p-6 space-y-6">

@@ -6,6 +6,7 @@ import { ResetPasswordConfirm } from './pages/auth/ResetPasswordConfirm';
 import { AuthConfirm } from './pages/auth/AuthConfirm';
 import { Pricing } from './pages/Pricing';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RequireAdmin } from './components/RequireAdmin';
 import { MainLayout } from './components/MainLayout';
 import { AccountLayout } from './components/AccountLayout';
 import { Integrations } from './pages/Integrations';
@@ -139,8 +140,12 @@ function App() {
             <Route path="integrations/slack/configure" element={<SlackConfigure />} />
             <Route path="integrations/microsoft_teams/configure" element={<TeamsConfigure />} />
             
-            {/* Admin routes */}
-            <Route path="admin/integration-requests" element={<IntegrationRequests />} />
+            {/* Admin routes — hard-guarded by RequireAdmin */}
+            <Route path="admin/integration-requests" element={
+              <RequireAdmin>
+                <IntegrationRequests />
+              </RequireAdmin>
+            } />
           </Route>
         </Route>
         </Routes>
