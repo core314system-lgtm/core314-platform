@@ -32,7 +32,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../../components/ui/dialog';
-import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2, Lightbulb, Zap, Target, ArrowDown, Rocket, Play, Users, Star, Edit } from 'lucide-react';
+import { RefreshCw, Inbox, Save, X, TrendingUp, ChevronDown, ChevronRight, Link2, Merge, Plus, Trash2, Loader2, BarChart3, Settings2, Lightbulb, Zap, Target, ArrowDown, Rocket, Play, Users, Star, Edit, Send, Gift, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface IntegrationRequest {
@@ -96,6 +96,24 @@ interface CommitmentCount {
   interested: number;
   high_priority: number;
   total: number;
+}
+
+interface PrivateOffer {
+  id: string;
+  integration_catalog_id: string;
+  user_id: string;
+  offer_title: string;
+  offer_description: string;
+  status: string;
+  created_at: string;
+  responded_at: string | null;
+}
+
+interface ProfileEntry {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
 }
 
 interface Recommendation {
@@ -231,6 +249,14 @@ export function IntegrationRequests() {
   const [savingExecution, setSavingExecution] = useState(false);
   const [creatingExecution, setCreatingExecution] = useState(false);
 
+  // Phase 3B: Private Offers state
+  const [privateOffers, setPrivateOffers] = useState<PrivateOffer[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [allProfiles, setAllProfiles] = useState<ProfileEntry[]>([]);
+  const [offerModal, setOfferModal] = useState<{ open: boolean; catalogId: string; catalogName: string }>({ open: false, catalogId: '', catalogName: '' });
+  const [offerForm, setOfferForm] = useState<{ user_id: string; offer_title: string; offer_description: string }>({ user_id: '', offer_title: '', offer_description: '' });
+  const [sendingOffer, setSendingOffer] = useState(false);
+
   useEffect(() => {
     if (profile && !isAdmin()) {
       navigate('/brief');
@@ -246,6 +272,8 @@ export function IntegrationRequests() {
       fetchRecommendations();
       fetchExecutionRecords();
       fetchCommitmentCounts();
+      fetchPrivateOffers();
+      fetchAllProfiles();
     }
   }, [profile?.id]);
 
@@ -402,6 +430,7 @@ export function IntegrationRequests() {
     fetchRecommendations();
     fetchExecutionRecords();
     fetchCommitmentCounts();
+    fetchPrivateOffers();
   };
 
   // Phase 3A: Fetch execution records
@@ -524,6 +553,93 @@ export function IntegrationRequests() {
   const notifyUsersOnStatusChange = (catalogId: string, oldStatus: string, newStatus: string) => {
     console.log(`[AdminIntegrationRequests] Status change notification: ${catalogId} changed from ${oldStatus} to ${newStatus}`);
     console.log('[AdminIntegrationRequests] TODO: Wire to email/push notification service when ready');
+  };
+
+  // Phase 3B: Fetch private offers
+  const fetchPrivateOffers = async () => {
+    setLoadingOffers(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_private_offers')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setPrivateOffers(data || []);
+      console.log('[AdminIntegrationRequests] Private offers fetched:', data?.length);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching private offers:', error);
+    } finally {
+      setLoadingOffers(false);
+    }
+  };
+
+  // Phase 3B: Fetch all profiles for user selection
+  const fetchAllProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role')
+        .order('email', { ascending: true });
+      if (error) throw error;
+      setAllProfiles(data || []);
+      console.log('[AdminIntegrationRequests] Profiles fetched:', data?.length);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Error fetching profiles:', error);
+    }
+  };
+
+  // Phase 3B: Create private offer
+  const handleCreateOffer = async () => {
+    if (!offerForm.user_id || !offerForm.offer_title || !offerForm.offer_description) return;
+    setSendingOffer(true);
+    console.log('[AdminIntegrationRequests] Creating private offer:', offerModal.catalogId, offerForm);
+    try {
+      const { error } = await supabase
+        .from('integration_private_offers')
+        .insert({
+          integration_catalog_id: offerModal.catalogId,
+          user_id: offerForm.user_id,
+          offer_title: offerForm.offer_title,
+          offer_description: offerForm.offer_description,
+        });
+      if (error) throw error;
+      toast({ title: 'Offer Sent', description: 'Private offer created and delivered to user' });
+      setOfferModal({ open: false, catalogId: '', catalogName: '' });
+      setOfferForm({ user_id: '', offer_title: '', offer_description: '' });
+      await fetchPrivateOffers();
+      notifyUserOfOffer(offerForm.user_id, offerModal.catalogId);
+    } catch (error) {
+      console.error('[AdminIntegrationRequests] Create offer error:', error);
+      toast({ title: 'Error', description: 'Failed to create private offer', variant: 'destructive' });
+    } finally {
+      setSendingOffer(false);
+    }
+  };
+
+  // Phase 3B: Notification hook for new offer
+  const notifyUserOfOffer = (userId: string, catalogId: string) => {
+    console.log(`[AdminIntegrationRequests] Offer notification: user ${userId} for integration ${catalogId}`);
+    console.log('[AdminIntegrationRequests] TODO: Wire to email/push notification service when ready');
+  };
+
+  // Phase 3B: Get offers for a catalog entry
+  const getOffersForCatalog = (catalogId: string) => {
+    return privateOffers.filter(o => o.integration_catalog_id === catalogId);
+  };
+
+  // Phase 3B: Get offer status badge color
+  const getOfferStatusColor = (status: string) => {
+    switch (status) {
+      case 'accepted': return 'bg-green-100 text-green-800 border-green-300';
+      case 'declined': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    }
+  };
+
+  // Phase 3B: Get user display name
+  const getUserDisplay = (userId: string) => {
+    const p = allProfiles.find(pr => pr.id === userId);
+    return p ? (p.full_name || p.email) : userId.slice(0, 8) + '...';
   };
 
   // Phase 3A: Get execution record for a catalog entry
@@ -2072,6 +2188,97 @@ export function IntegrationRequests() {
         </CardContent>
       </Card>
 
+      {/* Phase 3B: Private Offers Dashboard */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="h-5 w-5 text-purple-500" />
+            Private Offers ({privateOffers.length})
+          </CardTitle>
+          <p className="text-xs text-gray-500 mt-1">
+            Send private offers to specific users for integrations in the execution pipeline.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loadingOffers ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+            </div>
+          ) : privateOffers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No private offers sent yet. Use the &quot;Send Offer&quot; button in the execution pipeline to create user-specific offers.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Integration</TableHead>
+                    <TableHead className="text-xs">User</TableHead>
+                    <TableHead className="text-xs">Offer Title</TableHead>
+                    <TableHead className="text-xs">Description</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Sent</TableHead>
+                    <TableHead className="text-xs">Responded</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {privateOffers.map((offer) => {
+                    const catEntry = catalog.find(c => c.id === offer.integration_catalog_id);
+                    return (
+                      <TableRow key={offer.id}>
+                        <TableCell className="font-medium text-sm">{catEntry?.canonical_name || 'Unknown'}</TableCell>
+                        <TableCell className="text-sm">{getUserDisplay(offer.user_id)}</TableCell>
+                        <TableCell className="text-sm font-medium">{offer.offer_title}</TableCell>
+                        <TableCell className="text-xs text-gray-500 max-w-[200px] truncate">{offer.offer_description}</TableCell>
+                        <TableCell>
+                          <Badge className={getOfferStatusColor(offer.status)}>
+                            {offer.status === 'accepted' && <CheckCircle className="h-3 w-3 mr-1" />}
+                            {offer.status === 'declined' && <XCircle className="h-3 w-3 mr-1" />}
+                            {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-500">{format(new Date(offer.created_at), 'MMM d, yyyy')}</TableCell>
+                        <TableCell className="text-xs text-gray-500">
+                          {offer.responded_at ? format(new Date(offer.responded_at), 'MMM d, yyyy') : '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Quick-send: catalog entries in execution pipeline */}
+          {executionRecords.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-500 mb-2">Send offer for:</p>
+              <div className="flex flex-wrap gap-2">
+                {executionRecords.map(exec => {
+                  const catEntry = catalog.find(c => c.id === exec.integration_catalog_id);
+                  return (
+                    <Button
+                      key={exec.id}
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setOfferModal({ open: true, catalogId: exec.integration_catalog_id, catalogName: catEntry?.canonical_name || 'Unknown' });
+                        setOfferForm({ user_id: '', offer_title: '', offer_description: '' });
+                      }}
+                    >
+                      <Send className="h-3 w-3 mr-1" />
+                      {catEntry?.canonical_name || 'Unknown'}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Phase 2B: Add Alias Modal */}
       <Dialog open={addAliasModal.open} onOpenChange={(open) => setAddAliasModal({ ...addAliasModal, open })}>
         <DialogContent className="sm:max-w-[400px]">
@@ -2143,6 +2350,68 @@ export function IntegrationRequests() {
             <Button onClick={handleMerge} disabled={merging || !mergeTargetId} variant="destructive">
               {merging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Merge className="mr-2 h-4 w-4" />}
               Merge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 3B: Send Offer Modal */}
+      <Dialog open={offerModal.open} onOpenChange={(open) => { setOfferModal({ ...offerModal, open }); if (!open) setOfferForm({ user_id: '', offer_title: '', offer_description: '' }); }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-purple-500" />
+              Send Private Offer
+            </DialogTitle>
+            <DialogDescription>
+              Create a private offer for <strong>{offerModal.catalogName}</strong>. Only the selected user will see this offer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="offer-user">Select User</Label>
+              <Select value={offerForm.user_id} onValueChange={(v) => setOfferForm({ ...offerForm, user_id: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProfiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.full_name ? `${p.full_name} (${p.email})` : p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="offer-title">Offer Title</Label>
+              <Input
+                id="offer-title"
+                placeholder="e.g., Early Access to Notion Integration"
+                value={offerForm.offer_title}
+                onChange={(e) => setOfferForm({ ...offerForm, offer_title: e.target.value })}
+                disabled={sendingOffer}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="offer-desc">Offer Description</Label>
+              <Textarea
+                id="offer-desc"
+                placeholder="Describe the offer details, what the user gets, timeline, etc."
+                value={offerForm.offer_description}
+                onChange={(e) => setOfferForm({ ...offerForm, offer_description: e.target.value })}
+                disabled={sendingOffer}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOfferModal({ open: false, catalogId: '', catalogName: '' }); setOfferForm({ user_id: '', offer_title: '', offer_description: '' }); }} disabled={sendingOffer}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateOffer} disabled={sendingOffer || !offerForm.user_id || !offerForm.offer_title.trim() || !offerForm.offer_description.trim()}>
+              {sendingOffer ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              Send Offer
             </Button>
           </DialogFooter>
         </DialogContent>

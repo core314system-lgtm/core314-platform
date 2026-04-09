@@ -38,6 +38,9 @@ import {
   Star,
   Loader2,
   Rocket,
+  Gift,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
@@ -198,6 +201,16 @@ export function IntegrationManager() {
     notes: string | null;
     created_at: string;
   }
+  interface PrivateOffer {
+    id: string;
+    integration_catalog_id: string;
+    user_id: string;
+    offer_title: string;
+    offer_description: string;
+    status: string;
+    created_at: string;
+    responded_at: string | null;
+  }
   interface CatalogEntryUser {
     id: string;
     canonical_name: string;
@@ -211,6 +224,11 @@ export function IntegrationManager() {
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [committingTo, setCommittingTo] = useState<string | null>(null);
   const [allCommitmentCounts, setAllCommitmentCounts] = useState<Record<string, { interested: number; high_priority: number }>>({});
+
+  // Phase 3B: Private Offers
+  const [myOffers, setMyOffers] = useState<PrivateOffer[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [respondingToOffer, setRespondingToOffer] = useState<string | null>(null);
 
   // Track whether an OAuth callback was detected that should trigger brief generation
   const [pendingAutoTrigger, setPendingAutoTrigger] = useState(false);
@@ -366,6 +384,7 @@ export function IntegrationManager() {
       fetchMyCommitments();
       fetchExecutionRecords();
       fetchAllCommitmentCounts();
+      fetchMyOffers();
     }
   }, [profile?.id]);
 
@@ -507,6 +526,68 @@ export function IntegrationManager() {
       case 'planned': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
+  };
+
+  // Phase 3B: Fetch user's private offers
+  const fetchMyOffers = async () => {
+    if (!profile?.id) return;
+    setLoadingOffers(true);
+    try {
+      const { data, error } = await supabase
+        .from('integration_private_offers')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setMyOffers(data);
+        console.log('[IntegrationManager] My offers fetched:', data.length);
+      }
+    } catch (err) {
+      console.error('[IntegrationManager] Failed to fetch offers:', err);
+    } finally {
+      setLoadingOffers(false);
+    }
+  };
+
+  // Phase 3B: Accept offer
+  const handleAcceptOffer = async (offerId: string) => {
+    setRespondingToOffer(offerId);
+    try {
+      const { error } = await supabase
+        .from('integration_private_offers')
+        .update({ status: 'accepted', responded_at: new Date().toISOString() })
+        .eq('id', offerId);
+      if (error) throw error;
+      console.log('[IntegrationManager] Offer accepted:', offerId);
+      await fetchMyOffers();
+    } catch (err) {
+      console.error('[IntegrationManager] Accept offer error:', err);
+    } finally {
+      setRespondingToOffer(null);
+    }
+  };
+
+  // Phase 3B: Decline offer
+  const handleDeclineOffer = async (offerId: string) => {
+    setRespondingToOffer(offerId);
+    try {
+      const { error } = await supabase
+        .from('integration_private_offers')
+        .update({ status: 'declined', responded_at: new Date().toISOString() })
+        .eq('id', offerId);
+      if (error) throw error;
+      console.log('[IntegrationManager] Offer declined:', offerId);
+      await fetchMyOffers();
+    } catch (err) {
+      console.error('[IntegrationManager] Decline offer error:', err);
+    } finally {
+      setRespondingToOffer(null);
+    }
+  };
+
+  // Phase 3B: Get catalog name for an offer
+  const getOfferCatalogName = (catalogId: string) => {
+    const entry = catalogEntries.find(c => c.id === catalogId);
+    return entry?.canonical_name || 'Integration';
   };
 
   const fetchMyRequests = async () => {
@@ -1455,6 +1536,100 @@ export function IntegrationManager() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Phase 3B: My Offers */}
+      {myOffers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Gift className="h-4 w-4 text-purple-500" />
+              My Offers ({myOffers.length})
+            </CardTitle>
+            <p className="text-xs text-gray-500 mt-1">
+              Private offers from the Core314 team for you.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {loadingOffers ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myOffers.map((offer) => (
+                  <div key={offer.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{getOfferCatalogName(offer.integration_catalog_id)}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            offer.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                            offer.status === 'declined' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          }`}>
+                            {offer.status.charAt(0).toUpperCase() + offer.status.slice(1)}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">{offer.offer_title}</h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{offer.offer_description}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span>Received: {format(new Date(offer.created_at), 'MMM d, yyyy')}</span>
+                          {offer.responded_at && (
+                            <span>Responded: {format(new Date(offer.responded_at), 'MMM d, yyyy')}</span>
+                          )}
+                        </div>
+                      </div>
+                      {offer.status === 'pending' && (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs bg-green-600 hover:bg-green-700"
+                            onClick={() => handleAcceptOffer(offer.id)}
+                            disabled={respondingToOffer === offer.id}
+                          >
+                            {respondingToOffer === offer.id ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                            )}
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                            onClick={() => handleDeclineOffer(offer.id)}
+                            disabled={respondingToOffer === offer.id}
+                          >
+                            {respondingToOffer === offer.id ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <XCircle className="h-3 w-3 mr-1" />
+                            )}
+                            Decline
+                          </Button>
+                        </div>
+                      )}
+                      {offer.status === 'accepted' && (
+                        <div className="flex items-center gap-1 text-green-600 text-xs">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Accepted
+                        </div>
+                      )}
+                      {offer.status === 'declined' && (
+                        <div className="flex items-center gap-1 text-red-500 text-xs">
+                          <XCircle className="h-4 w-4" />
+                          Declined
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
