@@ -64,12 +64,13 @@ function AppShell() {
 
 /**
  * Role-aware default redirect.
- * Admins land on /admin/integration-requests; everyone else on /brief.
+ * Admins are sent to admin.core314.com; everyone else to /brief.
  */
 function DefaultRedirect() {
   const { profile } = useAuth();
   if (profile?.role === 'admin') {
-    return <Navigate to="/admin/integration-requests" replace />;
+    window.location.href = 'https://admin.core314.com';
+    return null;
   }
   return <Navigate to="/brief" replace />;
 }

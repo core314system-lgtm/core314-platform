@@ -34,6 +34,7 @@ interface NavItem {
   label: string;
   icon: typeof FileText;
   badge?: string;
+  external?: boolean;
 }
 
 const getNavItems = (_integrationBadge?: string, isAdmin?: boolean, _subscriptionTier?: string, canAccessBilling?: boolean): NavItem[] => {
@@ -53,7 +54,7 @@ const getNavItems = (_integrationBadge?: string, isAdmin?: boolean, _subscriptio
 
   // Admin section — only visible to admin users
   if (isAdmin) {
-    baseItems.push({ path: '/admin/integration-requests', label: 'Admin Dashboard', icon: ShieldCheck });
+    baseItems.push({ path: 'https://admin.core314.com', label: 'Admin Dashboard', icon: ShieldCheck, external: true });
   }
   
   return baseItems;
@@ -155,18 +156,15 @@ export function MainLayout() {
           <nav className="flex-1 overflow-y-auto pb-4 px-3 py-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
+              const isActive = !item.external && location.pathname === item.path;
+              const className = `flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${
+                isActive
+                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`;
+
+              const content = (
+                <>
                   <div className="flex items-center">
                     <Icon className="mr-3 h-5 w-5" />
                     {item.label}
@@ -183,6 +181,20 @@ export function MainLayout() {
                       {item.badge}
                     </Badge>
                   )}
+                </>
+              );
+
+              if (item.external) {
+                return (
+                  <a key={item.path} href={item.path} className={className}>
+                    {content}
+                  </a>
+                );
+              }
+
+              return (
+                <Link key={item.path} to={item.path} className={className}>
+                  {content}
                 </Link>
               );
             })}
