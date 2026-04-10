@@ -48,7 +48,7 @@ const comparisonFeatures = [
   { label: 'Executive Operational Reporting', intelligence: false, commandCenter: false, enterprise: true },
   { label: 'Priority Signal Processing', intelligence: false, commandCenter: false, enterprise: true },
   { label: 'SLA Uptime Guarantees', intelligence: false, commandCenter: false, enterprise: true },
-  { label: 'Users', intelligence: 'Up to 5', commandCenter: 'Up to 25', enterprise: 'Unlimited' },
+  { label: 'Users', intelligence: '1', commandCenter: 'Up to 5', enterprise: 'Up to 20' },
 ];
 
 export default function PricingPage() {
@@ -124,10 +124,10 @@ export default function PricingPage() {
                 <motion.div
                   key={plan.id}
                   variants={fadeUp}
-                  className={`rounded-xl p-6 border ${plan.highlight ? 'border-sky-300 bg-slate-50 ring-1 ring-sky-200 shadow-lg' : 'border-slate-200 bg-white'}`}
+                  className={`rounded-xl p-6 border relative ${plan.highlight ? 'border-sky-300 bg-sky-50/50 ring-2 ring-sky-200 shadow-lg' : 'border-slate-200 bg-white'}`}
                 >
                   {plan.highlight && (
-                    <div className="text-xs font-semibold text-sky-600 uppercase tracking-wider mb-3">Most Popular</div>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-600 text-white text-xs font-bold uppercase tracking-wider px-4 py-1 rounded-full">Most Popular</div>
                   )}
                   <h3 className="text-lg font-bold text-slate-900 mb-1">{data.name}</h3>
                   <p className="text-sm text-slate-500 mb-4">{data.tagline}</p>
