@@ -35,15 +35,9 @@ export default function Footer() {
                 Core<span className="text-sky-400">314</span>
               </span>
             </Link>
-            <p className="text-sm leading-relaxed mb-4">
+            <p className="text-sm leading-relaxed">
               Operational Intelligence Platform for Leadership Teams. Patent Pending.
             </p>
-            <a
-              href="mailto:support@core314.com"
-              className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
-            >
-              support@core314.com
-            </a>
           </div>
 
           {/* Product */}
