@@ -844,16 +844,36 @@ serve(async (req) => {
           const doneCount = (latest.done_count as number) ?? 0;
           const inProgressCount = (latest.in_progress_count as number) ?? 0;
           const overdueCount = (latest.overdue_count as number) ?? 0;
+          const stalledCount = (latest.stalled_count as number) ?? 0;
           const priorityBreakdown = (latest.priority_breakdown as Record<string, number>) ?? {};
+          const overdueIssueDetails = (latest.overdue_issue_details as Array<{ id: string; key: string; name: string; project: string; assignee: string; status: string; priority: string; due_date: string | null; days_overdue: number }>) ?? [];
+          const stalledIssueDetails = (latest.stalled_issue_details as Array<{ id: string; key: string; name: string; project: string; assignee: string; status: string; priority: string; last_updated: string; days_stalled: number }>) ?? [];
+          const deliveryRiskProjects = (latest.delivery_risk_projects as Array<[string, number]>) ?? [];
+          const workloadImbalanceRatio = (latest.workload_imbalance_ratio as number) ?? 0;
+          const maxAssignee = latest.max_assignee as { name: string; count: number } | null;
+          const avgTasksPerAssignee = (latest.avg_tasks_per_assignee as number) ?? 0;
+          const uniqueAssignees = (latest.unique_assignees as number) ?? 0;
 
-          // Signal: Overdue issues
+          // Signal 1: OVERDUE_TASKS — issues past due date or open > 14 days
           if (overdueCount > 0) {
-            const severity = overdueCount >= 10 ? 'high' : overdueCount >= 5 ? 'medium' : 'low';
+            const severity: 'low' | 'medium' | 'high' = overdueCount >= 10 ? 'high' : overdueCount >= 5 ? 'medium' : 'low';
+            const overdueEntities = overdueIssueDetails.slice(0, 10).map((issue) => ({
+              name: `${issue.key}: ${issue.name} (${issue.project})`,
+              entity_id: issue.key,
+              entity_type: 'issue' as const,
+              owner: issue.assignee,
+              status: issue.status,
+              last_activity_type: `${issue.days_overdue} days overdue`,
+              last_activity_date: issue.due_date || undefined,
+              days_in_current_state: issue.days_overdue,
+              metric_value: issue.days_overdue,
+            }));
+
             signals.push({
               signal_type: 'overdue_issues',
               severity,
               confidence: 90,
-              description: `${overdueCount} Jira issue${overdueCount > 1 ? 's' : ''} overdue (open > 14 days) out of ${totalIssues} updated this week. ${inProgressCount} in progress, ${doneCount} completed.`,
+              description: `${overdueCount} Jira issue${overdueCount > 1 ? 's' : ''} overdue out of ${totalIssues} updated this week. ${inProgressCount} in progress, ${doneCount} completed.`,
               source_integration: 'jira',
               signal_data: {
                 category: classifySignal('overdue_issues', 'jira'),
@@ -862,13 +882,101 @@ serve(async (req) => {
                 total: totalIssues,
                 done: doneCount,
                 in_progress: inProgressCount,
-                affected_entities: [],
+                affected_entities: overdueEntities,
                 summary_metrics: { overdue_count: overdueCount, total_issues: totalIssues, done: doneCount, in_progress: inProgressCount },
               },
             });
           }
 
-          // Signal: Low velocity (< 10% done rate with significant issues)
+          // Signal 2: STALLED_WORK — issues with no update > 7 days
+          if (stalledCount > 0) {
+            const severity: 'low' | 'medium' | 'high' = stalledCount >= 8 ? 'high' : stalledCount >= 4 ? 'medium' : 'low';
+            const stalledEntities = stalledIssueDetails.slice(0, 10).map((issue) => ({
+              name: `${issue.key}: ${issue.name} (${issue.project})`,
+              entity_id: issue.key,
+              entity_type: 'issue' as const,
+              owner: issue.assignee,
+              status: issue.status,
+              last_activity_type: `${issue.days_stalled} days since last update`,
+              last_activity_date: issue.last_updated,
+              days_in_current_state: issue.days_stalled,
+              metric_value: issue.days_stalled,
+            }));
+
+            signals.push({
+              signal_type: 'stalled_work',
+              severity,
+              confidence: 85,
+              description: `${stalledCount} Jira issue${stalledCount > 1 ? 's' : ''} with no update in over 7 days. These may be blocked or abandoned and require attention.`,
+              source_integration: 'jira',
+              signal_data: {
+                category: classifySignal('stalled_work', 'jira'),
+                metric: 'stalled_work',
+                stalled: stalledCount,
+                total: totalIssues,
+                affected_entities: stalledEntities,
+                summary_metrics: { stalled_count: stalledCount, total_issues: totalIssues },
+              },
+            });
+          }
+
+          // Signal 3: WORKLOAD_IMBALANCE — one assignee has significantly more tasks
+          if (uniqueAssignees >= 2 && workloadImbalanceRatio >= 2.0 && maxAssignee) {
+            const severity: 'low' | 'medium' | 'high' = workloadImbalanceRatio >= 3.0 ? 'high' : 'medium';
+            signals.push({
+              signal_type: 'workload_imbalance',
+              severity,
+              confidence: 80,
+              description: `Workload imbalance detected: ${maxAssignee.name} has ${maxAssignee.count} tasks (${Math.round(workloadImbalanceRatio)}x the average of ${avgTasksPerAssignee} per person across ${uniqueAssignees} team members). This may cause burnout or delivery bottlenecks.`,
+              source_integration: 'jira',
+              signal_data: {
+                category: classifySignal('workload_imbalance', 'jira'),
+                metric: 'workload_imbalance',
+                imbalance_ratio: workloadImbalanceRatio,
+                max_assignee: maxAssignee.name,
+                max_count: maxAssignee.count,
+                avg_per_assignee: avgTasksPerAssignee,
+                unique_assignees: uniqueAssignees,
+                affected_entities: [{
+                  name: maxAssignee.name,
+                  entity_type: 'person' as const,
+                  metric_value: maxAssignee.count,
+                  last_activity_type: `${maxAssignee.count} tasks assigned (${Math.round(workloadImbalanceRatio)}x average)`,
+                }],
+                summary_metrics: { imbalance_ratio: workloadImbalanceRatio, max_assignee: maxAssignee.name, max_tasks: maxAssignee.count, avg_tasks: avgTasksPerAssignee, team_size: uniqueAssignees },
+              },
+            });
+          }
+
+          // Signal 4: DELIVERY_RISK — multiple overdue issues in same project
+          if (deliveryRiskProjects.length > 0) {
+            const totalAtRisk = deliveryRiskProjects.reduce((sum, [, count]) => sum + count, 0);
+            const severity: 'low' | 'medium' | 'high' | 'critical' = totalAtRisk >= 10 ? 'critical' : totalAtRisk >= 6 ? 'high' : 'medium';
+            const projectEntities = deliveryRiskProjects.slice(0, 5).map(([projectName, count]) => ({
+              name: projectName,
+              entity_type: 'project' as const,
+              metric_value: count,
+              last_activity_type: `${count} overdue issues`,
+            }));
+
+            signals.push({
+              signal_type: 'delivery_risk',
+              severity,
+              confidence: 90,
+              description: `Delivery risk in ${deliveryRiskProjects.length} project${deliveryRiskProjects.length > 1 ? 's' : ''}: ${deliveryRiskProjects.map(([name, count]) => `${name} (${count} overdue)`).join(', ')}. Multiple overdue issues in the same project indicate systemic delivery delays.`,
+              source_integration: 'jira',
+              signal_data: {
+                category: classifySignal('delivery_risk', 'jira'),
+                metric: 'delivery_risk',
+                at_risk_projects: deliveryRiskProjects.length,
+                total_overdue_in_projects: totalAtRisk,
+                affected_entities: projectEntities,
+                summary_metrics: { at_risk_projects: deliveryRiskProjects.length, total_overdue: totalAtRisk },
+              },
+            });
+          }
+
+          // Signal 5: Low velocity (< 10% done rate with significant issues)
           if (totalIssues >= 10 && doneCount < totalIssues * 0.1) {
             signals.push({
               signal_type: 'low_velocity',
@@ -888,7 +996,7 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Blocker accumulation (Highest/Blocker priority issues)
+          // Signal 6: Blocker accumulation (Highest/Blocker priority issues)
           const blockerCount = (priorityBreakdown['Highest'] ?? 0) + (priorityBreakdown['Blocker'] ?? 0);
           if (blockerCount >= 3) {
             signals.push({

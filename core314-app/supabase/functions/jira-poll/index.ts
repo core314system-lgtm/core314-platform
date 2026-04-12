@@ -72,8 +72,9 @@ serve(async (req) => {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const jqlQuery = encodeURIComponent(`updated >= "${weekAgo}" ORDER BY updated DESC`);
 
+        // Fetch recent issues — include duedate and project for entity-level intelligence
         const issuesResponse = await fetch(
-          `https://${credentials.domain}/rest/api/3/search?jql=${jqlQuery}&maxResults=100&fields=status,priority,assignee,issuetype,summary,updated,created`,
+          `https://${credentials.domain}/rest/api/3/search?jql=${jqlQuery}&maxResults=100&fields=status,priority,assignee,issuetype,summary,updated,created,duedate,project`,
           { headers }
         );
 
@@ -90,29 +91,108 @@ serve(async (req) => {
         const statusCounts: Record<string, number> = {};
         const priorityCounts: Record<string, number> = {};
         const typeCounts: Record<string, number> = {};
+        const projectCounts: Record<string, number> = {};
+        const assigneeCounts: Record<string, number> = {};
         let overdueCount = 0;
+        let stalledCount = 0;
+
+        // Per-issue entity details for signal detection
+        const overdueIssueDetails: Array<{
+          id: string; key: string; name: string; project: string;
+          assignee: string; status: string; priority: string;
+          due_date: string | null; days_overdue: number;
+          created: string; updated: string;
+        }> = [];
+
+        const stalledIssueDetails: Array<{
+          id: string; key: string; name: string; project: string;
+          assignee: string; status: string; priority: string;
+          last_updated: string; days_stalled: number;
+        }> = [];
+
+        const projectOverdueCounts: Record<string, number> = {};
 
         for (const issue of issues) {
           const fields = issue.fields || {};
           const statusName = fields.status?.name || 'Unknown';
           const priorityName = fields.priority?.name || 'None';
           const typeName = fields.issuetype?.name || 'Unknown';
+          const projectName = fields.project?.name || 'Unknown';
+          const assigneeName = fields.assignee?.displayName || 'Unassigned';
+          const dueDate = fields.duedate || null;
+          const updatedAt = fields.updated || null;
 
           statusCounts[statusName] = (statusCounts[statusName] || 0) + 1;
           priorityCounts[priorityName] = (priorityCounts[priorityName] || 0) + 1;
           typeCounts[typeName] = (typeCounts[typeName] || 0) + 1;
+          projectCounts[projectName] = (projectCounts[projectName] || 0) + 1;
+          assigneeCounts[assigneeName] = (assigneeCounts[assigneeName] || 0) + 1;
 
-          // Check for overdue (simple heuristic: open issues older than 14 days)
-          if (!['Done', 'Closed', 'Resolved'].includes(statusName)) {
-            const created = new Date(fields.created);
-            if (now.getTime() - created.getTime() > 14 * 24 * 60 * 60 * 1000) {
+          const isOpen = !['Done', 'Closed', 'Resolved'].includes(statusName);
+
+          if (isOpen) {
+            // Overdue: past due date, or open > 14 days if no due date
+            let isOverdue = false;
+            let daysOverdue = 0;
+
+            if (dueDate) {
+              const due = new Date(dueDate);
+              if (now.getTime() > due.getTime()) {
+                isOverdue = true;
+                daysOverdue = Math.floor((now.getTime() - due.getTime()) / (24 * 60 * 60 * 1000));
+              }
+            } else {
+              const created = new Date(fields.created);
+              if (now.getTime() - created.getTime() > 14 * 24 * 60 * 60 * 1000) {
+                isOverdue = true;
+                daysOverdue = Math.floor((now.getTime() - created.getTime()) / (24 * 60 * 60 * 1000)) - 14;
+              }
+            }
+
+            if (isOverdue) {
               overdueCount++;
+              projectOverdueCounts[projectName] = (projectOverdueCounts[projectName] || 0) + 1;
+              overdueIssueDetails.push({
+                id: issue.id, key: issue.key,
+                name: fields.summary || issue.key, project: projectName,
+                assignee: assigneeName, status: statusName, priority: priorityName,
+                due_date: dueDate, days_overdue: daysOverdue,
+                created: fields.created, updated: updatedAt,
+              });
+            }
+
+            // Stalled: open issues with no update > 7 days
+            if (updatedAt) {
+              const daysSinceUpdate = Math.floor((now.getTime() - new Date(updatedAt).getTime()) / (24 * 60 * 60 * 1000));
+              if (daysSinceUpdate > 7) {
+                stalledCount++;
+                stalledIssueDetails.push({
+                  id: issue.id, key: issue.key,
+                  name: fields.summary || issue.key, project: projectName,
+                  assignee: assigneeName, status: statusName, priority: priorityName,
+                  last_updated: updatedAt, days_stalled: daysSinceUpdate,
+                });
+              }
             }
           }
         }
 
         const doneCount = (statusCounts['Done'] || 0) + (statusCounts['Closed'] || 0) + (statusCounts['Resolved'] || 0);
         const inProgressCount = statusCounts['In Progress'] || 0;
+
+        // Workload imbalance metrics
+        const assigneeEntries = Object.entries(assigneeCounts).filter(([name]) => name !== 'Unassigned');
+        const avgTasksPerAssignee = assigneeEntries.length > 0
+          ? assigneeEntries.reduce((sum, [, count]) => sum + count, 0) / assigneeEntries.length : 0;
+        const maxAssignee = assigneeEntries.length > 0
+          ? assigneeEntries.reduce((max, entry) => entry[1] > max[1] ? entry : max, assigneeEntries[0]) : null;
+        const workloadImbalanceRatio = maxAssignee && avgTasksPerAssignee > 0
+          ? maxAssignee[1] / avgTasksPerAssignee : 0;
+
+        // Projects with multiple overdue issues (delivery risk)
+        const deliveryRiskProjects = Object.entries(projectOverdueCounts)
+          .filter(([, count]) => count >= 3)
+          .sort((a, b) => b[1] - a[1]);
 
         await supabase.from('integration_events').insert({
           user_id: integration.user_id,
@@ -128,9 +208,20 @@ serve(async (req) => {
             status_breakdown: statusCounts,
             priority_breakdown: priorityCounts,
             type_breakdown: typeCounts,
+            project_breakdown: projectCounts,
+            assignee_breakdown: assigneeCounts,
             done_count: doneCount,
             in_progress_count: inProgressCount,
             overdue_count: overdueCount,
+            stalled_count: stalledCount,
+            overdue_issue_details: overdueIssueDetails.slice(0, 20),
+            stalled_issue_details: stalledIssueDetails.slice(0, 20),
+            delivery_risk_projects: deliveryRiskProjects,
+            workload_imbalance_ratio: Math.round(workloadImbalanceRatio * 100) / 100,
+            max_assignee: maxAssignee ? { name: maxAssignee[0], count: maxAssignee[1] } : null,
+            avg_tasks_per_assignee: Math.round(avgTasksPerAssignee * 10) / 10,
+            unique_assignees: assigneeEntries.length,
+            unique_projects: Object.keys(projectCounts).length,
             poll_timestamp: now.toISOString(),
             period: '7_days',
           },
@@ -142,7 +233,12 @@ serve(async (req) => {
           service_name: 'jira',
           last_polled_at: now.toISOString(),
           next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
-          metadata: { total_issues: totalIssues, done: doneCount, in_progress: inProgressCount, overdue: overdueCount },
+          metadata: {
+            total_issues: totalIssues, done: doneCount, in_progress: inProgressCount,
+            overdue: overdueCount, stalled: stalledCount,
+            unique_projects: Object.keys(projectCounts).length,
+            unique_assignees: assigneeEntries.length,
+          },
           updated_at: now.toISOString(),
         }, { onConflict: 'user_id,user_integration_id,service_name' });
 
