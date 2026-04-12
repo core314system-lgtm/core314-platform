@@ -99,6 +99,7 @@ serve(async (req) => {
 
     let totalSignalsCreated = 0;
     let totalSignalsDeactivated = 0;
+    let totalAlertsSent = 0;
     const errors: string[] = [];
 
     for (const userId of userIds) {
@@ -1364,7 +1365,63 @@ serve(async (req) => {
             }
           }
 
-          console.log(`[signal-detector] User ${userId}: ${signals.length} signals detected, ${totalSignalsCreated} created`);
+          // Dispatch Slack alerts for HIGH/CRITICAL severity signals
+          const highSeveritySignals = signals.filter(
+            s => s.severity === 'high' || s.severity === 'critical'
+          );
+          if (highSeveritySignals.length > 0) {
+            const webhookUrl = Deno.env.get('SLACK_WEBHOOK_URL');
+            if (webhookUrl) {
+              for (const hs of highSeveritySignals) {
+                // Check if alert was already sent for this signal (avoid duplicate alerts)
+                const { data: existingSig } = await supabase
+                  .from('operational_signals')
+                  .select('id, alert_sent')
+                  .eq('user_id', userId)
+                  .eq('signal_type', hs.signal_type)
+                  .eq('source_integration', hs.source_integration)
+                  .eq('is_active', true)
+                  .limit(1);
+
+                const alreadySent = existingSig?.[0]?.alert_sent === true;
+                if (alreadySent) {
+                  console.log(`[signal-detector] Alert already sent for ${hs.source_integration}:${hs.signal_type}, skipping`);
+                  continue;
+                }
+
+                try {
+                  const severityEmoji = hs.severity === 'critical' ? '🚨' : '⚠️';
+                  const slackPayload = {
+                    text: `${severityEmoji} *${hs.severity.toUpperCase()} Alert* — ${hs.source_integration}\n*Signal:* ${hs.signal_type}\n*Description:* ${hs.description}\n*Confidence:* ${hs.confidence}%`,
+                  };
+                  const slackResp = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(slackPayload),
+                  });
+                  if (slackResp.ok) {
+                    console.log(`[signal-detector] Slack alert sent for ${hs.source_integration}:${hs.signal_type}`);
+                    totalAlertsSent++;
+                    // Mark signal as alert_sent
+                    if (existingSig?.[0]?.id) {
+                      await supabase
+                        .from('operational_signals')
+                        .update({ alert_sent: true })
+                        .eq('id', existingSig[0].id);
+                    }
+                  } else {
+                    console.error(`[signal-detector] Slack alert failed: ${slackResp.status}`);
+                  }
+                } catch (alertErr) {
+                  console.error(`[signal-detector] Slack alert error:`, alertErr);
+                }
+              }
+            } else {
+              console.warn('[signal-detector] SLACK_WEBHOOK_URL not set — skipping alerts');
+            }
+          }
+
+          console.log(`[signal-detector] User ${userId}: ${signals.length} signals detected, ${totalSignalsCreated} created, ${totalAlertsSent} alerts sent`);
         } else {
           // No signals detected — deactivate all existing signals for this user
           const { data: existingSignals } = await supabase
@@ -1396,6 +1453,7 @@ serve(async (req) => {
       users_processed: userIds.length,
       signals_created: totalSignalsCreated,
       signals_deactivated: totalSignalsDeactivated,
+      alerts_sent: totalAlertsSent,
       duration_ms: duration,
       errors: errors.length > 0 ? errors : undefined,
     }), {
