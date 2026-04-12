@@ -69,6 +69,9 @@ const EXACT_MAPPINGS: Record<string, SignalCategory> = {
   'jira::blocker_accumulation': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
   'jira::low_velocity': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
   'jira::overdue_issues': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'jira::stalled_work': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'jira::workload_imbalance': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'jira::delivery_risk': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
 
   // Trello signals → PROJECT_DELIVERY
   'trello::stalled_cards': SIGNAL_CATEGORIES.PROJECT_DELIVERY,

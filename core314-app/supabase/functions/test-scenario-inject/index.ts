@@ -270,6 +270,98 @@ function generateCashFlowRisk(now: string) {
   return [hubspotEvent, qbEvent, slackEvent];
 }
 
+function generateJiraDeliveryRisk(now: string) {
+  // 15 Jira issues: mix of overdue, stalled, active across multiple projects
+  // Triggers all 4 required Jira signals: OVERDUE_TASKS, STALLED_WORK, WORKLOAD_IMBALANCE, DELIVERY_RISK
+  const overdueIssueDetails = [
+    { id: '10001', key: 'PROJ-101', name: 'Database migration to v3', project: 'Platform Rebuild', assignee: 'Alex Rivera', status: 'In Progress', priority: 'High', due_date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 12, created: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: '10002', key: 'PROJ-102', name: 'API rate limiter implementation', project: 'Platform Rebuild', assignee: 'Alex Rivera', status: 'In Progress', priority: 'High', due_date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 8, created: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: '10003', key: 'PROJ-103', name: 'User auth token refresh flow', project: 'Platform Rebuild', assignee: 'Jordan Kim', status: 'Open', priority: 'Critical', due_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 15, created: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: '10004', key: 'PROJ-104', name: 'CI/CD pipeline optimization', project: 'Platform Rebuild', assignee: 'Alex Rivera', status: 'In Progress', priority: 'Medium', due_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 5, created: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: '10005', key: 'MKT-201', name: 'Landing page redesign', project: 'Marketing Site', assignee: 'Sam Taylor', status: 'In Progress', priority: 'High', due_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 10, created: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: '10006', key: 'MKT-202', name: 'SEO content optimization', project: 'Marketing Site', assignee: 'Sam Taylor', status: 'Open', priority: 'Medium', due_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 7, created: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: '10007', key: 'MKT-203', name: 'Analytics dashboard integration', project: 'Marketing Site', assignee: 'Jordan Kim', status: 'In Progress', priority: 'High', due_date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 6, created: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), updated: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString() },
+  ];
+
+  const stalledIssueDetails = [
+    { id: '10008', key: 'PROJ-105', name: 'WebSocket reconnection handler', project: 'Platform Rebuild', assignee: 'Alex Rivera', status: 'In Progress', priority: 'Medium', last_updated: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), days_stalled: 14 },
+    { id: '10009', key: 'PROJ-106', name: 'Error boundary implementation', project: 'Platform Rebuild', assignee: 'Jordan Kim', status: 'Open', priority: 'Low', last_updated: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), days_stalled: 12 },
+    { id: '10010', key: 'MKT-204', name: 'A/B testing framework setup', project: 'Marketing Site', assignee: 'Sam Taylor', status: 'Open', priority: 'Medium', last_updated: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), days_stalled: 10 },
+    { id: '10011', key: 'OPS-301', name: 'Monitoring alert rules update', project: 'DevOps', assignee: 'Alex Rivera', status: 'In Progress', priority: 'High', last_updated: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(), days_stalled: 9 },
+    { id: '10012', key: 'OPS-302', name: 'Backup rotation policy review', project: 'DevOps', assignee: 'Jordan Kim', status: 'Open', priority: 'Low', last_updated: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(), days_stalled: 11 },
+  ];
+
+  const jiraEvent = {
+    service_name: 'jira',
+    event_type: 'jira.weekly_summary',
+    source: 'test_scenario_inject',
+    metadata: {
+      total_issues_updated: 15,
+      total_results: 15,
+      status_breakdown: { 'In Progress': 6, 'Open': 5, 'Done': 2, 'In Review': 2 },
+      priority_breakdown: { 'Critical': 1, 'High': 4, 'Medium': 6, 'Low': 4 },
+      type_breakdown: { 'Task': 8, 'Bug': 4, 'Story': 3 },
+      project_breakdown: { 'Platform Rebuild': 6, 'Marketing Site': 4, 'DevOps': 3, 'Mobile App': 2 },
+      assignee_breakdown: { 'Alex Rivera': 7, 'Jordan Kim': 4, 'Sam Taylor': 3, 'Unassigned': 1 },
+      done_count: 2,
+      in_progress_count: 6,
+      overdue_count: 7,
+      stalled_count: 5,
+      overdue_issue_details: overdueIssueDetails,
+      stalled_issue_details: stalledIssueDetails,
+      delivery_risk_projects: [['Platform Rebuild', 4], ['Marketing Site', 3]],
+      workload_imbalance_ratio: 2.3,
+      max_assignee: { name: 'Alex Rivera', count: 7 },
+      avg_tasks_per_assignee: 3.0,
+      unique_assignees: 3,
+      unique_projects: 4,
+      poll_timestamp: now,
+      period: '7_days',
+    },
+  };
+
+  // Also include a QuickBooks event and Slack event for cross-integration correlation
+  const qbEvent = {
+    service_name: 'quickbooks',
+    event_type: 'quickbooks.financial_activity',
+    source: 'test_scenario_inject',
+    metadata: {
+      invoice_count: 18,
+      invoice_total: 145000,
+      open_invoices: 5,
+      paid_invoices: 13,
+      overdue_invoices: 2,
+      overdue_invoice_details: [
+        { id: 'INV-2001', customer_name: 'Platform Rebuild Client', amount: 25000, due_date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 20, status: 'overdue', assigned_to: 'Finance Team' },
+        { id: 'INV-2002', customer_name: 'Marketing Site Client', amount: 15000, due_date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 14, status: 'overdue', assigned_to: 'Finance Team' },
+      ],
+      payment_count: 13,
+      payment_total: 98000,
+      expense_count: 22,
+      expense_total: 67000,
+      collection_rate: 72,
+      net_income: 31000,
+      poll_timestamp: now,
+    },
+  };
+
+  const slackEvent = {
+    service_name: 'slack',
+    event_type: 'slack.channel_activity',
+    source: 'test_scenario_inject',
+    metadata: {
+      message_count: 45,
+      active_channels: 3,
+      total_channels: 8,
+      active_users: 6,
+      messages_by_channel: { 'engineering': 20, 'general': 15, 'random': 10 },
+      poll_timestamp: now,
+    },
+  };
+
+  return [jiraEvent, qbEvent, slackEvent];
+}
+
 function generateOperationalBreakdown(now: string) {
   const overdueCardDetails = [
     { id: 'card-001', name: 'Q2 Feature Release', board: 'Product Roadmap', due_date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), days_overdue: 14, list: 'Doing', owner: 'Engineering Lead' },
@@ -409,7 +501,7 @@ serve(async (req) => {
       // default scenario
     }
 
-    const validScenarios = ['revenue_slowdown', 'cash_flow_risk', 'operational_breakdown'];
+    const validScenarios = ['revenue_slowdown', 'cash_flow_risk', 'operational_breakdown', 'jira_delivery_risk'];
     if (!validScenarios.includes(scenario)) {
       return new Response(JSON.stringify({
         error: `Invalid scenario: ${scenario}. Valid: ${validScenarios.join(', ')}`,
@@ -439,6 +531,9 @@ serve(async (req) => {
         break;
       case 'operational_breakdown':
         events = generateOperationalBreakdown(now);
+        break;
+      case 'jira_delivery_risk':
+        events = generateJiraDeliveryRisk(now);
         break;
     }
 
@@ -483,9 +578,14 @@ serve(async (req) => {
     }
 
     const registryMap: Record<string, string> = {};
+    const registryNameMap: Record<string, string> = {};
     for (const entry of (registryEntries || [])) {
       const key = (entry.integration_type as string).toLowerCase();
       registryMap[key] = entry.id as string;
+      // Also index by lowercase integration_name for services like Jira
+      // where integration_type is "project_management" but name is "Jira"
+      const nameKey = (entry.integration_name as string).toLowerCase();
+      registryNameMap[nameKey] = entry.id as string;
     }
 
     // Get or create user_integrations for each service in the scenario
@@ -499,7 +599,7 @@ serve(async (req) => {
         : serviceName === 'google_calendar' ? 'google_calendar'
         : serviceName;
 
-      const registryId = registryMap[intType];
+      const registryId = registryMap[intType] || registryNameMap[intType];
       if (!registryId) {
         console.warn(`[test-scenario-inject] No registry entry for ${intType}, skipping`);
         continue;
@@ -512,27 +612,33 @@ serve(async (req) => {
 
       registryIdMap[serviceName] = irId || registryId;
 
-      // Check if user already has this integration
+      // Check if user already has this integration (active or any status)
       const { data: existing } = await supabase
         .from('user_integrations')
-        .select('id')
+        .select('id, status')
         .eq('user_id', user.id)
         .eq('integration_id', registryId)
-        .eq('status', 'active')
         .limit(1);
 
       if (existing && existing.length > 0) {
+        // Reactivate if not active
+        if (existing[0].status !== 'active') {
+          await supabase
+            .from('user_integrations')
+            .update({ status: 'active', config: { test_mode: true, scenario } })
+            .eq('id', existing[0].id);
+        }
         userIntegrationMap[serviceName] = existing[0].id;
       } else {
         // Create a temporary test integration entry
+        // Note: provider_id is UUID type, so we omit it for test entries
         const { data: newInt, error: createError } = await supabase
           .from('user_integrations')
           .insert({
             user_id: user.id,
             integration_id: registryId,
-            provider_id: `test-scenario-${serviceName}`,
             status: 'active',
-            config: { test_mode: true, scenario },
+            config: { test_mode: true, scenario, service_name: serviceName },
           })
           .select('id')
           .single();
@@ -641,13 +747,16 @@ serve(async (req) => {
 
     // Store test mode flag in user's most recent brief context
     // This allows the UI to detect test mode
-    await supabase
-      .from('user_integrations')
-      .update({
-        config: { test_mode: true, scenario, injected_at: now },
-      })
-      .eq('user_id', user.id)
-      .eq('provider_id', `test-scenario-${serviceNames[0] || 'hubspot'}`);
+    // Update the first test integration entry we created/found
+    const firstUserIntId = userIntegrationMap[serviceNames[0]];
+    if (firstUserIntId) {
+      await supabase
+        .from('user_integrations')
+        .update({
+          config: { test_mode: true, scenario, injected_at: now },
+        })
+        .eq('id', firstUserIntId);
+    }
 
     return new Response(JSON.stringify({
       success: true,
