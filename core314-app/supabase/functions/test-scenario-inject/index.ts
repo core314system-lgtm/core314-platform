@@ -612,27 +612,33 @@ serve(async (req) => {
 
       registryIdMap[serviceName] = irId || registryId;
 
-      // Check if user already has this integration
+      // Check if user already has this integration (active or any status)
       const { data: existing } = await supabase
         .from('user_integrations')
-        .select('id')
+        .select('id, status')
         .eq('user_id', user.id)
         .eq('integration_id', registryId)
-        .eq('status', 'active')
         .limit(1);
 
       if (existing && existing.length > 0) {
+        // Reactivate if not active
+        if (existing[0].status !== 'active') {
+          await supabase
+            .from('user_integrations')
+            .update({ status: 'active', config: { test_mode: true, scenario } })
+            .eq('id', existing[0].id);
+        }
         userIntegrationMap[serviceName] = existing[0].id;
       } else {
         // Create a temporary test integration entry
+        // Note: provider_id is UUID type, so we omit it for test entries
         const { data: newInt, error: createError } = await supabase
           .from('user_integrations')
           .insert({
             user_id: user.id,
             integration_id: registryId,
-            provider_id: `test-scenario-${serviceName}`,
             status: 'active',
-            config: { test_mode: true, scenario },
+            config: { test_mode: true, scenario, service_name: serviceName },
           })
           .select('id')
           .single();
@@ -741,13 +747,16 @@ serve(async (req) => {
 
     // Store test mode flag in user's most recent brief context
     // This allows the UI to detect test mode
-    await supabase
-      .from('user_integrations')
-      .update({
-        config: { test_mode: true, scenario, injected_at: now },
-      })
-      .eq('user_id', user.id)
-      .eq('provider_id', `test-scenario-${serviceNames[0] || 'hubspot'}`);
+    // Update the first test integration entry we created/found
+    const firstUserIntId = userIntegrationMap[serviceNames[0]];
+    if (firstUserIntId) {
+      await supabase
+        .from('user_integrations')
+        .update({
+          config: { test_mode: true, scenario, injected_at: now },
+        })
+        .eq('id', firstUserIntId);
+    }
 
     return new Response(JSON.stringify({
       success: true,
