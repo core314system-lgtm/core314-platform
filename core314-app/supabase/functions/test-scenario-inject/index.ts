@@ -578,9 +578,14 @@ serve(async (req) => {
     }
 
     const registryMap: Record<string, string> = {};
+    const registryNameMap: Record<string, string> = {};
     for (const entry of (registryEntries || [])) {
       const key = (entry.integration_type as string).toLowerCase();
       registryMap[key] = entry.id as string;
+      // Also index by lowercase integration_name for services like Jira
+      // where integration_type is "project_management" but name is "Jira"
+      const nameKey = (entry.integration_name as string).toLowerCase();
+      registryNameMap[nameKey] = entry.id as string;
     }
 
     // Get or create user_integrations for each service in the scenario
@@ -594,7 +599,7 @@ serve(async (req) => {
         : serviceName === 'google_calendar' ? 'google_calendar'
         : serviceName;
 
-      const registryId = registryMap[intType];
+      const registryId = registryMap[intType] || registryNameMap[intType];
       if (!registryId) {
         console.warn(`[test-scenario-inject] No registry entry for ${intType}, skipping`);
         continue;
