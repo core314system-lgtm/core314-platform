@@ -9,6 +9,7 @@ console.log('[oauth-initiate] Cold start - Credentials check:', {
   SLACK_CLIENT_SECRET_present: !!Deno.env.get('SLACK_CLIENT_SECRET'),
   SALESFORCE_CLIENT_ID_present: !!Deno.env.get('SALESFORCE_CLIENT_ID'),
   TEAMS_CLIENT_ID_present: !!Deno.env.get('TEAMS_CLIENT_ID'),
+  JIRA_CLIENT_ID_present: !!Deno.env.get('JIRA_CLIENT_ID'),
 });
 
 const corsHeaders = {
@@ -32,6 +33,7 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'salesforce': 'SALESFORCE',
   'hubspot': 'HUBSPOT',
   'planner': 'TEAMS',
+  'jira': 'JIRA',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -231,7 +233,7 @@ serve(withSentry(async (req) => {
     const serviceRelatedKeys = allEnvKeys.filter(k => 
       k.includes('TEAMS') || k.includes('CORE314') || k.includes('SALESFORCE') || 
       k.includes('SLACK') || k.includes('ZOOM') || k.includes('GOOGLE') ||
-      k.includes('QUICKBOOKS') || k.includes('XERO')
+      k.includes('QUICKBOOKS') || k.includes('XERO') || k.includes('JIRA')
     );
     console.log('[oauth-initiate] OAuth-related ENV VAR KEYS:', serviceRelatedKeys);
     
@@ -359,7 +361,7 @@ serve(withSentry(async (req) => {
     // Slack: comma-delimited scopes
     // Zoom: space-delimited scopes
     // Salesforce: space-delimited scopes
-    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'gmail', 'google_sheets', 'zoom', 'salesforce'].includes(normalizedServiceName);
+    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'gmail', 'google_sheets', 'zoom', 'salesforce', 'jira'].includes(normalizedServiceName);
     const scopeDelimiter = useSpaceDelimiter ? ' ' : ',';
     
     // Salesforce-specific: Use hardcoded scopes to ensure they match Connected App configuration
@@ -388,6 +390,12 @@ serve(withSentry(async (req) => {
     if (normalizedServiceName === 'salesforce') {
       // Salesforce requires 'refresh_token' scope for offline access
       // Also add prompt=consent to ensure user sees the consent screen
+      authUrl.searchParams.set('prompt', 'consent');
+    }
+
+    // Jira (Atlassian) specific: use consent prompt and audience
+    if (normalizedServiceName === 'jira') {
+      authUrl.searchParams.set('audience', 'api.atlassian.com');
       authUrl.searchParams.set('prompt', 'consent');
     }
 

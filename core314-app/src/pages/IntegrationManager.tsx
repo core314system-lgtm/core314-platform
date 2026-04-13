@@ -140,12 +140,14 @@ const GOOGLE_SERVICE_SCOPES: Record<string, string[]> = {
   ],
 };
 
+// Jira API key fields kept separate — used only in the "Advanced" fallback UI on the Jira card
+const JIRA_API_KEY_FIELDS = [
+  { label: 'Jira Domain', field: 'domain', type: 'text', placeholder: 'your-company.atlassian.net' },
+  { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
+  { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Jira API token' },
+];
+
 const API_KEY_FIELDS: Record<string, { label: string; field: string; type: string; placeholder: string }[]> = {
-  jira: [
-    { label: 'Jira Domain', field: 'domain', type: 'text', placeholder: 'your-company.atlassian.net' },
-    { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
-    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Jira API token' },
-  ],
   trello: [
     { label: 'API Key', field: 'api_key', type: 'text', placeholder: 'Your Trello API key' },
     { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Trello API token' },
@@ -170,6 +172,7 @@ export function IntegrationManager() {
   const [userPlan, setUserPlan] = useState<string>('intelligence');
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [jiraAdvancedOpen, setJiraAdvancedOpen] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   // CTA state: shown when a new integration connects but user already has briefs
@@ -1417,6 +1420,73 @@ export function IntegrationManager() {
                       <p className="text-xs text-center text-amber-600 dark:text-amber-400">
                         Upgrade to connect more integrations
                       </p>
+                    </div>
+                  ) : integration.service_name === 'jira' ? (
+                    /* Jira: OAuth primary + API key Advanced fallback */
+                    <div className="space-y-3">
+                      <Button
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => handleConnect('jira')}
+                        disabled={connecting === 'jira'}
+                      >
+                        {connecting === 'jira' ? (
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                        )}
+                        {connecting === 'jira' ? 'Connecting...' : 'Connect Jira'}
+                      </Button>
+                      <button
+                        type="button"
+                        className="w-full text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center justify-center gap-1 py-1"
+                        onClick={() => setJiraAdvancedOpen(!jiraAdvancedOpen)}
+                      >
+                        <Key className="h-3 w-3" />
+                        {jiraAdvancedOpen ? 'Hide' : 'Use API Token instead (Advanced)'}
+                      </button>
+                      {jiraAdvancedOpen && (
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 space-y-2 bg-gray-50 dark:bg-gray-800/50">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Connect using an Atlassian API token instead of OAuth.</p>
+                          {JIRA_API_KEY_FIELDS.map(field => (
+                            <div key={field.field}>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5">
+                                {field.label}
+                              </label>
+                              <input
+                                type={field.type}
+                                placeholder={field.placeholder}
+                                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                value={apiKeyForm?.service === 'jira' ? (apiKeyForm.credentials[field.field] || '') : ''}
+                                onChange={(e) => setApiKeyForm({
+                                  service: 'jira',
+                                  credentials: { ...(apiKeyForm?.service === 'jira' ? apiKeyForm.credentials : {}), [field.field]: e.target.value },
+                                })}
+                              />
+                            </div>
+                          ))}
+                          {apiKeyError && apiKeyForm?.service === 'jira' && (
+                            <p className="text-xs text-red-600">{apiKeyError}</p>
+                          )}
+                          <div className="flex gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              onClick={handleApiKeySubmit}
+                              disabled={connecting === 'jira'}
+                              className="flex-1 h-7 text-xs"
+                            >
+                              {connecting === 'jira' ? (
+                                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                              )}
+                              {connecting === 'jira' ? 'Validating...' : 'Connect with API Token'}
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setJiraAdvancedOpen(false); setApiKeyForm(null); setApiKeyError(null); }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <Button className="w-full" onClick={() => handleConnect(integration.service_name)} disabled={connecting === integration.service_name}>

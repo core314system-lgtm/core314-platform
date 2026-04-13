@@ -12,6 +12,7 @@ console.log('[oauth-callback] Cold start - Credentials check:', {
   SLACK_CLIENT_SECRET_present: !!Deno.env.get('SLACK_CLIENT_SECRET'),
   SALESFORCE_CLIENT_ID_present: !!Deno.env.get('SALESFORCE_CLIENT_ID'),
   TEAMS_CLIENT_ID_present: !!Deno.env.get('TEAMS_CLIENT_ID'),
+  JIRA_CLIENT_ID_present: !!Deno.env.get('JIRA_CLIENT_ID'),
 });
 
 // Google services that use direct OAuth flow
@@ -41,6 +42,7 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'salesforce': 'SALESFORCE',
   'hubspot': 'HUBSPOT',
   'planner': 'TEAMS',
+  'jira': 'JIRA',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -395,6 +397,87 @@ serve(withSentry(async (req) => {
       }
     }
     
+    // Jira (Atlassian): fetch accessible resources (cloud_id) and perform post-auth verification
+    if (normalizeServiceName(integration.service_name) === 'jira') {
+      console.log('[oauth-callback] Jira: Performing post-auth verification...');
+      try {
+        // Step 1: Get accessible Atlassian cloud resources to find the cloud_id
+        const resourcesResponse = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (!resourcesResponse.ok) {
+          console.error('[oauth-callback] Jira: Failed to fetch accessible resources', {
+            status: resourcesResponse.status,
+          });
+          integrationConfig.verification_status = 'error';
+          integrationConfig.error_message = 'Failed to retrieve Jira cloud resources';
+        } else {
+          const resources = await resourcesResponse.json();
+          console.log('[oauth-callback] Jira: Accessible resources:', resources.length);
+
+          if (resources.length === 0) {
+            integrationConfig.verification_status = 'error';
+            integrationConfig.error_message = 'No Jira sites found for this Atlassian account';
+          } else {
+            // Use the first accessible resource (most common case: single Jira site)
+            const primaryResource = resources[0];
+            integrationConfig.cloud_id = primaryResource.id;
+            integrationConfig.site_name = primaryResource.name;
+            integrationConfig.site_url = primaryResource.url;
+            integrationConfig.scopes = primaryResource.scopes;
+            integrationConfig.avatar_url = primaryResource.avatarUrl;
+
+            // Step 2: Verify token with a lightweight API call (/rest/api/3/myself)
+            const myselfResponse = await fetch(
+              `https://api.atlassian.com/ex/jira/${primaryResource.id}/rest/api/3/myself`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${tokenData.access_token}`,
+                  'Accept': 'application/json',
+                },
+              }
+            );
+
+            if (myselfResponse.ok) {
+              const myselfData = await myselfResponse.json();
+              console.log('[oauth-callback] Jira: Post-auth verification SUCCESS', {
+                accountId: myselfData.accountId,
+                displayName: myselfData.displayName,
+              });
+              integrationConfig.jira_account_id = myselfData.accountId;
+              integrationConfig.jira_display_name = myselfData.displayName;
+              integrationConfig.jira_email = myselfData.emailAddress;
+              integrationConfig.verified_at = new Date().toISOString();
+              integrationConfig.verification_status = 'verified';
+            } else {
+              console.error('[oauth-callback] Jira: /myself verification failed', {
+                status: myselfResponse.status,
+              });
+              integrationConfig.verification_status = 'partial';
+              integrationConfig.error_message = 'Token valid but user verification failed';
+            }
+
+            // If multiple Jira sites, store the full list for future selection
+            if (resources.length > 1) {
+              integrationConfig.all_sites = resources.map((r: { id: string; name: string; url: string }) => ({
+                cloud_id: r.id,
+                name: r.name,
+                url: r.url,
+              }));
+            }
+          }
+        }
+      } catch (verifyError) {
+        console.error('[oauth-callback] Jira: Post-auth verification error:', verifyError);
+        integrationConfig.verification_status = 'error';
+        integrationConfig.error_message = verifyError instanceof Error ? verifyError.message : 'Unknown error';
+      }
+    }
+
     // QuickBooks: store realmId (company ID)
     if (realmId) {
       integrationConfig.realm_id = realmId;
