@@ -493,7 +493,7 @@ serve(async (req) => {
       : hasGmail ? 'Gmail connected, awaiting first data sync.' : 'Not connected.';
 
     const jiraSummary = hasJiraData
-      ? `${jiraMeta.total_issues_updated || 0} issues updated, ${jiraMeta.done_count || 0} done, ${jiraMeta.in_progress_count || 0} in progress, ${jiraMeta.overdue_count || 0} overdue`
+      ? `${jiraMeta.total_issues_updated || 0} issues updated, ${jiraMeta.done_count || 0} done, ${jiraMeta.in_progress_count || 0} in progress, ${jiraMeta.overdue_count || 0} overdue, ${jiraMeta.stalled_count || 0} stalled. ${jiraMeta.unique_projects || 0} projects, ${jiraMeta.unique_assignees || 0} assignees. Workload ratio: ${jiraMeta.workload_imbalance_ratio || 'N/A'}x${jiraMeta.max_assignee ? ` (${(jiraMeta.max_assignee as Record<string, unknown>).name}: ${(jiraMeta.max_assignee as Record<string, unknown>).count} tasks)` : ''}`
       : hasJira ? 'Jira connected, awaiting first data sync.' : 'Not connected.';
 
     const trelloSummary = hasTrelloData
@@ -547,6 +547,9 @@ serve(async (req) => {
       overdue_issues: 'Issue Delays',
       low_velocity: 'Low Velocity',
       blocker_accumulation: 'Blockers',
+      stalled_work: 'Stalled Work',
+      workload_imbalance: 'Workload Imbalance',
+      delivery_risk: 'Delivery Risk',
       // Trello
       overdue_cards: 'Delivery Delay',
       stalled_cards: 'Board Stagnation',
@@ -579,7 +582,8 @@ serve(async (req) => {
       // operations
       overdue_cards: 'operations', stalled_cards: 'operations', board_inactivity: 'operations',
       overdue_issues: 'operations', low_velocity: 'operations', blocker_accumulation: 'operations',
-      overdue_tasks: 'operations', low_completion_rate: 'operations', workload_imbalance: 'operations',
+      stalled_work: 'operations', workload_imbalance: 'operations', delivery_risk: 'operations',
+      overdue_tasks: 'operations', low_completion_rate: 'operations',
       stale_spreadsheets: 'operations', no_sheet_activity: 'operations',
       // communication
       low_communication: 'communication', communication_spike: 'communication', slow_response: 'communication',

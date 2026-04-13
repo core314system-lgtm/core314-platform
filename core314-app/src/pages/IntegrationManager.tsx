@@ -170,6 +170,16 @@ export function IntegrationManager() {
   const [userPlan, setUserPlan] = useState<string>('intelligence');
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const apiKeyFormRef = useRef<HTMLDivElement>(null);
+  // Scroll to API key form when it opens (form renders at top, user may be scrolled down)
+  useEffect(() => {
+    if (apiKeyForm) {
+      // Wait for next frame so the ref is attached after render
+      requestAnimationFrame(() => {
+        apiKeyFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [apiKeyForm]);
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   // CTA state: shown when a new integration connects but user already has briefs
@@ -1041,7 +1051,7 @@ export function IntegrationManager() {
 
       {/* API Key Form */}
       {apiKeyForm && (
-        <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
+        <Card ref={apiKeyFormRef} className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Key className="h-4 w-4 text-indigo-500" />
