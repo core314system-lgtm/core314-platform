@@ -6,10 +6,10 @@ import { Button } from '../components/ui/button';
 import { getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 
 /**
- * AuthCallback — handles the Google OAuth redirect from accounts.google.com.
+ * AuthCallback — handles OAuth redirects from providers (Google, Jira/Atlassian, etc.).
  *
  * Flow:
- *   1. Google redirects here with ?code=...&state=...
+ *   1. Provider redirects here with ?code=...&state=...
  *   2. We forward code + state to the oauth-callback Edge Function
  *   3. The Edge Function exchanges the code for tokens and stores them
  *   4. On success we redirect to /integration-manager
@@ -19,7 +19,7 @@ export default function AuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('Connecting Google...');
+  const [message, setMessage] = useState('Connecting...');
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -36,11 +36,11 @@ export default function AuthCallback() {
         error: error ?? 'none',
       });
 
-      // Google returned an error (e.g. user denied consent)
+      // Provider returned an error (e.g. user denied consent)
       if (error) {
-        console.error('[AuthCallback] Google returned error:', error);
+        console.error('[AuthCallback] Provider returned error:', error);
         setStatus('error');
-        setMessage(`Google authorization failed: ${error}`);
+        setMessage(`Authorization failed: ${error}`);
         return;
       }
 
@@ -93,14 +93,15 @@ export default function AuthCallback() {
           console.log('[AuthCallback] Success! Redirect location:', location);
 
           setStatus('success');
-          setMessage('Google connected successfully!');
+          setMessage('Connected successfully!');
 
           // Parse the redirect location to extract service name
           if (location) {
             const redirectUrl = new URL(location, window.location.origin);
             const service = redirectUrl.searchParams.get('service');
             if (service) {
-              setMessage(`Successfully connected ${service.replace(/_/g, ' ')}!`);
+              const displayName = service.charAt(0).toUpperCase() + service.slice(1).replace(/_/g, ' ');
+              setMessage(`Successfully connected ${displayName}!`);
             }
           }
 
@@ -111,7 +112,7 @@ export default function AuthCallback() {
               const redirectUrl = new URL(location, window.location.origin);
               navigate(redirectUrl.pathname + redirectUrl.search);
             } else {
-              navigate('/integration-manager?oauth_success=true&service=google');
+              navigate('/integration-manager?oauth_success=true');
             }
           }, 1500);
           return;
@@ -139,9 +140,9 @@ export default function AuthCallback() {
         if (response.ok) {
           console.log('[AuthCallback] Got 2xx response (unexpected for oauth-callback)');
           setStatus('success');
-          setMessage('Google connected successfully!');
+          setMessage('Connected successfully!');
           setTimeout(() => {
-            navigate('/integration-manager?oauth_success=true&service=google');
+            navigate('/integration-manager?oauth_success=true');
           }, 1500);
           return;
         }
@@ -173,7 +174,7 @@ export default function AuthCallback() {
             {status === 'success' && <CheckCircle className="h-5 w-5 text-green-500" />}
             {status === 'error' && <XCircle className="h-5 w-5 text-red-500" />}
             {status === 'loading'
-              ? 'Connecting Google...'
+              ? 'Connecting...'
               : status === 'success'
                 ? 'Connection Successful!'
                 : 'Connection Failed'}
@@ -186,7 +187,7 @@ export default function AuthCallback() {
               Return to Integrations
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              If this keeps happening, check your Google Cloud Console settings.
+              If this keeps happening, check your OAuth app configuration settings.
             </p>
           </CardContent>
         )}
