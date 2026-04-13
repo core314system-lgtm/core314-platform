@@ -796,14 +796,18 @@ export function IntegrationManager() {
         return;
       }
 
-      // Other integrations (Slack, QuickBooks) use Supabase Edge Function
+      // Other integrations (Slack, QuickBooks, Jira) use Supabase Edge Function
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) throw new Error('No session');
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
       const supabaseUrl = await getSupabaseUrl();
-      const callbackUri = `${supabaseUrl}/functions/v1/oauth-callback`;
+      // Jira uses frontend /auth/callback (must match Atlassian Developer Console redirect URI)
+      // Other services (Slack, QuickBooks) use the Supabase edge function URL directly
+      const callbackUri = serviceName === 'jira'
+        ? `${window.location.origin}/auth/callback`
+        : `${supabaseUrl}/functions/v1/oauth-callback`;
       const response = await fetch(url, {
         method: 'POST',
         headers: {
