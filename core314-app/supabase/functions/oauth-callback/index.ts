@@ -126,55 +126,16 @@ serve(withSentry(async (req) => {
       });
     }
 
-    // === STEP 2: Validate user session (REQUIRED — no anonymous fallback) ===
-    const authHeader = req.headers.get('Authorization');
-
-    console.log('[oauth-callback] STEP 2: Validating user session', {
-      has_auth_header: !!authHeader,
-    });
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('[oauth-callback] STEP 2: REJECTED — no Authorization header');
-      return new Response(JSON.stringify({
-        error: 'Missing authorization header',
-        detail: 'A valid authenticated user session is required. Please log in and try again.',
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
+    // === STEP 2: Look up oauth_states — the ONLY source of user identity ===
+    // No Authorization header, no JWT, no frontend session required.
+    // The state parameter was generated during oauth-initiate and bound to the user_id.
+    // This makes OAuth work regardless of browser session state.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Validate the JWT and extract the authenticated user
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user: sessionUser }, error: userError } = await userClient.auth.getUser();
-
-    if (userError || !sessionUser) {
-      console.error('[oauth-callback] STEP 2: REJECTED — invalid or expired JWT:', {
-        error: userError?.message,
-      });
-      return new Response(JSON.stringify({
-        error: 'Invalid or expired session',
-        detail: 'Your session has expired. Please log in again and retry the connection.',
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const sessionUserId = sessionUser.id;
-    console.log('[oauth-callback] STEP 2: User authenticated via JWT:', { user_id: sessionUserId });
-
-    // === STEP 3: Look up oauth_states for user_id verification ===
-    console.log('[oauth-callback] STEP 3: Looking up oauth_states for state:', state);
+    console.log('[oauth-callback] STEP 2: Looking up oauth_states for state:', state);
     const { data: stateData, error: stateError } = await supabase
       .from('oauth_states')
       .select('*')
@@ -183,12 +144,12 @@ serve(withSentry(async (req) => {
       .single();
 
     if (stateError || !stateData) {
-      console.error('[oauth-callback] STEP 3: State lookup FAILED:', {
+      console.error('[oauth-callback] STEP 2: State lookup FAILED:', {
         error: stateError?.message,
         state_param: state,
       });
       return new Response(JSON.stringify({ 
-        error: 'Invalid or expired state',
+        error: 'Invalid or expired OAuth state',
         detail: 'OAuth state not found or expired. Please try connecting again.',
       }), {
         status: 400,
@@ -196,32 +157,31 @@ serve(withSentry(async (req) => {
       });
     }
 
-    // Use the authenticated JWT user_id as the authoritative user
-    // Cross-check against oauth_states to prevent token mis-association
-    const userId = sessionUserId;
-    console.log('[oauth-callback] STEP 3: State validated', {
-      user_id: userId,
-      state_user_id: stateData.user_id,
-      integration_registry_id: stateData.integration_registry_id,
-      redirect_uri: stateData.redirect_uri,
-      user_ids_match: sessionUserId === stateData.user_id,
-    });
-
-    if (sessionUserId !== stateData.user_id) {
-      console.error('[oauth-callback] STEP 3: REJECTED — user mismatch', {
-        jwt_user_id: sessionUserId,
-        state_user_id: stateData.user_id,
+    // Validate that the state maps to a valid user_id
+    const userId = stateData.user_id;
+    if (!userId) {
+      console.error('[oauth-callback] STEP 2: State has no user_id:', {
+        state_param: state,
+        state_data: { ...stateData, state: '[redacted]' },
       });
       return new Response(JSON.stringify({
-        error: 'User mismatch',
-        detail: 'The authenticated user does not match the user who initiated this OAuth flow. This may indicate a session conflict.',
+        error: 'Invalid OAuth state',
+        detail: 'OAuth state does not contain a valid user identity. Please try connecting again.',
       }), {
-        status: 403,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // === STEP 4: Look up integration registry ===
+    console.log('[oauth-callback] STEP 2: State validated — user resolved from state', {
+      user_id: userId,
+      integration_registry_id: stateData.integration_registry_id,
+      redirect_uri: stateData.redirect_uri,
+      state_created_at: stateData.created_at,
+      state_expires_at: stateData.expires_at,
+    });
+
+    // === STEP 3: Look up integration registry ===
     const { data: integration, error: integrationError } = await supabase
       .from('integration_registry')
       .select('*')
@@ -229,7 +189,7 @@ serve(withSentry(async (req) => {
       .single();
 
     if (integrationError || !integration) {
-      console.error('[oauth-callback] STEP 4: Integration not found:', {
+      console.error('[oauth-callback] STEP 3: Integration not found:', {
         integration_registry_id: stateData.integration_registry_id,
         error: integrationError?.message,
       });
@@ -241,7 +201,7 @@ serve(withSentry(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('[oauth-callback] STEP 4: Integration found:', {
+    console.log('[oauth-callback] STEP 3: Integration found:', {
       service_name: integration.service_name,
       auth_type: integration.auth_type,
     });
@@ -332,9 +292,9 @@ serve(withSentry(async (req) => {
       error_description: tokenData.error_description,
     });
 
-    // === STEP 5: Token exchange result ===
+    // === STEP 4: Token exchange result ===
     if (!tokenResponse.ok || !tokenData.access_token) {
-      console.error('[oauth-callback] STEP 5: TOKEN EXCHANGE FAILED:', {
+      console.error('[oauth-callback] STEP 4: TOKEN EXCHANGE FAILED:', {
         service: integration.service_name,
         user_id: userId,
         token_url: tokenUrl,
@@ -356,7 +316,7 @@ serve(withSentry(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('[oauth-callback] STEP 5: Token exchange SUCCESS', {
+    console.log('[oauth-callback] STEP 4: Token exchange SUCCESS', {
       service: integration.service_name,
       user_id: userId,
       has_access_token: true,
@@ -364,13 +324,13 @@ serve(withSentry(async (req) => {
       scope: tokenData.scope,
     });
 
-    // === STEP 6: Store tokens in vault WITH user_id binding ===
-    console.log('[oauth-callback] STEP 6: Storing tokens in vault for user:', userId);
+    // === STEP 5: Store tokens in vault WITH user_id binding ===
+    console.log('[oauth-callback] STEP 5: Storing tokens in vault for user:', userId);
     const { data: accessTokenSecretId, error: vaultAccessErr } = await supabase.rpc('vault_create_secret', {
       secret: tokenData.access_token
     });
     if (vaultAccessErr || !accessTokenSecretId) {
-      console.error('[oauth-callback] STEP 6: FAILED to store access token in vault:', {
+      console.error('[oauth-callback] STEP 5: FAILED to store access token in vault:', {
         user_id: userId,
         error: vaultAccessErr?.message,
       });
@@ -383,7 +343,7 @@ serve(withSentry(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('[oauth-callback] STEP 6: Access token stored in vault:', { secret_id: accessTokenSecretId });
+    console.log('[oauth-callback] STEP 5: Access token stored in vault:', { secret_id: accessTokenSecretId });
 
     let refreshTokenSecretId = null;
     if (tokenData.refresh_token) {
@@ -391,7 +351,7 @@ serve(withSentry(async (req) => {
         secret: tokenData.refresh_token
       });
       if (vaultRefreshErr || !refreshSecretId) {
-        console.error('[oauth-callback] STEP 6: FAILED to store refresh token in vault:', {
+        console.error('[oauth-callback] STEP 5: FAILED to store refresh token in vault:', {
           user_id: userId,
           error: vaultRefreshErr?.message,
         });
@@ -399,10 +359,10 @@ serve(withSentry(async (req) => {
         console.warn('[oauth-callback] WARNING: Refresh token not stored. Token refresh will fail.');
       } else {
         refreshTokenSecretId = refreshSecretId;
-        console.log('[oauth-callback] STEP 6: Refresh token stored in vault:', { secret_id: refreshSecretId });
+        console.log('[oauth-callback] STEP 5: Refresh token stored in vault:', { secret_id: refreshSecretId });
       }
     } else {
-      console.warn('[oauth-callback] STEP 6: No refresh token received from provider (token refresh will not be possible)');
+      console.warn('[oauth-callback] STEP 5: No refresh token received from provider (token refresh will not be possible)');
     }
 
     const expiresAt = tokenData.expires_in 
@@ -672,8 +632,8 @@ serve(withSentry(async (req) => {
       }
     }
 
-    // === STEP 7: Upsert user_integration with user_id ===
-    console.log('[oauth-callback] STEP 7: Upserting user_integration for user:', userId);
+    // === STEP 6: Upsert user_integration with user_id ===
+    console.log('[oauth-callback] STEP 6: Upserting user_integration for user:', userId);
     const { data: userIntegration, error: upsertIntError } = await supabase
       .from('user_integrations')
       .upsert({
@@ -690,7 +650,7 @@ serve(withSentry(async (req) => {
       .single();
 
     if (upsertIntError) {
-      console.error('[oauth-callback] STEP 7: user_integration upsert FAILED:', {
+      console.error('[oauth-callback] STEP 6: user_integration upsert FAILED:', {
         user_id: userId,
         error: upsertIntError.message,
         code: upsertIntError.code,
@@ -704,14 +664,14 @@ serve(withSentry(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('[oauth-callback] STEP 7: user_integration upsert SUCCESS:', {
+    console.log('[oauth-callback] STEP 6: user_integration upsert SUCCESS:', {
       user_integration_id: userIntegration?.id,
       user_id: userId,
       status: 'active',
     });
 
-    // === STEP 8: Upsert oauth_tokens with user_id ===
-    console.log('[oauth-callback] STEP 8: Upserting oauth_tokens for user:', userId);
+    // === STEP 7: Upsert oauth_tokens with user_id ===
+    console.log('[oauth-callback] STEP 7: Upserting oauth_tokens for user:', userId);
     const { error: upsertTokenError } = await supabase.from('oauth_tokens').upsert({
       user_id: userId,
       integration_registry_id: integration.id,
@@ -730,7 +690,7 @@ serve(withSentry(async (req) => {
     });
 
     if (upsertTokenError) {
-      console.error('[oauth-callback] STEP 8: oauth_tokens upsert FAILED:', {
+      console.error('[oauth-callback] STEP 7: oauth_tokens upsert FAILED:', {
         user_id: userId,
         error: upsertTokenError.message,
         code: upsertTokenError.code,
@@ -744,7 +704,7 @@ serve(withSentry(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('[oauth-callback] STEP 8: oauth_tokens upsert SUCCESS:', {
+    console.log('[oauth-callback] STEP 7: oauth_tokens upsert SUCCESS:', {
       user_id: userId,
       has_access_token: !!accessTokenSecretId,
       has_refresh_token: !!refreshTokenSecretId,
@@ -755,8 +715,8 @@ serve(withSentry(async (req) => {
     await supabase.from('oauth_states').delete().eq('state', state);
     console.log('[oauth-callback] State cleaned up for:', state);
 
-    // === STEP 9: Send connection confirmation email (non-blocking) ===
-    console.log('[oauth-callback] STEP 9: Sending connection email for user:', userId);
+    // === STEP 8: Send connection confirmation email (non-blocking) ===
+    console.log('[oauth-callback] STEP 8: Sending connection email for user:', userId);
     const { data: { user: connectedUser } } = await supabase.auth.admin.getUserById(userId);
     if (connectedUser?.email) {
       sendIntegrationConnectedEmail(integration.service_name, {

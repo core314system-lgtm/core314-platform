@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { getSupabaseUrl, getSupabaseAnonKey, supabase } from '../lib/supabase';
+import { getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 
 /**
  * AuthCallback — handles OAuth redirects from providers (Google, Jira/Atlassian, etc.).
@@ -62,33 +62,23 @@ export default function AuthCallback() {
         callbackUrl.searchParams.set('code', code);
         callbackUrl.searchParams.set('state', state);
 
-        // Get the current user session JWT for Authorization header
-        // OAuth callback REQUIRES a valid authenticated user session — no anonymous fallback
-        const { data: sessionData } = await supabase.auth.getSession();
-        const sessionToken = sessionData.session?.access_token ?? null;
-
-        if (!sessionToken) {
-          console.error('[AuthCallback] No valid user session — cannot proceed with OAuth callback');
-          setStatus('error');
-          setMessage('Your session has expired. Please log in again and retry the connection.');
-          return;
-        }
+        // No session token needed — oauth-callback resolves user identity
+        // entirely from the state parameter (bound to user_id during oauth-initiate).
+        // This eliminates "Missing authorization header" failures during redirects.
 
         console.log('[AuthCallback] Calling oauth-callback Edge Function:', {
           url: callbackUrl.origin + callbackUrl.pathname,
           code_length: code.length,
           state: state,
-          has_session_token: true,
         });
 
         // Call the Edge Function — use redirect: 'manual' so we can intercept
         // the 302 redirect and handle it ourselves
-        // Authorization header carries the authenticated user's JWT (required)
+        // Only apikey is needed for the Supabase gateway; user identity comes from state
         const response = await fetch(callbackUrl.toString(), {
           method: 'GET',
           headers: {
             'apikey': anonKey,
-            'Authorization': `Bearer ${sessionToken}`,
           },
           redirect: 'manual',
         });
