@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
+import { getSupabaseUrl, getSupabaseAnonKey, supabase } from '../lib/supabase';
 
 /**
  * AuthCallback — handles OAuth redirects from providers (Google, Jira/Atlassian, etc.).
@@ -62,18 +62,32 @@ export default function AuthCallback() {
         callbackUrl.searchParams.set('code', code);
         callbackUrl.searchParams.set('state', state);
 
+        // Get the current user session JWT for Authorization header
+        // The oauth-callback edge function needs this to pass Supabase gateway auth
+        let sessionToken: string | null = null;
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          sessionToken = sessionData.session?.access_token ?? null;
+          console.log('[AuthCallback] Session token:', sessionToken ? 'present' : 'missing');
+        } catch (sessionErr) {
+          console.warn('[AuthCallback] Could not get session token, using anon key:', sessionErr);
+        }
+
         console.log('[AuthCallback] Calling oauth-callback Edge Function:', {
           url: callbackUrl.origin + callbackUrl.pathname,
           code_length: code.length,
           state: state,
+          has_session_token: !!sessionToken,
         });
 
         // Call the Edge Function — use redirect: 'manual' so we can intercept
         // the 302 redirect and handle it ourselves
+        // Pass Authorization header with user JWT (or anon key as fallback)
         const response = await fetch(callbackUrl.toString(), {
           method: 'GET',
           headers: {
             'apikey': anonKey,
+            'Authorization': `Bearer ${sessionToken || anonKey}`,
           },
           redirect: 'manual',
         });
