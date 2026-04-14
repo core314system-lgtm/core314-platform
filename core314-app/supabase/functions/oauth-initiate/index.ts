@@ -393,10 +393,30 @@ serve(withSentry(async (req) => {
       authUrl.searchParams.set('prompt', 'consent');
     }
 
-    // Jira (Atlassian) specific: use consent prompt and audience
+    // Jira (Atlassian) specific: hardcode EXACT OAuth URL per Atlassian requirements
+    // This replaces the generic URL builder to ensure the exact format Atlassian expects
     if (normalizedServiceName === 'jira') {
-      authUrl.searchParams.set('audience', 'api.atlassian.com');
-      authUrl.searchParams.set('prompt', 'consent');
+      const jiraRedirectUri = 'https://app.core314.com/auth/callback';
+      const jiraAuthUrl = 'https://auth.atlassian.com/authorize'
+        + '?audience=api.atlassian.com'
+        + `&client_id=${encodeURIComponent(clientId)}`
+        + '&scope=read%3Ajira-work%20read%3Ajira-user'
+        + `&redirect_uri=${encodeURIComponent(jiraRedirectUri)}`
+        + `&state=${encodeURIComponent(state)}`
+        + '&response_type=code'
+        + '&prompt=consent';
+
+      console.log('JIRA OAUTH URL:', jiraAuthUrl);
+
+      // Also update the oauth_states row with the hardcoded redirect_uri
+      await supabase.from('oauth_states').update({ redirect_uri: jiraRedirectUri }).eq('state', state);
+
+      return new Response(JSON.stringify({
+        authorization_url: jiraAuthUrl,
+        state
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({
