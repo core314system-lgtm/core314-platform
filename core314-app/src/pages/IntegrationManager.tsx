@@ -803,10 +803,10 @@ export function IntegrationManager() {
 
       const url = await getSupabaseFunctionUrl('oauth-initiate');
       const supabaseUrl = await getSupabaseUrl();
-      // Jira uses frontend /auth/callback (must match Atlassian Developer Console redirect URI)
+      // Jira uses hardcoded production redirect URI (must match Atlassian Developer Console exactly)
       // Other services (Slack, QuickBooks) use the Supabase edge function URL directly
       const callbackUri = serviceName === 'jira'
-        ? `${window.location.origin}/auth/callback`
+        ? 'https://app.core314.com/auth/callback'
         : `${supabaseUrl}/functions/v1/oauth-callback`;
       const response = await fetch(url, {
         method: 'POST',
