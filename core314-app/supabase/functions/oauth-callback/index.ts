@@ -85,6 +85,13 @@ function resolveOAuthCredentials(serviceName: string): {
 }
 
 serve(withSentry(async (req) => {
+  // First line: confirm function is executing (not blocked by gateway)
+  console.log('[oauth-callback] oauth-callback invoked', {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString(),
+  });
+
   const testResponse = await handleSentryTest(req);
   if (testResponse) return testResponse;
 
