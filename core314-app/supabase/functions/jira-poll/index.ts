@@ -162,14 +162,33 @@ serve(async (req) => {
           { headers: fetchHeaders }
         );
 
+        // Structured logging: API response status
+        console.log('[jira-poll] API response', {
+          user_id: integration.user_id,
+          status: issuesResponse.status,
+          ok: issuesResponse.ok,
+          auth_method: isOAuth ? 'oauth2' : 'api_key',
+        });
+
         if (!issuesResponse.ok) {
           const errorBody = await issuesResponse.text().catch(() => '');
+          console.error('[jira-poll] API FAILED', {
+            user_id: integration.user_id, status: issuesResponse.status,
+            error_body: errorBody.slice(0, 200),
+          });
           errors.push(`Jira API error for user ${integration.user_id}: ${issuesResponse.status} ${errorBody.slice(0, 200)}`);
           continue;
         }
 
         const issuesData = await issuesResponse.json();
         const issues = issuesData.issues || [];
+
+        // Structured logging: records retrieved
+        console.log('[jira-poll] Records retrieved', {
+          user_id: integration.user_id,
+          issues_returned: issues.length,
+          total_results: issuesData.total || issues.length,
+        });
 
         // Calculate metrics
         const totalIssues = issues.length;
@@ -274,7 +293,7 @@ serve(async (req) => {
           .filter(([, count]) => count >= 3)
           .sort((a, b) => b[1] - a[1]);
 
-        await supabase.from('integration_events').insert({
+        const { error: eventError } = await supabase.from('integration_events').insert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           integration_registry_id: integration.integration_registry_id,
@@ -308,6 +327,22 @@ serve(async (req) => {
           },
         });
 
+        // Structured logging: write success/failure
+        if (eventError) {
+          console.error('[jira-poll] Event write FAILED', {
+            user_id: integration.user_id, error: eventError.message,
+          });
+          errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
+        } else {
+          console.log('[jira-poll] Event write SUCCESS', {
+            user_id: integration.user_id,
+            records_written: 1,
+            issues_count: totalIssues,
+            overdue: overdueCount,
+            stalled: stalledCount,
+          });
+        }
+
         await supabase.from('integration_ingestion_state').upsert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
@@ -329,6 +364,12 @@ serve(async (req) => {
         errors.push(`Error for user ${integration.user_id}: ${(userError as Error).message}`);
       }
     }
+
+    console.log('[jira-poll] Poll complete', {
+      processed: processedCount,
+      total: integrations.length,
+      errors: errors.length,
+    });
 
     return new Response(JSON.stringify({ success: true, processed: processedCount, total: integrations.length, errors: errors.length > 0 ? errors : undefined }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

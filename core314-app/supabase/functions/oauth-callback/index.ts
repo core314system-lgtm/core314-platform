@@ -576,6 +576,37 @@ serve(withSentry(async (req) => {
       }).catch(err => console.error('[oauth-callback] Email notification failed:', err));
     }
 
+    // Requirement 5: Immediate poll on integration connect
+    // Trigger the service-specific poller immediately after successful OAuth connection
+    // This ensures data flows into the system right away without waiting for the 15-min scheduler
+    const normalizedServiceForPoll = normalizeServiceName(integration.service_name);
+    console.log(`[oauth-callback] Triggering immediate poll for ${normalizedServiceForPoll} (poll-on-connect)`);
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const pollResponse = await fetch(`${supabaseUrl}/functions/v1/manual-poll-trigger`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_name: normalizedServiceForPoll,
+          triggered_by: 'oauth-callback:poll-on-connect',
+        }),
+      });
+      const pollData = await pollResponse.json();
+      console.log(`[oauth-callback] Immediate poll result for ${normalizedServiceForPoll}:`, {
+        ok: pollResponse.ok,
+        status: pollResponse.status,
+        processed: pollData.records_processed ?? 0,
+        duration_ms: pollData.duration_ms ?? 0,
+      });
+    } catch (pollError) {
+      // Non-blocking: don't fail the OAuth flow if the immediate poll fails
+      console.error(`[oauth-callback] Immediate poll failed for ${normalizedServiceForPoll} (non-fatal):`, pollError);
+    }
+
     return new Response(null, {
       status: 302,
       headers: {

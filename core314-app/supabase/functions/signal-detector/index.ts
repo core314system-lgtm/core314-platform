@@ -105,12 +105,15 @@ serve(async (req) => {
       try {
         const signals: SignalCandidate[] = [];
 
-        // Fetch the 2 most recent events per service for comparison
+        // Fetch the 2 most recent REAL events per service for comparison
+        // IMPORTANT: Exclude synthetic test data (source='test_scenario_inject')
+        // so synthetic events never contaminate real signal detection.
         const { data: slackEvents } = await supabase
           .from('integration_events')
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'slack.workspace_activity')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -119,6 +122,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'quickbooks.financial_activity')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -127,6 +131,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'hubspot.crm_activity')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -707,6 +712,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'google_calendar.weekly_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -761,6 +767,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'gmail.weekly_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -835,6 +842,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'jira.weekly_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -915,6 +923,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'trello.board_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -1008,6 +1017,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'teams.workspace_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -1061,6 +1071,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'sheets.file_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 
@@ -1113,6 +1124,7 @@ serve(async (req) => {
           .select('metadata, occurred_at')
           .eq('user_id', userId)
           .eq('event_type', 'asana.project_summary')
+          .neq('source', 'test_scenario_inject')
           .order('occurred_at', { ascending: false })
           .limit(2);
 

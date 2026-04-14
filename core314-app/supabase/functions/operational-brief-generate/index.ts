@@ -284,11 +284,13 @@ serve(async (req) => {
     // ── Step 5: Fetch recent integration events for context ───────────
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    // Exclude synthetic test data (source='test_scenario_inject') from all event queries
     const { data: hubspotEvents } = await supabase
       .from('integration_events')
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'hubspot')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -298,6 +300,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'slack')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -307,6 +310,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'quickbooks')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -317,6 +321,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'google_calendar')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -326,6 +331,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'gmail')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -335,6 +341,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'jira')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -344,6 +351,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'trello')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -353,6 +361,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'microsoft_teams')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -362,6 +371,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'google_sheets')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -371,6 +381,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'asana')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
