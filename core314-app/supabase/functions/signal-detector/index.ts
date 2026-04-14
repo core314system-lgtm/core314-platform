@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { classifySignal } from '../_shared/signal-classification.ts';
+import { classifySignal, SIGNAL_DATA_STATES } from '../_shared/signal-classification.ts';
 
 /**
  * Signal Detector
@@ -104,6 +104,30 @@ serve(async (req) => {
     for (const userId of userIds) {
       try {
         const signals: SignalCandidate[] = [];
+
+        // Fetch integration ages to determine recently connected integrations
+        // Integrations connected < 14 days ago with zero data → NO_DATA (not negative)
+        const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+        const nowMs = Date.now();
+        const { data: userIntegrationRows } = await supabase
+          .from('user_integrations')
+          .select('created_at, integrations_master!inner(integration_name)')
+          .eq('user_id', userId)
+          .eq('status', 'active');
+
+        const integrationAgeMs: Record<string, number> = {};
+        for (const ui of userIntegrationRows || []) {
+          const master = ui.integrations_master as unknown as { integration_name: string };
+          const name = master?.integration_name?.toLowerCase().replace(/\s+/g, '_') || '';
+          if (name) {
+            integrationAgeMs[name] = nowMs - new Date(ui.created_at).getTime();
+          }
+        }
+
+        const isRecentlyConnected = (serviceName: string): boolean => {
+          const age = integrationAgeMs[serviceName];
+          return age !== undefined && age < FOURTEEN_DAYS_MS;
+        };
 
         // Fetch the 2 most recent REAL events per service for comparison
         // IMPORTANT: Exclude synthetic test data (source='test_scenario_inject')
@@ -512,20 +536,25 @@ serve(async (req) => {
             }
           }
 
-          // Signal: No financial activity (connected but no data)
+          // Signal: No financial activity (connected but no data) — classified as NO_DATA
           if (invoiceCount === 0 && (latest.payment_count as number) === 0 && (latest.expense_count as number) === 0) {
             const accountCount = (latest.account_count as number) ?? 0;
             if (accountCount > 0) {
+              const recentQb = isRecentlyConnected('quickbooks');
               signals.push({
                 signal_type: 'no_financial_activity',
                 severity: 'low',
                 confidence: 90,
-                description: `QuickBooks is connected (${accountCount} accounts) but no invoices, payments, or expenses found in the last 90 days. This may be a new or inactive account.`,
+                description: recentQb
+                  ? `QuickBooks recently connected (${accountCount} accounts). No data available yet — the system is collecting initial financial data. This is not a negative signal.`
+                  : `QuickBooks is connected (${accountCount} accounts) but no invoices, payments, or expenses found in the last 90 days. No data available or system not yet active.`,
                 source_integration: 'quickbooks',
                 signal_data: {
                   category: classifySignal('no_financial_activity', 'quickbooks'),
                   metric: 'no_financial_activity',
+                  data_state: SIGNAL_DATA_STATES.NO_DATA,
                   account_count: accountCount,
+                  recently_connected: recentQb,
                   affected_entities: [],
                   summary_metrics: { account_count: accountCount, invoices: 0, payments: 0, expenses: 0 },
                 },
@@ -665,17 +694,22 @@ serve(async (req) => {
             }
           }
 
-          // Signal: No CRM activity (connected but empty)
+          // Signal: No CRM activity (connected but empty) — classified as NO_DATA
           if (contactCount === 0 && dealCount === 0) {
+            const recentHs = isRecentlyConnected('hubspot');
             signals.push({
               signal_type: 'no_crm_activity',
               severity: 'low',
               confidence: 90,
-              description: 'HubSpot is connected but no contacts or deals found. Add CRM data for operational intelligence.',
+              description: recentHs
+                ? 'HubSpot recently connected. No data available yet — the system is collecting initial CRM data. This is not a negative signal.'
+                : 'HubSpot is connected but no contacts or deals found. No data available or system not yet active.',
               source_integration: 'hubspot',
               signal_data: {
                 category: classifySignal('no_crm_activity', 'hubspot'),
                 metric: 'no_crm_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentHs,
                 total_contacts: contactCount,
                 total_deals: dealCount,
                 total_companies: companyCount,
@@ -685,17 +719,22 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Low activity (has some data but very minimal)
+          // Signal: Low CRM activity (has some data but very minimal) — classified as NO_DATA
           if (dealCount > 0 && contactCount === 0 && companyCount === 0 && openDeals === 0) {
+            const recentHs = isRecentlyConnected('hubspot');
             signals.push({
               signal_type: 'low_crm_activity',
               severity: 'low',
               confidence: 75,
-              description: `HubSpot shows ${dealCount} deals but no active contacts or companies. CRM utilization is minimal.`,
+              description: recentHs
+                ? `HubSpot recently connected with ${dealCount} deals found. Insufficient data for baseline comparison — collecting more data.`
+                : `HubSpot shows ${dealCount} deals but no active contacts or companies. No data available or system not yet active.`,
               source_integration: 'hubspot',
               signal_data: {
                 category: classifySignal('low_crm_activity', 'hubspot'),
                 metric: 'low_crm_activity',
+                data_state: recentHs ? SIGNAL_DATA_STATES.INSUFFICIENT_DATA : SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentHs,
                 total_deals: dealCount,
                 total_contacts: contactCount,
                 total_companies: companyCount,
@@ -742,17 +781,22 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Low meeting activity (connected but zero events)
+          // Signal: Low meeting activity (connected but zero events) — classified as NO_DATA
           if (totalEvents === 0) {
+            const recentGcal = isRecentlyConnected('google_calendar');
             signals.push({
               signal_type: 'low_meeting_activity',
               severity: 'low',
               confidence: 70,
-              description: 'Google Calendar is connected but no events found in the next 7 days. Calendar may be empty or permissions may need adjustment.',
+              description: recentGcal
+                ? 'Google Calendar recently connected. No data available yet — the system is collecting initial calendar data. This is not a negative signal.'
+                : 'Google Calendar is connected but no events found in the next 7 days. No data available or system not yet active.',
               source_integration: 'google_calendar',
               signal_data: {
                 category: classifySignal('low_meeting_activity', 'google_calendar'),
                 metric: 'low_meeting_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentGcal,
                 total_events: 0,
                 affected_entities: [],
                 summary_metrics: { total_events: 0 },
@@ -797,17 +841,22 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Low email activity (connected but zero messages)
+          // Signal: Low email activity (connected but zero messages) — classified as NO_DATA
           if (totalMessages === 0) {
+            const recentGmail = isRecentlyConnected('gmail');
             signals.push({
               signal_type: 'low_email_activity',
               severity: 'low',
               confidence: 70,
-              description: 'Gmail is connected but no email activity detected in the past 7 days. Account may be inactive or permissions may need adjustment.',
+              description: recentGmail
+                ? 'Gmail recently connected. No data available yet — the system is collecting initial email data. This is not a negative signal.'
+                : 'Gmail is connected but no email activity detected in the past 7 days. No data available or system not yet active.',
               source_integration: 'gmail',
               signal_data: {
                 category: classifySignal('low_email_activity', 'gmail'),
                 metric: 'low_email_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentGmail,
                 total_messages: 0,
                 affected_entities: [],
                 summary_metrics: { total_messages: 0 },
@@ -991,17 +1040,22 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Board inactivity (connected but zero cards)
+          // Signal: Board inactivity (connected but zero cards) — classified as NO_DATA
           if (totalBoards > 0 && totalCards === 0) {
+            const recentTrello = isRecentlyConnected('trello');
             signals.push({
               signal_type: 'board_inactivity',
               severity: 'low',
               confidence: 65,
-              description: `Trello is connected with ${totalBoards} board${totalBoards > 1 ? 's' : ''} but no active cards found. Boards may be empty or archived.`,
+              description: recentTrello
+                ? `Trello recently connected with ${totalBoards} board${totalBoards > 1 ? 's' : ''}. No data available yet — the system is collecting initial board data. This is not a negative signal.`
+                : `Trello is connected with ${totalBoards} board${totalBoards > 1 ? 's' : ''} but no active cards found. No data available or system not yet active.`,
               source_integration: 'trello',
               signal_data: {
                 category: classifySignal('board_inactivity', 'trello'),
                 metric: 'board_inactivity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentTrello,
                 boards: totalBoards,
                 total_cards: 0,
                 affected_entities: [],
@@ -1026,17 +1080,22 @@ serve(async (req) => {
           const totalTeams = (latest.total_teams as number) ?? 0;
           const totalChannels = (latest.total_channels as number) ?? 0;
 
-          // Signal: Low team activity (connected but zero teams)
+          // Signal: Low team activity (connected but zero teams) — classified as NO_DATA
           if (totalTeams === 0) {
+            const recentTeams = isRecentlyConnected('microsoft_teams');
             signals.push({
               signal_type: 'low_team_activity',
               severity: 'low',
               confidence: 70,
-              description: 'Microsoft Teams is connected but no joined teams detected. The account may need team membership or permissions adjustment.',
+              description: recentTeams
+                ? 'Microsoft Teams recently connected. No data available yet — the system is collecting initial team data. This is not a negative signal.'
+                : 'Microsoft Teams is connected but no joined teams detected. No data available or system not yet active.',
               source_integration: 'microsoft_teams',
               signal_data: {
                 category: classifySignal('low_team_activity', 'microsoft_teams'),
                 metric: 'low_team_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentTeams,
                 teams: 0,
                 channels: 0,
                 affected_entities: [],
@@ -1045,17 +1104,22 @@ serve(async (req) => {
             });
           }
 
-          // Signal: Channel inactivity (teams exist but no channels accessible)
+          // Signal: Channel inactivity (teams exist but no channels accessible) — classified as NO_DATA
           if (totalTeams > 0 && totalChannels === 0) {
+            const recentTeams = isRecentlyConnected('microsoft_teams');
             signals.push({
               signal_type: 'channel_inactivity',
-              severity: 'medium',
+              severity: 'low',
               confidence: 75,
-              description: `${totalTeams} Microsoft Teams team${totalTeams > 1 ? 's' : ''} found but no channels accessible. Channel permissions may need review.`,
+              description: recentTeams
+                ? `Microsoft Teams recently connected with ${totalTeams} team${totalTeams > 1 ? 's' : ''}. Channel data not yet available — the system is collecting initial data. This is not a negative signal.`
+                : `${totalTeams} Microsoft Teams team${totalTeams > 1 ? 's' : ''} found but no channels accessible. No data available or system not yet active.`,
               source_integration: 'microsoft_teams',
               signal_data: {
                 category: classifySignal('channel_inactivity', 'microsoft_teams'),
                 metric: 'channel_inactivity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentTeams,
                 teams: totalTeams,
                 channels: 0,
                 affected_entities: [],
@@ -1080,17 +1144,22 @@ serve(async (req) => {
           const totalSpreadsheets = (latest.total_spreadsheets as number) ?? 0;
           const recentlyModified = (latest.recently_modified_count as number) ?? 0;
 
-          // Signal: Stale spreadsheets (sheets exist but none modified recently)
+          // Signal: Stale spreadsheets (sheets exist but none modified recently) — classified as NO_DATA
           if (totalSpreadsheets > 0 && recentlyModified === 0) {
+            const recentSheets = isRecentlyConnected('google_sheets');
             signals.push({
               signal_type: 'stale_spreadsheets',
               severity: 'low',
               confidence: 65,
-              description: `${totalSpreadsheets} Google Sheets spreadsheet${totalSpreadsheets > 1 ? 's' : ''} found but none modified in the past 7 days. KPI tracking data may be stale.`,
+              description: recentSheets
+                ? `Google Sheets recently connected with ${totalSpreadsheets} spreadsheet${totalSpreadsheets > 1 ? 's' : ''}. Collecting initial data — this is not a negative signal.`
+                : `${totalSpreadsheets} Google Sheets spreadsheet${totalSpreadsheets > 1 ? 's' : ''} found but none modified in the past 7 days. No data available or system not yet active.`,
               source_integration: 'google_sheets',
               signal_data: {
                 category: classifySignal('stale_spreadsheets', 'google_sheets'),
                 metric: 'stale_spreadsheets',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentSheets,
                 total: totalSpreadsheets,
                 recently_modified: 0,
                 affected_entities: [],
@@ -1099,17 +1168,22 @@ serve(async (req) => {
             });
           }
 
-          // Signal: No sheet activity (connected but zero spreadsheets)
+          // Signal: No sheet activity (connected but zero spreadsheets) — classified as NO_DATA
           if (totalSpreadsheets === 0) {
+            const recentSheets = isRecentlyConnected('google_sheets');
             signals.push({
               signal_type: 'no_sheet_activity',
               severity: 'low',
               confidence: 60,
-              description: 'Google Sheets is connected but no spreadsheets found. Create or share spreadsheets for data tracking visibility.',
+              description: recentSheets
+                ? 'Google Sheets recently connected. No data available yet — the system is collecting initial data. This is not a negative signal.'
+                : 'Google Sheets is connected but no spreadsheets found. No data available or system not yet active.',
               source_integration: 'google_sheets',
               signal_data: {
                 category: classifySignal('no_sheet_activity', 'google_sheets'),
                 metric: 'no_sheet_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentSheets,
                 total: 0,
                 affected_entities: [],
                 summary_metrics: { total_spreadsheets: 0 },
