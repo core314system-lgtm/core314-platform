@@ -126,50 +126,54 @@ serve(withSentry(async (req) => {
       });
     }
 
-    // === STEP 2: Validate user session ===
-    // Extract user from Authorization header JWT (if present)
-    // This is the primary auth mechanism — the frontend sends the user's JWT
+    // === STEP 2: Validate user session (REQUIRED — no anonymous fallback) ===
     const authHeader = req.headers.get('Authorization');
-    let sessionUserId: string | null = null;
 
     console.log('[oauth-callback] STEP 2: Validating user session', {
       has_auth_header: !!authHeader,
-      auth_header_prefix: authHeader?.substring(0, 15) ?? 'none',
     });
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('[oauth-callback] STEP 2: REJECTED — no Authorization header');
+      return new Response(JSON.stringify({
+        error: 'Missing authorization header',
+        detail: 'A valid authenticated user session is required. Please log in and try again.',
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Try to extract user from JWT if Authorization header is present
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      try {
-        const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-        const token = authHeader.replace('Bearer ', '');
-        // Skip JWT validation if the token IS the anon key (fallback case)
-        if (token !== anonKey) {
-          const userClient = createClient(
-            Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-            { global: { headers: { Authorization: authHeader } } }
-          );
-          const { data: { user }, error: userError } = await userClient.auth.getUser();
-          if (user && !userError) {
-            sessionUserId = user.id;
-            console.log('[oauth-callback] User authenticated via JWT:', { user_id: sessionUserId });
-          } else {
-            console.warn('[oauth-callback] JWT present but user extraction failed:', userError?.message);
-          }
-        } else {
-          console.log('[oauth-callback] Authorization header contains anon key (fallback), skipping JWT user extraction');
-        }
-      } catch (jwtErr) {
-        console.warn('[oauth-callback] JWT validation error (non-fatal):', jwtErr);
-      }
+    // Validate the JWT and extract the authenticated user
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user: sessionUser }, error: userError } = await userClient.auth.getUser();
+
+    if (userError || !sessionUser) {
+      console.error('[oauth-callback] STEP 2: REJECTED — invalid or expired JWT:', {
+        error: userError?.message,
+      });
+      return new Response(JSON.stringify({
+        error: 'Invalid or expired session',
+        detail: 'Your session has expired. Please log in again and retry the connection.',
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // === STEP 3: Look up oauth_states for user_id (primary source of truth) ===
+    const sessionUserId = sessionUser.id;
+    console.log('[oauth-callback] STEP 2: User authenticated via JWT:', { user_id: sessionUserId });
+
+    // === STEP 3: Look up oauth_states for user_id verification ===
     console.log('[oauth-callback] STEP 3: Looking up oauth_states for state:', state);
     const { data: stateData, error: stateError } = await supabase
       .from('oauth_states')
@@ -179,7 +183,7 @@ serve(withSentry(async (req) => {
       .single();
 
     if (stateError || !stateData) {
-      console.error('[oauth-callback] State lookup FAILED:', {
+      console.error('[oauth-callback] STEP 3: State lookup FAILED:', {
         error: stateError?.message,
         state_param: state,
       });
@@ -192,21 +196,29 @@ serve(withSentry(async (req) => {
       });
     }
 
-    const userId = stateData.user_id;
+    // Use the authenticated JWT user_id as the authoritative user
+    // Cross-check against oauth_states to prevent token mis-association
+    const userId = sessionUserId;
     console.log('[oauth-callback] STEP 3: State validated', {
       user_id: userId,
+      state_user_id: stateData.user_id,
       integration_registry_id: stateData.integration_registry_id,
       redirect_uri: stateData.redirect_uri,
-      session_user_matches: sessionUserId === userId,
+      user_ids_match: sessionUserId === stateData.user_id,
     });
 
-    // Cross-check: if JWT user exists, verify it matches the state user
-    if (sessionUserId && sessionUserId !== userId) {
-      console.warn('[oauth-callback] WARNING: JWT user_id does not match state user_id', {
+    if (sessionUserId !== stateData.user_id) {
+      console.error('[oauth-callback] STEP 3: REJECTED — user mismatch', {
         jwt_user_id: sessionUserId,
-        state_user_id: userId,
+        state_user_id: stateData.user_id,
       });
-      // Continue with state user_id (it was set when the OAuth flow was initiated)
+      return new Response(JSON.stringify({
+        error: 'User mismatch',
+        detail: 'The authenticated user does not match the user who initiated this OAuth flow. This may indicate a session conflict.',
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // === STEP 4: Look up integration registry ===

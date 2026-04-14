@@ -63,31 +63,32 @@ export default function AuthCallback() {
         callbackUrl.searchParams.set('state', state);
 
         // Get the current user session JWT for Authorization header
-        // The oauth-callback edge function needs this to pass Supabase gateway auth
-        let sessionToken: string | null = null;
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          sessionToken = sessionData.session?.access_token ?? null;
-          console.log('[AuthCallback] Session token:', sessionToken ? 'present' : 'missing');
-        } catch (sessionErr) {
-          console.warn('[AuthCallback] Could not get session token, using anon key:', sessionErr);
+        // OAuth callback REQUIRES a valid authenticated user session — no anonymous fallback
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sessionToken = sessionData.session?.access_token ?? null;
+
+        if (!sessionToken) {
+          console.error('[AuthCallback] No valid user session — cannot proceed with OAuth callback');
+          setStatus('error');
+          setMessage('Your session has expired. Please log in again and retry the connection.');
+          return;
         }
 
         console.log('[AuthCallback] Calling oauth-callback Edge Function:', {
           url: callbackUrl.origin + callbackUrl.pathname,
           code_length: code.length,
           state: state,
-          has_session_token: !!sessionToken,
+          has_session_token: true,
         });
 
         // Call the Edge Function — use redirect: 'manual' so we can intercept
         // the 302 redirect and handle it ourselves
-        // Pass Authorization header with user JWT (or anon key as fallback)
+        // Authorization header carries the authenticated user's JWT (required)
         const response = await fetch(callbackUrl.toString(), {
           method: 'GET',
           headers: {
             'apikey': anonKey,
-            'Authorization': `Bearer ${sessionToken || anonKey}`,
+            'Authorization': `Bearer ${sessionToken}`,
           },
           redirect: 'manual',
         });
