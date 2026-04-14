@@ -54,16 +54,21 @@ serve(async (req) => {
         }
 
         // Get access token from vault
+        let currentAccessToken: string | null = null;
         const { data: accessToken } = await supabase
           .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!accessToken) {
+        currentAccessToken = accessToken;
+
+        if (!currentAccessToken) {
+          console.error('[google-calendar-poll] No token for user:', integration.user_id);
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
         // Check if token is expired and needs refresh
         if (integration.expires_at && new Date(integration.expires_at) < now && integration.refresh_token_secret_id) {
+          console.log('[google-calendar-poll] Token expired, attempting refresh for user:', integration.user_id);
           const { data: refreshToken } = await supabase
             .rpc('get_decrypted_secret', { secret_id: integration.refresh_token_secret_id });
 
@@ -90,9 +95,32 @@ serve(async (req) => {
                 expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
               }).eq('id', integration.id);
 
-              // Use refreshed token for polling
-              // Recursion-free: just use the new token directly
+              // Use the REFRESHED token for polling (critical fix)
+              currentAccessToken = tokenData.access_token;
+              console.log('[google-calendar-poll] Token refresh SUCCESS for user:', integration.user_id);
+            } else {
+              const refreshError = await tokenResponse.text().catch(() => '');
+              console.error('[google-calendar-poll] Token refresh FAILED', {
+                user_id: integration.user_id,
+                status: tokenResponse.status,
+                error: refreshError.slice(0, 200),
+              });
+                  errors.push(`Token refresh failed for user ${integration.user_id}: ${tokenResponse.status}`);
+                  // Set health status: AUTH_FAILED
+                  await supabase.from('integration_ingestion_state').upsert({
+                    user_id: integration.user_id,
+                    user_integration_id: integration.user_integration_id,
+                    service_name: 'google_calendar',
+                    last_polled_at: now.toISOString(),
+                    status: 'AUTH_FAILED',
+                    updated_at: now.toISOString(),
+                  }, { onConflict: 'user_id,user_integration_id,service_name' });
+                  continue;
             }
+          } else {
+            console.error('[google-calendar-poll] No refresh token for user:', integration.user_id);
+            errors.push(`No refresh token for user ${integration.user_id}`);
+            continue;
           }
         }
 
@@ -110,12 +138,35 @@ serve(async (req) => {
             maxResults: '100',
           }),
           {
-            headers: { 'Authorization': `Bearer ${accessToken}` },
+            headers: { 'Authorization': `Bearer ${currentAccessToken}` },
           }
         );
 
+        // Structured logging: API response status
+        console.log('[google-calendar-poll] API response', {
+          user_id: integration.user_id,
+          status: eventsResponse.status,
+          ok: eventsResponse.ok,
+        });
+
         if (!eventsResponse.ok) {
+          const errorBody = await eventsResponse.text().catch(() => '');
+          console.error('[google-calendar-poll] API FAILED', {
+            user_id: integration.user_id,
+            status: eventsResponse.status,
+            error_body: errorBody.slice(0, 200),
+          });
           errors.push(`API error for user ${integration.user_id}: ${eventsResponse.status}`);
+          // Set health status based on error type
+          const calStatus = (eventsResponse.status === 401 || eventsResponse.status === 403) ? 'AUTH_FAILED' : 'ERROR';
+          await supabase.from('integration_ingestion_state').upsert({
+            user_id: integration.user_id,
+            user_integration_id: integration.user_integration_id,
+            service_name: 'google_calendar',
+            last_polled_at: now.toISOString(),
+            status: calStatus,
+            updated_at: now.toISOString(),
+          }, { onConflict: 'user_id,user_integration_id,service_name' });
           continue;
         }
 
@@ -143,8 +194,17 @@ serve(async (req) => {
           }
         }
 
+        // Structured logging: records retrieved
+        console.log('[google-calendar-poll] Records retrieved', {
+          user_id: integration.user_id,
+          total_events: totalEvents,
+          meetings_with_attendees: meetingsWithAttendees,
+          all_day_events: allDayEvents,
+          meeting_hours: Math.round(totalMeetingMinutes / 60 * 10) / 10,
+        });
+
         // Insert integration event
-        await supabase.from('integration_events').insert({
+        const { error: eventError } = await supabase.from('integration_events').insert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           integration_registry_id: integration.integration_registry_id,
@@ -164,13 +224,29 @@ serve(async (req) => {
           },
         });
 
-        // Update ingestion state
+        // Structured logging: write success/failure
+        if (eventError) {
+          console.error('[google-calendar-poll] Event write FAILED', {
+            user_id: integration.user_id, error: eventError.message,
+          });
+          errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
+        } else {
+          console.log('[google-calendar-poll] Event write SUCCESS', {
+            user_id: integration.user_id,
+            records_written: 1,
+            events: totalEvents,
+            meeting_hours: Math.round(totalMeetingMinutes / 60 * 10) / 10,
+          });
+        }
+
+        // Update ingestion state with health status
         await supabase.from('integration_ingestion_state').upsert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           service_name: 'google_calendar',
           last_polled_at: now.toISOString(),
           next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+          status: totalEvents > 0 ? 'ACTIVE' : 'NO_DATA',
           metadata: { total_events: totalEvents, meeting_hours: Math.round(totalMeetingMinutes / 60 * 10) / 10 },
           updated_at: now.toISOString(),
         }, { onConflict: 'user_id,user_integration_id,service_name' });

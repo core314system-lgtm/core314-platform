@@ -154,12 +154,21 @@ serve(async (req) => {
         }
 
         // Fetch recent issues updated in last 7 days
+        // Uses /rest/api/3/search/jql (Atlassian deprecated /rest/api/3/search in 2025)
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const jqlQuery = encodeURIComponent(`updated >= "${weekAgo}" ORDER BY updated DESC`);
+        const jqlQuery = `updated >= "${weekAgo}" ORDER BY updated DESC`;
 
         const issuesResponse = await fetch(
-          `${baseUrl}/rest/api/3/search?jql=${jqlQuery}&maxResults=100&fields=status,priority,assignee,issuetype,summary,updated,created,duedate,project`,
-          { headers: fetchHeaders }
+          `${baseUrl}/rest/api/3/search/jql`,
+          {
+            method: 'POST',
+            headers: { ...fetchHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jql: jqlQuery,
+              maxResults: 100,
+              fields: ['status', 'priority', 'assignee', 'issuetype', 'summary', 'updated', 'created', 'duedate', 'project'],
+            }),
+          }
         );
 
         // Structured logging: API response status
@@ -177,6 +186,16 @@ serve(async (req) => {
             error_body: errorBody.slice(0, 200),
           });
           errors.push(`Jira API error for user ${integration.user_id}: ${issuesResponse.status} ${errorBody.slice(0, 200)}`);
+          // Set health status based on error type
+          const apiStatus = (issuesResponse.status === 401 || issuesResponse.status === 403) ? 'AUTH_FAILED' : 'ERROR';
+          await supabase.from('integration_ingestion_state').upsert({
+            user_id: integration.user_id,
+            user_integration_id: integration.user_integration_id,
+            service_name: 'jira',
+            last_polled_at: now.toISOString(),
+            status: apiStatus,
+            updated_at: now.toISOString(),
+          }, { onConflict: 'user_id,user_integration_id,service_name' });
           continue;
         }
 
@@ -349,6 +368,7 @@ serve(async (req) => {
           service_name: 'jira',
           last_polled_at: now.toISOString(),
           next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+          status: totalIssues > 0 ? 'ACTIVE' : 'NO_DATA',
           metadata: {
             total_issues: totalIssues, done: doneCount, in_progress: inProgressCount,
             overdue: overdueCount, stalled: stalledCount,

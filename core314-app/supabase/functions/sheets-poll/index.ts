@@ -49,13 +49,21 @@ serve(async (req) => {
         const now = new Date();
         if (state?.next_poll_after && new Date(state.next_poll_after) > now) continue;
 
+        let currentAccessToken: string | null = null;
         const { data: accessToken } = await supabase
           .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!accessToken) { errors.push(`No token for user ${integration.user_id}`); continue; }
+        currentAccessToken = accessToken;
 
-        // Token refresh
+        if (!currentAccessToken) {
+          console.error('[sheets-poll] No token for user:', integration.user_id);
+          errors.push(`No token for user ${integration.user_id}`);
+          continue;
+        }
+
+        // Token refresh — use the REFRESHED token for polling (critical fix)
         if (integration.expires_at && new Date(integration.expires_at) < now && integration.refresh_token_secret_id) {
+          console.log('[sheets-poll] Token expired, attempting refresh for user:', integration.user_id);
           const { data: refreshToken } = await supabase.rpc('get_decrypted_secret', { secret_id: integration.refresh_token_secret_id });
           if (refreshToken) {
             const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -74,7 +82,32 @@ serve(async (req) => {
                 access_token_secret_id: newSecretId,
                 expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
               }).eq('id', integration.id);
+              // Use the REFRESHED token for polling
+              currentAccessToken = tokenData.access_token;
+              console.log('[sheets-poll] Token refresh SUCCESS for user:', integration.user_id);
+            } else {
+              const refreshError = await tokenResponse.text().catch(() => '');
+              console.error('[sheets-poll] Token refresh FAILED', {
+                user_id: integration.user_id,
+                status: tokenResponse.status,
+                error: refreshError.slice(0, 200),
+              });
+              errors.push(`Token refresh failed for user ${integration.user_id}: ${tokenResponse.status}`);
+              // Set health status: AUTH_FAILED
+              await supabase.from('integration_ingestion_state').upsert({
+                user_id: integration.user_id,
+                user_integration_id: integration.user_integration_id,
+                service_name: 'google_sheets',
+                last_polled_at: now.toISOString(),
+                status: 'AUTH_FAILED',
+                updated_at: now.toISOString(),
+              }, { onConflict: 'user_id,user_integration_id,service_name' });
+              continue;
             }
+          } else {
+            console.error('[sheets-poll] No refresh token for user:', integration.user_id);
+            errors.push(`No refresh token for user ${integration.user_id}`);
+            continue;
           }
         }
 
@@ -87,11 +120,34 @@ serve(async (req) => {
             pageSize: '20',
             fields: 'files(id,name,modifiedTime,createdTime)',
           }),
-          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+          { headers: { 'Authorization': `Bearer ${currentAccessToken}` } }
         );
 
+        // Structured logging: API response status
+        console.log('[sheets-poll] API response', {
+          user_id: integration.user_id,
+          status: driveResponse.status,
+          ok: driveResponse.ok,
+        });
+
         if (!driveResponse.ok) {
+          const errorBody = await driveResponse.text().catch(() => '');
+          console.error('[sheets-poll] API FAILED', {
+            user_id: integration.user_id,
+            status: driveResponse.status,
+            error_body: errorBody.slice(0, 200),
+          });
           errors.push(`Google Sheets API error for user ${integration.user_id}: ${driveResponse.status}`);
+          // Set health status based on error type
+          const sheetsStatus = (driveResponse.status === 401 || driveResponse.status === 403) ? 'AUTH_FAILED' : 'ERROR';
+          await supabase.from('integration_ingestion_state').upsert({
+            user_id: integration.user_id,
+            user_integration_id: integration.user_integration_id,
+            service_name: 'google_sheets',
+            last_polled_at: now.toISOString(),
+            status: sheetsStatus,
+            updated_at: now.toISOString(),
+          }, { onConflict: 'user_id,user_integration_id,service_name' });
           continue;
         }
 
@@ -109,7 +165,14 @@ serve(async (req) => {
           last_modified: f.modifiedTime,
         }));
 
-        await supabase.from('integration_events').insert({
+        // Structured logging: records retrieved
+        console.log('[sheets-poll] Records retrieved', {
+          user_id: integration.user_id,
+          total_spreadsheets: files.length,
+          recently_modified: recentlyModified.length,
+        });
+
+        const { error: eventError } = await supabase.from('integration_events').insert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           integration_registry_id: integration.integration_registry_id,
@@ -126,12 +189,28 @@ serve(async (req) => {
           },
         });
 
+        // Structured logging: write success/failure
+        if (eventError) {
+          console.error('[sheets-poll] Event write FAILED', {
+            user_id: integration.user_id, error: eventError.message,
+          });
+          errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
+        } else {
+          console.log('[sheets-poll] Event write SUCCESS', {
+            user_id: integration.user_id,
+            records_written: 1,
+            spreadsheets: files.length,
+            recently_modified: recentlyModified.length,
+          });
+        }
+
         await supabase.from('integration_ingestion_state').upsert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           service_name: 'google_sheets',
           last_polled_at: now.toISOString(),
           next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+          status: files.length > 0 ? 'ACTIVE' : 'NO_DATA',
           metadata: { total_sheets: files.length, recently_modified: recentlyModified.length },
           updated_at: now.toISOString(),
         }, { onConflict: 'user_id,user_integration_id,service_name' });
