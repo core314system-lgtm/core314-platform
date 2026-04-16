@@ -334,13 +334,67 @@ serve(async (req) => {
           continue;
         }
 
-        const accessToken = decryptedToken;
+        let accessToken = decryptedToken;
 
-        // Check token expiration
+        // Check token expiration — attempt inline refresh as safety net
+        // (proactive refresh via token-refresh-all should prevent this path)
         if (integration.expires_at && new Date(integration.expires_at) < now) {
-          console.log('[quickbooks-poll] Token expired for user:', integration.user_id);
-          errors.push(`Token expired for user ${integration.user_id}`);
-          continue;
+          console.log('[quickbooks-poll] Token expired for user:', integration.user_id, '- attempting inline refresh');
+          const { data: refreshTokenSecretId } = await supabase
+            .from('oauth_tokens')
+            .select('refresh_token_secret_id')
+            .eq('id', integration.id)
+            .single();
+
+          if (refreshTokenSecretId?.refresh_token_secret_id) {
+            const { data: refreshToken } = await supabase
+              .rpc('get_decrypted_secret', { secret_id: refreshTokenSecretId.refresh_token_secret_id });
+
+            if (refreshToken) {
+              const clientId = Deno.env.get('QUICKBOOKS_CLIENT_ID') ?? '';
+              const clientSecret = Deno.env.get('QUICKBOOKS_CLIENT_SECRET') ?? '';
+              const tokenResponse = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                  grant_type: 'refresh_token',
+                  refresh_token: refreshToken,
+                  client_id: clientId,
+                  client_secret: clientSecret,
+                }),
+              });
+
+              if (tokenResponse.ok) {
+                const tokenData = await tokenResponse.json();
+                const { data: newSecretId } = await supabase.rpc('vault_create_secret', { secret: tokenData.access_token });
+                const updateFields: Record<string, unknown> = {
+                  access_token_secret_id: newSecretId,
+                  expires_at: tokenData.expires_in
+                    ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+                    : null,
+                  updated_at: now.toISOString(),
+                };
+                // QuickBooks rotates refresh tokens
+                if (tokenData.refresh_token) {
+                  const { data: newRefreshId } = await supabase.rpc('vault_create_secret', { secret: tokenData.refresh_token });
+                  if (newRefreshId) updateFields.refresh_token_secret_id = newRefreshId;
+                }
+                await supabase.from('oauth_tokens').update(updateFields).eq('id', integration.id);
+                accessToken = tokenData.access_token;
+                console.log('[quickbooks-poll] Inline token refresh SUCCESS for user:', integration.user_id);
+              } else {
+                console.error('[quickbooks-poll] Inline token refresh FAILED:', tokenResponse.status);
+                errors.push(`Token expired and refresh failed for user ${integration.user_id}`);
+                continue;
+              }
+            } else {
+              errors.push(`Token expired and no refresh token for user ${integration.user_id}`);
+              continue;
+            }
+          } else {
+            errors.push(`Token expired and no refresh token record for user ${integration.user_id}`);
+            continue;
+          }
         }
 
         // Get realm_id from user_integrations config
