@@ -393,6 +393,12 @@ serve(withSentry(async (req) => {
       authUrl.searchParams.set('prompt', 'consent');
     }
 
+    // QuickBooks specific: add environment=sandbox for sandbox development
+    if (normalizedServiceName === 'quickbooks') {
+      authUrl.searchParams.set('environment', 'sandbox');
+      console.log('[oauth-initiate] QuickBooks: Using sandbox environment');
+    }
+
     // Jira (Atlassian) specific: hardcode EXACT OAuth URL per Atlassian requirements
     // This replaces the generic URL builder to ensure the exact format Atlassian expects
     if (normalizedServiceName === 'jira') {

@@ -21,6 +21,9 @@ const GOOGLE_SERVICES = ['google_calendar', 'google_meet', 'gmail', 'google_shee
 // Canonical Google token endpoint
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+// QuickBooks sandbox token endpoint
+const QUICKBOOKS_TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -256,9 +259,16 @@ serve(withSentry(async (req) => {
     // Google services: always use the canonical Google token endpoint
     // The integration_registry.oauth_token_url may be missing or outdated
     const normalizedService = normalizeServiceName(integration.service_name);
-    const tokenUrl = GOOGLE_SERVICES.includes(normalizedService)
-      ? GOOGLE_TOKEN_URL
-      : integration.oauth_token_url;
+    let tokenUrl: string;
+    if (GOOGLE_SERVICES.includes(normalizedService)) {
+      tokenUrl = GOOGLE_TOKEN_URL;
+    } else if (normalizedService === 'quickbooks') {
+      // QuickBooks: always use the canonical Intuit token endpoint
+      tokenUrl = QUICKBOOKS_TOKEN_URL;
+      console.log('[oauth-callback] QuickBooks: Using Intuit token endpoint:', tokenUrl);
+    } else {
+      tokenUrl = integration.oauth_token_url;
+    }
 
     // Diagnostic logging before token exchange (temporary)
     console.log('[oauth-callback] Token exchange request:', {
@@ -585,9 +595,11 @@ serve(withSentry(async (req) => {
       }
     }
 
-    // QuickBooks: store realmId (company ID)
+    // QuickBooks: store realmId (company ID) and environment flag
     if (realmId) {
       integrationConfig.realm_id = realmId;
+      integrationConfig.environment = 'sandbox';
+      console.log('[oauth-callback] QuickBooks: Stored realmId and sandbox environment:', { realm_id: realmId });
     }
     
     // Salesforce: store instance_url from token response and perform post-auth verification

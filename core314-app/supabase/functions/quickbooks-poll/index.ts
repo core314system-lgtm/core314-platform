@@ -20,7 +20,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const QBO_API_BASE = 'https://quickbooks.api.intuit.com/v3/company';
+// Use QuickBooks sandbox environment for development/testing
+const QBO_API_BASE = 'https://sandbox-quickbooks.api.intuit.com/v3/company';
 
 interface QuickBooksMetrics {
   invoiceCount: number;
