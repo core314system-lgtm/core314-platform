@@ -203,6 +203,7 @@ export function IntegrationManager() {
   const [apiKeyForm, setApiKeyForm] = useState<{ service: string; credentials: Record<string, string> } | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [jiraAdvancedOpen, setJiraAdvancedOpen] = useState(false);
+  const apiKeyFormRef = useRef<HTMLDivElement>(null);
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [limitError, setLimitError] = useState<string | null>(null);
   // CTA state: shown when a new integration connects but user already has briefs
@@ -804,6 +805,8 @@ export function IntegrationManager() {
     if (API_KEY_FIELDS[serviceName]) {
       setApiKeyForm({ service: serviceName, credentials: {} });
       setApiKeyError(null);
+      // Scroll to the form after it renders so the user can see it
+      setTimeout(() => apiKeyFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       return;
     }
     setConnecting(serviceName);
@@ -1079,7 +1082,7 @@ export function IntegrationManager() {
 
       {/* API Key Form */}
       {apiKeyForm && (
-        <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
+        <Card ref={apiKeyFormRef} className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 ring-2 ring-indigo-500 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Key className="h-4 w-4 text-indigo-500" />
