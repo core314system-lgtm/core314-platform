@@ -70,7 +70,23 @@ async function refreshToken(
     return { accessToken: null, error: `Failed to decrypt refresh token: ${refreshError?.message || 'no data returned'}` };
   }
 
-  const envPrefix = serviceName.toUpperCase();
+  // Map service_name to correct env prefix (Google services share GOOGLE_* credentials)
+  const ENV_PREFIX_MAP: Record<string, string> = {
+    google_calendar: 'GOOGLE',
+    gmail: 'GOOGLE',
+    google_sheets: 'GOOGLE',
+    hubspot: 'HUBSPOT',
+    quickbooks: 'QUICKBOOKS',
+    microsoft_teams: 'TEAMS',
+    jira: 'JIRA',
+    slack: 'SLACK',
+    xero: 'XERO',
+    salesforce: 'SALESFORCE',
+  };
+  // Services that require JSON body instead of form-urlencoded
+  const JSON_BODY_SERVICES = ['jira'];
+
+  const envPrefix = ENV_PREFIX_MAP[serviceName] || serviceName.toUpperCase();
   const clientId = Deno.env.get(`${envPrefix}_CLIENT_ID`);
   const clientSecret = Deno.env.get(`${envPrefix}_CLIENT_SECRET`);
 
@@ -81,16 +97,31 @@ async function refreshToken(
 
   console.log(`[health-check] Refreshing token for ${serviceName} using client ${clientId.substring(0, 8)}...`);
 
-  const refreshResponse = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshTokenData,
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
+  let refreshResponse: Response;
+  if (JSON_BODY_SERVICES.includes(serviceName)) {
+    // Jira/Atlassian requires JSON body
+    refreshResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshTokenData,
+      }),
+    });
+  } else {
+    refreshResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshTokenData,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+  }
 
   const tokenData = await refreshResponse.json();
 
@@ -194,6 +225,85 @@ async function verifyQuickBooks(
   return { ok: false, message: `QuickBooks API failed (${response.status}): ${errorText.slice(0, 200)}` };
 }
 
+/**
+ * Verify a Google Calendar token by calling calendarList
+ */
+async function verifyGoogleCalendar(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1', {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    return { ok: true, message: 'Google Calendar API accessible' };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Google Calendar API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Gmail token by calling profile
+ */
+async function verifyGmail(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `Email: ${data.emailAddress}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Gmail API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Jira token by calling accessible-resources
+ */
+async function verifyJira(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://api.atlassian.com/oauth/token/accessible-resources', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Accept': 'application/json',
+    },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    const siteCount = Array.isArray(data) ? data.length : 0;
+    const siteName = siteCount > 0 ? data[0].name : 'unknown';
+    return { ok: true, message: `Jira site: ${siteName} (${siteCount} accessible)` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Jira API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Microsoft Teams token by calling /me
+ */
+async function verifyTeams(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://graph.microsoft.com/v1.0/me', {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `User: ${data.displayName || data.userPrincipalName}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `MS Teams API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Google Sheets token by calling drive.about
+ */
+async function verifyGoogleSheets(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `Drive user: ${data.user?.emailAddress || 'connected'}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Google Sheets/Drive API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -205,8 +315,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Phase 1 services only
-    const phase1Services = ['slack', 'hubspot', 'quickbooks'];
+    // All OAuth services with health check support
+    const supportedServices = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'microsoft_teams', 'google_sheets'];
 
     // Fetch all active user integrations for Phase 1 services
     const { data: activeIntegrations, error: intError } = await supabase
@@ -250,8 +360,8 @@ serve(async (req) => {
         oauth_token_url: string;
       };
 
-      if (!registry || !phase1Services.includes(registry.service_name)) {
-        continue; // Skip non-Phase 1 integrations
+      if (!registry || !supportedServices.includes(registry.service_name)) {
+        continue; // Skip unsupported integrations
       }
 
       const serviceName = registry.service_name;
@@ -351,8 +461,23 @@ serve(async (req) => {
             checkResult = await verifyQuickBooks(accessToken, realmId);
             break;
           }
+          case 'google_calendar':
+            checkResult = await verifyGoogleCalendar(accessToken);
+            break;
+          case 'gmail':
+            checkResult = await verifyGmail(accessToken);
+            break;
+          case 'jira':
+            checkResult = await verifyJira(accessToken);
+            break;
+          case 'microsoft_teams':
+            checkResult = await verifyTeams(accessToken);
+            break;
+          case 'google_sheets':
+            checkResult = await verifyGoogleSheets(accessToken);
+            break;
           default:
-            checkResult = { ok: false, message: `Unknown service: ${serviceName}` };
+            checkResult = { ok: true, message: `Connected (no specific health check for ${serviceName})` };
         }
 
         // Update user_integrations based on result
