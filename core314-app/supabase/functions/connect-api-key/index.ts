@@ -36,6 +36,23 @@ const VALIDATION_CONFIG: Record<string, {
     }),
     validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.data,
   },
+  github: {
+    buildUrl: () => 'https://api.github.com/user',
+    buildHeaders: (c) => ({
+      'Authorization': `Bearer ${c.api_token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }),
+    validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.login,
+  },
+  zendesk: {
+    buildUrl: (c) => `https://${c.domain}.zendesk.com/api/v2/users/me.json`,
+    buildHeaders: (c) => ({
+      'Authorization': `Basic ${btoa(`${c.email}/token:${c.api_token}`)}`,
+      'Accept': 'application/json',
+    }),
+    validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.user,
+  },
 };
 
 serve(async (req) => {
@@ -194,6 +211,18 @@ serve(async (req) => {
       integrationConfig.gid = responseData.data.gid;
       integrationConfig.name = responseData.data.name;
       integrationConfig.email = responseData.data.email;
+    } else if (service_name === 'github') {
+      const userData = validationData as Record<string, unknown>;
+      integrationConfig.login = userData.login;
+      integrationConfig.github_id = userData.id;
+      integrationConfig.name = userData.name;
+      integrationConfig.avatar_url = userData.avatar_url;
+    } else if (service_name === 'zendesk') {
+      const responseData = validationData as { user: Record<string, unknown> };
+      integrationConfig.domain = credentials.domain;
+      integrationConfig.email = credentials.email;
+      integrationConfig.zendesk_user_id = responseData.user.id;
+      integrationConfig.name = responseData.user.name;
     }
 
     // Upsert user_integration

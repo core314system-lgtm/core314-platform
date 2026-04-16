@@ -167,6 +167,14 @@ const API_KEY_FIELDS: Record<string, { label: string; field: string; type: strin
   asana: [
     { label: 'Personal Access Token', field: 'api_token', type: 'password', placeholder: 'Your Asana personal access token' },
   ],
+  github: [
+    { label: 'Personal Access Token', field: 'api_token', type: 'password', placeholder: 'ghp_... (Settings → Developer settings → Personal access tokens)' },
+  ],
+  zendesk: [
+    { label: 'Zendesk Subdomain', field: 'domain', type: 'text', placeholder: 'your-company (from your-company.zendesk.com)' },
+    { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
+    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Zendesk API token' },
+  ],
 };
 
 export function IntegrationManager() {
@@ -808,7 +816,7 @@ export function IntegrationManager() {
         return;
       }
 
-      // Other integrations (Slack, QuickBooks, Jira) use Supabase Edge Function
+      // Other integrations (Slack, QuickBooks, Jira, Salesforce, Zoom) use Supabase Edge Function
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) throw new Error('No session');
@@ -816,7 +824,7 @@ export function IntegrationManager() {
       const url = await getSupabaseFunctionUrl('oauth-initiate');
       const supabaseUrl = await getSupabaseUrl();
       // Jira uses hardcoded production redirect URI (must match Atlassian Developer Console exactly)
-      // Other services (Slack, QuickBooks) use the Supabase edge function URL directly
+      // Other OAuth services use the Supabase edge function URL directly
       const callbackUri = serviceName === 'jira'
         ? 'https://app.core314.com/auth/callback'
         : `${supabaseUrl}/functions/v1/oauth-callback`;
