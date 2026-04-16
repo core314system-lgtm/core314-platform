@@ -827,6 +827,7 @@ export function IntegrationManager() {
         return;
       }
       if (data.authorization_url) {
+        console.log(`[handleConnect] OAuth redirect for ${serviceName}:`, data.authorization_url);
         window.location.href = data.authorization_url;
       } else if (data.error) {
         console.error('OAuth error:', data.error);
