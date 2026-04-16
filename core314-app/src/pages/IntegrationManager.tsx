@@ -41,6 +41,10 @@ import {
   Gift,
   CheckCircle2,
   XCircle,
+  Video,
+  GitBranch,
+  Headphones,
+  TrendingUp,
 } from 'lucide-react';
 import { getSupabaseFunctionUrl, getSupabaseUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
@@ -91,6 +95,10 @@ const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
   microsoft_teams: Users,
   google_sheets: FileSpreadsheet,
   asana: ListTodo,
+  salesforce: TrendingUp,
+  zoom: Video,
+  github: GitBranch,
+  zendesk: Headphones,
 };
 
 const SERVICE_DESCRIPTIONS: Record<string, string> = {
@@ -104,6 +112,10 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
   microsoft_teams: 'Monitor team channel activity, meeting patterns, and collaboration metrics across departments for organizational health.',
   google_sheets: 'Connect key operational spreadsheets for real-time KPI monitoring and automated data change tracking.',
   asana: 'Track project milestones, task completion rates, and team workload to detect delivery risks and resource constraints.',
+  salesforce: 'Monitor opportunity pipeline, win rates, lead conversion, and support cases for comprehensive CRM intelligence and revenue health.',
+  zoom: 'Track meeting frequency, duration patterns, and scheduling load to detect meeting overload and optimize time allocation.',
+  github: 'Monitor pull request velocity, issue backlogs, commit activity, and code review bottlenecks for engineering health insights.',
+  zendesk: 'Track ticket volumes, resolution rates, customer satisfaction scores, and urgent escalations for support operations intelligence.',
 };
 
 // Integration connection limits per plan
@@ -113,7 +125,7 @@ const PLAN_INTEGRATION_LIMITS: Record<string, number> = {
   enterprise: Infinity,
 };
 
-const ALL_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana'];
+const ALL_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana', 'salesforce', 'zoom', 'github', 'zendesk'];
 
 // Google services that use direct OAuth (no Supabase intermediary)
 const GOOGLE_SERVICES = ['gmail', 'google_calendar', 'google_sheets'];

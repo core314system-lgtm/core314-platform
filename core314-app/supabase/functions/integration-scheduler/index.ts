@@ -134,6 +134,10 @@ serve(async (req) => {
       { name: 'teams-poll', service: 'Microsoft Teams' },
       { name: 'sheets-poll', service: 'Google Sheets' },
       { name: 'asana-poll', service: 'Asana' },
+      { name: 'salesforce-poll', service: 'Salesforce' },
+      { name: 'zoom-poll', service: 'Zoom' },
+      { name: 'github-poll', service: 'GitHub' },
+      { name: 'zendesk-poll', service: 'Zendesk' },
     ];
 
     // Track consecutive failures per poller for alerting

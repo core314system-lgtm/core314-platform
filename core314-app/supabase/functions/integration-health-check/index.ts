@@ -304,6 +304,88 @@ async function verifyGoogleSheets(accessToken: string): Promise<{ ok: boolean; m
   return { ok: false, message: `Google Sheets/Drive API failed (${response.status}): ${errorText.slice(0, 200)}` };
 }
 
+/**
+ * Verify an Asana token by calling /users/me
+ */
+async function verifyAsana(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://app.asana.com/api/1.0/users/me', {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `User: ${data.data?.name || data.data?.email || 'connected'}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Asana API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Salesforce token by calling /services/data
+ */
+async function verifySalesforce(accessToken: string, instanceUrl: string): Promise<{ ok: boolean; message: string }> {
+  const url = instanceUrl || 'https://login.salesforce.com';
+  const response = await fetch(`${url}/services/data/v58.0/`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    return { ok: true, message: `Salesforce API v58.0 accessible at ${url}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Salesforce API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Zoom token by calling /users/me
+ */
+async function verifyZoom(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://api.zoom.us/v2/users/me', {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `Zoom user: ${data.first_name || ''} ${data.last_name || ''} (${data.email || 'connected'})` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Zoom API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a GitHub token by calling /user
+ */
+async function verifyGitHub(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://api.github.com/user', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Core314-Integration',
+    },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `GitHub user: ${data.login} (${data.name || 'connected'})` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `GitHub API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Zendesk token by calling /users/me
+ */
+async function verifyZendesk(accessToken: string, subdomain: string): Promise<{ ok: boolean; message: string }> {
+  if (!subdomain) {
+    return { ok: false, message: 'No Zendesk subdomain configured' };
+  }
+  const response = await fetch(`https://${subdomain}.zendesk.com/api/v2/users/me.json`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `Zendesk user: ${data.user?.name || data.user?.email || 'connected'}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Zendesk API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -316,7 +398,7 @@ serve(async (req) => {
     );
 
     // All OAuth services with health check support
-    const supportedServices = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'microsoft_teams', 'google_sheets'];
+    const supportedServices = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'microsoft_teams', 'google_sheets', 'asana', 'salesforce', 'zoom', 'github', 'zendesk'];
 
     // Fetch all active user integrations for Phase 1 services
     const { data: activeIntegrations, error: intError } = await supabase
@@ -476,6 +558,25 @@ serve(async (req) => {
           case 'google_sheets':
             checkResult = await verifyGoogleSheets(accessToken);
             break;
+          case 'asana':
+            checkResult = await verifyAsana(accessToken);
+            break;
+          case 'salesforce': {
+            const sfConfig = integration.config as { instance_url?: string };
+            checkResult = await verifySalesforce(accessToken, sfConfig?.instance_url || '');
+            break;
+          }
+          case 'zoom':
+            checkResult = await verifyZoom(accessToken);
+            break;
+          case 'github':
+            checkResult = await verifyGitHub(accessToken);
+            break;
+          case 'zendesk': {
+            const zdConfig = integration.config as { subdomain?: string; zendesk_subdomain?: string };
+            checkResult = await verifyZendesk(accessToken, zdConfig?.subdomain || zdConfig?.zendesk_subdomain || '');
+            break;
+          }
           default:
             checkResult = { ok: true, message: `Connected (no specific health check for ${serviceName})` };
         }

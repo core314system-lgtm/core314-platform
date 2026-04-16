@@ -148,6 +148,26 @@ const EXACT_MAPPINGS: Record<string, SignalCategory> = {
   'asana::low_completion_rate': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
   'asana::workload_imbalance': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
   'asana::milestone_at_risk': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+
+  // Salesforce signals → SALES_PIPELINE / CUSTOMER_ACTIVITY
+  'salesforce::low_win_rate': SIGNAL_CATEGORIES.SALES_PIPELINE,
+  'salesforce::high_support_volume': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
+  'salesforce::low_lead_conversion': SIGNAL_CATEGORIES.SALES_PIPELINE,
+
+  // Zoom signals → SCHEDULING
+  'zoom::meeting_overload': SIGNAL_CATEGORIES.SCHEDULING,
+  'zoom::low_meeting_activity': SIGNAL_CATEGORIES.SCHEDULING,
+
+  // GitHub signals → PROJECT_DELIVERY
+  'github::stale_pull_requests': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'github::high_issue_backlog': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'github::low_dev_activity': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+
+  // Zendesk signals → CUSTOMER_ACTIVITY
+  'zendesk::urgent_tickets': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
+  'zendesk::low_resolution_rate': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
+  'zendesk::low_satisfaction': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
+  'zendesk::high_ticket_volume': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
 };
 
 /**

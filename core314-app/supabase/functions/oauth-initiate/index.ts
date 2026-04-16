@@ -34,6 +34,10 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'hubspot': 'HUBSPOT',
   'planner': 'TEAMS',
   'jira': 'JIRA',
+  'asana': 'ASANA',
+  'zoom': 'ZOOM',
+  'github': 'GITHUB',
+  'zendesk': 'ZENDESK',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
