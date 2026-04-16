@@ -34,10 +34,8 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'hubspot': 'HUBSPOT',
   'planner': 'TEAMS',
   'jira': 'JIRA',
-  'asana': 'ASANA',
-  'zoom': 'ZOOM',
-  'github': 'GITHUB',
-  'zendesk': 'ZENDESK',
+  // Note: asana, github, zendesk, notion, monday are API-key integrations
+  // and should NOT go through oauth-initiate. They use connect-api-key instead.
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
