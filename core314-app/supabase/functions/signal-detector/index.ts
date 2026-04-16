@@ -1292,6 +1292,317 @@ serve(async (req) => {
           }
         }
 
+        // --- Salesforce Signal Detection ---
+        const { data: salesforceEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'salesforce.crm_activity')
+          .neq('source', 'test_scenario_inject')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (salesforceEvents && salesforceEvents.length > 0) {
+          const latest = salesforceEvents[0].metadata as Record<string, unknown>;
+          const openDeals = (latest.open_deals as number) ?? 0;
+          const winRate = (latest.win_rate as number) ?? 0;
+          const pipelineValue = (latest.pipeline_value as number) ?? 0;
+          const openCases = (latest.open_cases as number) ?? 0;
+          const totalOpportunities = (latest.total_opportunities as number) ?? 0;
+          const leadConversionRate = (latest.lead_conversion_rate as number) ?? 0;
+
+          // Signal: Low win rate (<30% with sufficient deals)
+          if (totalOpportunities >= 5 && winRate < 30) {
+            signals.push({
+              signal_type: 'low_win_rate',
+              severity: winRate < 15 ? 'high' : 'medium',
+              confidence: 80,
+              description: `Salesforce win rate is ${winRate}% across ${totalOpportunities} opportunities. Pipeline health may need attention.`,
+              source_integration: 'salesforce',
+              signal_data: {
+                category: classifySignal('low_win_rate', 'salesforce'),
+                metric: 'low_win_rate',
+                win_rate: winRate,
+                total_opportunities: totalOpportunities,
+                open_deals: openDeals,
+                pipeline_value: pipelineValue,
+                affected_entities: [],
+                summary_metrics: { win_rate: winRate, total_opportunities: totalOpportunities, pipeline_value: pipelineValue },
+              },
+            });
+          }
+
+          // Signal: High open case volume
+          if (openCases >= 20) {
+            signals.push({
+              signal_type: 'high_support_volume',
+              severity: openCases >= 50 ? 'high' : 'medium',
+              confidence: 85,
+              description: `${openCases} open support cases in Salesforce. Customer support load is elevated.`,
+              source_integration: 'salesforce',
+              signal_data: {
+                category: classifySignal('high_support_volume', 'salesforce'),
+                metric: 'high_support_volume',
+                open_cases: openCases,
+                affected_entities: [],
+                summary_metrics: { open_cases: openCases },
+              },
+            });
+          }
+
+          // Signal: Low lead conversion
+          if ((latest.total_leads as number) >= 10 && leadConversionRate < 10) {
+            signals.push({
+              signal_type: 'low_lead_conversion',
+              severity: 'medium',
+              confidence: 75,
+              description: `Lead conversion rate is only ${leadConversionRate}% (${latest.converted_leads} of ${latest.total_leads} leads). Sales funnel may need optimization.`,
+              source_integration: 'salesforce',
+              signal_data: {
+                category: classifySignal('low_lead_conversion', 'salesforce'),
+                metric: 'low_lead_conversion',
+                conversion_rate: leadConversionRate,
+                total_leads: latest.total_leads,
+                converted_leads: latest.converted_leads,
+                affected_entities: [],
+                summary_metrics: { conversion_rate: leadConversionRate, total_leads: latest.total_leads },
+              },
+            });
+          }
+        }
+
+        // --- Zoom Signal Detection ---
+        const { data: zoomEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'zoom.meeting_activity')
+          .neq('source', 'test_scenario_inject')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (zoomEvents && zoomEvents.length > 0) {
+          const latest = zoomEvents[0].metadata as Record<string, unknown>;
+          const upcomingMeetings = (latest.upcoming_meetings as number) ?? 0;
+          const weeklyRate = (latest.weekly_meeting_rate as number) ?? 0;
+          const scheduledMinutes = (latest.scheduled_minutes as number) ?? 0;
+
+          // Signal: Meeting overload (>25 upcoming or >20 hours scheduled)
+          if (upcomingMeetings > 25 || scheduledMinutes > 1200) {
+            signals.push({
+              signal_type: 'meeting_overload',
+              severity: upcomingMeetings > 40 ? 'high' : 'medium',
+              confidence: 80,
+              description: `${upcomingMeetings} upcoming Zoom meetings (${Math.round(scheduledMinutes / 60)} hours scheduled). Meeting load may impact productivity.`,
+              source_integration: 'zoom',
+              signal_data: {
+                category: classifySignal('meeting_overload', 'zoom'),
+                metric: 'meeting_overload',
+                upcoming_meetings: upcomingMeetings,
+                scheduled_minutes: scheduledMinutes,
+                weekly_rate: weeklyRate,
+                affected_entities: [],
+                summary_metrics: { upcoming_meetings: upcomingMeetings, scheduled_hours: Math.round(scheduledMinutes / 60) },
+              },
+            });
+          }
+
+          // Signal: Low meeting activity (0 meetings when connected)
+          if (upcomingMeetings === 0 && (latest.past_meetings_30d as number) === 0) {
+            const recentZoom = isRecentlyConnected('zoom');
+            signals.push({
+              signal_type: 'low_meeting_activity',
+              severity: 'low',
+              confidence: recentZoom ? 60 : 75,
+              description: recentZoom
+                ? 'Zoom is recently connected — no meeting data available yet. Data will populate after scheduled meetings occur.'
+                : 'No Zoom meetings detected in the past 30 days. The integration may need re-authorization or meetings are scheduled elsewhere.',
+              source_integration: 'zoom',
+              signal_data: {
+                category: classifySignal('low_meeting_activity', 'zoom'),
+                metric: 'low_meeting_activity',
+                data_state: recentZoom ? SIGNAL_DATA_STATES.NO_DATA : 'inactive',
+                recently_connected: recentZoom,
+                affected_entities: [],
+                summary_metrics: { upcoming_meetings: 0, past_meetings_30d: 0 },
+              },
+            });
+          }
+        }
+
+        // --- GitHub Signal Detection ---
+        const { data: githubEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'github.dev_activity')
+          .neq('source', 'test_scenario_inject')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (githubEvents && githubEvents.length > 0) {
+          const latest = githubEvents[0].metadata as Record<string, unknown>;
+          const openPRs = (latest.open_prs as number) ?? 0;
+          const stalePRs = (latest.stale_prs as number) ?? 0;
+          const openIssues = (latest.open_issues as number) ?? 0;
+          const recentCommits = (latest.recent_commits_7d as number) ?? 0;
+
+          // Signal: Stale PRs (>3 PRs open for >7 days)
+          if (stalePRs >= 3) {
+            signals.push({
+              signal_type: 'stale_pull_requests',
+              severity: stalePRs >= 10 ? 'high' : 'medium',
+              confidence: 85,
+              description: `${stalePRs} GitHub pull requests have been open for over 7 days. Code review bottleneck may be slowing delivery.`,
+              source_integration: 'github',
+              signal_data: {
+                category: classifySignal('stale_pull_requests', 'github'),
+                metric: 'stale_pull_requests',
+                stale_prs: stalePRs,
+                open_prs: openPRs,
+                affected_entities: [],
+                summary_metrics: { stale_prs: stalePRs, open_prs: openPRs },
+              },
+            });
+          }
+
+          // Signal: High open issue count
+          if (openIssues >= 25) {
+            signals.push({
+              signal_type: 'high_issue_backlog',
+              severity: openIssues >= 50 ? 'high' : 'medium',
+              confidence: 80,
+              description: `${openIssues} open GitHub issues assigned. Engineering backlog is growing — prioritization may be needed.`,
+              source_integration: 'github',
+              signal_data: {
+                category: classifySignal('high_issue_backlog', 'github'),
+                metric: 'high_issue_backlog',
+                open_issues: openIssues,
+                affected_entities: [],
+                summary_metrics: { open_issues: openIssues },
+              },
+            });
+          }
+
+          // Signal: Low development activity
+          if (recentCommits === 0 && openPRs === 0) {
+            const recentGH = isRecentlyConnected('github');
+            if (!recentGH) {
+              signals.push({
+                signal_type: 'low_dev_activity',
+                severity: 'low',
+                confidence: 70,
+                description: 'No GitHub commits or pull requests in the past 7 days. Development velocity may be stalled.',
+                source_integration: 'github',
+                signal_data: {
+                  category: classifySignal('low_dev_activity', 'github'),
+                  metric: 'low_dev_activity',
+                  recent_commits_7d: recentCommits,
+                  open_prs: openPRs,
+                  affected_entities: [],
+                  summary_metrics: { recent_commits_7d: 0, open_prs: 0 },
+                },
+              });
+            }
+          }
+        }
+
+        // --- Zendesk Signal Detection ---
+        const { data: zendeskEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'zendesk.support_activity')
+          .neq('source', 'test_scenario_inject')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (zendeskEvents && zendeskEvents.length > 0) {
+          const latest = zendeskEvents[0].metadata as Record<string, unknown>;
+          const openTickets = (latest.open_tickets as number) ?? 0;
+          const urgentTickets = (latest.urgent_tickets as number) ?? 0;
+          const resolutionRate = (latest.resolution_rate as number) ?? 0;
+          const satisfactionScore = (latest.satisfaction_score as number) ?? 0;
+          const totalTickets = (latest.total_tickets as number) ?? 0;
+
+          // Signal: Urgent ticket accumulation
+          if (urgentTickets >= 3) {
+            signals.push({
+              signal_type: 'urgent_tickets',
+              severity: urgentTickets >= 10 ? 'critical' : 'high',
+              confidence: 90,
+              description: `${urgentTickets} urgent Zendesk tickets require immediate attention. Customer escalations are accumulating.`,
+              source_integration: 'zendesk',
+              signal_data: {
+                category: classifySignal('urgent_tickets', 'zendesk'),
+                metric: 'urgent_tickets',
+                urgent_tickets: urgentTickets,
+                open_tickets: openTickets,
+                affected_entities: [],
+                summary_metrics: { urgent_tickets: urgentTickets, open_tickets: openTickets },
+              },
+            });
+          }
+
+          // Signal: Low resolution rate
+          if (totalTickets >= 10 && resolutionRate < 40) {
+            signals.push({
+              signal_type: 'low_resolution_rate',
+              severity: resolutionRate < 20 ? 'high' : 'medium',
+              confidence: 80,
+              description: `Zendesk ticket resolution rate is ${resolutionRate}% (${totalTickets} total tickets). Support backlog is growing.`,
+              source_integration: 'zendesk',
+              signal_data: {
+                category: classifySignal('low_resolution_rate', 'zendesk'),
+                metric: 'low_resolution_rate',
+                resolution_rate: resolutionRate,
+                total_tickets: totalTickets,
+                open_tickets: openTickets,
+                affected_entities: [],
+                summary_metrics: { resolution_rate: resolutionRate, total_tickets: totalTickets },
+              },
+            });
+          }
+
+          // Signal: Low customer satisfaction
+          if ((latest.total_ratings as number) >= 5 && satisfactionScore < 60) {
+            signals.push({
+              signal_type: 'low_satisfaction',
+              severity: satisfactionScore < 40 ? 'high' : 'medium',
+              confidence: 75,
+              description: `Zendesk customer satisfaction score is ${satisfactionScore}%. Customer experience needs attention.`,
+              source_integration: 'zendesk',
+              signal_data: {
+                category: classifySignal('low_satisfaction', 'zendesk'),
+                metric: 'low_satisfaction',
+                satisfaction_score: satisfactionScore,
+                total_ratings: latest.total_ratings,
+                affected_entities: [],
+                summary_metrics: { satisfaction_score: satisfactionScore, total_ratings: latest.total_ratings },
+              },
+            });
+          }
+
+          // Signal: High ticket volume
+          if (openTickets >= 30) {
+            signals.push({
+              signal_type: 'high_ticket_volume',
+              severity: openTickets >= 75 ? 'high' : 'medium',
+              confidence: 80,
+              description: `${openTickets} open Zendesk tickets. Support team may be overwhelmed — consider resource allocation.`,
+              source_integration: 'zendesk',
+              signal_data: {
+                category: classifySignal('high_ticket_volume', 'zendesk'),
+                metric: 'high_ticket_volume',
+                open_tickets: openTickets,
+                total_tickets: totalTickets,
+                affected_entities: [],
+                summary_metrics: { open_tickets: openTickets, total_tickets: totalTickets },
+              },
+            });
+          }
+        }
+
         // --- Persist Signals ---
         if (signals.length > 0) {
           const now = new Date().toISOString();

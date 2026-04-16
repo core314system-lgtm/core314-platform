@@ -84,6 +84,26 @@ const SERVICE_TOKEN_CONFIG: Record<string, {
     tokenUrl: 'https://login.salesforce.com/services/oauth2/token',
     contentType: 'form',
   },
+  asana: {
+    envPrefix: 'ASANA',
+    tokenUrl: 'https://app.asana.com/-/oauth_token',
+    contentType: 'form',
+  },
+  zoom: {
+    envPrefix: 'ZOOM',
+    tokenUrl: 'https://zoom.us/oauth/token',
+    contentType: 'form',
+  },
+  github: {
+    envPrefix: 'GITHUB',
+    tokenUrl: 'https://github.com/login/oauth/access_token',
+    contentType: 'form',
+  },
+  zendesk: {
+    envPrefix: 'ZENDESK',
+    tokenUrl: 'https://YOUR_SUBDOMAIN.zendesk.com/oauth/tokens',
+    contentType: 'form',
+  },
 };
 
 interface TokenRow {
