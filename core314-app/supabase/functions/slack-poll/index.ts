@@ -527,9 +527,20 @@ serve(async (req) => {
         const metrics = await fetchSlackMetrics(accessToken, supabase, integration.user_integration_id);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
+        // Structured logging: records retrieved
+        console.log('[slack-poll] Records retrieved', {
+          user_id: integration.user_id,
+          message_count: metrics.messageCount,
+          active_channels: metrics.activeChannels,
+          total_channels: metrics.channelCount,
+          channels_analyzed: metrics.channelsAnalyzed,
+          unique_users: metrics.uniqueUsers,
+          api_errors: metrics.apiErrors.length,
+        });
+
         // Insert consolidated workspace activity event with ALL metrics
         // This event is used by the dashboard to display metrics
-        await supabase.from('integration_events').insert({
+        const { error: eventError } = await supabase.from('integration_events').insert({
           user_id: integration.user_id,
           user_integration_id: integration.user_integration_id,
           integration_registry_id: integration.integration_registry_id,
@@ -560,6 +571,21 @@ serve(async (req) => {
           },
         });
 
+        // Structured logging: write success/failure
+        if (eventError) {
+          console.error('[slack-poll] Event write FAILED', {
+            user_id: integration.user_id, error: eventError.message,
+          });
+          errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
+        } else {
+          console.log('[slack-poll] Event write SUCCESS', {
+            user_id: integration.user_id,
+            records_written: 1,
+            messages: metrics.messageCount,
+            channels: metrics.channelCount,
+          });
+        }
+
         // Update ingestion state with 15-minute rate limiting
         await supabase.from('integration_ingestion_state').upsert({
           user_id: integration.user_id,
@@ -573,7 +599,11 @@ serve(async (req) => {
         }, { onConflict: 'user_id,user_integration_id,service_name' });
 
         processedCount++;
-        console.log('[slack-poll] Processed user:', integration.user_id, metrics);
+        console.log('[slack-poll] Processed user:', integration.user_id, {
+          messages: metrics.messageCount,
+          channels: metrics.channelCount,
+          analyzed: metrics.channelsAnalyzed,
+        });
       } catch (userError: unknown) {
         const errorMessage = userError instanceof Error ? userError.message : String(userError);
         console.error('[slack-poll] Error processing user:', integration.user_id, userError);

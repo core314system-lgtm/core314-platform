@@ -62,6 +62,10 @@ export default function AuthCallback() {
         callbackUrl.searchParams.set('code', code);
         callbackUrl.searchParams.set('state', state);
 
+        // No session token needed — oauth-callback resolves user identity
+        // entirely from the state parameter (bound to user_id during oauth-initiate).
+        // This eliminates "Missing authorization header" failures during redirects.
+
         console.log('[AuthCallback] Calling oauth-callback Edge Function:', {
           url: callbackUrl.origin + callbackUrl.pathname,
           code_length: code.length,
@@ -70,6 +74,7 @@ export default function AuthCallback() {
 
         // Call the Edge Function — use redirect: 'manual' so we can intercept
         // the 302 redirect and handle it ourselves
+        // Only apikey is needed for the Supabase gateway; user identity comes from state
         const response = await fetch(callbackUrl.toString(), {
           method: 'GET',
           headers: {

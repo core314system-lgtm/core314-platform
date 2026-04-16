@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { getSignalCategory } from '../_shared/signal-classification.ts';
+import { getSignalCategory, isNoDataSignal } from '../_shared/signal-classification.ts';
 
 /**
  * Operational Brief Generator
@@ -284,11 +284,13 @@ serve(async (req) => {
     // ── Step 5: Fetch recent integration events for context ───────────
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    // Exclude synthetic test data (source='test_scenario_inject') from all event queries
     const { data: hubspotEvents } = await supabase
       .from('integration_events')
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'hubspot')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -298,6 +300,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'slack')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -307,6 +310,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'quickbooks')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -317,6 +321,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'google_calendar')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -326,6 +331,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'gmail')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -335,6 +341,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'jira')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -344,6 +351,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'trello')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -353,6 +361,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'microsoft_teams')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -362,6 +371,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'google_sheets')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -371,6 +381,7 @@ serve(async (req) => {
       .select('metadata, created_at')
       .eq('user_id', user.id)
       .eq('service_name', 'asana')
+      .neq('source', 'test_scenario_inject')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -520,14 +531,14 @@ serve(async (req) => {
       deal_velocity_decline: 'Deal Velocity Drop',
       deal_stage_delay: 'Stage Delay',
       no_new_deals: 'Pipeline Generation',
-      no_crm_activity: 'CRM Inactivity',
-      low_crm_activity: 'Low CRM Activity',
+      no_crm_activity: 'CRM — No Data Available',
+      low_crm_activity: 'CRM — Insufficient Data',
       // QuickBooks
       overdue_invoices: 'Overdue Invoices',
       low_collection_rate: 'Cash Flow Risk',
       high_expense_ratio: 'Expense Risk',
       revenue_decline: 'Revenue Gap',
-      no_financial_activity: 'Financial Inactivity',
+      no_financial_activity: 'Financial — No Data Available',
       // Slack
       low_communication: 'Communication Drop',
       communication_spike: 'Communication Spike',
@@ -538,10 +549,10 @@ serve(async (req) => {
       scope_limitation: 'Scope Limitation',
       // Google Calendar
       meeting_overload: 'Meeting Overload',
-      low_meeting_activity: 'Meeting Inactivity',
+      low_meeting_activity: 'Calendar — No Data Available',
       // Gmail
       email_volume_spike: 'Email Volume Spike',
-      low_email_activity: 'Email Inactivity',
+      low_email_activity: 'Email — No Data Available',
       low_response_ratio: 'Low Response Ratio',
       // Jira
       overdue_issues: 'Issue Delays',
@@ -550,13 +561,13 @@ serve(async (req) => {
       // Trello
       overdue_cards: 'Delivery Delay',
       stalled_cards: 'Board Stagnation',
-      board_inactivity: 'Board Inactivity',
+      board_inactivity: 'Board — No Data Available',
       // Microsoft Teams
-      low_team_activity: 'Team Inactivity',
-      channel_inactivity: 'Channel Inactivity',
+      low_team_activity: 'Teams — No Data Available',
+      channel_inactivity: 'Channels — No Data Available',
       // Google Sheets
       stale_spreadsheets: 'Stale Data',
-      no_sheet_activity: 'Sheet Inactivity',
+      no_sheet_activity: 'Sheets — No Data Available',
       // Asana
       overdue_tasks: 'Task Delays',
       low_completion_rate: 'Low Completion',
@@ -658,6 +669,7 @@ serve(async (req) => {
     // Build structured signal evidence for data_context storage (used by UI)
     const signalEvidence = classifiedSignals.map(s => {
       const sd = (s.signal_data as Record<string, unknown>) || {};
+      const signalIsNoData = isNoDataSignal(s.signal_type, sd);
       return {
         signal_type: s.signal_type,
         signal_subtype: getSignalSubtype(s.signal_type),
@@ -666,6 +678,7 @@ serve(async (req) => {
         category: s.category,
         description: s.description,
         confidence: s.confidence,
+        data_state: signalIsNoData ? 'no_data' : (sd.data_state as string || 'active'),
         affected_entities: ((sd.affected_entities as Array<Record<string, unknown>>) || []).slice(0, 10),
         summary_metrics: (sd.summary_metrics as Record<string, unknown>) || {},
         // Pass through full signal_data for cross-system correlation
@@ -802,6 +815,14 @@ Team Communication (Microsoft Teams): ${teamsSummary}
 Data Tracking (Google Sheets): ${sheetsSummary}
 Project Delivery (Asana): ${asanaSummary}
 
+SIGNAL CLASSIFICATION — NO_DATA vs ACTIVE (CRITICAL):
+- Signals labeled "No Data Available" or "No data available" represent integrations that are connected but have NOT yet collected operational data. These are NOT negative trends.
+- Do NOT treat "No Data Available" signals as operational failures, slowdowns, or inactivity problems.
+- Do NOT generate "Full Operational Slowdown", "Financial inactivity", or similar alarm language for NO_DATA signals.
+- Do NOT fabricate financial metrics (overdue cash, revenue at risk, revenue impact) unless actual source data exists in the signals above.
+- If the only signals present are "No Data Available" type, produce an "Initial Assessment" brief, NOT an alarm brief.
+- Only confirmed negative trends (overdue invoices, stalled deals, blocker accumulation, etc.) should generate alerts.
+
 MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
 - You MUST list actual entities. Do NOT summarize counts without listing entities.
 - If entity data exists in the signals above and is not shown in your response, the response is INVALID.
@@ -892,6 +913,15 @@ Task Management (Trello): ${trelloSummary}
 Team Communication (Microsoft Teams): ${teamsSummary}
 Data Tracking (Google Sheets): ${sheetsSummary}
 Project Delivery (Asana): ${asanaSummary}
+
+SIGNAL CLASSIFICATION — NO_DATA vs ACTIVE (CRITICAL):
+- Signals labeled "No Data Available" or "No data available" represent integrations that are connected but have NOT yet collected operational data. These are NOT negative trends.
+- Do NOT treat "No Data Available" signals as operational failures, slowdowns, or inactivity problems.
+- Do NOT generate "Full Operational Slowdown", "Financial inactivity", or similar alarm language for NO_DATA signals.
+- Do NOT fabricate financial metrics (overdue cash, revenue at risk, revenue impact) unless actual source data exists in the signals above.
+- If the only signals present are "No Data Available" type, produce an "Initial Assessment" brief, NOT an alarm brief.
+- Only confirmed negative trends (overdue invoices, stalled deals, blocker accumulation, etc.) should generate alerts.
+- For "No Data Available" signals, use language like: "Integration connected, awaiting initial data collection" or "No data available yet — system not yet active."
 
 MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
 - You MUST list actual entities. Do NOT summarize counts without listing entities.
@@ -1053,11 +1083,30 @@ Generate a JSON response with these exact fields:
       scheduling: 10,
     };
 
-    // Accumulate penalties per category
+    // Accumulate penalties per category — SKIP NO_DATA signals (they should NOT reduce score)
     const categoryPenalties: Record<string, number> = {};
-    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; category: string }[] = [];
+    const signalPenaltyDetails: { type: string; severity: string; penalty: number; source: string; description: string; category: string; data_state: string }[] = [];
+    let noDataSignalCount = 0;
 
     for (const s of activeSignals) {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      const signalIsNoData = isNoDataSignal(s.signal_type, sd);
+
+      if (signalIsNoData) {
+        // NO_DATA signals are tracked but DO NOT penalize health score
+        noDataSignalCount++;
+        signalPenaltyDetails.push({
+          type: s.signal_type,
+          severity: s.severity,
+          penalty: 0,
+          source: s.source_integration || 'unknown',
+          description: (s.description as string) || s.signal_type.replace(/_/g, ' '),
+          category: SIGNAL_HEALTH_CATEGORY[s.signal_type] || 'operations',
+          data_state: 'no_data',
+        });
+        continue; // Skip penalty accumulation
+      }
+
       const cat = SIGNAL_HEALTH_CATEGORY[s.signal_type] || 'operations';
       const weight = SEVERITY_WEIGHTS[s.severity] || 5;
       if (!categoryPenalties[cat]) categoryPenalties[cat] = 0;
@@ -1069,8 +1118,11 @@ Generate a JSON response with these exact fields:
         source: s.source_integration || 'unknown',
         description: (s.description as string) || s.signal_type.replace(/_/g, ' '),
         category: cat,
+        data_state: 'active',
       });
     }
+
+    console.log(`[operational-brief] Signal classification: ${activeSignals.length} total, ${noDataSignalCount} no_data (excluded from scoring), ${activeSignals.length - noDataSignalCount} active`);
 
     // Apply capped category penalties
     let totalCappedPenalty = 0;
@@ -1116,11 +1168,16 @@ Generate a JSON response with these exact fields:
     }
     calculatedScore += recoveryBuffer;
 
-    // Floor constraint: minimum 10 unless ALL integrations show inactivity
-    const allInactive = activeSignals.length > 0 && activeSignals.every(s =>
+    // Floor constraint: minimum 10 unless ALL signals are confirmed negative (non-NO_DATA)
+    // If ALL signals are NO_DATA, the score should remain high (no penalty was applied)
+    const activeNonNoDataSignals = activeSignals.filter(s => {
+      const sd = (s.signal_data as Record<string, unknown>) || {};
+      return !isNoDataSignal(s.signal_type, sd);
+    });
+    const allActiveAreInactive = activeNonNoDataSignals.length > 0 && activeNonNoDataSignals.every(s =>
       s.signal_type.includes('no_') || s.signal_type.includes('inactiv') || s.signal_type === 'integration_inactive'
     );
-    if (allInactive && activeSignals.length > 0) {
+    if (allActiveAreInactive && activeNonNoDataSignals.length > 0) {
       calculatedScore = Math.max(0, Math.min(100, Math.round(calculatedScore)));
     } else {
       calculatedScore = Math.max(10, Math.min(100, Math.round(calculatedScore)));
@@ -1192,6 +1249,8 @@ Generate a JSON response with these exact fields:
             recovery_buffer: recoveryBuffer,
             impacted_categories: impactedCategories,
             final_score: calculatedScore,
+            no_data_signals_excluded: noDataSignalCount,
+            active_signals_scored: activeSignals.length - noDataSignalCount,
           },
           // Operational Momentum
           momentum: {

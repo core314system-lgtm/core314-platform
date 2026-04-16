@@ -20,7 +20,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const QBO_API_BASE = 'https://quickbooks.api.intuit.com/v3/company';
+// Use QuickBooks sandbox environment for development/testing
+const QBO_API_BASE = 'https://sandbox-quickbooks.api.intuit.com/v3/company';
 
 interface QuickBooksMetrics {
   invoiceCount: number;
@@ -323,20 +324,17 @@ serve(async (req) => {
           continue;
         }
 
-        // Get access token from vault
-        const { data: tokenData } = await supabase
-          .from('vault.decrypted_secrets')
-          .select('decrypted_secret')
-          .eq('id', integration.access_token_secret_id)
-          .single();
+        // Get access token from vault using RPC (vault.decrypted_secrets view is not accessible via PostgREST)
+        const { data: decryptedToken, error: vaultError } = await supabase
+          .rpc('get_decrypted_secret', { secret_id: integration.access_token_secret_id });
 
-        if (!tokenData?.decrypted_secret) {
-          console.error('[quickbooks-poll] No access token found for user:', integration.user_id);
+        if (vaultError || !decryptedToken) {
+          console.error('[quickbooks-poll] No access token found for user:', integration.user_id, { vault_error: vaultError?.message });
           errors.push(`No token for user ${integration.user_id}`);
           continue;
         }
 
-        const accessToken = tokenData.decrypted_secret;
+        const accessToken = decryptedToken;
 
         // Check token expiration
         if (integration.expires_at && new Date(integration.expires_at) < now) {
@@ -364,12 +362,23 @@ serve(async (req) => {
         const metrics = await fetchQuickBooksMetrics(accessToken, realmId);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
+        // Structured logging: records retrieved
+        console.log('[quickbooks-poll] Records retrieved', {
+          user_id: integration.user_id,
+          invoice_count: metrics.invoiceCount,
+          payment_count: metrics.paymentCount,
+          expense_count: metrics.expenseCount,
+          account_count: metrics.accountCount,
+          overdue_invoices: metrics.overdueInvoices,
+          collection_rate: metrics.collectionRate,
+        });
+
         // Insert integration event with financial metrics
         const hasData = metrics.invoiceCount > 0 || metrics.paymentCount > 0 || 
                        metrics.expenseCount > 0 || metrics.accountCount > 0;
 
         if (hasData) {
-          await supabase.from('integration_events').insert({
+          const { error: eventError } = await supabase.from('integration_events').insert({
             user_id: integration.user_id,
             user_integration_id: integration.user_integration_id,
             integration_registry_id: integration.integration_registry_id,
@@ -399,6 +408,24 @@ serve(async (req) => {
               poll_timestamp: now.toISOString(),
             },
           });
+
+          // Structured logging: write success/failure
+          if (eventError) {
+            console.error('[quickbooks-poll] Event write FAILED', {
+              user_id: integration.user_id, error: eventError.message,
+            });
+            errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
+          } else {
+            console.log('[quickbooks-poll] Event write SUCCESS', {
+              user_id: integration.user_id,
+              records_written: 1,
+              invoices: metrics.invoiceCount,
+              payments: metrics.paymentCount,
+              expenses: metrics.expenseCount,
+            });
+          }
+        } else {
+          console.log('[quickbooks-poll] No data to write for user:', integration.user_id);
         }
 
         // Store metrics to user_integrations.config for UI transparency panel

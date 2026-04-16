@@ -393,6 +393,25 @@ serve(withSentry(async (req) => {
       authUrl.searchParams.set('prompt', 'consent');
     }
 
+    // QuickBooks specific: enforce sandbox environment
+    // NOTE: The `environment=sandbox` query param is NOT how Intuit controls sandbox routing.
+    // Intuit determines sandbox vs production based on the Client ID:
+    //   - Development keys (from "Development" tab in Intuit Developer Portal) → sandbox companies
+    //   - Production keys (from "Production" tab) → production trial/subscription screen
+    // We still add environment=sandbox as a belt-and-suspenders measure, but the REAL fix
+    // is ensuring QUICKBOOKS_CLIENT_ID is set to the Development Client ID.
+    if (normalizedServiceName === 'quickbooks') {
+      authUrl.searchParams.set('environment', 'sandbox');
+      console.log('[oauth-initiate] QuickBooks SANDBOX DIAGNOSTICS:', {
+        client_id_prefix: clientId?.substring(0, 12) + '...',
+        client_id_length: clientId?.length,
+        environment_param: 'sandbox',
+        authorize_url_base: integration.oauth_authorize_url,
+        full_oauth_url: authUrl.toString(),
+        note: 'If trial/production screen appears, QUICKBOOKS_CLIENT_ID is a Production key. Replace with Development key from Intuit Developer Portal.',
+      });
+    }
+
     // Jira (Atlassian) specific: hardcode EXACT OAuth URL per Atlassian requirements
     // This replaces the generic URL builder to ensure the exact format Atlassian expects
     if (normalizedServiceName === 'jira') {
@@ -400,7 +419,7 @@ serve(withSentry(async (req) => {
       const jiraAuthUrl = 'https://auth.atlassian.com/authorize'
         + '?audience=api.atlassian.com'
         + `&client_id=${encodeURIComponent(clientId)}`
-        + '&scope=read%3Ajira-work%20read%3Ajira-user'
+        + '&scope=read%3Ajira-work%20read%3Ajira-user%20offline_access'
         + `&redirect_uri=${encodeURIComponent(jiraRedirectUri)}`
         + `&state=${encodeURIComponent(state)}`
         + '&response_type=code'
@@ -419,8 +438,15 @@ serve(withSentry(async (req) => {
       });
     }
 
+    const finalUrl = authUrl.toString();
+    console.log('[oauth-initiate] FINAL AUTHORIZATION URL:', {
+      service: normalizedServiceName,
+      url: finalUrl,
+      client_id_prefix: clientId?.substring(0, 12) + '...',
+    });
+
     return new Response(JSON.stringify({
-      authorization_url: authUrl.toString(),
+      authorization_url: finalUrl,
       state
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

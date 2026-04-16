@@ -5,6 +5,11 @@
  * Used by signal-detector, signal-correlator, and operational-brief-generate
  * to standardize signal metadata across all integrations.
  *
+ * Signal data states:
+ *   NO_DATA — Integration connected but zero records found (not a negative trend)
+ *   INSUFFICIENT_DATA — Some data exists but not enough for baseline comparison
+ *   ACTIVE — Normal signal with confirmed operational data
+ *
  * Backwards-compatible: returns "operations" for unrecognized signals.
  */
 
@@ -19,6 +24,59 @@ export const SIGNAL_CATEGORIES = {
   SCHEDULING: 'scheduling',
   DATA_TRACKING: 'data_tracking',
 } as const;
+
+/**
+ * Signal data states — indicates whether a signal represents real operational
+ * intelligence or simply an absence of data.
+ */
+export const SIGNAL_DATA_STATES = {
+  NO_DATA: 'no_data',
+  INSUFFICIENT_DATA: 'insufficient_data',
+  ACTIVE: 'active',
+} as const;
+
+export type SignalDataState = (typeof SIGNAL_DATA_STATES)[keyof typeof SIGNAL_DATA_STATES];
+
+/**
+ * Signal types that inherently represent "no data available" rather than
+ * negative operational trends. These signals should NOT reduce health scores
+ * and should use neutral language ("no data available") in briefs.
+ */
+export const NO_DATA_SIGNAL_TYPES = new Set([
+  'no_financial_activity',
+  'no_crm_activity',
+  'low_crm_activity',
+  'low_meeting_activity',
+  'low_email_activity',
+  'board_inactivity',
+  'no_sheet_activity',
+  'low_team_activity',
+  'channel_inactivity',
+  'integration_inactive',
+  'scope_limitation',
+  'data_ingestion_gap',
+  'stale_spreadsheets',
+]);
+
+/**
+ * Determine whether a signal represents a "no data" condition rather than
+ * a confirmed negative operational trend.
+ *
+ * Returns true if the signal should NOT penalize the health score.
+ */
+export function isNoDataSignal(
+  signalType: string,
+  signalData?: Record<string, unknown>,
+): boolean {
+  // Explicit no-data signal types always qualify
+  if (NO_DATA_SIGNAL_TYPES.has(signalType)) return true;
+  // Check data_state field (set by signal-detector for recently connected integrations)
+  if (
+    signalData?.data_state === SIGNAL_DATA_STATES.NO_DATA ||
+    signalData?.data_state === SIGNAL_DATA_STATES.INSUFFICIENT_DATA
+  ) return true;
+  return false;
+}
 
 export type SignalCategory = (typeof SIGNAL_CATEGORIES)[keyof typeof SIGNAL_CATEGORIES];
 
@@ -63,6 +121,7 @@ const EXACT_MAPPINGS: Record<string, SignalCategory> = {
   'gmail::low_email_activity': SIGNAL_CATEGORIES.COMMUNICATION,
   'gmail::low_response_ratio': SIGNAL_CATEGORIES.COMMUNICATION,
   'gmail::email_backlog': SIGNAL_CATEGORIES.COMMUNICATION,
+  'gmail::email_activity_normal': SIGNAL_CATEGORIES.COMMUNICATION,
 
   // Jira signals → PROJECT_DELIVERY
   'jira::sprint_at_risk': SIGNAL_CATEGORIES.PROJECT_DELIVERY,

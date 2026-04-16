@@ -76,19 +76,26 @@ serve(async (req) => {
     const results: StepResult[] = [];
     const now = new Date();
 
-    console.log(`[scheduler] Starting integration scheduler run at ${now.toISOString()}`);
+    console.log(`[scheduler] ========== SCHEDULER RUN START ==========`);
+    console.log(`[scheduler] Timestamp: ${now.toISOString()}`);
+    console.log(`[scheduler] Run ID: ${now.getTime()}`);
 
     // Step 1: Run health check (validates tokens, refreshes expiring ones)
     const healthStart = Date.now();
-    console.log('[scheduler] Step 1: Running health check...');
+    console.log('[scheduler] Step 1/4: Running health check...');
     const healthResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'integration-health-check');
+    const healthDuration = Date.now() - healthStart;
+    console.log(`[scheduler] Step 1/4: Health check ${healthResult.ok ? 'SUCCESS' : 'FAILED'} (${healthDuration}ms)`, {
+      total_checked: (healthResult.data.summary as Record<string, number>)?.total || 0,
+      ok: healthResult.ok,
+    });
     results.push({
       step: 'health-check',
       success: healthResult.ok,
       message: healthResult.ok
         ? `Checked ${(healthResult.data.summary as Record<string, number>)?.total || 0} integrations`
         : `Health check failed: ${healthResult.data.error || 'unknown error'}`,
-      duration_ms: Date.now() - healthStart,
+      duration_ms: healthDuration,
       details: healthResult.data.summary as Record<string, unknown> || undefined,
     });
 
@@ -117,9 +124,10 @@ serve(async (req) => {
 
     const failureCounts: Record<string, number> = (failureState?.metadata as Record<string, number>) || {};
 
-    for (const poller of pollers) {
+    for (let i = 0; i < pollers.length; i++) {
+      const poller = pollers[i];
       const pollStart = Date.now();
-      console.log(`[scheduler] Step 2: Running ${poller.service} poll...`);
+      console.log(`[scheduler] Step 2 [${i + 1}/${pollers.length}]: Running ${poller.service} poll...`);
 
       // Retry once on failure with exponential backoff
       let pollResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, poller.name);
@@ -162,13 +170,20 @@ serve(async (req) => {
         }
       }
 
+      const pollDuration = Date.now() - pollStart;
+      console.log(`[scheduler] Step 2 [${i + 1}/${pollers.length}]: ${poller.service} ${pollResult.ok ? 'SUCCESS' : 'FAILED'} (${pollDuration}ms)`, {
+        processed: pollResult.data.processed ?? 0,
+        total: pollResult.data.total ?? 0,
+        errors: pollResult.data.errors ? (pollResult.data.errors as unknown[]).length : 0,
+      });
+
       results.push({
         step: poller.name,
         success: pollResult.ok,
         message: pollResult.ok
           ? `Processed ${pollResult.data.processed || 0} of ${pollResult.data.total || 0} integrations`
           : `Poll failed: ${pollResult.data.error || pollResult.data.message || 'unknown error'}`,
-        duration_ms: Date.now() - pollStart,
+        duration_ms: pollDuration,
         details: pollResult.ok ? {
           processed: pollResult.data.processed,
           total: pollResult.data.total,
@@ -190,7 +205,7 @@ serve(async (req) => {
 
     // Step 3: Run signal detector (analyzes integration_events → creates operational_signals)
     const signalStart = Date.now();
-    console.log('[scheduler] Step 3: Running signal detector...');
+    console.log('[scheduler] Step 3/4: Running signal detector...');
     const signalResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-detector');
     results.push({
       step: 'signal-detector',
@@ -205,10 +220,11 @@ serve(async (req) => {
         signals_deactivated: signalResult.data.signals_deactivated,
       } : undefined,
     });
+    console.log(`[scheduler] Step 3/4: Signal detector ${signalResult.ok ? 'SUCCESS' : 'FAILED'} (${Date.now() - signalStart}ms)`);
 
     // Step 4: Run signal correlator (groups signals from multiple integrations into correlated events)
     const correlatorStart = Date.now();
-    console.log('[scheduler] Step 4: Running signal correlator...');
+    console.log('[scheduler] Step 4/4: Running signal correlator...');
     const correlatorResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-correlator');
     results.push({
       step: 'signal-correlator',
@@ -247,7 +263,10 @@ serve(async (req) => {
       updated_at: now.toISOString(),
     }, { onConflict: 'user_id,user_integration_id,service_name' });
 
-    console.log(`[scheduler] Complete in ${totalDuration}ms: ${allSuccess ? 'ALL SUCCESS' : `FAILURES: ${failedSteps.join(', ')}`}`);
+    console.log(`[scheduler] Step 4/4: Signal correlator ${results[results.length - 1].success ? 'SUCCESS' : 'FAILED'} (${Date.now() - correlatorStart}ms)`);
+    console.log(`[scheduler] ========== SCHEDULER RUN COMPLETE ==========`);
+    console.log(`[scheduler] Duration: ${totalDuration}ms | Status: ${allSuccess ? 'ALL SUCCESS' : `FAILURES: ${failedSteps.join(', ')}`}`);
+    console.log(`[scheduler] Next run: ${new Date(now.getTime() + 15 * 60 * 1000).toISOString()}`);
 
     return new Response(JSON.stringify({
       success: allSuccess,

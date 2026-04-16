@@ -432,11 +432,17 @@ serve(async (req) => {
         const metrics = await fetchHubSpotMetrics(currentToken);
         const eventTime = metrics.lastActivityTimestamp || now.toISOString();
 
-        console.log('[hubspot-poll] Metrics summary:', {
-          totalDeals: metrics.totalDeals, dealsAnalyzed: metrics.dealsAnalyzed,
-          openDeals: metrics.openDeals, stalledDeals: metrics.stalledDeals,
-          totalContacts: metrics.totalContacts, totalCompanies: metrics.totalCompanies,
-          pipelineCount: metrics.pipelineCount, apiErrors: metrics.apiErrors.length,
+        // Structured logging: API response status + records retrieved
+        console.log('[hubspot-poll] Records retrieved', {
+          user_id: integration.user_id,
+          total_deals: metrics.totalDeals,
+          deals_analyzed: metrics.dealsAnalyzed,
+          open_deals: metrics.openDeals,
+          stalled_deals: metrics.stalledDeals,
+          total_contacts: metrics.totalContacts,
+          total_companies: metrics.totalCompanies,
+          pipeline_count: metrics.pipelineCount,
+          api_errors: metrics.apiErrors.length,
         });
 
         // Insert integration event with comprehensive CRM metrics
@@ -477,11 +483,20 @@ serve(async (req) => {
           },
         });
 
+        // Structured logging: write success/failure
         if (eventError) {
-          console.error('[hubspot-poll] Error inserting event:', eventError);
+          console.error('[hubspot-poll] Event write FAILED', {
+            user_id: integration.user_id, error: eventError.message,
+          });
           errors.push(`Event insert error for user ${integration.user_id}: ${eventError.message}`);
         } else {
-          console.log('[hubspot-poll] Event inserted successfully for user:', integration.user_id);
+          console.log('[hubspot-poll] Event write SUCCESS', {
+            user_id: integration.user_id,
+            records_written: 1,
+            deals: metrics.totalDeals,
+            contacts: metrics.totalContacts,
+            companies: metrics.totalCompanies,
+          });
         }
 
         // Update ingestion state with 15-minute rate limiting
@@ -532,10 +547,11 @@ serve(async (req) => {
         }
 
         processedCount++;
-        console.log('[hubspot-poll] Successfully processed user:', integration.user_id, {
-          deals: metrics.totalDeals, contacts: metrics.totalContacts,
-          companies: metrics.totalCompanies, pipelines: metrics.pipelineCount,
-          stalledDeals: metrics.stalledDeals, apiErrors: metrics.apiErrors.length,
+        console.log('[hubspot-poll] Poll complete for user', {
+          user_id: integration.user_id,
+          deals: metrics.totalDeals,
+          contacts: metrics.totalContacts,
+          companies: metrics.totalCompanies,
         });
       } catch (userError: unknown) {
         const errorMessage = userError instanceof Error ? userError.message : String(userError);

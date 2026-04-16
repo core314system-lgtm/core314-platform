@@ -236,6 +236,35 @@ serve(async (req) => {
       recipientName: user.user_metadata?.full_name as string,
     }).catch(err => console.error('[connect-api-key] Email notification failed:', err));
 
+    // Requirement 5: Immediate poll on integration connect
+    // Trigger the service-specific poller immediately after successful API key connection
+    console.log(`[connect-api-key] Triggering immediate poll for ${service_name} (poll-on-connect)`);
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const pollResponse = await fetch(`${supabaseUrl}/functions/v1/manual-poll-trigger`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_name: service_name,
+          triggered_by: 'connect-api-key:poll-on-connect',
+        }),
+      });
+      const pollData = await pollResponse.json();
+      console.log(`[connect-api-key] Immediate poll result for ${service_name}:`, {
+        ok: pollResponse.ok,
+        status: pollResponse.status,
+        processed: pollData.records_processed ?? 0,
+        duration_ms: pollData.duration_ms ?? 0,
+      });
+    } catch (pollError) {
+      // Non-blocking: don't fail the connection flow if the immediate poll fails
+      console.error(`[connect-api-key] Immediate poll failed for ${service_name} (non-fatal):`, pollError);
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       service: service_name,

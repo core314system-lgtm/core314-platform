@@ -21,6 +21,9 @@ const GOOGLE_SERVICES = ['google_calendar', 'google_meet', 'gmail', 'google_shee
 // Canonical Google token endpoint
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+// QuickBooks sandbox token endpoint
+const QUICKBOOKS_TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -85,6 +88,13 @@ function resolveOAuthCredentials(serviceName: string): {
 }
 
 serve(withSentry(async (req) => {
+  // First line: confirm function is executing (not blocked by gateway)
+  console.log('[oauth-callback] oauth-callback invoked', {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString(),
+  });
+
   const testResponse = await handleSentryTest(req);
   if (testResponse) return testResponse;
 
@@ -100,7 +110,18 @@ serve(withSentry(async (req) => {
     // Provider-specific callback parameters
     const realmId = url.searchParams.get('realmId'); // QuickBooks company ID
 
+    // === STEP 1: Callback received — log all params ===
+    console.log('[oauth-callback] STEP 1: Callback received', {
+      has_code: !!code,
+      code_length: code?.length ?? 0,
+      has_state: !!state,
+      has_error: !!error,
+      has_realmId: !!realmId,
+      timestamp: new Date().toISOString(),
+    });
+
     if (error) {
+      console.error('[oauth-callback] Provider returned error:', error);
       return new Response(JSON.stringify({ error: `OAuth error: ${error}` }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -108,17 +129,23 @@ serve(withSentry(async (req) => {
     }
 
     if (!code || !state) {
+      console.error('[oauth-callback] Missing code or state', { code: !!code, state: !!state });
       return new Response(JSON.stringify({ error: 'Missing code or state' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // === STEP 2: Look up oauth_states — the ONLY source of user identity ===
+    // No Authorization header, no JWT, no frontend session required.
+    // The state parameter was generated during oauth-initiate and bound to the user_id.
+    // This makes OAuth work regardless of browser session state.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    console.log('[oauth-callback] STEP 2: Looking up oauth_states for state:', state);
     const { data: stateData, error: stateError } = await supabase
       .from('oauth_states')
       .select('*')
@@ -127,12 +154,44 @@ serve(withSentry(async (req) => {
       .single();
 
     if (stateError || !stateData) {
-      return new Response(JSON.stringify({ error: 'Invalid or expired state' }), {
+      console.error('[oauth-callback] STEP 2: State lookup FAILED:', {
+        error: stateError?.message,
+        state_param: state,
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Invalid or expired OAuth state',
+        detail: 'OAuth state not found or expired. Please try connecting again.',
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Validate that the state maps to a valid user_id
+    const userId = stateData.user_id;
+    if (!userId) {
+      console.error('[oauth-callback] STEP 2: State has no user_id:', {
+        state_param: state,
+        state_data: { ...stateData, state: '[redacted]' },
+      });
+      return new Response(JSON.stringify({
+        error: 'Invalid OAuth state',
+        detail: 'OAuth state does not contain a valid user identity. Please try connecting again.',
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('[oauth-callback] STEP 2: State validated — user resolved from state', {
+      user_id: userId,
+      integration_registry_id: stateData.integration_registry_id,
+      redirect_uri: stateData.redirect_uri,
+      state_created_at: stateData.created_at,
+      state_expires_at: stateData.expires_at,
+    });
+
+    // === STEP 3: Look up integration registry ===
     const { data: integration, error: integrationError } = await supabase
       .from('integration_registry')
       .select('*')
@@ -140,11 +199,22 @@ serve(withSentry(async (req) => {
       .single();
 
     if (integrationError || !integration) {
-      return new Response(JSON.stringify({ error: 'Integration not found' }), {
+      console.error('[oauth-callback] STEP 3: Integration not found:', {
+        integration_registry_id: stateData.integration_registry_id,
+        error: integrationError?.message,
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Integration not found',
+        detail: `No integration found for registry ID ${stateData.integration_registry_id}`,
+      }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log('[oauth-callback] STEP 3: Integration found:', {
+      service_name: integration.service_name,
+      auth_type: integration.auth_type,
+    });
 
     // === Integration Plan Limit Check (safety net — also checked in oauth-initiate) ===
     const limitResult = await checkIntegrationLimit(supabase, stateData.user_id);
@@ -189,9 +259,16 @@ serve(withSentry(async (req) => {
     // Google services: always use the canonical Google token endpoint
     // The integration_registry.oauth_token_url may be missing or outdated
     const normalizedService = normalizeServiceName(integration.service_name);
-    const tokenUrl = GOOGLE_SERVICES.includes(normalizedService)
-      ? GOOGLE_TOKEN_URL
-      : integration.oauth_token_url;
+    let tokenUrl: string;
+    if (GOOGLE_SERVICES.includes(normalizedService)) {
+      tokenUrl = GOOGLE_TOKEN_URL;
+    } else if (normalizedService === 'quickbooks') {
+      // QuickBooks: always use the canonical Intuit token endpoint
+      tokenUrl = QUICKBOOKS_TOKEN_URL;
+      console.log('[oauth-callback] QuickBooks: Using Intuit token endpoint:', tokenUrl);
+    } else {
+      tokenUrl = integration.oauth_token_url;
+    }
 
     // Diagnostic logging before token exchange (temporary)
     console.log('[oauth-callback] Token exchange request:', {
@@ -232,9 +309,11 @@ serve(withSentry(async (req) => {
       error_description: tokenData.error_description,
     });
 
+    // === STEP 4: Token exchange result ===
     if (!tokenResponse.ok || !tokenData.access_token) {
-      console.error('[oauth-callback] TOKEN EXCHANGE FAILED:', {
+      console.error('[oauth-callback] STEP 4: TOKEN EXCHANGE FAILED:', {
         service: integration.service_name,
+        user_id: userId,
         token_url: tokenUrl,
         redirect_uri: stateData.redirect_uri,
         response_status: tokenResponse.status,
@@ -246,23 +325,61 @@ serve(withSentry(async (req) => {
       return new Response(JSON.stringify({ 
         error: `Token exchange failed: ${googleError}`, 
         reason: googleError,
+        user_id: userId,
+        service: integration.service_name,
         details: tokenData 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log('[oauth-callback] STEP 4: Token exchange SUCCESS', {
+      service: integration.service_name,
+      user_id: userId,
+      has_access_token: true,
+      has_refresh_token: !!tokenData.refresh_token,
+      scope: tokenData.scope,
+    });
 
-    const { data: accessTokenSecretId } = await supabase.rpc('vault_create_secret', {
+    // === STEP 5: Store tokens in vault WITH user_id binding ===
+    console.log('[oauth-callback] STEP 5: Storing tokens in vault for user:', userId);
+    const { data: accessTokenSecretId, error: vaultAccessErr } = await supabase.rpc('vault_create_secret', {
       secret: tokenData.access_token
     });
+    if (vaultAccessErr || !accessTokenSecretId) {
+      console.error('[oauth-callback] STEP 5: FAILED to store access token in vault:', {
+        user_id: userId,
+        error: vaultAccessErr?.message,
+      });
+      return new Response(JSON.stringify({
+        error: 'Failed to store access token',
+        detail: 'Vault write failed for access token',
+        user_id: userId,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.log('[oauth-callback] STEP 5: Access token stored in vault:', { secret_id: accessTokenSecretId });
 
     let refreshTokenSecretId = null;
     if (tokenData.refresh_token) {
-      const { data: refreshSecretId } = await supabase.rpc('vault_create_secret', {
+      const { data: refreshSecretId, error: vaultRefreshErr } = await supabase.rpc('vault_create_secret', {
         secret: tokenData.refresh_token
       });
-      refreshTokenSecretId = refreshSecretId;
+      if (vaultRefreshErr || !refreshSecretId) {
+        console.error('[oauth-callback] STEP 5: FAILED to store refresh token in vault:', {
+          user_id: userId,
+          error: vaultRefreshErr?.message,
+        });
+        // Non-fatal: continue without refresh token but log warning
+        console.warn('[oauth-callback] WARNING: Refresh token not stored. Token refresh will fail.');
+      } else {
+        refreshTokenSecretId = refreshSecretId;
+        console.log('[oauth-callback] STEP 5: Refresh token stored in vault:', { secret_id: refreshSecretId });
+      }
+    } else {
+      console.warn('[oauth-callback] STEP 5: No refresh token received from provider (token refresh will not be possible)');
     }
 
     const expiresAt = tokenData.expires_in 
@@ -478,9 +595,11 @@ serve(withSentry(async (req) => {
       }
     }
 
-    // QuickBooks: store realmId (company ID)
+    // QuickBooks: store realmId (company ID) and environment flag
     if (realmId) {
       integrationConfig.realm_id = realmId;
+      integrationConfig.environment = 'sandbox';
+      console.log('[oauth-callback] QuickBooks: Stored realmId and sandbox environment:', { realm_id: realmId });
     }
     
     // Salesforce: store instance_url from token response and perform post-auth verification
@@ -532,10 +651,12 @@ serve(withSentry(async (req) => {
       }
     }
 
-    const { data: userIntegration } = await supabase
+    // === STEP 6: Upsert user_integration with user_id ===
+    console.log('[oauth-callback] STEP 6: Upserting user_integration for user:', userId);
+    const { data: userIntegration, error: upsertIntError } = await supabase
       .from('user_integrations')
       .upsert({
-        user_id: stateData.user_id,
+        user_id: userId,
         integration_id: integrationMaster?.id,
         provider_id: integration.id,
         added_by_user: true,
@@ -547,8 +668,31 @@ serve(withSentry(async (req) => {
       .select()
       .single();
 
-    await supabase.from('oauth_tokens').upsert({
-      user_id: stateData.user_id,
+    if (upsertIntError) {
+      console.error('[oauth-callback] STEP 6: user_integration upsert FAILED:', {
+        user_id: userId,
+        error: upsertIntError.message,
+        code: upsertIntError.code,
+      });
+      return new Response(JSON.stringify({
+        error: 'Failed to save integration',
+        detail: upsertIntError.message,
+        user_id: userId,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.log('[oauth-callback] STEP 6: user_integration upsert SUCCESS:', {
+      user_integration_id: userIntegration?.id,
+      user_id: userId,
+      status: 'active',
+    });
+
+    // === STEP 7: Upsert oauth_tokens with user_id ===
+    console.log('[oauth-callback] STEP 7: Upserting oauth_tokens for user:', userId);
+    const { error: upsertTokenError } = await supabase.from('oauth_tokens').upsert({
+      user_id: userId,
       integration_registry_id: integration.id,
       user_integration_id: userIntegration?.id,
       access_token_secret_id: accessTokenSecretId,
@@ -564,16 +708,71 @@ serve(withSentry(async (req) => {
       onConflict: 'user_id,integration_registry_id'
     });
 
-    await supabase.from('oauth_states').delete().eq('state', state);
+    if (upsertTokenError) {
+      console.error('[oauth-callback] STEP 7: oauth_tokens upsert FAILED:', {
+        user_id: userId,
+        error: upsertTokenError.message,
+        code: upsertTokenError.code,
+      });
+      return new Response(JSON.stringify({
+        error: 'Failed to store OAuth tokens',
+        detail: upsertTokenError.message,
+        user_id: userId,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    console.log('[oauth-callback] STEP 7: oauth_tokens upsert SUCCESS:', {
+      user_id: userId,
+      has_access_token: !!accessTokenSecretId,
+      has_refresh_token: !!refreshTokenSecretId,
+      expires_at: expiresAt,
+    });
 
-    // Send connection confirmation email (non-blocking)
-    // Look up user email for notification
-    const { data: { user: connectedUser } } = await supabase.auth.admin.getUserById(stateData.user_id);
+    // Clean up used state
+    await supabase.from('oauth_states').delete().eq('state', state);
+    console.log('[oauth-callback] State cleaned up for:', state);
+
+    // === STEP 8: Send connection confirmation email (non-blocking) ===
+    console.log('[oauth-callback] STEP 8: Sending connection email for user:', userId);
+    const { data: { user: connectedUser } } = await supabase.auth.admin.getUserById(userId);
     if (connectedUser?.email) {
       sendIntegrationConnectedEmail(integration.service_name, {
         recipientEmail: connectedUser.email,
         recipientName: connectedUser.user_metadata?.full_name as string,
       }).catch(err => console.error('[oauth-callback] Email notification failed:', err));
+    }
+
+    // Requirement 5: Immediate poll on integration connect
+    // Trigger the service-specific poller immediately after successful OAuth connection
+    // This ensures data flows into the system right away without waiting for the 15-min scheduler
+    const normalizedServiceForPoll = normalizeServiceName(integration.service_name);
+    console.log(`[oauth-callback] Triggering immediate poll for ${normalizedServiceForPoll} (poll-on-connect)`);
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const pollResponse = await fetch(`${supabaseUrl}/functions/v1/manual-poll-trigger`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service_name: normalizedServiceForPoll,
+          triggered_by: 'oauth-callback:poll-on-connect',
+        }),
+      });
+      const pollData = await pollResponse.json();
+      console.log(`[oauth-callback] Immediate poll result for ${normalizedServiceForPoll}:`, {
+        ok: pollResponse.ok,
+        status: pollResponse.status,
+        processed: pollData.records_processed ?? 0,
+        duration_ms: pollData.duration_ms ?? 0,
+      });
+    } catch (pollError) {
+      // Non-blocking: don't fail the OAuth flow if the immediate poll fails
+      console.error(`[oauth-callback] Immediate poll failed for ${normalizedServiceForPoll} (non-fatal):`, pollError);
     }
 
     return new Response(null, {
@@ -584,8 +783,14 @@ serve(withSentry(async (req) => {
       }
     });
   } catch (error) {
-    console.error('OAuth callback error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('[oauth-callback] UNHANDLED ERROR:', {
+      message: error.message,
+      stack: error.stack?.substring(0, 500),
+    });
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      detail: 'Unhandled exception in oauth-callback. Check edge function logs.',
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
