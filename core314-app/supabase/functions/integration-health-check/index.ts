@@ -176,8 +176,9 @@ async function verifyQuickBooks(
   accessToken: string,
   realmId: string
 ): Promise<{ ok: boolean; message: string }> {
+  // Use sandbox API base URL (matching quickbooks-poll)
   const response = await fetch(
-    `https://quickbooks.api.intuit.com/v3/company/${realmId}/companyinfo/${realmId}`,
+    `https://sandbox-quickbooks.api.intuit.com/v3/company/${realmId}/companyinfo/${realmId}`,
     {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
