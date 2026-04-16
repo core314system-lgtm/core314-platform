@@ -1603,6 +1603,188 @@ serve(async (req) => {
           }
         }
 
+        // --- Notion Signal Detection ---
+        const { data: notionEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'notion.workspace_activity')
+          .neq('source', 'test_scenario_inject')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (notionEvents && notionEvents.length > 0) {
+          const latest = notionEvents[0].metadata as Record<string, unknown>;
+          const totalPages = (latest.total_pages as number) ?? 0;
+          const recentlyEdited = (latest.recently_edited_pages_7d as number) ?? 0;
+          const stalePages = (latest.stale_pages_30d as number) ?? 0;
+          const totalDatabases = (latest.total_databases as number) ?? 0;
+
+          // Signal: Stale workspace (many pages not edited in 30+ days)
+          if (totalPages >= 10 && stalePages > totalPages * 0.7) {
+            signals.push({
+              signal_type: 'stale_workspace',
+              severity: stalePages > totalPages * 0.9 ? 'high' : 'medium',
+              confidence: 75,
+              description: `${stalePages} of ${totalPages} Notion pages haven't been updated in 30+ days. Knowledge base may be going stale.`,
+              source_integration: 'notion',
+              signal_data: {
+                category: classifySignal('stale_workspace', 'notion'),
+                metric: 'stale_workspace',
+                stale_pages: stalePages,
+                total_pages: totalPages,
+                recently_edited_7d: recentlyEdited,
+                affected_entities: [],
+                summary_metrics: { stale_pages: stalePages, total_pages: totalPages, recently_edited_7d: recentlyEdited },
+              },
+            });
+          }
+
+          // Signal: Low page activity (0 edits in 7 days with pages present)
+          if (totalPages >= 5 && recentlyEdited === 0) {
+            signals.push({
+              signal_type: 'low_page_activity',
+              severity: 'low',
+              confidence: 70,
+              description: `No Notion pages edited in the past 7 days across ${totalPages} pages and ${totalDatabases} databases. Team may not be actively using Notion.`,
+              source_integration: 'notion',
+              signal_data: {
+                category: classifySignal('low_page_activity', 'notion'),
+                metric: 'low_page_activity',
+                total_pages: totalPages,
+                recently_edited_7d: 0,
+                databases: totalDatabases,
+                affected_entities: [],
+                summary_metrics: { total_pages: totalPages, recently_edited_7d: 0, databases: totalDatabases },
+              },
+            });
+          }
+
+          // Signal: No workspace activity (0 pages found)
+          if (totalPages === 0 && totalDatabases === 0) {
+            const recentNotion = isRecentlyConnected('notion');
+            signals.push({
+              signal_type: 'no_workspace_activity',
+              severity: 'info',
+              confidence: 60,
+              description: recentNotion
+                ? 'Notion recently connected. No data available yet — the system is collecting initial data.'
+                : 'Notion is connected but no pages or databases found. Workspace may be empty or access is restricted.',
+              source_integration: 'notion',
+              signal_data: {
+                category: classifySignal('no_workspace_activity', 'notion'),
+                metric: 'no_workspace_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentNotion,
+                affected_entities: [],
+                summary_metrics: { total_pages: 0, total_databases: 0 },
+              },
+            });
+          }
+        }
+
+        // --- Monday.com Signal Detection ---
+        const { data: mondayEvents } = await supabase
+          .from('integration_events')
+          .select('metadata, occurred_at')
+          .eq('user_id', userId)
+          .eq('event_type', 'monday.board_activity')
+          .neq('source', 'test_scenario_inject')
+          .order('occurred_at', { ascending: false })
+          .limit(2);
+
+        if (mondayEvents && mondayEvents.length > 0) {
+          const latest = mondayEvents[0].metadata as Record<string, unknown>;
+          const totalBoards = (latest.total_boards as number) ?? 0;
+          const totalItems = (latest.total_items as number) ?? 0;
+          const overdueItems = (latest.overdue_items as number) ?? 0;
+          const stuckItems = (latest.stuck_items as number) ?? 0;
+          const doneItems = (latest.done_items as number) ?? 0;
+          const completionRate = (latest.completion_rate as number) ?? 0;
+
+          // Signal: Overdue items
+          if (overdueItems > 0) {
+            signals.push({
+              signal_type: 'overdue_items',
+              severity: overdueItems >= 10 ? 'high' : overdueItems >= 5 ? 'medium' : 'low',
+              confidence: 85,
+              description: `${overdueItems} overdue item${overdueItems > 1 ? 's' : ''} on Monday.com across ${totalBoards} board${totalBoards > 1 ? 's' : ''}. ${doneItems} of ${totalItems} items completed (${completionRate}%).`,
+              source_integration: 'monday',
+              signal_data: {
+                category: classifySignal('overdue_items', 'monday'),
+                metric: 'overdue_items',
+                overdue: overdueItems,
+                total_items: totalItems,
+                done: doneItems,
+                boards: totalBoards,
+                affected_entities: [],
+                summary_metrics: { overdue_count: overdueItems, total_items: totalItems, completion_rate: completionRate },
+              },
+            });
+          }
+
+          // Signal: Stuck items (blocked work)
+          if (stuckItems >= 3) {
+            signals.push({
+              signal_type: 'stuck_items',
+              severity: stuckItems >= 10 ? 'high' : 'medium',
+              confidence: 80,
+              description: `${stuckItems} stuck/blocked item${stuckItems > 1 ? 's' : ''} on Monday.com. Work may be blocked and needs attention.`,
+              source_integration: 'monday',
+              signal_data: {
+                category: classifySignal('stuck_items', 'monday'),
+                metric: 'stuck_items',
+                stuck: stuckItems,
+                total_items: totalItems,
+                affected_entities: [],
+                summary_metrics: { stuck_count: stuckItems, total_items: totalItems },
+              },
+            });
+          }
+
+          // Signal: Low completion rate (<20% with significant items)
+          if (totalItems >= 10 && completionRate < 20) {
+            signals.push({
+              signal_type: 'low_completion_rate',
+              severity: 'medium',
+              confidence: 75,
+              description: `Only ${completionRate}% completion rate on Monday.com (${doneItems} of ${totalItems} items). Project delivery may be at risk.`,
+              source_integration: 'monday',
+              signal_data: {
+                category: classifySignal('low_completion_rate', 'monday'),
+                metric: 'low_completion_rate',
+                completion_rate: completionRate,
+                done: doneItems,
+                total: totalItems,
+                affected_entities: [],
+                summary_metrics: { completion_rate: completionRate, done: doneItems, total_items: totalItems },
+              },
+            });
+          }
+
+          // Signal: No board activity (0 boards/items)
+          if (totalBoards === 0 || totalItems === 0) {
+            const recentMonday = isRecentlyConnected('monday');
+            signals.push({
+              signal_type: 'no_board_activity',
+              severity: 'info',
+              confidence: 60,
+              description: recentMonday
+                ? 'Monday.com recently connected. No data available yet — the system is collecting initial data.'
+                : 'Monday.com is connected but no boards or items found. Workspace may be empty or access is restricted.',
+              source_integration: 'monday',
+              signal_data: {
+                category: classifySignal('no_board_activity', 'monday'),
+                metric: 'no_board_activity',
+                data_state: SIGNAL_DATA_STATES.NO_DATA,
+                recently_connected: recentMonday,
+                affected_entities: [],
+                summary_metrics: { total_boards: totalBoards, total_items: totalItems },
+              },
+            });
+          }
+        }
+
         // --- Persist Signals ---
         if (signals.length > 0) {
           const now = new Date().toISOString();

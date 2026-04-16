@@ -49,6 +49,8 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'asana': 'ASANA',
   'github': 'GITHUB',
   'zendesk': 'ZENDESK',
+  'notion': 'NOTION',
+  'monday': 'MONDAY',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace

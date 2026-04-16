@@ -386,6 +386,46 @@ async function verifyZendesk(accessToken: string, subdomain: string): Promise<{ 
   return { ok: false, message: `Zendesk API failed (${response.status}): ${errorText.slice(0, 200)}` };
 }
 
+/**
+ * Verify a Notion token by calling /users/me
+ */
+async function verifyNotion(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://api.notion.com/v1/users/me', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Notion-Version': '2022-06-28',
+    },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    return { ok: true, message: `Notion user: ${data.name || 'connected'}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Notion API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
+/**
+ * Verify a Monday.com token by calling /me via GraphQL
+ */
+async function verifyMonday(accessToken: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch('https://api.monday.com/v2', {
+    method: 'POST',
+    headers: {
+      'Authorization': accessToken,
+      'Content-Type': 'application/json',
+      'API-Version': '2024-10',
+    },
+    body: JSON.stringify({ query: '{ me { id name email } }' }),
+  });
+  if (response.ok) {
+    const data = await response.json();
+    const me = data.data?.me;
+    return { ok: true, message: `Monday.com user: ${me?.name || me?.email || 'connected'}` };
+  }
+  const errorText = await response.text();
+  return { ok: false, message: `Monday.com API failed (${response.status}): ${errorText.slice(0, 200)}` };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -398,7 +438,7 @@ serve(async (req) => {
     );
 
     // All OAuth services with health check support
-    const supportedServices = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'microsoft_teams', 'google_sheets', 'asana', 'salesforce', 'zoom', 'github', 'zendesk'];
+    const supportedServices = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'microsoft_teams', 'google_sheets', 'asana', 'salesforce', 'zoom', 'github', 'zendesk', 'notion', 'monday'];
 
     // Fetch all active user integrations for Phase 1 services
     const { data: activeIntegrations, error: intError } = await supabase
@@ -577,6 +617,12 @@ serve(async (req) => {
             checkResult = await verifyZendesk(accessToken, zdConfig?.subdomain || zdConfig?.zendesk_subdomain || '');
             break;
           }
+          case 'notion':
+            checkResult = await verifyNotion(accessToken);
+            break;
+          case 'monday':
+            checkResult = await verifyMonday(accessToken);
+            break;
           default:
             checkResult = { ok: true, message: `Connected (no specific health check for ${serviceName})` };
         }

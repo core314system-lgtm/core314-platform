@@ -99,6 +99,8 @@ const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
   zoom: Video,
   github: GitBranch,
   zendesk: Headphones,
+  notion: FileSpreadsheet,
+  monday: LayoutGrid,
 };
 
 const SERVICE_DESCRIPTIONS: Record<string, string> = {
@@ -116,6 +118,8 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
   zoom: 'Track meeting frequency, duration patterns, and scheduling load to detect meeting overload and optimize time allocation.',
   github: 'Monitor pull request velocity, issue backlogs, commit activity, and code review bottlenecks for engineering health insights.',
   zendesk: 'Track ticket volumes, resolution rates, customer satisfaction scores, and urgent escalations for support operations intelligence.',
+  notion: 'Monitor workspace activity, page freshness, and database usage to detect knowledge base staleness and team documentation patterns.',
+  monday: 'Track board activity, item completion, stuck/blocked work, and overdue deadlines for project delivery and workload intelligence.',
 };
 
 // Integration connection limits per plan
@@ -174,6 +178,12 @@ const API_KEY_FIELDS: Record<string, { label: string; field: string; type: strin
     { label: 'Zendesk Subdomain', field: 'domain', type: 'text', placeholder: 'your-company (from your-company.zendesk.com)' },
     { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
     { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Zendesk API token' },
+  ],
+  notion: [
+    { label: 'Integration Token', field: 'api_token', type: 'password', placeholder: 'secret_... (Settings \u2192 My connections \u2192 Develop or manage integrations)' },
+  ],
+  monday: [
+    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Monday.com API token (Admin \u2192 API)' },
   ],
 };
 

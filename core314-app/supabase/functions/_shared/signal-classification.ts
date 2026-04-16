@@ -168,6 +168,17 @@ const EXACT_MAPPINGS: Record<string, SignalCategory> = {
   'zendesk::low_resolution_rate': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
   'zendesk::low_satisfaction': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
   'zendesk::high_ticket_volume': SIGNAL_CATEGORIES.CUSTOMER_ACTIVITY,
+
+  // Notion signals → DATA_TRACKING / OPERATIONS
+  'notion::stale_workspace': SIGNAL_CATEGORIES.DATA_TRACKING,
+  'notion::no_workspace_activity': SIGNAL_CATEGORIES.DATA_TRACKING,
+  'notion::low_page_activity': SIGNAL_CATEGORIES.DATA_TRACKING,
+
+  // Monday.com signals → PROJECT_DELIVERY
+  'monday::overdue_items': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'monday::stuck_items': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'monday::low_completion_rate': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
+  'monday::no_board_activity': SIGNAL_CATEGORIES.PROJECT_DELIVERY,
 };
 
 /**
