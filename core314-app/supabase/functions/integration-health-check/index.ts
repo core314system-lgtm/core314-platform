@@ -371,13 +371,16 @@ async function verifyGitHub(accessToken: string): Promise<{ ok: boolean; message
 /**
  * Verify a Zendesk token by calling /users/me
  */
-async function verifyZendesk(accessToken: string, subdomain: string): Promise<{ ok: boolean; message: string }> {
+async function verifyZendesk(accessToken: string, subdomain: string, apiKeyCredentials?: { email?: string }): Promise<{ ok: boolean; message: string }> {
   if (!subdomain) {
     return { ok: false, message: 'No Zendesk subdomain configured' };
   }
-  const response = await fetch(`https://${subdomain}.zendesk.com/api/v2/users/me.json`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` },
-  });
+  // API-key auth uses Basic auth: {email}/token:{api_token}
+  // OAuth auth uses Bearer token
+  const headers: Record<string, string> = apiKeyCredentials?.email
+    ? { 'Authorization': `Basic ${btoa(`${apiKeyCredentials.email}/token:${accessToken}`)}` }
+    : { 'Authorization': `Bearer ${accessToken}` };
+  const response = await fetch(`https://${subdomain}.zendesk.com/api/v2/users/me.json`, { headers });
   if (response.ok) {
     const data = await response.json();
     return { ok: true, message: `Zendesk user: ${data.user?.name || data.user?.email || 'connected'}` };
@@ -490,28 +493,44 @@ serve(async (req) => {
       console.log(`[health-check] Checking ${serviceName} for user ${integration.user_id}...`);
 
       try {
-        // Fetch OAuth token record
+        // Fetch token record (covers both OAuth and API-key integrations)
         const { data: tokenRecord } = await supabase
           .from('oauth_tokens')
-          .select('id, access_token_secret_id, refresh_token_secret_id, expires_at, integration_registry_id')
+          .select('id, access_token_secret_id, refresh_token_secret_id, expires_at, integration_registry_id, token_type')
           .eq('user_id', integration.user_id)
           .eq('integration_registry_id', registry.id)
           .single();
 
         if (!tokenRecord) {
+          // No token record: check if this is an API-key integration with credentials in config
+          const config = integration.config as Record<string, unknown>;
+          if (config?.api_key_connected && config?.credentials_secret_id) {
+            // API-key integration connected via connect-api-key but missing oauth_tokens row
+            // This can happen with older connections; mark as connected but skip health check
+            console.log(`[health-check] ${serviceName}: API-key integration without oauth_tokens record, skipping health check`);
+            results.push({
+              service: serviceName,
+              userId: integration.user_id,
+              userIntegrationId: integration.id,
+              healthy: true,
+              message: 'Connected (API key, no token record for health check)',
+            });
+            continue;
+          }
+
           results.push({
             service: serviceName,
             userId: integration.user_id,
             userIntegrationId: integration.id,
             healthy: false,
-            message: 'No OAuth token record found',
+            message: 'No token record found — try disconnecting and reconnecting',
           });
 
           await supabase
             .from('user_integrations')
             .update({
               last_error_at: now.toISOString(),
-              error_message: 'No OAuth token record found',
+              error_message: 'No token record found — try disconnecting and reconnecting',
               consecutive_failures: (integration.consecutive_failures || 0) + 1,
             })
             .eq('id', integration.id);
@@ -519,29 +538,35 @@ serve(async (req) => {
           continue;
         }
 
+        const isApiKeyToken = tokenRecord.token_type === 'api_key';
+        let apiKeyParsedCredentials: Record<string, string> | null = null;
+
         // Check if token needs refresh (already expired OR expires within 10 minutes)
+        // Skip refresh for API-key tokens — they don't expire
         let accessToken: string | null = null;
         let tokenRefreshed = false;
-        const tokenExpiresAt = tokenRecord.expires_at ? new Date(tokenRecord.expires_at) : null;
-        const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
-        const isExpiredOrExpiringSoon = tokenExpiresAt && tokenExpiresAt < tenMinutesFromNow;
-
         let tokenRefreshError: string | undefined;
+        const tokenExpiresAt = tokenRecord.expires_at ? new Date(tokenRecord.expires_at) : null;
         const isAlreadyExpired = tokenExpiresAt ? tokenExpiresAt < now : false;
 
-        if (isExpiredOrExpiringSoon) {
-          console.log(`[health-check] Token for ${serviceName} ${isAlreadyExpired ? 'EXPIRED at' : 'expires at'} ${tokenExpiresAt!.toISOString()}, refreshing...`);
-          const refreshResult = await refreshToken(
-            supabase,
-            tokenRecord,
-            serviceName,
-            registry.oauth_token_url
-          );
-          accessToken = refreshResult.accessToken;
-          tokenRefreshed = !!accessToken;
-          tokenRefreshError = refreshResult.error;
-          if (tokenRefreshError) {
-            console.error(`[health-check] Token refresh error for ${serviceName}: ${tokenRefreshError}`);
+        if (!isApiKeyToken && tokenExpiresAt) {
+          const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
+          const isExpiredOrExpiringSoon = tokenExpiresAt < tenMinutesFromNow;
+
+          if (isExpiredOrExpiringSoon) {
+            console.log(`[health-check] Token for ${serviceName} ${isAlreadyExpired ? 'EXPIRED at' : 'expires at'} ${tokenExpiresAt.toISOString()}, refreshing...`);
+            const refreshResult = await refreshToken(
+              supabase,
+              tokenRecord,
+              serviceName,
+              registry.oauth_token_url
+            );
+            accessToken = refreshResult.accessToken;
+            tokenRefreshed = !!accessToken;
+            tokenRefreshError = refreshResult.error;
+            if (tokenRefreshError) {
+              console.error(`[health-check] Token refresh error for ${serviceName}: ${tokenRefreshError}`);
+            }
           }
         }
 
@@ -560,7 +585,24 @@ serve(async (req) => {
             });
             continue;
           }
-          accessToken = tokenData;
+
+          // API-key tokens store credentials as JSON (e.g. {"api_token":"..."})
+          // Extract the actual token for the health check verify functions
+          if (isApiKeyToken) {
+            try {
+              const parsed = JSON.parse(tokenData);
+              // Store full parsed credentials for services that need extra fields (e.g. Zendesk needs email+domain)
+              apiKeyParsedCredentials = parsed;
+              // Extract token based on service-specific field names
+              accessToken = parsed.api_token || parsed.api_key || parsed.token || tokenData;
+              console.log(`[health-check] ${serviceName}: extracted API key from stored credentials`);
+            } catch {
+              // Not JSON, use as-is (plain token)
+              accessToken = tokenData;
+            }
+          } else {
+            accessToken = tokenData;
+          }
         }
 
         // Perform service-specific health check
@@ -613,8 +655,10 @@ serve(async (req) => {
             checkResult = await verifyGitHub(accessToken);
             break;
           case 'zendesk': {
-            const zdConfig = integration.config as { subdomain?: string; zendesk_subdomain?: string };
-            checkResult = await verifyZendesk(accessToken, zdConfig?.subdomain || zdConfig?.zendesk_subdomain || '');
+            const zdConfig = integration.config as { subdomain?: string; zendesk_subdomain?: string; domain?: string; email?: string };
+            const zdSubdomain = zdConfig?.subdomain || zdConfig?.zendesk_subdomain || zdConfig?.domain || apiKeyParsedCredentials?.domain || '';
+            const zdEmail = isApiKeyToken ? (zdConfig?.email || apiKeyParsedCredentials?.email) : undefined;
+            checkResult = await verifyZendesk(accessToken, zdSubdomain, zdEmail ? { email: zdEmail } : undefined);
             break;
           }
           case 'notion':
