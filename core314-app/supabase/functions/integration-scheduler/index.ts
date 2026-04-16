@@ -138,6 +138,8 @@ serve(async (req) => {
       { name: 'zoom-poll', service: 'Zoom' },
       { name: 'github-poll', service: 'GitHub' },
       { name: 'zendesk-poll', service: 'Zendesk' },
+      { name: 'notion-poll', service: 'Notion' },
+      { name: 'monday-poll', service: 'Monday.com' },
     ];
 
     // Track consecutive failures per poller for alerting

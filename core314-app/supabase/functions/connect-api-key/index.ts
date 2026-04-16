@@ -13,6 +13,8 @@ const corsHeaders = {
 const VALIDATION_CONFIG: Record<string, {
   buildUrl: (credentials: Record<string, string>) => string;
   buildHeaders: (credentials: Record<string, string>) => Record<string, string>;
+  buildMethod?: () => string;
+  buildBody?: (credentials: Record<string, string>) => string;
   validateResponse: (data: unknown) => boolean;
 }> = {
   jira: {
@@ -34,6 +36,42 @@ const VALIDATION_CONFIG: Record<string, {
       'Authorization': `Bearer ${c.api_token}`,
       'Accept': 'application/json',
     }),
+    validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.data,
+  },
+  github: {
+    buildUrl: () => 'https://api.github.com/user',
+    buildHeaders: (c) => ({
+      'Authorization': `Bearer ${c.api_token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }),
+    validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.login,
+  },
+  zendesk: {
+    buildUrl: (c) => `https://${c.domain}.zendesk.com/api/v2/users/me.json`,
+    buildHeaders: (c) => ({
+      'Authorization': `Basic ${btoa(`${c.email}/token:${c.api_token}`)}`,
+      'Accept': 'application/json',
+    }),
+    validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.user,
+  },
+  notion: {
+    buildUrl: () => 'https://api.notion.com/v1/users/me',
+    buildHeaders: (c) => ({
+      'Authorization': `Bearer ${c.api_token}`,
+      'Notion-Version': '2022-06-28',
+    }),
+    validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.id,
+  },
+  monday: {
+    buildUrl: () => 'https://api.monday.com/v2',
+    buildHeaders: (c) => ({
+      'Authorization': c.api_token,
+      'Content-Type': 'application/json',
+      'API-Version': '2024-10',
+    }),
+    buildMethod: () => 'POST',
+    buildBody: () => JSON.stringify({ query: '{ me { id name email } }' }),
     validateResponse: (data: unknown) => !!(data as Record<string, unknown>)?.data,
   },
 };
@@ -107,10 +145,14 @@ serve(async (req) => {
       });
     }
 
-    const validationResponse = await fetch(validationUrl, {
-      method: 'GET',
+    const fetchOptions: RequestInit = {
+      method: config.buildMethod ? config.buildMethod() : 'GET',
       headers: config.buildHeaders(credentials),
-    });
+    };
+    if (config.buildBody) {
+      fetchOptions.body = config.buildBody(credentials);
+    }
+    const validationResponse = await fetch(validationUrl, fetchOptions);
 
     if (!validationResponse.ok) {
       const errorText = await validationResponse.text();
@@ -194,6 +236,31 @@ serve(async (req) => {
       integrationConfig.gid = responseData.data.gid;
       integrationConfig.name = responseData.data.name;
       integrationConfig.email = responseData.data.email;
+    } else if (service_name === 'github') {
+      const userData = validationData as Record<string, unknown>;
+      integrationConfig.login = userData.login;
+      integrationConfig.github_id = userData.id;
+      integrationConfig.name = userData.name;
+      integrationConfig.avatar_url = userData.avatar_url;
+    } else if (service_name === 'zendesk') {
+      const responseData = validationData as { user: Record<string, unknown> };
+      integrationConfig.domain = credentials.domain;
+      integrationConfig.email = credentials.email;
+      integrationConfig.zendesk_user_id = responseData.user.id;
+      integrationConfig.name = responseData.user.name;
+    } else if (service_name === 'notion') {
+      const userData = validationData as Record<string, unknown>;
+      integrationConfig.notion_user_id = userData.id;
+      integrationConfig.name = userData.name;
+      integrationConfig.type = userData.type;
+    } else if (service_name === 'monday') {
+      const responseData = validationData as { data: { me: Record<string, unknown> } };
+      const me = responseData.data?.me;
+      if (me) {
+        integrationConfig.monday_user_id = me.id;
+        integrationConfig.name = me.name;
+        integrationConfig.email = me.email;
+      }
     }
 
     // Upsert user_integration
