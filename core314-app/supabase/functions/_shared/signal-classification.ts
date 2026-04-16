@@ -121,6 +121,7 @@ const EXACT_MAPPINGS: Record<string, SignalCategory> = {
   'gmail::low_email_activity': SIGNAL_CATEGORIES.COMMUNICATION,
   'gmail::low_response_ratio': SIGNAL_CATEGORIES.COMMUNICATION,
   'gmail::email_backlog': SIGNAL_CATEGORIES.COMMUNICATION,
+  'gmail::email_activity_normal': SIGNAL_CATEGORIES.COMMUNICATION,
 
   // Jira signals → PROJECT_DELIVERY
   'jira::sprint_at_risk': SIGNAL_CATEGORIES.PROJECT_DELIVERY,

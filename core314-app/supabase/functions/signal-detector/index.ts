@@ -883,6 +883,26 @@ serve(async (req) => {
               },
             });
           }
+
+          // Signal: Normal email activity (1-200 messages, ensures Gmail always appears in brief)
+          if (totalMessages > 0 && totalMessages <= 200) {
+            signals.push({
+              signal_type: 'email_activity_normal',
+              severity: 'low',
+              confidence: 80,
+              description: `${totalMessages} emails in the past 7 days (${sentCount} sent, ${receivedCount} received). Email activity is within normal range.`,
+              source_integration: 'gmail',
+              signal_data: {
+                category: classifySignal('email_activity_normal', 'gmail'),
+                metric: 'email_activity_normal',
+                total_messages: totalMessages,
+                sent: sentCount,
+                received: receivedCount,
+                affected_entities: [],
+                summary_metrics: { total_messages: totalMessages, sent: sentCount, received: receivedCount },
+              },
+            });
+          }
         }
 
         // --- Jira Signal Detection ---
