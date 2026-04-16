@@ -129,7 +129,7 @@ const PLAN_INTEGRATION_LIMITS: Record<string, number> = {
   enterprise: Infinity,
 };
 
-const ALL_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana', 'salesforce', 'zoom', 'github', 'zendesk'];
+const ALL_INTEGRATIONS = ['slack', 'hubspot', 'quickbooks', 'google_calendar', 'gmail', 'jira', 'trello', 'microsoft_teams', 'google_sheets', 'asana', 'salesforce', 'zoom', 'github', 'zendesk', 'notion', 'monday'];
 
 // Google services that use direct OAuth (no Supabase intermediary)
 const GOOGLE_SERVICES = ['gmail', 'google_calendar', 'google_sheets'];
