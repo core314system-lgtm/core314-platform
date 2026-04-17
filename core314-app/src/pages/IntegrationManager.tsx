@@ -168,11 +168,6 @@ const API_KEY_FIELDS: Record<string, { label: string; field: string; type: strin
     { label: 'API Key', field: 'api_key', type: 'text', placeholder: 'Your Trello API key' },
     { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Trello API token' },
   ],
-  zendesk: [
-    { label: 'Zendesk Subdomain', field: 'domain', type: 'text', placeholder: 'your-company (from your-company.zendesk.com)' },
-    { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
-    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Zendesk API token' },
-  ],
 };
 
 export function IntegrationManager() {
