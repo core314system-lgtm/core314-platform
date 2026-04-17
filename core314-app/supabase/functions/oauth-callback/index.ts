@@ -332,6 +332,12 @@ serve(withSentry(async (req) => {
         tokenBody.grant_type = 'authorization_code';
       }
 
+      // PKCE: Include code_verifier in token exchange if it was stored during oauth-initiate
+      if (stateData.code_verifier) {
+        tokenBody.code_verifier = stateData.code_verifier;
+        console.log('[oauth-callback] PKCE: Including code_verifier in token exchange for', normalizedService);
+      }
+
       tokenResponse = await fetch(tokenUrl, {
         method: 'POST',
         headers: tokenHeaders,
