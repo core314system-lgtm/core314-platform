@@ -431,6 +431,20 @@ serve(withSentry(async (req) => {
       authUrl.searchParams.delete('scope');
     }
 
+    // Zendesk specific: log redirect_uri for debugging and ensure correct format
+    if (normalizedServiceName === 'zendesk') {
+      const zendeskRedirectUri = authUrl.searchParams.get('redirect_uri');
+      console.log('[oauth-initiate] ZENDESK DIAGNOSTICS:', {
+        client_id: authUrl.searchParams.get('client_id'),
+        redirect_uri: zendeskRedirectUri,
+        scope: authUrl.searchParams.get('scope'),
+        response_type: authUrl.searchParams.get('response_type'),
+        state: authUrl.searchParams.get('state')?.substring(0, 12) + '...',
+        full_url: authUrl.toString(),
+        note: 'redirect_uri MUST match EXACTLY what is registered in Zendesk Admin Center → APIs → OAuth Clients → Redirect URLs',
+      });
+    }
+
     // Jira (Atlassian) specific: hardcode EXACT OAuth URL per Atlassian requirements
     // This replaces the generic URL builder to ensure the exact format Atlassian expects
     if (normalizedServiceName === 'jira') {
