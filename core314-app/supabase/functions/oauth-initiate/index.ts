@@ -365,7 +365,7 @@ serve(withSentry(async (req) => {
     // Slack: comma-delimited scopes
     // Zoom: space-delimited scopes
     // Salesforce: space-delimited scopes
-    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'gmail', 'google_sheets', 'zoom', 'salesforce', 'jira'].includes(normalizedServiceName);
+    const useSpaceDelimiter = ['microsoft_teams', 'google_calendar', 'gmail', 'google_sheets', 'zoom', 'salesforce', 'jira', 'github'].includes(normalizedServiceName);
     const scopeDelimiter = useSpaceDelimiter ? ' ' : ',';
     
     // Salesforce-specific: Use hardcoded scopes to ensure they match Connected App configuration

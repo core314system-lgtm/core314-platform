@@ -287,19 +287,40 @@ serve(withSentry(async (req) => {
       grant_type: 'authorization_code',
     });
 
+    // GitHub-specific: GitHub requires Accept: application/json header
+    // and does NOT use grant_type parameter
+    const isGitHub = normalizedService === 'github';
+    const tokenHeaders: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+    if (isGitHub) {
+      tokenHeaders['Accept'] = 'application/json';
+    }
+
+    const tokenBody: Record<string, string> = {
+      code,
+      client_id: clientId,
+      client_secret: clientSecret!,
+      redirect_uri: stateData.redirect_uri,
+    };
+    if (!isGitHub) {
+      tokenBody.grant_type = 'authorization_code';
+    }
+
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret!,
-        redirect_uri: stateData.redirect_uri,
-        grant_type: 'authorization_code'
-      })
+      headers: tokenHeaders,
+      body: new URLSearchParams(tokenBody),
     });
 
     const tokenData = await tokenResponse.json();
+
+    // GitHub tokens don't expire and have no refresh_token
+    // Normalize token_type for consistency
+    if (isGitHub && tokenData.access_token) {
+      tokenData.token_type = tokenData.token_type || 'bearer';
+      console.log('[oauth-callback] GitHub: Token received, scope:', tokenData.scope);
+    }
 
     // Log full token exchange response for debugging
     console.log('[oauth-callback] Token exchange response:', {
