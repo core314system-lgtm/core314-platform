@@ -216,13 +216,42 @@ serve(withSentry(async (req) => {
     }
 
     const state = crypto.randomUUID();
+
+    // PKCE support: Generate code_verifier and code_challenge for providers that require it
+    // Salesforce requires PKCE ("missing required code challenge" error without it)
+    const normalizedServiceNameEarly = normalizeServiceName(service_name);
+    const pkceRequired = ['salesforce'].includes(normalizedServiceNameEarly);
+    let codeVerifier: string | null = null;
+    let codeChallenge: string | null = null;
+
+    if (pkceRequired) {
+      // Generate a random 128-character code_verifier (RFC 7636: 43-128 chars, [A-Z][a-z][0-9]-._~)
+      const array = new Uint8Array(96);
+      crypto.getRandomValues(array);
+      codeVerifier = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+        .substring(0, 128);
+
+      // Generate code_challenge = BASE64URL(SHA256(code_verifier))
+      const encoder = new TextEncoder();
+      const data = encoder.encode(codeVerifier);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+      console.log('[oauth-initiate] PKCE generated for', normalizedServiceNameEarly, {
+        code_verifier_length: codeVerifier.length,
+        code_challenge_length: codeChallenge.length,
+      });
+    }
     
     await supabase.from('oauth_states').insert({
       state,
       user_id: user.id,
       integration_registry_id: integration.id,
       redirect_uri: redirect_uri || `${Deno.env.get('SUPABASE_URL')}/functions/v1/oauth-callback`,
-      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      code_verifier: codeVerifier,
     });
 
     // Normalize service_name for consistent env var lookup
@@ -392,11 +421,18 @@ serve(withSentry(async (req) => {
       authUrl.searchParams.set('prompt', 'consent');
     }
     
-    // Salesforce-specific: request refresh token
+    // Salesforce-specific: request refresh token + PKCE
     if (normalizedServiceName === 'salesforce') {
       // Salesforce requires 'refresh_token' scope for offline access
       // Also add prompt=consent to ensure user sees the consent screen
       authUrl.searchParams.set('prompt', 'consent');
+
+      // PKCE: Add code_challenge and code_challenge_method
+      if (codeChallenge) {
+        authUrl.searchParams.set('code_challenge', codeChallenge);
+        authUrl.searchParams.set('code_challenge_method', 'S256');
+        console.log('[oauth-initiate] Salesforce PKCE: Added code_challenge to URL');
+      }
     }
 
     // QuickBooks specific: enforce sandbox environment
