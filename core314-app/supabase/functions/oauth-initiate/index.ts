@@ -38,6 +38,8 @@ const SERVICE_ENV_PREFIX_MAP: Record<string, string> = {
   'zoom': 'ZOOM',
   'github': 'GITHUB',
   'zendesk': 'ZENDESK',
+  'notion': 'NOTION',
+  'monday': 'MONDAY',
 };
 
 // Normalize service_name: lowercase, replace hyphens with underscores, trim whitespace
@@ -420,6 +422,12 @@ serve(withSentry(async (req) => {
     if (normalizedServiceName === 'notion') {
       authUrl.searchParams.set('owner', 'user');
       // Notion doesn't use scopes in the URL — permissions are set in the integration config
+      authUrl.searchParams.delete('scope');
+    }
+
+    // Monday.com specific: scopes are configured in the Developer Center, not in the URL
+    // Passing scopes in the URL causes "Invalid scope param" error
+    if (normalizedServiceName === 'monday') {
       authUrl.searchParams.delete('scope');
     }
 
