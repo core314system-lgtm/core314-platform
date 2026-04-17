@@ -416,6 +416,13 @@ serve(withSentry(async (req) => {
       });
     }
 
+    // Notion specific: add owner=user parameter for user-level OAuth
+    if (normalizedServiceName === 'notion') {
+      authUrl.searchParams.set('owner', 'user');
+      // Notion doesn't use scopes in the URL — permissions are set in the integration config
+      authUrl.searchParams.delete('scope');
+    }
+
     // Jira (Atlassian) specific: hardcode EXACT OAuth URL per Atlassian requirements
     // This replaces the generic URL builder to ensure the exact format Atlassian expects
     if (normalizedServiceName === 'jira') {

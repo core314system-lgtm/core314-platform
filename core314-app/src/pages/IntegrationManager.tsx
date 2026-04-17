@@ -173,9 +173,6 @@ const API_KEY_FIELDS: Record<string, { label: string; field: string; type: strin
     { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
     { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Zendesk API token' },
   ],
-  notion: [
-    { label: 'Integration Token', field: 'api_token', type: 'password', placeholder: 'secret_... (Settings \u2192 My connections \u2192 Develop or manage integrations)' },
-  ],
   monday: [
     { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Monday.com API token (Admin \u2192 API)' },
   ],

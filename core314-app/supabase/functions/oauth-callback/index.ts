@@ -287,39 +287,70 @@ serve(withSentry(async (req) => {
       grant_type: 'authorization_code',
     });
 
-    // GitHub-specific: GitHub requires Accept: application/json header
-    // and does NOT use grant_type parameter
+    // Provider-specific token exchange handling
     const isGitHub = normalizedService === 'github';
+    const isNotion = normalizedService === 'notion';
+
     const tokenHeaders: Record<string, string> = {
       'Content-Type': 'application/x-www-form-urlencoded',
     };
+
+    // GitHub requires Accept: application/json header
     if (isGitHub) {
       tokenHeaders['Accept'] = 'application/json';
     }
 
-    const tokenBody: Record<string, string> = {
-      code,
-      client_id: clientId,
-      client_secret: clientSecret!,
-      redirect_uri: stateData.redirect_uri,
-    };
-    if (!isGitHub) {
-      tokenBody.grant_type = 'authorization_code';
+    // Notion requires Basic Auth (base64 of client_id:client_secret)
+    // instead of passing credentials in the body
+    if (isNotion) {
+      const basicAuth = btoa(`${clientId}:${clientSecret}`);
+      tokenHeaders['Authorization'] = `Basic ${basicAuth}`;
+      tokenHeaders['Content-Type'] = 'application/json';
     }
 
-    const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: tokenHeaders,
-      body: new URLSearchParams(tokenBody),
-    });
+    let tokenResponse: Response;
+
+    if (isNotion) {
+      // Notion expects JSON body with code, grant_type, and redirect_uri
+      tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: tokenHeaders,
+        body: JSON.stringify({
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: stateData.redirect_uri,
+        }),
+      });
+    } else {
+      const tokenBody: Record<string, string> = {
+        code,
+        client_id: clientId,
+        client_secret: clientSecret!,
+        redirect_uri: stateData.redirect_uri,
+      };
+      if (!isGitHub) {
+        tokenBody.grant_type = 'authorization_code';
+      }
+
+      tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: tokenHeaders,
+        body: new URLSearchParams(tokenBody),
+      });
+    }
 
     const tokenData = await tokenResponse.json();
 
     // GitHub tokens don't expire and have no refresh_token
-    // Normalize token_type for consistency
     if (isGitHub && tokenData.access_token) {
       tokenData.token_type = tokenData.token_type || 'bearer';
       console.log('[oauth-callback] GitHub: Token received, scope:', tokenData.scope);
+    }
+
+    // Notion returns workspace info alongside the token
+    if (isNotion && tokenData.access_token) {
+      tokenData.token_type = tokenData.token_type || 'bearer';
+      console.log('[oauth-callback] Notion: Token received, workspace:', tokenData.workspace_name);
     }
 
     // Log full token exchange response for debugging
