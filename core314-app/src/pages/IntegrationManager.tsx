@@ -173,9 +173,6 @@ const API_KEY_FIELDS: Record<string, { label: string; field: string; type: strin
     { label: 'Email', field: 'email', type: 'email', placeholder: 'you@company.com' },
     { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Zendesk API token' },
   ],
-  monday: [
-    { label: 'API Token', field: 'api_token', type: 'password', placeholder: 'Your Monday.com API token (Admin \u2192 API)' },
-  ],
 };
 
 export function IntegrationManager() {
