@@ -1077,58 +1077,7 @@ export function IntegrationManager() {
         }}
       />
 
-      {/* API Key Form */}
-      {apiKeyForm && (
-        <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Key className="h-4 w-4 text-indigo-500" />
-              Connect {apiKeyForm.service.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {API_KEY_FIELDS[apiKeyForm.service]?.map(field => (
-                <div key={field.field}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    value={apiKeyForm.credentials[field.field] || ''}
-                    onChange={(e) => setApiKeyForm({
-                      ...apiKeyForm,
-                      credentials: { ...apiKeyForm.credentials, [field.field]: e.target.value },
-                    })}
-                  />
-                </div>
-              ))}
-              {apiKeyError && (
-                <p className="text-sm text-red-600">{apiKeyError}</p>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button
-                  onClick={handleApiKeySubmit}
-                  disabled={connecting === apiKeyForm.service}
-                  className="flex-1"
-                >
-                  {connecting === apiKeyForm.service ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                  )}
-                  {connecting === apiKeyForm.service ? 'Validating...' : 'Connect'}
-                </Button>
-                <Button variant="outline" onClick={() => setApiKeyForm(null)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* API Key Form removed from here — now rendered inline within each card */}
 
       {/* Integration Limit Error Banner */}
       {limitError && (
@@ -1522,6 +1471,48 @@ export function IntegrationManager() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  ) : apiKeyForm?.service === integration.service_name ? (
+                    /* Inline API Key Form — renders right inside the card */
+                    <div className="space-y-3 border border-indigo-200 dark:border-indigo-700 rounded-md p-3 bg-indigo-50/50 dark:bg-indigo-950/20">
+                      {API_KEY_FIELDS[integration.service_name]?.map(field => (
+                        <div key={field.field}>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5">
+                            {field.label}
+                          </label>
+                          <input
+                            type={field.type}
+                            placeholder={field.placeholder}
+                            className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            value={apiKeyForm.credentials[field.field] || ''}
+                            onChange={(e) => setApiKeyForm({
+                              ...apiKeyForm,
+                              credentials: { ...apiKeyForm.credentials, [field.field]: e.target.value },
+                            })}
+                          />
+                        </div>
+                      ))}
+                      {apiKeyError && (
+                        <p className="text-xs text-red-600">{apiKeyError}</p>
+                      )}
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          onClick={handleApiKeySubmit}
+                          disabled={connecting === integration.service_name}
+                          className="flex-1 h-8 text-xs"
+                        >
+                          {connecting === integration.service_name ? (
+                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                          )}
+                          {connecting === integration.service_name ? 'Validating...' : 'Connect'}
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setApiKeyForm(null); setApiKeyError(null); }}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <Button className="w-full" onClick={() => handleConnect(integration.service_name)} disabled={connecting === integration.service_name}>
