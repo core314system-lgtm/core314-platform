@@ -157,9 +157,11 @@ async function refreshSingleToken(
     };
   }
 
-  // Get OAuth credentials from environment
-  const clientId = Deno.env.get(`${config.envPrefix}_CLIENT_ID`);
-  const clientSecret = Deno.env.get(`${config.envPrefix}_CLIENT_SECRET`);
+  // Get OAuth credentials from environment (try standard prefix, then CORE314_ fallback)
+  const clientId = Deno.env.get(`${config.envPrefix}_CLIENT_ID`)
+    || Deno.env.get(`CORE314_${config.envPrefix}_CLIENT_ID`);
+  const clientSecret = Deno.env.get(`${config.envPrefix}_CLIENT_SECRET`)
+    || Deno.env.get(`CORE314_${config.envPrefix}_CLIENT_SECRET`);
 
   if (!clientId || !clientSecret) {
     return {
