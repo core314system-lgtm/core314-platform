@@ -47,6 +47,19 @@ const integrations = [
   { name: 'HubSpot', icon: Briefcase, desc: 'CRM pipeline, deal activity, contact engagement, and revenue signals.' },
   { name: 'Slack', icon: MessageSquare, desc: 'Communication patterns, channel activity, response times, and team collaboration signals.' },
   { name: 'QuickBooks', icon: DollarSign, desc: 'Invoice status, payment patterns, expense trends, and cash flow signals.' },
+  { name: 'Google Calendar', icon: Eye, desc: 'Meeting patterns, scheduling conflicts, calendar utilization, and time allocation signals.' },
+  { name: 'Jira', icon: FileText, desc: 'Sprint progress, ticket velocity, blocker patterns, and delivery risk signals.' },
+  { name: 'Microsoft Teams', icon: MessageSquare, desc: 'Team channel activity, meeting patterns, cross-department collaboration signals.' },
+  { name: 'Salesforce', icon: BarChart3, desc: 'Enterprise pipeline health, opportunity tracking, and account engagement signals.' },
+  { name: 'GitHub', icon: Activity, desc: 'Repository activity, pull request velocity, code review patterns, and delivery signals.' },
+  { name: 'Zendesk', icon: Shield, desc: 'Support ticket volume, resolution times, escalation patterns, and satisfaction signals.' },
+  { name: 'Gmail', icon: MessageSquare, desc: 'Email volume trends, response patterns, and communication flow signals.' },
+  { name: 'Trello', icon: BarChart3, desc: 'Board activity, card movement, workflow bottlenecks, and productivity signals.' },
+  { name: 'Google Sheets', icon: FileText, desc: 'Spreadsheet modifications, KPI tracking, and data entry pattern signals.' },
+  { name: 'Asana', icon: FileText, desc: 'Project milestones, task completion rates, workload balance, and deadline signals.' },
+  { name: 'Zoom', icon: Eye, desc: 'Meeting frequency, attendance patterns, and collaboration trend signals.' },
+  { name: 'Notion', icon: FileText, desc: 'Workspace activity, documentation updates, and team collaboration signals.' },
+  { name: 'Monday.com', icon: BarChart3, desc: 'Board activity, item status changes, and workflow automation signals.' },
 ];
 
 const security = [
@@ -73,7 +86,7 @@ export default function ProductPage() {
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-                Get Early Access <ArrowRight className="h-4 w-4" />
+                Start Free Trial <ArrowRight className="h-4 w-4" />
               </Link>
               <Link to="/how-it-works" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
                 See How It Works
@@ -107,16 +120,16 @@ export default function ProductPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Connected Systems</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Core314 reads data from the platforms your team already uses. No migration. No disruption.</p>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Core314 reads data from 16 platforms your team already uses. No migration. No disruption.</p>
           </motion.div>
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
             {integrations.map((int, i) => (
-              <motion.div key={i} variants={fadeUp} className="bg-white border border-slate-200 rounded-xl p-6 text-center hover:border-sky-200 hover:shadow-md transition-all duration-200">
-                <div className="bg-sky-50 rounded-lg w-12 h-12 flex items-center justify-center mx-auto mb-3">
-                  <int.icon className="h-6 w-6 text-sky-600" />
+              <motion.div key={i} variants={fadeUp} className="bg-white border border-slate-200 rounded-xl p-4 text-center hover:border-sky-200 hover:shadow-md transition-all duration-200">
+                <div className="bg-sky-50 rounded-lg w-10 h-10 flex items-center justify-center mx-auto mb-2">
+                  <int.icon className="h-5 w-5 text-sky-600" />
                 </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{int.name}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{int.desc}</p>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">{int.name}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{int.desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -155,7 +168,7 @@ export default function ProductPage() {
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Get Early Access <ArrowRight className="h-4 w-4" />
+              Start Free Trial <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/pricing" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
               View Pricing

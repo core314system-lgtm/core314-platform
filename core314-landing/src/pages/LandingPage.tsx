@@ -69,6 +69,12 @@ const currentIntegrations = [
   { name: 'HubSpot', icon: Briefcase, category: 'CRM' },
   { name: 'Slack', icon: MessageSquare, category: 'Communication' },
   { name: 'QuickBooks', icon: DollarSign, category: 'Finance' },
+  { name: 'Google Calendar', icon: Target, category: 'Scheduling' },
+  { name: 'Jira', icon: FileText, category: 'Project Management' },
+  { name: 'Microsoft Teams', icon: Activity, category: 'Communication' },
+  { name: 'Salesforce', icon: BarChart3, category: 'CRM' },
+  { name: 'GitHub', icon: Zap, category: 'Development' },
+  { name: 'Zendesk', icon: Shield, category: 'Support' },
 ];
 
 const leadershipRoles = [
@@ -170,7 +176,7 @@ export default function LandingPage() {
                 to="/signup"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
               >
-                Get Early Access
+                Start Free Trial
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
@@ -390,7 +396,7 @@ export default function LandingPage() {
             whileInView="visible"
             viewport={{ once: true, margin: '-100px' }}
             variants={stagger}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 lg:gap-6 max-w-4xl mx-auto"
           >
             {currentIntegrations.map((integration, index) => (
               <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white border border-slate-200 rounded-xl p-6 text-center hover:border-sky-200 hover:shadow-md transition-all duration-200">
@@ -413,7 +419,7 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center text-sm text-slate-500 mt-8"
           >
-            Upcoming: Salesforce, Microsoft Teams, Jira, Stripe, Google Workspace, and Xero.
+            Upcoming: Stripe, Xero, and Linear.
           </motion.p>
         </div>
       </section>
@@ -565,11 +571,11 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row gap-3 justify-center"
           >
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Get Early Access
+              Start Free Trial
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link to="/contact" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
-              Contact Us
+            <Link to="/pricing" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
+              View Pricing
             </Link>
           </motion.div>
         </div>

@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Eye,
   CheckCircle,
+  FileText,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -52,6 +53,18 @@ const solutions = [
     ],
   },
   {
+    icon: FileText,
+    title: 'Project & Delivery Operations',
+    desc: 'Monitor project health across Jira, Trello, Asana, GitHub, and Monday.com. Detect delivery bottlenecks, sprint delays, and resource constraints before they derail timelines.',
+    signals: [
+      'Sprint velocity slowdowns and blockers',
+      'Pull request and code review bottlenecks',
+      'Task completion rate degradation',
+      'Resource overallocation detection',
+      'Cross-team dependency risk signals',
+    ],
+  },
+  {
     icon: Eye,
     title: 'Executive Operations',
     desc: 'Get the full operational picture without digging through multiple dashboards. AI-generated briefs give leadership clear, written intelligence.',
@@ -78,7 +91,7 @@ export default function SolutionsPage() {
               Operational Intelligence for Every Business Function
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              Core314 detects signals across sales, finance, communication, and executive operations. One platform, complete visibility.
+              Core314 detects signals across sales, finance, communication, project delivery, and executive operations. One platform, complete visibility.
             </motion.p>
           </div>
         </div>
@@ -120,7 +133,7 @@ export default function SolutionsPage() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Cross-System Intelligence</h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              The real power of Core314 is connecting signals across systems. A stalled deal in HubSpot combined with a Slack communication spike and an overdue invoice in QuickBooks tells a story no single tool can see.
+              The real power of Core314 is connecting signals across all 16 integrated systems. A stalled deal in HubSpot combined with a Slack communication spike, overdue invoices in QuickBooks, and sprint delays in Jira tells a story no single tool can see.
             </p>
           </motion.div>
         </div>
@@ -136,7 +149,7 @@ export default function SolutionsPage() {
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Get Early Access <ArrowRight className="h-4 w-4" />
+              Start Free Trial <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/contact" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
               Contact Us

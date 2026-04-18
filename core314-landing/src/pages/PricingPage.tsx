@@ -35,6 +35,12 @@ const comparisonFeatures = [
   { label: 'Microsoft Teams Integration', intelligence: false, commandCenter: true, enterprise: true },
   { label: 'Google Sheets Integration', intelligence: false, commandCenter: true, enterprise: true },
   { label: 'Asana Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Salesforce Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Zoom Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'GitHub Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Zendesk Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Notion Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Monday.com Integration', intelligence: false, commandCenter: true, enterprise: true },
   { label: 'Operational Health Score', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'Signals Dashboard', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'AI Operational Briefs', intelligence: '30 per month', commandCenter: 'Unlimited', enterprise: 'Unlimited' },
@@ -48,7 +54,7 @@ const comparisonFeatures = [
   { label: 'Executive Operational Reporting', intelligence: false, commandCenter: false, enterprise: true },
   { label: 'Priority Signal Processing', intelligence: false, commandCenter: false, enterprise: true },
   { label: 'SLA Uptime Guarantees', intelligence: false, commandCenter: false, enterprise: true },
-  { label: 'Users', intelligence: 'Up to 5', commandCenter: 'Up to 25', enterprise: 'Unlimited' },
+  { label: 'Users', intelligence: '1', commandCenter: 'Up to 5', enterprise: 'Up to 20' },
 ];
 
 export default function PricingPage() {

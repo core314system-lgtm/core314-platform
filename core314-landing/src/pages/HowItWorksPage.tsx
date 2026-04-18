@@ -19,8 +19,8 @@ const steps = [
     num: '01',
     icon: Target,
     title: 'Connect Your Business Tools',
-    desc: 'Link HubSpot, Slack, and QuickBooks to Core314 using secure OAuth. No passwords stored, no data migration. Core314 reads data only — it never modifies anything in your systems.',
-    detail: 'Setup takes less than 5 minutes per integration. Core314 begins ingesting data immediately after connection.',
+    desc: 'Link your business tools to Core314 using secure OAuth — HubSpot, Slack, QuickBooks, Jira, Salesforce, and 11 more. No passwords stored, no data migration. Core314 reads data only — it never modifies anything in your systems.',
+    detail: 'Setup takes less than 5 minutes per integration. Core314 supports 16 integrations across CRM, communication, finance, project management, and more.',
   },
   {
     num: '02',
@@ -128,7 +128,7 @@ export default function HowItWorksPage() {
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Get Early Access <ArrowRight className="h-4 w-4" />
+              Start Free Trial <ArrowRight className="h-4 w-4" />
             </Link>
             <Link to="/pricing" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
               View Pricing

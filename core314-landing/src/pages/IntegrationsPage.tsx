@@ -92,14 +92,53 @@ const commandCenterIntegrations = [
     desc: 'Track project milestones, task completion rates, and team workload. Detect delivery risks and resource constraints early.',
     dataPoints: ['Project milestone tracking', 'Task completion velocity', 'Workload balance metrics', 'Due date and overdue analysis'],
   },
+  {
+    name: 'Salesforce',
+    icon: BarChart3,
+    category: 'CRM',
+    desc: 'Monitor enterprise sales pipelines, opportunity health, and account engagement. Detect revenue risks across large deal portfolios.',
+    dataPoints: ['Opportunity stage progression', 'Account engagement metrics', 'Pipeline health indicators', 'Forecast accuracy tracking'],
+  },
+  {
+    name: 'Zoom',
+    icon: Users,
+    category: 'Communication',
+    desc: 'Track meeting frequency, attendance patterns, and collaboration trends. Detect scheduling overload and meeting efficiency signals.',
+    dataPoints: ['Meeting frequency and duration', 'Attendance and participation rates', 'Recording and follow-up patterns', 'Cross-team meeting trends'],
+  },
+  {
+    name: 'GitHub',
+    icon: Code,
+    category: 'Development',
+    desc: 'Monitor repository activity, pull request velocity, and development workflow patterns. Detect delivery bottlenecks and code review delays.',
+    dataPoints: ['Pull request velocity and aging', 'Code review turnaround times', 'Commit activity patterns', 'Issue backlog trends'],
+  },
+  {
+    name: 'Zendesk',
+    icon: MessageSquare,
+    category: 'Support',
+    desc: 'Track support ticket volume, resolution times, and customer satisfaction trends. Detect escalation patterns and support capacity risks.',
+    dataPoints: ['Ticket volume and resolution times', 'Customer satisfaction scores', 'Escalation frequency patterns', 'Agent workload distribution'],
+  },
+  {
+    name: 'Notion',
+    icon: FileText,
+    category: 'Knowledge Management',
+    desc: 'Monitor workspace activity, documentation updates, and team collaboration patterns. Detect knowledge gaps and stale documentation.',
+    dataPoints: ['Page creation and update activity', 'Team workspace engagement', 'Documentation freshness tracking', 'Cross-team collaboration patterns'],
+  },
+  {
+    name: 'Monday.com',
+    icon: BarChart3,
+    category: 'Project Management',
+    desc: 'Track board activity, item status changes, and workflow automation patterns. Detect project delays and resource allocation issues.',
+    dataPoints: ['Board and item activity tracking', 'Status change velocity', 'Automation trigger patterns', 'Team workload balance'],
+  },
 ];
 
 const upcoming = [
-  { name: 'Salesforce', icon: BarChart3 },
   { name: 'Stripe', icon: DollarSign },
   { name: 'Xero', icon: DollarSign },
-  { name: 'Notion', icon: FileText },
-  { name: 'GitHub', icon: Code },
   { name: 'Linear', icon: FileText },
 ];
 
@@ -176,7 +215,7 @@ export default function IntegrationsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Command Center Integrations</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Available on Command Center and Enterprise plans. Expand your operational visibility with 7 additional integrations.</p>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Available on Command Center and Enterprise plans. Expand your operational visibility with 13 additional integrations.</p>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="space-y-6">
             {commandCenterIntegrations.map((int, i) => (
@@ -221,7 +260,7 @@ export default function IntegrationsPage() {
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Coming Soon</h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">Core314 is designed to grow with your operational stack. More integrations are in development.</p>
           </motion.div>
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-4xl mx-auto">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
             {upcoming.map((int, i) => (
               <motion.div key={i} variants={fadeUp} className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
                 <div className="bg-white rounded-lg w-10 h-10 flex items-center justify-center mx-auto mb-2 border border-slate-200">
@@ -266,7 +305,7 @@ export default function IntegrationsPage() {
             Connect Your Tools Today
           </motion.h2>
           <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-            Start with HubSpot, Slack, and QuickBooks on any plan. Upgrade to Command Center for 7 additional integrations.
+            Start with HubSpot, Slack, and QuickBooks on any plan. Upgrade to Command Center for 13 additional integrations across CRM, communication, project management, and more.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
