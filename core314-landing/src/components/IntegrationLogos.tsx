@@ -1,224 +1,196 @@
-// Monochrome SVG integration logos - uniform style for enterprise grid
-// All logos use a single color (slate-600) and consistent sizing
+/**
+ * Official brand logo SVG components for each integration.
+ * Full-color branded SVGs with official brand colors.
+ * Copied from core314-app BrandLogos.tsx to maintain consistency.
+ */
 
 interface IntegrationLogoProps {
   className?: string;
 }
 
-// Communication
-export const SlackLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+export const SlackLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <path d="M26.9 80.4a13.4 13.4 0 1 1-13.4-13.4h13.4v13.4z" fill="#E01E5A"/>
+    <path d="M33.6 80.4a13.4 13.4 0 0 1 26.8 0v33.6a13.4 13.4 0 1 1-26.8 0V80.4z" fill="#E01E5A"/>
+    <path d="M47 26.9a13.4 13.4 0 1 1 13.4-13.4V27H47z" fill="#36C5F0"/>
+    <path d="M47 33.6a13.4 13.4 0 0 1 0 26.8H13.4a13.4 13.4 0 1 1 0-26.8H47z" fill="#36C5F0"/>
+    <path d="M100.6 47a13.4 13.4 0 1 1 13.4 13.4h-13.4V47z" fill="#2EB67D"/>
+    <path d="M93.9 47a13.4 13.4 0 0 1-26.8 0V13.4a13.4 13.4 0 1 1 26.8 0V47z" fill="#2EB67D"/>
+    <path d="M80.5 100.6a13.4 13.4 0 1 1-13.4 13.4v-13.4h13.4z" fill="#ECB22E"/>
+    <path d="M80.5 93.9a13.4 13.4 0 0 1 0-26.8h33.6a13.4 13.4 0 1 1 0 26.8H80.5z" fill="#ECB22E"/>
   </svg>
 );
 
-export const TeamsLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M20.625 8.073h-5.27V5.073a2.5 2.5 0 0 1 2.5-2.5h.27a2.5 2.5 0 0 1 2.5 2.5v3zm-1.27 1v7.854a3.5 3.5 0 0 1-3.5 3.5h-.355a3.5 3.5 0 0 1-3.5-3.5V9.073h7.355zM8.5 6.573a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm2.5 2.5H6v8.854a3.5 3.5 0 0 0 3.5 3.5h.5a3.5 3.5 0 0 0 3.5-3.5V11.573a2.5 2.5 0 0 0-2.5-2.5zM3.5 8.073a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm1.5 2H2v6.354a2.5 2.5 0 0 0 2.5 2.5h.5a2.5 2.5 0 0 0 2.5-2.5v-4.354a2 2 0 0 0-2-2z"/>
+export const HubSpotLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <path d="M267.4 211.6c-25.1 23.7-40.8 57.3-40.8 94.6 0 37.3 15.7 70.9 40.8 94.6l-48.8 48.8c-7.7 7.7-20.2 7.7-27.9 0-7.7-7.7-7.7-20.2 0-27.9l.4-.4c-37-35.5-60-85.2-60-140.1s23-104.6 60-140.1l-.4-.4c-7.7-7.7-7.7-20.2 0-27.9s20.2-7.7 27.9 0l48.8 48.8z" fill="#FF7A59"/>
+    <circle cx="350" cy="306" r="60" fill="#FF7A59"/>
+    <path d="M350 186V136h-20v50c-36.4 8.5-63.7 40.5-63.7 79s27.3 70.5 63.7 79v50h20v-50c36.4-8.5 63.7-40.5 63.7-79s-27.3-70.5-63.7-79zm0 178c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z" fill="#FF7A59"/>
   </svg>
 );
 
-export const DiscordLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+export const QuickBooksLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="128" cy="128" r="128" fill="#2CA01C"/>
+    <path d="M83 88a24 24 0 0 0-24 24v32a24 24 0 0 0 48 0h16v-8a24 24 0 0 0-24-24h-16zm0 16h16v32a8 8 0 0 1-16 0v-32zm24 0a8 8 0 0 1 8 8v24h-8v-32z" fill="#fff"/>
+    <path d="M173 88a24 24 0 0 1 24 24v32a24 24 0 0 1-48 0h-16v-8a24 24 0 0 1 24-24h16zm0 16h-16v32a8 8 0 0 0 16 0v-32zm-24 0a8 8 0 0 0-8 8v24h8v-32z" fill="#fff"/>
   </svg>
 );
 
-// Email
-export const GmailLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+export const GoogleCalendarLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <path d="M152 0H48L0 48v104l48 48h104l48-48V48L200 0z" fill="#fff"/>
+    <path d="M152 0l48 48h-48z" fill="#EA4335"/>
+    <path d="M0 152l48 48V152z" fill="#34A853"/>
+    <path d="M152 200l48-48H152z" fill="#4285F4"/>
+    <path d="M0 48l48-48H0z" fill="#FBBC04"/>
+    <rect x="48" y="48" width="104" height="104" fill="#fff"/>
+    <path d="M48 0h104v48H48zm0 152h104v48H48zM0 48h48v104H0zm152 0h48v104h-48z" fill="#4285F4" opacity=".1"/>
+    <rect x="48" y="48" width="104" height="104" rx="0" fill="#fff"/>
+    <path d="M90 80h20v40H90z" fill="#4285F4"/>
+    <path d="M80 110h40v10H80z" fill="#4285F4"/>
+    <circle cx="100" cy="100" r="4" fill="#EA4335"/>
+    <path d="M100 68v32" stroke="#EA4335" strokeWidth="3" fill="none"/>
+    <path d="M100 100l20-12" stroke="#EA4335" strokeWidth="3" fill="none"/>
   </svg>
 );
 
-export const OutlookLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M24 7.387v10.478c0 .23-.08.424-.238.576-.158.154-.352.23-.58.23h-8.547v-6.959l1.6 1.229c.101.072.222.109.363.109.142 0 .263-.037.364-.11l6.8-5.224c.088-.072.153-.15.193-.236.04-.085.045-.188.045-.308v-.072c0-.273-.12-.47-.36-.594-.24-.123-.474-.1-.702.072l-6.94 5.328-2.986-2.293V7.09c0-.153.053-.284.16-.39.106-.108.236-.162.39-.162h9.2c.228 0 .422.077.58.23.158.153.238.346.238.576v.043zM14.182 6.538V17.09H.818c-.228 0-.422-.076-.58-.23C.08 16.708 0 16.514 0 16.286V5.714c0-.228.08-.422.238-.576.158-.153.352-.23.58-.23h12.546c.228 0 .422.077.58.23.158.154.238.348.238.576v.824zm-7.09 8.308c1.352 0 2.428-.424 3.227-1.272.8-.848 1.2-1.98 1.2-3.396 0-1.416-.4-2.548-1.2-3.396-.8-.848-1.875-1.272-3.227-1.272-1.352 0-2.428.424-3.227 1.272-.8.848-1.2 1.98-1.2 3.396 0 1.416.4 2.548 1.2 3.396.8.848 1.875 1.272 3.227 1.272zm0-1.636c-.72 0-1.29-.26-1.71-.78-.42-.52-.63-1.224-.63-2.112 0-.888.21-1.592.63-2.112.42-.52.99-.78 1.71-.78.72 0 1.29.26 1.71.78.42.52.63 1.224.63 2.112 0 .888-.21 1.592-.63 2.112-.42.52-.99.78-1.71.78z"/>
+export const GmailLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 193" xmlns="http://www.w3.org/2000/svg">
+    <path d="M58.2 192.1V93.7L0 50.6v125.5c0 8.8 7.2 16 16 16h42.2z" fill="#4285F4"/>
+    <path d="M197.8 192.1h42.2c8.8 0 16-7.2 16-16V50.6l-58.2 43.1v98.4z" fill="#34A853"/>
+    <path d="M197.8 16.9v76.8L256 50.6V24.9c0-19.7-22.5-31-38.2-19.1l-19.8 11.1z" fill="#FBBC04"/>
+    <path d="M58.2 93.7V16.9l69.8 52.4 69.8-52.4v76.8L128 146.1 58.2 93.7z" fill="#EA4335"/>
+    <path d="M0 24.9v25.7l58.2 43.1V16.9L38.4 5.8C22.5-6.1 0 5.2 0 24.9z" fill="#C5221F"/>
   </svg>
 );
 
-export const SendGridLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M0 8h8V0H2.67A2.67 2.67 0 0 0 0 2.67V8zm8 0h8V0H8v8zm8 8h8v-5.33A2.67 2.67 0 0 0 21.33 8H16v8zm0 0H8v8h8v-8zm-8 0H0v5.33A2.67 2.67 0 0 0 2.67 24H8v-8zm8-8h8V2.67A2.67 2.67 0 0 0 21.33 0H16v8z"/>
+export const JiraLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="jira-a" x1="98.03%" x2="58.89%" y1="0.22%" y2="40.21%">
+        <stop offset="18%" stopColor="#0052CC"/>
+        <stop offset="100%" stopColor="#2684FF"/>
+      </linearGradient>
+      <linearGradient id="jira-b" x1="100.17%" x2="55.8%" y1="0.45%" y2="44.72%">
+        <stop offset="18%" stopColor="#0052CC"/>
+        <stop offset="100%" stopColor="#2684FF"/>
+      </linearGradient>
+    </defs>
+    <path d="M244.7 121.8L138 15.2 128 5.3 41.1 92.2l-28.8 28.9c-4.3 4.3-4.3 11.3 0 15.6l79.5 79.5 36.2 36.2 86.9-86.9.8-.8 29-29c4.3-4.3 4.3-11.3 0-15.9zm-116.7 44L88.5 126.3 128 86.8l39.5 39.5-39.5 39.5z" fill="#2684FF"/>
+    <path d="M128 86.8c-25.8-25.8-26-67.5-.5-93.5L41.1 79.7l47.4 47.4L128 86.8z" fill="url(#jira-a)"/>
+    <path d="M167.7 126.1L128 165.8c25.9 25.9 26 67.8.2 93.8l86.5-86.5-46.9-47z" fill="url(#jira-b)"/>
   </svg>
 );
 
-// CRM
-export const SalesforceLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M10.006 5.415a4.195 4.195 0 0 1 3.045-1.306c1.56 0 2.954.9 3.69 2.205.63-.3 1.35-.45 2.1-.45 2.85 0 5.159 2.34 5.159 5.22s-2.31 5.22-5.16 5.22c-.45 0-.884-.06-1.305-.165a3.975 3.975 0 0 1-3.63 2.385 3.975 3.975 0 0 1-2.25-.69 4.79 4.79 0 0 1-4.344 2.79A4.83 4.83 0 0 1 2.52 16.14c-.255.03-.51.045-.765.045C.78 16.185 0 14.655 0 12.9c0-1.77.78-3.3 1.755-3.3.12 0 .24.015.36.03a4.5 4.5 0 0 1-.06-.72c0-2.52 2.01-4.56 4.5-4.56 1.47 0 2.775.72 3.6 1.815l-.15.25z"/>
+export const TrelloLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <rect width="256" height="256" rx="25" fill="#0079BF"/>
+    <rect x="36" y="36" width="80" height="168" rx="12" fill="#fff"/>
+    <rect x="140" y="36" width="80" height="112" rx="12" fill="#fff"/>
   </svg>
 );
 
-export const HubSpotLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.267-1.984v-.066A2.2 2.2 0 0 0 17.23.836h-.066a2.2 2.2 0 0 0-2.198 2.198v.066c0 .87.507 1.617 1.24 1.974v2.862a6.27 6.27 0 0 0-2.792 1.138l-7.357-5.726a2.596 2.596 0 0 0 .087-.65 2.616 2.616 0 1 0-2.616 2.616c.47 0 .91-.126 1.29-.343l7.24 5.632a6.268 6.268 0 0 0-.84 3.136c0 1.163.317 2.25.867 3.186l-2.541 2.54a2.057 2.057 0 0 0-.613-.097 2.066 2.066 0 1 0 2.066 2.066c0-.22-.036-.43-.097-.63l2.52-2.52a6.28 6.28 0 0 0 3.79 1.27 6.293 6.293 0 1 0 0-12.586 6.27 6.27 0 0 0-2.906.712zm-.967 9.453a3.876 3.876 0 1 1 0-7.752 3.876 3.876 0 0 1 0 7.752z"/>
+export const TeamsLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <path d="M218 76a28 28 0 1 0 0-56 28 28 0 0 0 0 56z" fill="#5059C9"/>
+    <path d="M256 120v60c0 11-9 20-20 20h-36c11 0 20-9 20-20v-76h16c11 0 20 9 20 16z" fill="#5059C9"/>
+    <path d="M160 60a40 40 0 1 0 0-80 40 40 0 0 0 0 80z" fill="#7B83EB"/>
+    <path d="M200 92H108c-6.6 0-12 5.4-12 12v80c0 33.1 26.9 60 60 60s60-26.9 60-60v-76c0-8.8-7.2-16-16-16z" fill="#7B83EB"/>
+    <path d="M140 92v100c0 6.6-5.4 12-12 12H52c-6.6 0-12-5.4-12-12V92c0-6.6 5.4-12 12-12h76c6.6 0 12 5.4 12 12z" fill="#4B53BC"/>
+    <path d="M108 120H72v-12h36v12zm0 20H72v-12h36v12zm-16 20H72v-12h20v12z" fill="#fff"/>
   </svg>
 );
 
-export const PipedriveLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm3.248 7.2c1.493 0 2.704 1.211 2.704 2.704 0 1.493-1.211 2.704-2.704 2.704-1.493 0-2.704-1.211-2.704-2.704 0-1.493 1.211-2.704 2.704-2.704zM8.752 7.2c1.493 0 2.704 1.211 2.704 2.704v6.848c0 .595-.483 1.078-1.078 1.078s-1.078-.483-1.078-1.078v-4.144c-.176.032-.356.048-.548.048-1.493 0-2.704-1.211-2.704-2.704 0-1.493 1.211-2.704 2.704-2.704v-.048z"/>
+export const GoogleSheetsLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 351" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 336V16C0 7 7 0 16 0h152l88 88v248c0 9-7 16-16 16H16c-9 0-16-7-16-16z" fill="#0F9D58"/>
+    <path d="M168 0l88 88h-88z" fill="#87CEAC"/>
+    <path d="M56 168h144v120H56z" fill="#F1F1F1"/>
+    <path d="M56 168h144v24H56zm0 48h144v24H56zm0 48h144v24H56z" fill="#fff"/>
+    <path d="M56 168h48v120H56z" fill="#fff" opacity=".2"/>
+    <path d="M56 168h144v24H56z" fill="#0F9D58" opacity=".1"/>
+    <path d="M56 168v120h144V168H56zm48 24v24H56v-24h48zm0 48v24H56v-24h48zm48-48v24h-40v-24h40zm0 48v24h-40v-24h40zm48-48v24h-40v-24h40zm0 48v24h-40v-24h40z" fill="#0F9D58" opacity=".2"/>
   </svg>
 );
 
-// Project Management
-export const JiraLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z"/>
+export const AsanaLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="asana-grad" x1="50%" x2="50%" y1="0%" y2="100%">
+        <stop offset="0%" stopColor="#FFB900"/>
+        <stop offset="60%" stopColor="#F95353"/>
+        <stop offset="100%" stopColor="#F95353"/>
+      </linearGradient>
+    </defs>
+    <circle cx="256" cy="126" r="110" fill="url(#asana-grad)"/>
+    <circle cx="126" cy="386" r="110" fill="url(#asana-grad)"/>
+    <circle cx="386" cy="386" r="110" fill="url(#asana-grad)"/>
   </svg>
 );
 
-export const AsanaLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M18.78 12.653c-2.882 0-5.22 2.337-5.22 5.218 0 2.882 2.338 5.22 5.22 5.22s5.22-2.338 5.22-5.22c0-2.88-2.338-5.218-5.22-5.218zm-13.56 0c-2.882 0-5.22 2.337-5.22 5.218 0 2.882 2.338 5.22 5.22 5.22s5.22-2.338 5.22-5.22c0-2.88-2.338-5.218-5.22-5.218zM12 1.09c-2.882 0-5.22 2.337-5.22 5.218 0 2.882 2.338 5.22 5.22 5.22s5.22-2.338 5.22-5.22c0-2.88-2.338-5.218-5.22-5.218z"/>
+export const SalesforceLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 180" xmlns="http://www.w3.org/2000/svg">
+    <path d="M106.6 14.4c12.2-12.7 29.2-20.6 48-20.6 25.3 0 47.2 14.3 58.3 35.3 9.7-4.3 20.4-6.7 31.7-6.7 42.6 0 77.1 34.5 77.1 77.1s-34.5 77.1-77.1 77.1c-5.4 0-10.7-.6-15.8-1.6-9.8 15.8-27.1 26.3-46.9 26.3-10.4 0-20.1-2.9-28.4-7.9-10.4 20.2-31.5 34-56 34-25.3 0-47.2-15-57.3-36.6-4.2.8-8.6 1.3-13 1.3C12.6 192 .4 147.3 22 114c-7.9-12.7-12.5-27.6-12.5-43.6C9.5 31.5 42 0 80.9 0c10.6 0 20.6 2.3 29.6 6.5" fill="#00A1E0"/>
   </svg>
 );
 
-export const TrelloLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M21 0H3C1.343 0 0 1.343 0 3v18c0 1.656 1.343 3 3 3h18c1.656 0 3-1.344 3-3V3c0-1.657-1.344-3-3-3zM10.44 18.18c0 .795-.645 1.44-1.44 1.44H4.56c-.795 0-1.44-.645-1.44-1.44V4.56c0-.795.645-1.44 1.44-1.44H9c.795 0 1.44.645 1.44 1.44v13.62zm10.44-6c0 .794-.645 1.44-1.44 1.44H15c-.795 0-1.44-.646-1.44-1.44V4.56c0-.795.645-1.44 1.44-1.44h4.44c.795 0 1.44.645 1.44 1.44v7.62z"/>
+export const ZoomLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <rect width="256" height="256" rx="40" fill="#2D8CFF"/>
+    <path d="M56 88h100c6.6 0 12 5.4 12 12v56c0 6.6-5.4 12-12 12H56c-6.6 0-12-5.4-12-12v-56c0-6.6 5.4-12 12-12z" fill="#fff"/>
+    <path d="M180 108l36-24v88l-36-24v-40z" fill="#fff"/>
   </svg>
 );
 
-export const MondayLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M2.597 8.634a2.5 2.5 0 0 1 4.33-2.5l4.116 7.13a2.5 2.5 0 0 1-4.33 2.5l-4.116-7.13zm8.456 0a2.5 2.5 0 0 1 4.33-2.5l4.116 7.13a2.5 2.5 0 0 1-4.33 2.5l-4.116-7.13zM21.5 17.866a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+export const GitHubLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 250" xmlns="http://www.w3.org/2000/svg">
+    <path d="M128 0C57.3 0 0 57.3 0 128c0 56.6 36.7 104.5 87.5 121.4 6.4 1.2 8.7-2.8 8.7-6.2 0-3-.1-11.1-.2-21.8-35.6 7.7-43.1-17.2-43.1-17.2-5.8-14.8-14.2-18.7-14.2-18.7-11.6-7.9.9-7.8.9-7.8 12.8.9 19.6 13.2 19.6 13.2 11.4 19.5 29.9 13.9 37.2 10.6 1.2-8.2 4.5-13.9 8.1-17.1-28.4-3.2-58.3-14.2-58.3-63.3 0-14 5-25.4 13.2-34.4-1.3-3.2-5.7-16.3 1.3-33.9 0 0 10.7-3.4 35.1 13.1 10.2-2.8 21.1-4.2 32-4.3 10.8.1 21.7 1.5 31.9 4.3 24.4-16.6 35.1-13.1 35.1-13.1 7 17.7 2.6 30.7 1.3 33.9 8.2 9 13.2 20.4 13.2 34.4 0 49.2-30 60-58.5 63.1 4.6 4 8.7 11.8 8.7 23.8 0 17.2-.2 31-.2 35.2 0 3.4 2.3 7.4 8.8 6.1C219.4 232.5 256 184.5 256 128 256 57.3 198.7 0 128 0z" fill="#181616"/>
   </svg>
 );
 
-// Development
-export const GitHubLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+export const ZendeskLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 198" xmlns="http://www.w3.org/2000/svg">
+    <path d="M118 0v155L0 198V43c0-23.7 19.3-43 43-43h75z" fill="#03363D"/>
+    <path d="M118 43L0 198h118V43z" fill="#03363D"/>
+    <path d="M138 198V43l118 155V155c0-23.7-19.3-43-43-43h-75z" fill="#03363D"/>
+    <path d="M138 155l118-155H138v155z" fill="#03363D"/>
   </svg>
 );
 
-export const GitLabLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="m23.6 9.593-.033-.086L20.3.98a.851.851 0 0 0-.336-.405.87.87 0 0 0-.994.066.86.86 0 0 0-.285.406l-2.212 6.777H7.53L5.317 1.047a.857.857 0 0 0-.286-.405.868.868 0 0 0-.994-.067.855.855 0 0 0-.336.406L.433 9.507l-.032.086a6.066 6.066 0 0 0 2.012 7.01l.01.009.03.02 4.98 3.73 2.463 1.865 1.5 1.133a1.007 1.007 0 0 0 1.22 0l1.5-1.133 2.462-1.865 5.012-3.75.012-.01a6.068 6.068 0 0 0 2.001-7.009z"/>
+export const NotionLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <path d="M36 4.7l140.6-3.4c17.3-1.4 21.7.9 32.5 8.7l44.8 31.5c7.4 5.4 9.8 6.8 9.8 12.7v166.4c0 10.3-3.8 16.3-17 17.2L82.7 248c-9.8.5-14.5-1-19.5-7.2L18.7 181c-6-8.2-8.5-14.3-8.5-21.7V20.8C10.2 12 14.5 5.6 36 4.7z" fill="#fff"/>
+    <path d="M36 4.7l140.6-3.4c17.3-1.4 21.7.9 32.5 8.7l44.8 31.5c7.4 5.4 9.8 6.8 9.8 12.7v166.4c0 10.3-3.8 16.3-17 17.2L82.7 248c-9.8.5-14.5-1-19.5-7.2L18.7 181c-6-8.2-8.5-14.3-8.5-21.7V20.8C10.2 12 14.5 5.6 36 4.7z" fill="none" stroke="#000" strokeWidth="6"/>
+    <path d="M84 46.7c-13.6 1-16.7 1.2-24.5-4.8L36.7 24.2c-2-1.6-0.9-3.5 3.5-3.8L176 17.7c14.5-1.2 21.7 3.9 27.4 8.3l27 19.6c1.2.9.3 3.5-3.5 3.8L86.9 53.7 84 46.7zm-28 178V76.5c0-6.2 1.9-9 7.5-9.5L222 59.8c5.4-.5 7.5 2.9 7.5 9v147c0 6.2-1 11.4-10 12L70 235c-9 .5-14-2.4-14-10.3zM207.7 84c.5 2.8 0 5.5-2.8 5.8l-6.5 1.3V203c-5.6 3-10.8 4.7-15.1 4.7-7 0-8.8-2.2-14-8.7l-42.8-67.3v65.1l13.3 3c0 0 0 5.5-7.7 5.5l-21.2 1.2c-.6-1.2 0-4.3 2.2-4.8l5.7-1.6v-86l-7.9-.6c-.5-2.8 1-6.8 5.6-7.1l22.8-1.5 44.5 68v-60.3l-11.2-1.3c-.5-3.3 1.8-5.7 4.8-6l22.3-1.5z" fill="#000"/>
   </svg>
 );
 
-export const BitbucketLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M.778 1.213a.768.768 0 0 0-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 0 0 .77-.646l3.27-20.03a.768.768 0 0 0-.768-.891zM14.52 15.53H9.522L8.17 8.466h7.561z"/>
+export const MondayLogo = ({ className = 'w-8 h-8' }: IntegrationLogoProps) => (
+  <svg className={className} viewBox="0 0 256 128" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="224" cy="96" r="20" fill="#FDAB3D"/>
+    <path d="M24 0c13.3 0 24 10.7 24 24v80c0 13.3-10.7 24-24 24S0 117.3 0 104V24C0 10.7 10.7 0 24 0z" fill="#F62B54"/>
+    <path d="M92 24c13.3 0 24 10.7 24 24v56c0 13.3-10.7 24-24 24S68 117.3 68 104V48c0-13.3 10.7-24 24-24z" fill="#F62B54"/>
+    <path d="M160 48c13.3 0 24 10.7 24 24v32c0 13.3-10.7 24-24 24s-24-10.7-24-24V72c0-13.3 10.7-24 24-24z" fill="#FDAB3D"/>
   </svg>
 );
 
-// Productivity
-export const NotionLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.98-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.886l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952l1.448.327s0 .84-1.168.84l-3.22.186c-.094-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.886.747-.933zM2.24 1.688l13.262-.933c1.634-.14 2.055-.047 3.082.7l4.25 2.986c.7.513.933.653.933 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.948c0-.84.374-1.54 1.495-1.26z"/>
-  </svg>
-);
-
-export const GoogleDriveLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M7.71 3.5L1.15 15l3.43 5.95 6.56-11.36L7.71 3.5zm1.14 0l6.56 11.36h6.56L15.41 3.5H8.85zM8 16.13L4.57 22h13.72l3.43-5.87H8z"/>
-  </svg>
-);
-
-export const DropboxLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M6 1.807L0 5.629l6 3.822 6-3.822zM18 1.807l-6 3.822 6 3.822 6-3.822zM0 13.274l6 3.822 6-3.822-6-3.822zM18 9.452l-6 3.822 6 3.822 6-3.822zM6 18.371l6 3.822 6-3.822-6-3.822z"/>
-  </svg>
-);
-
-// Support
-export const ZendeskLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M11.087 14.669V24L0 14.669h11.087zM11.087 0v9.331H0L11.087 0zm1.826 14.669L24 24V14.669H12.913zM24 0l-11.087 9.331H24V0z"/>
-  </svg>
-);
-
-export const IntercomLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M20.802 18.267a.122.122 0 0 1-.122.122H3.32a.122.122 0 0 1-.122-.122V5.733c0-.068.055-.122.122-.122h17.36c.067 0 .122.054.122.122v12.534zM3.32 3.733A1.998 1.998 0 0 0 1.32 5.733v12.534a2 2 0 0 0 2 2h17.36a2 2 0 0 0 2-2V5.733a2 2 0 0 0-2-2H3.32zm2.4 4.4v5.6a.8.8 0 0 0 1.6 0v-5.6a.8.8 0 0 0-1.6 0zm4 0v7.2a.8.8 0 0 0 1.6 0v-7.2a.8.8 0 0 0-1.6 0zm4 0v7.2a.8.8 0 0 0 1.6 0v-7.2a.8.8 0 0 0-1.6 0zm4 0v5.6a.8.8 0 0 0 1.6 0v-5.6a.8.8 0 0 0-1.6 0z"/>
-  </svg>
-);
-
-export const FreshdeskLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 17.787H6.106V6.213h11.788v11.574zM8.319 8.426v7.148h7.362V8.426H8.319z"/>
-  </svg>
-);
-
-// Finance
-export const QuickBooksLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zM7.5 8.25a2.25 2.25 0 0 0-2.25 2.25v3a2.25 2.25 0 0 0 4.5 0h1.5v-.75a2.25 2.25 0 0 0-2.25-2.25H7.5zm0 1.5h1.5v3a.75.75 0 0 1-1.5 0v-3zm2.25 0a.75.75 0 0 1 .75.75v2.25h-.75v-3zm6.75-1.5a2.25 2.25 0 0 1 2.25 2.25v3a2.25 2.25 0 0 1-4.5 0h-1.5v-.75a2.25 2.25 0 0 1 2.25-2.25h1.5zm0 1.5h-1.5v3a.75.75 0 0 0 1.5 0v-3zm-2.25 0a.75.75 0 0 0-.75.75v2.25h.75v-3z"/>
-  </svg>
-);
-
-// Calendar
-export const GoogleCalendarLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24v-5.684h12.632V24H5.684zM18.316 5.684V0H5.684v5.684h12.632zM0 18.316h5.684V5.684H0v12.632zM7.953 14.979V8.574h1.394v2.492h.058c.165-.222.381-.398.649-.527a1.9 1.9 0 0 1 .855-.194c.405 0 .756.096 1.054.287.297.192.527.464.69.818.163.354.244.775.244 1.264 0 .474-.08.888-.238 1.242-.158.354-.383.63-.675.825-.291.196-.637.294-1.036.294a2.04 2.04 0 0 1-.849-.175 1.543 1.543 0 0 1-.615-.5h-.077v.579H7.953zm1.837-2.275c0 .36.092.643.276.85.184.207.43.311.738.311.312 0 .559-.105.74-.316.182-.21.273-.493.273-.845 0-.348-.09-.626-.27-.835-.18-.21-.428-.314-.743-.314-.312 0-.558.106-.74.318-.182.213-.274.491-.274.831z"/>
-  </svg>
-);
-
-export const GoogleSheetsLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M19.5 24h-15A1.5 1.5 0 0 1 3 22.5V1.5A1.5 1.5 0 0 1 4.5 0h10.757a1.5 1.5 0 0 1 1.061.44l4.243 4.242A1.5 1.5 0 0 1 21 5.743V22.5a1.5 1.5 0 0 1-1.5 1.5zM6.75 11.25v6.75h10.5v-6.75H6.75zm1.5 1.5h3v1.5h-3v-1.5zm0 2.625h3v1.5h-3v-1.5zm4.5-2.625h3v1.5h-3v-1.5zm0 2.625h3v1.5h-3v-1.5z"/>
-  </svg>
-);
-
-// Video
-export const ZoomLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M24 12c0 6.627-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0s12 5.373 12 12zm-6.857-3.428v4.285L20.57 15V9l-3.428 2.143V8.572a1.714 1.714 0 0 0-1.714-1.715H5.143a1.714 1.714 0 0 0-1.714 1.715v5.142c0 .948.768 1.715 1.714 1.715h10.286c.947 0 1.714-.767 1.714-1.715v-4.942z"/>
-  </svg>
-);
-
-// Analytics
-export const GoogleAnalyticsLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M22.84 2.998v17.958c.003 1.676-1.357 3.037-3.033 3.04l-.006.001c-1.674-.003-3.03-1.363-3.03-3.038V2.998c0-1.677 1.357-3.038 3.033-3.041h.003c1.676.003 3.033 1.364 3.033 3.04zm-8.416 8.99v8.968c0 1.676-1.357 3.037-3.033 3.04h-.003c-1.676-.003-3.033-1.364-3.033-3.04v-8.968c0-1.677 1.357-3.038 3.033-3.041h.003c1.676.003 3.033 1.364 3.033 3.04zm-8.42 5.99a3.037 3.037 0 1 1-6.074 0 3.037 3.037 0 0 1 6.074 0z"/>
-  </svg>
-);
-
-export const MixpanelLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.5 16.5h-9a1.5 1.5 0 0 1 0-3h9a1.5 1.5 0 0 1 0 3zm0-4.5h-9a1.5 1.5 0 0 1 0-3h9a1.5 1.5 0 0 1 0 3z"/>
-  </svg>
-);
-
-export const AmplitudeLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 18.75c-3.728 0-6.75-3.022-6.75-6.75S8.272 5.25 12 5.25s6.75 3.022 6.75 6.75-3.022 6.75-6.75 6.75zm0-10.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5z"/>
-  </svg>
-);
-
-// Map of integration names to their logo components
+// Map of integration display names to their branded logo components
 export const integrationLogos: Record<string, React.FC<IntegrationLogoProps>> = {
-  "Slack": SlackLogo,
-  "Microsoft Teams": TeamsLogo,
-  "Discord": DiscordLogo,
-  "Gmail": GmailLogo,
-  "Outlook": OutlookLogo,
-  "SendGrid": SendGridLogo,
-  "Salesforce": SalesforceLogo,
-  "HubSpot": HubSpotLogo,
-  "Pipedrive": PipedriveLogo,
-  "Jira": JiraLogo,
-  "Asana": AsanaLogo,
-  "Trello": TrelloLogo,
-  "Monday.com": MondayLogo,
-  "GitHub": GitHubLogo,
-  "GitLab": GitLabLogo,
-  "Bitbucket": BitbucketLogo,
-  "Notion": NotionLogo,
-  "Google Drive": GoogleDriveLogo,
-  "Dropbox": DropboxLogo,
-  "Zendesk": ZendeskLogo,
-  "Intercom": IntercomLogo,
-  "Freshdesk": FreshdeskLogo,
-  "Google Analytics": GoogleAnalyticsLogo,
-  "Mixpanel": MixpanelLogo,
-  "Amplitude": AmplitudeLogo,
-  "QuickBooks": QuickBooksLogo,
-  "Google Calendar": GoogleCalendarLogo,
-  "Google Sheets": GoogleSheetsLogo,
-  "Zoom": ZoomLogo,
+  'Slack': SlackLogo,
+  'HubSpot': HubSpotLogo,
+  'QuickBooks': QuickBooksLogo,
+  'Google Calendar': GoogleCalendarLogo,
+  'Gmail': GmailLogo,
+  'Jira': JiraLogo,
+  'Trello': TrelloLogo,
+  'Microsoft Teams': TeamsLogo,
+  'Google Sheets': GoogleSheetsLogo,
+  'Asana': AsanaLogo,
+  'Salesforce': SalesforceLogo,
+  'Zoom': ZoomLogo,
+  'GitHub': GitHubLogo,
+  'Zendesk': ZendeskLogo,
+  'Notion': NotionLogo,
+  'Monday.com': MondayLogo,
 };

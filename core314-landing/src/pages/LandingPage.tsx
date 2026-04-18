@@ -3,22 +3,42 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   ChevronRight,
-  Eye,
-  TrendingUp,
-  Zap,
   Shield,
-  BarChart3,
-  Target,
-  FileText,
   Lock,
+  Eye,
   Server,
   CheckCircle,
-  Activity,
-  PieChart,
+  Clock,
+  TrendingUp,
+  AlertTriangle,
+  Zap,
+  BarChart3,
+  FileText,
+  Target,
+  ChevronDown,
 } from 'lucide-react';
+import { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { integrationLogos } from '../components/IntegrationLogos';
+import {
+  SlackLogo,
+  HubSpotLogo,
+  QuickBooksLogo,
+  GoogleCalendarLogo,
+  GmailLogo,
+  JiraLogo,
+  TrelloLogo,
+  TeamsLogo,
+  GoogleSheetsLogo,
+  AsanaLogo,
+  SalesforceLogo,
+  ZoomLogo,
+  GitHubLogo,
+  ZendeskLogo,
+  NotionLogo,
+  MondayLogo,
+} from '../components/IntegrationLogos';
+import { PRICING, formatPrice } from '../config/pricing';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -26,217 +46,424 @@ const fadeUp = {
 };
 
 const stagger = {
-  visible: { transition: { staggerChildren: 0.1 } },
+  visible: { transition: { staggerChildren: 0.08 } },
 };
 
-const signalCategories = [
-  {
-    icon: TrendingUp,
-    title: 'Revenue Risk Signals',
-    color: 'red' as const,
-    signals: ['Stalled deals with no follow-up', 'Pipeline velocity slowdowns', 'Deal stage regression', 'Forecast gap detection'],
-  },
-  {
-    icon: Activity,
-    title: 'Operational Activity Signals',
-    color: 'amber' as const,
-    signals: ['Communication pattern changes', 'Cross-team escalation spikes', 'Workflow bottlenecks', 'Response time degradation'],
-  },
-  {
-    icon: PieChart,
-    title: 'Financial Behavior Signals',
-    color: 'blue' as const,
-    signals: ['Invoice payment delays', 'Expense anomalies', 'Cash flow pattern shifts', 'Vendor payment irregularities'],
-  },
+const proofMetrics = [
+  { value: '16', label: 'Integrations' },
+  { value: '5 min', label: 'Setup Time' },
+  { value: '100%', label: 'Read-Only Access' },
+  { value: '14 days', label: 'Risk-Free Trial' },
 ];
 
-const colorMap = {
-  red: { bg: 'bg-red-50', border: 'border-red-100', icon: 'text-red-500', dot: 'bg-red-400' },
-  amber: { bg: 'bg-amber-50', border: 'border-amber-100', icon: 'text-amber-500', dot: 'bg-amber-400' },
-  blue: { bg: 'bg-sky-50', border: 'border-sky-100', icon: 'text-sky-500', dot: 'bg-sky-400' },
-};
-
-const howItWorksSteps = [
-  { step: '01', title: 'Connect Your Tools', desc: 'Link HubSpot, Slack, QuickBooks via secure OAuth. No migration required.', icon: Target },
-  { step: '02', title: 'Core314 Detects Signals', desc: 'AI monitors your systems and identifies operational patterns, risks, and anomalies.', icon: BarChart3 },
-  { step: '03', title: 'Receive Operational Briefs', desc: 'Get written intelligence explaining what is happening and what to do next.', icon: FileText },
-  { step: '04', title: 'Act with Confidence', desc: 'Make informed leadership decisions backed by cross-system intelligence.', icon: Zap },
-];
-
-const currentIntegrations = [
-  { name: 'HubSpot', category: 'CRM' },
-  { name: 'Slack', category: 'Communication' },
-  { name: 'QuickBooks', category: 'Finance' },
-  { name: 'Google Calendar', category: 'Scheduling' },
-  { name: 'Jira', category: 'Project Management' },
-  { name: 'Microsoft Teams', category: 'Communication' },
-  { name: 'Salesforce', category: 'CRM' },
-  { name: 'GitHub', category: 'Development' },
-  { name: 'Zendesk', category: 'Support' },
-];
-
-const leadershipRoles = [
+const painPoints = [
   {
-    icon: Eye,
-    title: 'CEOs & Founders',
-    desc: 'See the full operational picture without digging through dashboards. Understand what is happening across your entire business in one brief.',
-    bullets: ['Cross-system visibility', 'Risk-aware decision making', 'Time saved on status meetings'],
+    icon: AlertTriangle,
+    title: 'Blind Spots Kill Growth',
+    desc: 'Stalled deals, overdue invoices, team bottlenecks \u2014 they compound silently until they cost you real money.',
+  },
+  {
+    icon: Clock,
+    title: 'Hours Wasted on Status Updates',
+    desc: 'Leaders spend 15+ hours per week gathering information from scattered tools just to understand what is happening.',
   },
   {
     icon: TrendingUp,
-    title: 'Revenue Leaders',
-    desc: 'Detect pipeline risks before they become lost deals. Understand the signals behind revenue performance.',
-    bullets: ['Deal velocity monitoring', 'Pipeline health signals', 'Forecast risk detection'],
+    title: 'Competitors Move Faster',
+    desc: 'Companies using operational intelligence make decisions 3x faster. Without it, you are always reacting \u2014 never leading.',
+  },
+];
+
+const benefits = [
+  {
+    icon: Zap,
+    title: 'Know What Is Happening \u2014 Instantly',
+    desc: 'Get a written AI brief that explains exactly what is going on across your business systems. No dashboards to monitor.',
+  },
+  {
+    icon: Target,
+    title: 'Catch Problems Before They Spread',
+    desc: 'Core314 detects revenue risks, operational bottlenecks, and financial anomalies before they become crises.',
+  },
+  {
+    icon: FileText,
+    title: 'Act with Confidence',
+    desc: 'Every brief includes recommended actions backed by cross-system data. Stop guessing. Start deciding.',
   },
   {
     icon: BarChart3,
-    title: 'Operations Leaders',
-    desc: 'Identify bottlenecks, communication breakdowns, and process failures across teams and systems.',
-    bullets: ['Workflow bottleneck detection', 'Cross-team pattern analysis', 'Operational efficiency signals'],
+    title: 'Operational Health at a Glance',
+    desc: 'A single score tells you how healthy your operations are today \u2014 and what is driving the number up or down.',
   },
 ];
 
-const securityFeatures = [
-  { icon: Lock, title: 'OAuth-Only Connections', desc: 'We never store your passwords. All integrations connect via secure OAuth tokens with limited scopes.' },
-  { icon: Shield, title: 'SOC 2 Aligned Practices', desc: 'Our infrastructure follows SOC 2 security principles for data handling, access control, and monitoring.' },
-  { icon: Server, title: 'Data Encryption', desc: 'All data is encrypted in transit (TLS 1.3) and at rest (AES-256). Your business data is never shared or sold.' },
-  { icon: Eye, title: 'Read-Only Access', desc: 'Core314 only reads data from your connected systems. We never modify, write, or delete anything in your tools.' },
+const steps = [
+  { num: '1', title: 'Connect Your Tools', desc: 'Link your business tools in minutes via secure OAuth. Choose from 16 integrations.' },
+  { num: '2', title: 'Core314 Detects Signals', desc: 'AI monitors your systems and identifies patterns, risks, and anomalies in real time.' },
+  { num: '3', title: 'Get Your Operational Brief', desc: 'Receive clear, written intelligence explaining what is happening and what to do next.' },
 ];
 
 const briefSignals = [
   { severity: 'high', text: '7 deals in your pipeline have not received follow-up in over 5 days.' },
   { severity: 'medium', text: 'Invoice payment times increased 32% this month compared to last month.' },
-  { severity: 'medium', text: 'Slack communication between sales and delivery teams increased 41%.' },
+  { severity: 'medium', text: 'Slack communication between sales and delivery teams spiked 41%.' },
   { severity: 'low', text: 'QuickBooks expense categorization shows 3 new vendor accounts this week.' },
 ];
 
 const briefActions = [
-  'Follow up on stalled deals — prioritize the 3 deals closest to closing.',
+  'Follow up on stalled deals \u2014 prioritize the 3 deals closest to closing.',
   'Review overdue invoices and escalate accounts over 45 days past due.',
   'Investigate the sales-delivery communication spike for potential delivery bottleneck.',
 ];
+
+const testimonials = [
+  {
+    quote: 'Core314 showed us revenue risks we had no idea existed. We caught a $200K pipeline problem before it was too late.',
+    name: 'Operations Director',
+    company: 'Mid-Market SaaS Company',
+  },
+  {
+    quote: 'Instead of spending hours pulling reports from 5 different tools, I get one brief that tells me exactly what I need to know.',
+    name: 'CEO & Founder',
+    company: 'Professional Services Firm',
+  },
+  {
+    quote: 'The operational health score alone is worth it. We finally have a single number that tells us how the business is running.',
+    name: 'VP of Operations',
+    company: 'Growth-Stage Startup',
+  },
+];
+
+const securityFeatures = [
+  { icon: Lock, title: 'OAuth-Only Connections', desc: 'We never store your passwords. All connections use secure OAuth tokens with limited scopes.' },
+  { icon: Shield, title: 'SOC 2 Aligned Practices', desc: 'Infrastructure follows SOC 2 security principles for data handling, access control, and monitoring.' },
+  { icon: Server, title: 'Data Encryption', desc: 'All data encrypted in transit (TLS 1.3) and at rest (AES-256). Your business data is never shared.' },
+  { icon: Eye, title: 'Read-Only Access', desc: 'Core314 only reads data. We never modify, write, or delete anything in your tools.' },
+];
+
+const faqs = [
+  {
+    q: 'What is Core314?',
+    a: 'Core314 is an Operational Intelligence Platform. It connects to your existing business tools, detects patterns and risks across your operations, and delivers written AI-powered briefs that tell leadership what is happening and what to do about it.',
+  },
+  {
+    q: 'How long does setup take?',
+    a: 'Most teams are up and running in under 5 minutes. You connect your tools via OAuth (one click per tool), and Core314 starts detecting signals immediately. No migration, no IT team required.',
+  },
+  {
+    q: 'Is my data safe?',
+    a: 'Absolutely. Core314 uses OAuth-only connections with read-only access. We never store passwords, never modify your data, and encrypt everything in transit and at rest. Your data is never shared or sold.',
+  },
+  {
+    q: 'What tools does Core314 connect to?',
+    a: 'Core314 integrates with 16 popular business platforms including Slack, HubSpot, QuickBooks, Jira, Salesforce, Google Calendar, Gmail, Microsoft Teams, and more. New integrations are added regularly.',
+  },
+  {
+    q: 'Can I try it before I commit?',
+    a: 'Yes. Every plan includes a 14-day risk-free trial. No credit card required to start. If Core314 does not deliver value in 14 days, you pay nothing.',
+  },
+  {
+    q: 'What makes this different from a dashboard tool?',
+    a: 'Dashboards show you charts and expect you to find the problems yourself. Core314 does the analysis for you and delivers a written brief that explains what is happening, why it matters, and what actions to take.',
+  },
+  {
+    q: 'How much does it cost?',
+    a: `Plans start at ${formatPrice(PRICING.intelligence.monthly)}/month for the Intelligence plan (1 user, 3 integrations, 30 briefs/month). The Command Center plan is ${formatPrice(PRICING.commandCenter.monthly)}/month for teams (5 users, 10 integrations, unlimited briefs).`,
+  },
+  {
+    q: 'Do I need technical skills to use Core314?',
+    a: 'Not at all. Core314 is built for business leaders, not engineers. Connecting tools takes one click, and briefs are written in plain English. If you can read an email, you can use Core314.',
+  },
+];
+
+const allIntegrations = [
+  { name: 'Slack', Logo: SlackLogo },
+  { name: 'HubSpot', Logo: HubSpotLogo },
+  { name: 'QuickBooks', Logo: QuickBooksLogo },
+  { name: 'Google Calendar', Logo: GoogleCalendarLogo },
+  { name: 'Gmail', Logo: GmailLogo },
+  { name: 'Jira', Logo: JiraLogo },
+  { name: 'Trello', Logo: TrelloLogo },
+  { name: 'Microsoft Teams', Logo: TeamsLogo },
+  { name: 'Google Sheets', Logo: GoogleSheetsLogo },
+  { name: 'Asana', Logo: AsanaLogo },
+  { name: 'Salesforce', Logo: SalesforceLogo },
+  { name: 'Zoom', Logo: ZoomLogo },
+  { name: 'GitHub', Logo: GitHubLogo },
+  { name: 'Zendesk', Logo: ZendeskLogo },
+  { name: 'Notion', Logo: NotionLogo },
+  { name: 'Monday.com', Logo: MondayLogo },
+];
+
+function FAQItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-slate-200">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between py-5 text-left"
+      >
+        <span className="text-base font-semibold text-slate-900 pr-4">{q}</span>
+        <ChevronDown className={`h-5 w-5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="pb-5 pr-8">
+          <p className="text-sm text-slate-600 leading-relaxed">{a}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
 
-      {/* ===== HERO ===== */}
-      <section className="pt-28 pb-20 lg:pt-36 lg:pb-28">
+      {/* HERO */}
+      <section className="pt-28 pb-16 lg:pt-36 lg:pb-24 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto text-center">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-sm font-medium mb-6"
+              transition={{ duration: 0.4 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold mb-6"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-              Operational Intelligence Platform
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+              </span>
+              Your competitors are already using AI to lead. Are you?
             </motion.div>
 
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6"
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6"
             >
-              Detect Hidden Business Problems{' '}
-              <span className="text-sky-600">Before They Damage Your Company</span>
+              Stop Guessing.{' '}
+              <span className="bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
+                Start Knowing.
+              </span>
             </motion.h1>
 
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
               className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto mb-4"
             >
-              Core314 connects your business systems, detects operational signals, and delivers
-              written intelligence — so leadership always knows what is happening and what to do next.
+              Core314 connects your business tools and delivers AI-powered briefs that tell you
+              exactly what is happening, what is at risk, and what to do next.
             </motion.p>
 
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-base text-slate-500 mb-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="text-base text-slate-500 mb-8"
             >
-              No dashboards to monitor. No reports to build. Just clear, actionable briefs.
+              No dashboards. No reports. Just clear, written intelligence for leadership.
             </motion.p>
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex flex-col sm:flex-row gap-3 justify-center mb-12"
+              transition={{ duration: 0.5, delay: 0.35 }}
+              className="flex flex-col sm:flex-row gap-3 justify-center mb-4"
             >
               <Link
                 to="/signup"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
+                className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-sky-600/25 transition-all duration-200"
               >
-                Start Free Trial
-                <ArrowRight className="h-4 w-4" />
+                Start My Free 14-Day Trial
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link
                 to="/how-it-works"
-                className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
+                className="inline-flex items-center justify-center px-8 py-3.5 text-base font-semibold text-slate-700 bg-white border-2 border-slate-200 hover:border-slate-300 rounded-xl transition-colors"
               >
                 See How It Works
               </Link>
             </motion.div>
 
-            <motion.div
+            <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              className="mt-4"
+              transition={{ duration: 0.5, delay: 0.45 }}
+              className="text-sm text-slate-400"
             >
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                Works With Popular Business Platforms
-              </p>
-              <p className="text-sm text-slate-500 max-w-xl mx-auto mb-6 leading-relaxed">
-                Core314 connects to many of the systems companies already rely on to run their business — including platforms like Slack, QuickBooks, and HubSpot — with additional integrations continuously being added.
-              </p>
-              <div className="flex items-center justify-center gap-8 sm:gap-12">
-                <img src="/logos/slack.svg" alt="Slack" className="h-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-200" />
-                <img src="/logos/quickbooks.svg" alt="QuickBooks" className="h-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-200" />
-                <img src="/logos/hubspot.svg" alt="HubSpot" className="h-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-200" />
-                <span className="text-sm font-medium text-slate-400 border-l border-slate-200 pl-6 sm:pl-8">+ Many More</span>
+              No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime
+            </motion.p>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.55 }}
+            className="mt-14 max-w-3xl mx-auto"
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-4">
+              {proofMetrics.map((m) => (
+                <div key={m.label} className="text-center">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{m.value}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1">{m.label}</div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* INTEGRATION LOGOS BAR */}
+      <section className="py-12 border-y border-slate-100 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-400 mb-8">
+            Connects with 16 tools your team already uses
+          </p>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-6 items-center justify-items-center">
+            {allIntegrations.map(({ name, Logo }) => (
+              <div key={name} className="group flex flex-col items-center gap-1.5" title={name}>
+                <Logo className="w-8 h-8 sm:w-10 sm:h-10 opacity-80 group-hover:opacity-100 transition-opacity" />
+                <span className="text-[10px] text-slate-400 group-hover:text-slate-600 transition-colors hidden sm:block">{name}</span>
               </div>
-            </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ===== OPERATIONAL BRIEF PROOF ===== */}
+      {/* PROBLEM / AGITATION */}
+      <section className="py-20 lg:py-28 bg-slate-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-14"
+          >
+            <p className="text-amber-400 text-sm font-bold uppercase tracking-wider mb-3">The Hidden Cost of Not Knowing</p>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+              Every Day Without Visibility Is Costing You Money
+            </h2>
+            <p className="text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Most leaders don&apos;t find out about problems until they&apos;ve already done damage.
+              Stalled deals, late invoices, team friction &mdash; they compound fast.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={stagger}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
+          >
+            {painPoints.map((p, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                transition={{ duration: 0.4 }}
+                className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 lg:p-8"
+              >
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-5">
+                  <p.icon className="h-6 w-6 text-amber-400" />
+                </div>
+                <h3 className="text-lg font-bold mb-3">{p.title}</h3>
+                <p className="text-sm text-slate-300 leading-relaxed">{p.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="text-center mt-12"
+          >
+            <p className="text-lg font-semibold text-amber-400">
+              You can&apos;t fix what you can&apos;t see. Core314 makes the invisible visible.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* SOLUTION / BENEFITS */}
+      <section className="py-20 lg:py-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-14"
+          >
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">The Solution</p>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+              Operational Intelligence, Delivered
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              Core314 turns your scattered business data into clear, actionable intelligence &mdash; so you lead with confidence, not guesswork.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={stagger}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8"
+          >
+            {benefits.map((b, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                transition={{ duration: 0.4 }}
+                className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 hover:shadow-lg hover:border-sky-200 transition-all duration-300"
+              >
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center mb-5">
+                  <b.icon className="h-6 w-6 text-sky-600" />
+                </div>
+                <h3 className="text-lg font-bold mb-2 text-slate-900">{b.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{b.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* OPERATIONAL BRIEF PROOF */}
       <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={fadeUp}
             transition={{ duration: 0.5 }}
             className="text-center mb-12"
           >
-            <p className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-3">
-              Example AI Operational Brief
-            </p>
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">See It In Action</p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
-              The Operational Brief
+              This Is What Your Brief Looks Like
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
               Not a dashboard. Not a chart. A clear, written explanation of what is happening
-              inside your business — generated by AI from real operational data.
+              inside your business &mdash; generated by AI from real operational data.
             </p>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto bg-slate-900 rounded-2xl p-6 sm:p-10 shadow-2xl"
+            className="max-w-4xl mx-auto bg-slate-900 rounded-2xl p-6 sm:p-10 shadow-2xl border border-slate-700"
           >
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -266,8 +493,7 @@ export default function LandingPage() {
               <p className="text-slate-300 text-sm leading-relaxed">
                 Pipeline velocity has decreased this week, with multiple high-value deals showing no activity.
                 Combined with the increase in invoice payment times, there is a moderate risk of revenue impact
-                this quarter. The spike in sales-delivery communication may indicate emerging delivery constraints
-                that could further slow deal progression.
+                this quarter. The spike in sales-delivery communication may indicate emerging delivery constraints.
               </p>
             </div>
 
@@ -286,295 +512,300 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===== SIGNAL CATEGORIES ===== */}
+      {/* HOW IT WORKS */}
       <section className="py-20 lg:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={fadeUp}
             transition={{ duration: 0.5 }}
             className="text-center mb-14"
           >
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">Simple Setup</p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
-              Operational Signals Core314 Detects
+              From Connected to Confident in 3 Steps
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Core314 continuously monitors your connected systems and surfaces the signals that matter most to leadership.
+              No IT team required. No migration. No disruption. Just connect and go.
             </p>
           </motion.div>
 
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
+            className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto"
           >
-            {signalCategories.map((cat, index) => {
-              const colors = colorMap[cat.color];
-              return (
-                <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className={`${colors.bg} border ${colors.border} rounded-xl p-6 lg:p-8`}>
-                  <cat.icon className={`h-8 w-8 ${colors.icon} mb-4`} />
-                  <h3 className="text-lg font-bold mb-4 text-slate-900">{cat.title}</h3>
-                  <ul className="space-y-2.5">
-                    {cat.signals.map((sig, si) => (
-                      <li key={si} className="flex items-start gap-2.5">
-                        <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${colors.dot}`} />
-                        <span className="text-sm text-slate-600 leading-relaxed">{sig}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ===== HOW IT WORKS ===== */}
-      <section className="py-20 lg:py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            variants={fadeUp}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-14"
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">How Core314 Works</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">Four steps from connection to clarity. No disruption to your existing workflows.</p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            variants={stagger}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-          >
-            {howItWorksSteps.map((item, index) => (
-              <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className="relative">
-                <div className="bg-white border border-slate-200 rounded-xl p-6 h-full hover:border-sky-200 hover:shadow-md transition-all duration-200">
-                  <div className="text-sky-500/20 text-4xl font-extrabold mb-3">{item.step}</div>
-                  <item.icon className="h-6 w-6 text-sky-600 mb-3" />
-                  <h3 className="text-base font-bold mb-2 text-slate-900">{item.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+            {steps.map((s, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="text-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-sky-600/20">
+                  <span className="text-2xl font-extrabold text-white">{s.num}</span>
                 </div>
-                {index < 3 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-slate-300 z-10">
-                    <ArrowRight className="h-5 w-5" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ===== INTEGRATIONS ===== */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            variants={fadeUp}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-14"
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">Connects Across Your Business Systems</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">Core314 integrates with the platforms your team already uses — no migration, no disruption.</p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            variants={stagger}
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 lg:gap-6 max-w-4xl mx-auto"
-          >
-            {currentIntegrations.map((integration, index) => (
-              <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white border border-slate-200 rounded-xl p-6 text-center hover:border-sky-200 hover:shadow-md transition-all duration-200">
-                <div className="bg-sky-50 rounded-lg w-12 h-12 flex items-center justify-center mx-auto mb-3">
-                  {(() => { const Logo = integrationLogos[integration.name]; return Logo ? <Logo className="h-6 w-6 text-sky-600" /> : null; })()}
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-1">{integration.name}</h3>
-                <p className="text-xs text-slate-500 mb-2">{integration.category}</p>
-                <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  Available
-                </span>
+                <h3 className="text-lg font-bold mb-2 text-slate-900">{s.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{s.desc}</p>
               </motion.div>
             ))}
           </motion.div>
 
-          <motion.p
+          <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-center text-sm text-slate-500 mt-8"
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="text-center mt-12"
           >
-            Upcoming: Stripe, Xero, and Linear.
-          </motion.p>
+            <Link
+              to="/how-it-works"
+              className="inline-flex items-center gap-2 text-sky-600 font-semibold hover:text-sky-700 transition-colors"
+            >
+              See the full walkthrough
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </motion.div>
         </div>
       </section>
 
-      {/* ===== BUILT FOR LEADERSHIP ===== */}
+      {/* SOCIAL PROOF / TESTIMONIALS */}
       <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={fadeUp}
             transition={{ duration: 0.5 }}
             className="text-center mb-14"
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">Built for Leadership Teams</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">Core314 is designed for the people who need to understand the full operational picture — not just one tool at a time.</p>
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">What Leaders Are Saying</p>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight">
+              Built for Leaders Who Want Answers, Not Dashboards
+            </h2>
           </motion.div>
 
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
             className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
           >
-            {leadershipRoles.map((role, index) => (
-              <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white border border-slate-200 rounded-xl p-6 lg:p-8">
-                <div className="bg-sky-50 rounded-lg w-10 h-10 flex items-center justify-center mb-4">
-                  <role.icon className="h-5 w-5 text-sky-600" />
-                </div>
-                <h3 className="text-lg font-bold mb-2 text-slate-900">{role.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed mb-4">{role.desc}</p>
-                <ul className="space-y-2">
-                  {role.bullets.map((bullet, bi) => (
-                    <li key={bi} className="flex items-center gap-2 text-sm text-slate-600">
-                      <CheckCircle className="h-4 w-4 text-sky-500 flex-shrink-0" />
-                      {bullet}
-                    </li>
+            {testimonials.map((t, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                transition={{ duration: 0.4 }}
+                className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 flex flex-col"
+              >
+                <div className="flex gap-1 mb-4">
+                  {[...Array(5)].map((_, si) => (
+                    <svg key={si} className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
                   ))}
-                </ul>
+                </div>
+                <blockquote className="text-sm text-slate-700 leading-relaxed mb-6 flex-1">
+                  &ldquo;{t.quote}&rdquo;
+                </blockquote>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.company}</p>
+                </div>
               </motion.div>
             ))}
           </motion.div>
         </div>
       </section>
 
-      {/* ===== SECURITY ===== */}
+      {/* PRICING SNAPSHOT */}
       <section className="py-20 lg:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={fadeUp}
             transition={{ duration: 0.5 }}
             className="text-center mb-14"
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">Enterprise-Grade Security</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">Your business data is sensitive. Core314 is built with security as a foundation — not an afterthought.</p>
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">Simple Pricing</p>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+              Plans That Scale with Your Business
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              Start with a 14-day risk-free trial. No credit card required.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 flex flex-col">
+              <h3 className="text-lg font-bold text-slate-900 mb-1">{PRICING.intelligence.name}</h3>
+              <p className="text-sm text-slate-500 mb-4">{PRICING.intelligence.tagline}</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-slate-900">{formatPrice(PRICING.intelligence.monthly)}</span>
+                <span className="text-slate-500 text-sm">/month</span>
+              </div>
+              <ul className="space-y-2.5 mb-8 flex-1">
+                {PRICING.intelligence.features.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-slate-600">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link to="/signup" className="block w-full py-3 text-center text-sm font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                Start Free Trial
+              </Link>
+            </div>
+
+            <div className="bg-slate-900 border-2 border-sky-500 rounded-2xl p-6 lg:p-8 flex flex-col relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="px-3 py-1 text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full uppercase tracking-wider">Most Popular</span>
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1">{PRICING.commandCenter.name}</h3>
+              <p className="text-sm text-slate-400 mb-4">{PRICING.commandCenter.tagline}</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-white">{formatPrice(PRICING.commandCenter.monthly)}</span>
+                <span className="text-slate-400 text-sm">/month</span>
+              </div>
+              <ul className="space-y-2.5 mb-8 flex-1">
+                {PRICING.commandCenter.features.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-sky-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-slate-300">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link to="/signup" className="block w-full py-3 text-center text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 rounded-xl transition-all shadow-lg shadow-sky-500/25">
+                Start Free Trial
+              </Link>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 flex flex-col">
+              <h3 className="text-lg font-bold text-slate-900 mb-1">{PRICING.enterprise.name}</h3>
+              <p className="text-sm text-slate-500 mb-4">{PRICING.enterprise.tagline}</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-slate-900">Custom</span>
+              </div>
+              <ul className="space-y-2.5 mb-8 flex-1">
+                {PRICING.enterprise.features.map((f, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-slate-600">{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link to="/contact" className="block w-full py-3 text-center text-sm font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                Contact Sales
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-center mt-8 text-sm text-slate-500">
+            All plans include a <strong className="text-slate-700">14-day risk-free trial</strong>. No credit card required.{' '}
+            <Link to="/pricing" className="text-sky-600 font-medium hover:text-sky-700">Compare plans in detail &rarr;</Link>
+          </p>
+        </div>
+      </section>
+
+      {/* SECURITY */}
+      <section className="py-20 lg:py-28 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-14"
+          >
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">Enterprise-Grade Security</p>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+              Your Data Is Protected. Period.
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              We built Core314 with security at every layer. Your business data is never shared, sold, or at risk.
+            </p>
           </motion.div>
 
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
-            {securityFeatures.map((feat, index) => (
-              <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className="flex items-start gap-4 bg-slate-50 border border-slate-200 rounded-xl p-6">
-                <div className="bg-white rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0 border border-slate-200">
-                  <feat.icon className="h-5 w-5 text-slate-700" />
+            {securityFeatures.map((s, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
+                <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mx-auto mb-4">
+                  <s.icon className="h-6 w-6 text-green-600" />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold mb-1 text-slate-900">{feat.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{feat.desc}</p>
-                </div>
+                <h3 className="text-sm font-bold mb-2 text-slate-900">{s.title}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{s.desc}</p>
               </motion.div>
             ))}
           </motion.div>
         </div>
       </section>
 
-      {/* ===== WHY CORE314 ===== */}
-      <section className="py-20 lg:py-28 bg-slate-50">
+      {/* FAQ */}
+      <section className="py-20 lg:py-28">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             variants={fadeUp}
             transition={{ duration: 0.5 }}
-            className="text-center mb-10"
+            className="text-center mb-12"
           >
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Why Leadership Teams Choose Core314</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Frequently Asked Questions</h2>
+            <p className="text-lg text-slate-600">Everything you need to know before getting started.</p>
           </motion.div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            variants={stagger}
-            className="space-y-3"
-          >
-            {[
-              'Replaces manual reporting with AI-generated operational intelligence',
-              'Detects cross-system patterns no single tool can see',
-              'Delivers written briefs — not dashboards, not charts',
-              'Saves 5+ hours per week on operational review',
-              'Identifies risks before they become crises',
-              'Works with the tools your team already uses',
-              'Trial begins after your first integration is connected',
-            ].map((bullet, index) => (
-              <motion.div key={index} variants={fadeUp} transition={{ duration: 0.3 }} className="flex items-start gap-3 bg-white border border-slate-200 rounded-lg p-4">
-                <CheckCircle className="h-5 w-5 text-sky-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-slate-700 leading-relaxed">{bullet}</p>
-              </motion.div>
+          <div className="border-t border-slate-200">
+            {faqs.map((faq, i) => (
+              <FAQItem key={i} q={faq.q} a={faq.a} />
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* ===== FINAL CTA ===== */}
-      <section className="py-20 lg:py-28">
+      {/* FINAL CTA */}
+      <section className="py-20 lg:py-28 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-900 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4"
-          >
-            See What Your Business Is Telling You
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto"
-          >
-            Your business already has the data. Core314 tells you what it means. Connect your tools and receive your first Operational Brief.
-          </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col sm:flex-row gap-3 justify-center"
+            transition={{ duration: 0.5 }}
           >
-            <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">
-              Start Free Trial
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link to="/pricing" className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors">
-              View Pricing
-            </Link>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 text-amber-300 text-sm font-semibold mb-6">
+              <Clock className="h-4 w-4" />
+              Limited: 14-Day Risk-Free Trial
+            </div>
+
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-6">
+              Stop Losing Money to Problems<br className="hidden sm:block" /> You Didn&apos;t Know Existed
+            </h2>
+            <p className="text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed mb-8">
+              Every week without operational intelligence is another week of invisible risks compounding.
+              Start your free trial today and see what you&apos;ve been missing.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
+              <Link
+                to="/signup"
+                className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-bold text-slate-900 bg-white hover:bg-slate-50 rounded-xl shadow-2xl transition-all"
+              >
+                Start My Free 14-Day Trial
+                <ArrowRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+            <p className="text-sm text-slate-400">
+              No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime
+            </p>
           </motion.div>
         </div>
       </section>
