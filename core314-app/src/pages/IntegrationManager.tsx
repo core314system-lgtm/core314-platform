@@ -51,6 +51,7 @@ import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedF
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AnalysisProcessingScreen } from '../components/onboarding/AnalysisProcessingScreen';
 import { RequestIntegrationModal } from '../components/integrations/RequestIntegrationModal';
+import { SERVICE_BRAND_LOGOS } from '../components/integrations/BrandLogos';
 
 interface IntegrationInfo {
   id: string;
@@ -1123,6 +1124,7 @@ export function IntegrationManager() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {integrations.map((integration, idx) => {
             const Icon = SERVICE_ICONS[integration.service_name] || Layers;
+            const BrandLogo = SERVICE_BRAND_LOGOS[integration.service_name];
             const connected = isConnected(integration.id);
             const connDate = getConnectionDate(integration.id);
             const description = SERVICE_DESCRIPTIONS[integration.service_name] || integration.description;
@@ -1134,8 +1136,12 @@ export function IntegrationManager() {
               <Card key={integration.id} className={connected ? 'border-green-200 dark:border-green-800' : ''} {...(idx === 0 ? { 'data-onboarding': 'primary-integration' } : {})}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
-                      <Icon className={`h-5 w-5 ${connected ? 'text-green-600' : 'text-indigo-600'}`} />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${connected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-50 dark:bg-gray-800/30'}`}>
+                      {BrandLogo ? (
+                        <BrandLogo className="h-6 w-6" />
+                      ) : (
+                        <Icon className={`h-5 w-5 ${connected ? 'text-green-600' : 'text-indigo-600'}`} />
+                      )}
                     </div>
                     <div>
                       <CardTitle className="text-base">{integration.display_name}</CardTitle>
