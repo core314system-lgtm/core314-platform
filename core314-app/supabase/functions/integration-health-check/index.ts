@@ -87,8 +87,10 @@ async function refreshToken(
   const JSON_BODY_SERVICES = ['jira'];
 
   const envPrefix = ENV_PREFIX_MAP[serviceName] || serviceName.toUpperCase();
-  const clientId = Deno.env.get(`${envPrefix}_CLIENT_ID`);
-  const clientSecret = Deno.env.get(`${envPrefix}_CLIENT_SECRET`);
+  const clientId = Deno.env.get(`${envPrefix}_CLIENT_ID`)
+    || Deno.env.get(`CORE314_${envPrefix}_CLIENT_ID`);
+  const clientSecret = Deno.env.get(`${envPrefix}_CLIENT_SECRET`)
+    || Deno.env.get(`CORE314_${envPrefix}_CLIENT_SECRET`);
 
   if (!clientId || !clientSecret) {
     console.error(`[health-check] Missing OAuth credentials for ${serviceName}`);
