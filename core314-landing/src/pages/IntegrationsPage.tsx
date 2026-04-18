@@ -2,18 +2,14 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Briefcase,
-  MessageSquare,
   DollarSign,
   CheckCircle,
   Code,
-  Users,
-  BarChart3,
   FileText,
-  Globe,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { integrationLogos } from '../components/IntegrationLogos';
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
 const stagger = { visible: { transition: { staggerChildren: 0.1 } } };
@@ -21,21 +17,18 @@ const stagger = { visible: { transition: { staggerChildren: 0.1 } } };
 const current = [
   {
     name: 'HubSpot',
-    icon: Briefcase,
     category: 'CRM',
     desc: 'Monitor deal pipeline, contact engagement, and revenue signals. Core314 detects stalled deals, pipeline velocity changes, and forecast deviations.',
     dataPoints: ['Deal activity and stage progression', 'Contact engagement history', 'Pipeline velocity metrics', 'Revenue forecast data'],
   },
   {
     name: 'Slack',
-    icon: MessageSquare,
     category: 'Communication',
     desc: 'Analyze team communication patterns, channel activity, and response times. Detect escalation spikes and collaboration changes.',
     dataPoints: ['Channel message volume', 'Response time patterns', 'Cross-team communication', 'Escalation frequency'],
   },
   {
     name: 'QuickBooks',
-    icon: DollarSign,
     category: 'Finance',
     desc: 'Track invoice patterns, payment behavior, and expense trends. Detect cash flow anomalies and vendor payment irregularities.',
     dataPoints: ['Invoice status and aging', 'Payment timing patterns', 'Expense categorization', 'Cash flow indicators'],
@@ -45,91 +38,78 @@ const current = [
 const commandCenterIntegrations = [
   {
     name: 'Google Calendar',
-    icon: Globe,
     category: 'Scheduling',
     desc: 'Track meeting patterns, detect scheduling conflicts, and surface calendar-based operational signals. Understand how your team spends its time.',
     dataPoints: ['Meeting frequency and duration', 'Scheduling conflict detection', 'Calendar utilization patterns', 'Cross-team meeting overlap'],
   },
   {
     name: 'Gmail',
-    icon: MessageSquare,
     category: 'Communication',
     desc: 'Analyze email volume, response patterns, and communication trends. Detect bottlenecks in team communication without reading message content.',
     dataPoints: ['Email volume and trends', 'Response time patterns', 'Thread activity metrics', 'Communication flow analysis'],
   },
   {
     name: 'Jira',
-    icon: FileText,
     category: 'Project Management',
     desc: 'Monitor sprint progress, ticket velocity, and blocker patterns. Detect overdue items and delivery risks before they escalate.',
     dataPoints: ['Sprint progress and velocity', 'Ticket status transitions', 'Blocker and dependency tracking', 'Team workload distribution'],
   },
   {
     name: 'Trello',
-    icon: BarChart3,
     category: 'Project Management',
     desc: 'Track board activity, card movement, and workflow bottlenecks. Surface stalled tasks and team productivity patterns.',
     dataPoints: ['Board and card activity', 'Workflow stage transitions', 'Card aging and stale detection', 'Team member activity patterns'],
   },
   {
     name: 'Microsoft Teams',
-    icon: Users,
     category: 'Communication',
     desc: 'Monitor team channel activity, meeting patterns, and collaboration metrics. Detect communication gaps across departments.',
     dataPoints: ['Channel message activity', 'Meeting frequency and attendance', 'Cross-team collaboration', 'Response time metrics'],
   },
   {
     name: 'Google Sheets',
-    icon: FileText,
     category: 'Data',
     desc: 'Connect key operational spreadsheets for real-time data monitoring. Track KPI updates, report changes, and data entry patterns.',
     dataPoints: ['Spreadsheet modification tracking', 'KPI value change detection', 'Data entry pattern analysis', 'Sheet collaboration activity'],
   },
   {
     name: 'Asana',
-    icon: FileText,
     category: 'Project Management',
     desc: 'Track project milestones, task completion rates, and team workload. Detect delivery risks and resource constraints early.',
     dataPoints: ['Project milestone tracking', 'Task completion velocity', 'Workload balance metrics', 'Due date and overdue analysis'],
   },
   {
     name: 'Salesforce',
-    icon: BarChart3,
     category: 'CRM',
     desc: 'Monitor enterprise sales pipelines, opportunity health, and account engagement. Detect revenue risks across large deal portfolios.',
     dataPoints: ['Opportunity stage progression', 'Account engagement metrics', 'Pipeline health indicators', 'Forecast accuracy tracking'],
   },
   {
     name: 'Zoom',
-    icon: Users,
     category: 'Communication',
     desc: 'Track meeting frequency, attendance patterns, and collaboration trends. Detect scheduling overload and meeting efficiency signals.',
     dataPoints: ['Meeting frequency and duration', 'Attendance and participation rates', 'Recording and follow-up patterns', 'Cross-team meeting trends'],
   },
   {
     name: 'GitHub',
-    icon: Code,
     category: 'Development',
     desc: 'Monitor repository activity, pull request velocity, and development workflow patterns. Detect delivery bottlenecks and code review delays.',
     dataPoints: ['Pull request velocity and aging', 'Code review turnaround times', 'Commit activity patterns', 'Issue backlog trends'],
   },
   {
     name: 'Zendesk',
-    icon: MessageSquare,
     category: 'Support',
     desc: 'Track support ticket volume, resolution times, and customer satisfaction trends. Detect escalation patterns and support capacity risks.',
     dataPoints: ['Ticket volume and resolution times', 'Customer satisfaction scores', 'Escalation frequency patterns', 'Agent workload distribution'],
   },
   {
     name: 'Notion',
-    icon: FileText,
     category: 'Knowledge Management',
     desc: 'Monitor workspace activity, documentation updates, and team collaboration patterns. Detect knowledge gaps and stale documentation.',
     dataPoints: ['Page creation and update activity', 'Team workspace engagement', 'Documentation freshness tracking', 'Cross-team collaboration patterns'],
   },
   {
     name: 'Monday.com',
-    icon: BarChart3,
     category: 'Project Management',
     desc: 'Track board activity, item status changes, and workflow automation patterns. Detect project delays and resource allocation issues.',
     dataPoints: ['Board and item activity tracking', 'Status change velocity', 'Automation trigger patterns', 'Team workload balance'],
@@ -171,8 +151,8 @@ export default function IntegrationsPage() {
       <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Core Integrations</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Available on all plans. Connect your essential business tools in minutes.</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Available Integrations</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">16 integrations available across all plans. Intelligence plans choose up to 3, Command Center plans choose up to 10.</p>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="space-y-6">
             {current.map((int, i) => (
@@ -181,7 +161,7 @@ export default function IntegrationsPage() {
                   <div>
                     <div className="flex items-center gap-3 mb-3">
                       <div className="bg-sky-50 rounded-lg w-10 h-10 flex items-center justify-center">
-                        <int.icon className="h-5 w-5 text-sky-600" />
+                        {(() => { const Logo = integrationLogos[int.name]; return Logo ? <Logo className="h-5 w-5 text-sky-600" /> : null; })()}
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-slate-900">{int.name}</h3>
@@ -214,8 +194,8 @@ export default function IntegrationsPage() {
       <section className="py-20 lg:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={fadeUp} className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Command Center Integrations</h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Available on Command Center and Enterprise plans. Expand your operational visibility with 13 additional integrations.</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">All 16 Integrations</h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">Every integration below is available on every plan. Your plan determines how many you can connect — Intelligence: up to 3, Command Center: up to 10.</p>
           </motion.div>
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-100px' }} variants={stagger} className="space-y-6">
             {commandCenterIntegrations.map((int, i) => (
@@ -224,7 +204,7 @@ export default function IntegrationsPage() {
                   <div>
                     <div className="flex items-center gap-3 mb-3">
                       <div className="bg-indigo-50 rounded-lg w-10 h-10 flex items-center justify-center">
-                        <int.icon className="h-5 w-5 text-indigo-600" />
+                        {(() => { const Logo = integrationLogos[int.name]; return Logo ? <Logo className="h-5 w-5 text-indigo-600" /> : null; })()}
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-slate-900">{int.name}</h3>
@@ -305,7 +285,7 @@ export default function IntegrationsPage() {
             Connect Your Tools Today
           </motion.h2>
           <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto">
-            Start with HubSpot, Slack, and QuickBooks on any plan. Upgrade to Command Center for 13 additional integrations across CRM, communication, project management, and more.
+            Choose the integrations that matter most to your business. Intelligence plans connect up to 3, Command Center plans connect up to 10 from all 16 available.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/signup" className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors">

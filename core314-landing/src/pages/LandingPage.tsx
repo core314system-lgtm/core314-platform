@@ -3,9 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   ChevronRight,
-  Briefcase,
-  MessageSquare,
-  DollarSign,
   Eye,
   TrendingUp,
   Zap,
@@ -21,6 +18,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { integrationLogos } from '../components/IntegrationLogos';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -66,15 +64,15 @@ const howItWorksSteps = [
 ];
 
 const currentIntegrations = [
-  { name: 'HubSpot', icon: Briefcase, category: 'CRM' },
-  { name: 'Slack', icon: MessageSquare, category: 'Communication' },
-  { name: 'QuickBooks', icon: DollarSign, category: 'Finance' },
-  { name: 'Google Calendar', icon: Target, category: 'Scheduling' },
-  { name: 'Jira', icon: FileText, category: 'Project Management' },
-  { name: 'Microsoft Teams', icon: Activity, category: 'Communication' },
-  { name: 'Salesforce', icon: BarChart3, category: 'CRM' },
-  { name: 'GitHub', icon: Zap, category: 'Development' },
-  { name: 'Zendesk', icon: Shield, category: 'Support' },
+  { name: 'HubSpot', category: 'CRM' },
+  { name: 'Slack', category: 'Communication' },
+  { name: 'QuickBooks', category: 'Finance' },
+  { name: 'Google Calendar', category: 'Scheduling' },
+  { name: 'Jira', category: 'Project Management' },
+  { name: 'Microsoft Teams', category: 'Communication' },
+  { name: 'Salesforce', category: 'CRM' },
+  { name: 'GitHub', category: 'Development' },
+  { name: 'Zendesk', category: 'Support' },
 ];
 
 const leadershipRoles = [
@@ -401,7 +399,7 @@ export default function LandingPage() {
             {currentIntegrations.map((integration, index) => (
               <motion.div key={index} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white border border-slate-200 rounded-xl p-6 text-center hover:border-sky-200 hover:shadow-md transition-all duration-200">
                 <div className="bg-sky-50 rounded-lg w-12 h-12 flex items-center justify-center mx-auto mb-3">
-                  <integration.icon className="h-6 w-6 text-sky-600" />
+                  {(() => { const Logo = integrationLogos[integration.name]; return Logo ? <Logo className="h-6 w-6 text-sky-600" /> : null; })()}
                 </div>
                 <h3 className="text-base font-bold text-slate-900 mb-1">{integration.name}</h3>
                 <p className="text-xs text-slate-500 mb-2">{integration.category}</p>

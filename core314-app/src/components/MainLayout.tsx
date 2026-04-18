@@ -99,8 +99,8 @@ export function MainLayout() {
         
         const tierLimits: Record<string, number> = {
           none: 0,
-          starter: 3,
-          professional: 5,
+          intelligence: 3,
+          command_center: 10,
           enterprise: -1,
         };
         

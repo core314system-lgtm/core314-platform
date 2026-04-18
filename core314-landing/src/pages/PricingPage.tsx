@@ -25,22 +25,7 @@ const plans = [
 ];
 
 const comparisonFeatures = [
-  { label: 'Slack Integration', intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'HubSpot Integration', intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'QuickBooks Integration', intelligence: true, commandCenter: true, enterprise: true },
-  { label: 'Google Calendar Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Gmail Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Jira Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Trello Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Microsoft Teams Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Google Sheets Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Asana Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Salesforce Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Zoom Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'GitHub Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Zendesk Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Notion Integration', intelligence: false, commandCenter: true, enterprise: true },
-  { label: 'Monday.com Integration', intelligence: false, commandCenter: true, enterprise: true },
+  { label: 'Available Integrations (16 total)', intelligence: 'Choose up to 3', commandCenter: 'Choose up to 10', enterprise: 'Custom' },
   { label: 'Operational Health Score', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'Signals Dashboard', intelligence: true, commandCenter: true, enterprise: true },
   { label: 'AI Operational Briefs', intelligence: '30 per month', commandCenter: 'Unlimited', enterprise: 'Unlimited' },
@@ -109,7 +94,7 @@ export default function PricingPage() {
               Simple, Transparent Pricing
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              Choose the plan that matches your operational intelligence needs. All plans include HubSpot, Slack, and QuickBooks integrations.
+              Choose the plan that matches your operational intelligence needs. All plans let you choose from 16 available integrations.
             </motion.p>
           </div>
         </div>

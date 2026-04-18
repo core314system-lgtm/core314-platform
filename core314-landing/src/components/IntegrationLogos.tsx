@@ -144,6 +144,33 @@ export const FreshdeskLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) =
   </svg>
 );
 
+// Finance
+export const QuickBooksLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zM7.5 8.25a2.25 2.25 0 0 0-2.25 2.25v3a2.25 2.25 0 0 0 4.5 0h1.5v-.75a2.25 2.25 0 0 0-2.25-2.25H7.5zm0 1.5h1.5v3a.75.75 0 0 1-1.5 0v-3zm2.25 0a.75.75 0 0 1 .75.75v2.25h-.75v-3zm6.75-1.5a2.25 2.25 0 0 1 2.25 2.25v3a2.25 2.25 0 0 1-4.5 0h-1.5v-.75a2.25 2.25 0 0 1 2.25-2.25h1.5zm0 1.5h-1.5v3a.75.75 0 0 0 1.5 0v-3zm-2.25 0a.75.75 0 0 0-.75.75v2.25h.75v-3z"/>
+  </svg>
+);
+
+// Calendar
+export const GoogleCalendarLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24v-5.684h12.632V24H5.684zM18.316 5.684V0H5.684v5.684h12.632zM0 18.316h5.684V5.684H0v12.632zM7.953 14.979V8.574h1.394v2.492h.058c.165-.222.381-.398.649-.527a1.9 1.9 0 0 1 .855-.194c.405 0 .756.096 1.054.287.297.192.527.464.69.818.163.354.244.775.244 1.264 0 .474-.08.888-.238 1.242-.158.354-.383.63-.675.825-.291.196-.637.294-1.036.294a2.04 2.04 0 0 1-.849-.175 1.543 1.543 0 0 1-.615-.5h-.077v.579H7.953zm1.837-2.275c0 .36.092.643.276.85.184.207.43.311.738.311.312 0 .559-.105.74-.316.182-.21.273-.493.273-.845 0-.348-.09-.626-.27-.835-.18-.21-.428-.314-.743-.314-.312 0-.558.106-.74.318-.182.213-.274.491-.274.831z"/>
+  </svg>
+);
+
+export const GoogleSheetsLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M19.5 24h-15A1.5 1.5 0 0 1 3 22.5V1.5A1.5 1.5 0 0 1 4.5 0h10.757a1.5 1.5 0 0 1 1.061.44l4.243 4.242A1.5 1.5 0 0 1 21 5.743V22.5a1.5 1.5 0 0 1-1.5 1.5zM6.75 11.25v6.75h10.5v-6.75H6.75zm1.5 1.5h3v1.5h-3v-1.5zm0 2.625h3v1.5h-3v-1.5zm4.5-2.625h3v1.5h-3v-1.5zm0 2.625h3v1.5h-3v-1.5z"/>
+  </svg>
+);
+
+// Video
+export const ZoomLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M24 12c0 6.627-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0s12 5.373 12 12zm-6.857-3.428v4.285L20.57 15V9l-3.428 2.143V8.572a1.714 1.714 0 0 0-1.714-1.715H5.143a1.714 1.714 0 0 0-1.714 1.715v5.142c0 .948.768 1.715 1.714 1.715h10.286c.947 0 1.714-.767 1.714-1.715v-4.942z"/>
+  </svg>
+);
+
 // Analytics
 export const GoogleAnalyticsLogo = ({ className = "w-8 h-8" }: IntegrationLogoProps) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -190,4 +217,8 @@ export const integrationLogos: Record<string, React.FC<IntegrationLogoProps>> = 
   "Google Analytics": GoogleAnalyticsLogo,
   "Mixpanel": MixpanelLogo,
   "Amplitude": AmplitudeLogo,
+  "QuickBooks": QuickBooksLogo,
+  "Google Calendar": GoogleCalendarLogo,
+  "Google Sheets": GoogleSheetsLogo,
+  "Zoom": ZoomLogo,
 };

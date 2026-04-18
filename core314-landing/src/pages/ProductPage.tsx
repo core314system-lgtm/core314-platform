@@ -2,9 +2,6 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Briefcase,
-  MessageSquare,
-  DollarSign,
   FileText,
   BarChart3,
   Shield,
@@ -16,6 +13,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { integrationLogos } from '../components/IntegrationLogos';
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
 const stagger = { visible: { transition: { staggerChildren: 0.1 } } };
@@ -44,22 +42,22 @@ const capabilities = [
 ];
 
 const integrations = [
-  { name: 'HubSpot', icon: Briefcase, desc: 'CRM pipeline, deal activity, contact engagement, and revenue signals.' },
-  { name: 'Slack', icon: MessageSquare, desc: 'Communication patterns, channel activity, response times, and team collaboration signals.' },
-  { name: 'QuickBooks', icon: DollarSign, desc: 'Invoice status, payment patterns, expense trends, and cash flow signals.' },
-  { name: 'Google Calendar', icon: Eye, desc: 'Meeting patterns, scheduling conflicts, calendar utilization, and time allocation signals.' },
-  { name: 'Jira', icon: FileText, desc: 'Sprint progress, ticket velocity, blocker patterns, and delivery risk signals.' },
-  { name: 'Microsoft Teams', icon: MessageSquare, desc: 'Team channel activity, meeting patterns, cross-department collaboration signals.' },
-  { name: 'Salesforce', icon: BarChart3, desc: 'Enterprise pipeline health, opportunity tracking, and account engagement signals.' },
-  { name: 'GitHub', icon: Activity, desc: 'Repository activity, pull request velocity, code review patterns, and delivery signals.' },
-  { name: 'Zendesk', icon: Shield, desc: 'Support ticket volume, resolution times, escalation patterns, and satisfaction signals.' },
-  { name: 'Gmail', icon: MessageSquare, desc: 'Email volume trends, response patterns, and communication flow signals.' },
-  { name: 'Trello', icon: BarChart3, desc: 'Board activity, card movement, workflow bottlenecks, and productivity signals.' },
-  { name: 'Google Sheets', icon: FileText, desc: 'Spreadsheet modifications, KPI tracking, and data entry pattern signals.' },
-  { name: 'Asana', icon: FileText, desc: 'Project milestones, task completion rates, workload balance, and deadline signals.' },
-  { name: 'Zoom', icon: Eye, desc: 'Meeting frequency, attendance patterns, and collaboration trend signals.' },
-  { name: 'Notion', icon: FileText, desc: 'Workspace activity, documentation updates, and team collaboration signals.' },
-  { name: 'Monday.com', icon: BarChart3, desc: 'Board activity, item status changes, and workflow automation signals.' },
+  { name: 'HubSpot', desc: 'CRM pipeline, deal activity, contact engagement, and revenue signals.' },
+  { name: 'Slack', desc: 'Communication patterns, channel activity, response times, and team collaboration signals.' },
+  { name: 'QuickBooks', desc: 'Invoice status, payment patterns, expense trends, and cash flow signals.' },
+  { name: 'Google Calendar', desc: 'Meeting patterns, scheduling conflicts, calendar utilization, and time allocation signals.' },
+  { name: 'Jira', desc: 'Sprint progress, ticket velocity, blocker patterns, and delivery risk signals.' },
+  { name: 'Microsoft Teams', desc: 'Team channel activity, meeting patterns, cross-department collaboration signals.' },
+  { name: 'Salesforce', desc: 'Enterprise pipeline health, opportunity tracking, and account engagement signals.' },
+  { name: 'GitHub', desc: 'Repository activity, pull request velocity, code review patterns, and delivery signals.' },
+  { name: 'Zendesk', desc: 'Support ticket volume, resolution times, escalation patterns, and satisfaction signals.' },
+  { name: 'Gmail', desc: 'Email volume trends, response patterns, and communication flow signals.' },
+  { name: 'Trello', desc: 'Board activity, card movement, workflow bottlenecks, and productivity signals.' },
+  { name: 'Google Sheets', desc: 'Spreadsheet modifications, KPI tracking, and data entry pattern signals.' },
+  { name: 'Asana', desc: 'Project milestones, task completion rates, workload balance, and deadline signals.' },
+  { name: 'Zoom', desc: 'Meeting frequency, attendance patterns, and collaboration trend signals.' },
+  { name: 'Notion', desc: 'Workspace activity, documentation updates, and team collaboration signals.' },
+  { name: 'Monday.com', desc: 'Board activity, item status changes, and workflow automation signals.' },
 ];
 
 const security = [
@@ -126,7 +124,7 @@ export default function ProductPage() {
             {integrations.map((int, i) => (
               <motion.div key={i} variants={fadeUp} className="bg-white border border-slate-200 rounded-xl p-4 text-center hover:border-sky-200 hover:shadow-md transition-all duration-200">
                 <div className="bg-sky-50 rounded-lg w-10 h-10 flex items-center justify-center mx-auto mb-2">
-                  <int.icon className="h-5 w-5 text-sky-600" />
+                  {(() => { const Logo = integrationLogos[int.name]; return Logo ? <Logo className="h-5 w-5 text-sky-600" /> : null; })()}
                 </div>
                 <h3 className="text-sm font-bold text-slate-900 mb-1">{int.name}</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">{int.desc}</p>
