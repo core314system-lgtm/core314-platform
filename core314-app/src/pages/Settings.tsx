@@ -10,7 +10,8 @@ import {
   Loader2,
   Check,
   Camera,
-  Key
+  Key,
+  Building2
 } from 'lucide-react';
 
 export function Settings() {
@@ -21,6 +22,8 @@ export function Settings() {
   const [fullName, setFullName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -40,13 +43,14 @@ export function Settings() {
     
     const { data } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url')
+      .select('full_name, avatar_url, company_logo_url')
       .eq('id', user.id)
       .single();
     
     if (data) {
       setFullName(data.full_name || '');
       setAvatarUrl(data.avatar_url || null);
+      setCompanyLogoUrl((data as Record<string, unknown>).company_logo_url as string | null ?? null);
     }
   };
 
@@ -82,6 +86,58 @@ export function Settings() {
       alert('Failed to upload avatar. Please try again.');
     } finally {
       setAvatarUploading(false);
+    }
+  };
+
+  const handleCompanyLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/company_logo_${Date.now()}.${fileExt}`;
+    
+    setLogoUploading(true);
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ company_logo_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      setCompanyLogoUrl(publicUrl);
+    } catch (err) {
+      console.error('Error uploading company logo:', err);
+      alert('Failed to upload company logo. Please try again.');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleRemoveCompanyLogo = async () => {
+    if (!user) return;
+    setLogoUploading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ company_logo_url: null, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      if (error) throw error;
+      setCompanyLogoUrl(null);
+    } catch (err) {
+      console.error('Error removing company logo:', err);
+    } finally {
+      setLogoUploading(false);
     }
   };
 
@@ -209,6 +265,56 @@ export function Settings() {
                   disabled={avatarUploading}
                 />
                 <p className="text-xs text-gray-500">JPG, PNG, GIF or WebP. Max 5MB.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Company Logo Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Logo</CardTitle>
+            <CardDescription>Upload your company logo to brand exported PowerPoint briefs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="h-20 w-40 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden border border-dashed border-gray-300 dark:border-gray-600">
+                  {companyLogoUrl ? (
+                    <img src={companyLogoUrl} alt="Company Logo" className="h-full w-full object-contain p-2" />
+                  ) : (
+                    <Building2 className="h-8 w-8 text-gray-400" />
+                  )}
+                </div>
+                {logoUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="logo-upload" className="cursor-pointer">
+                  <Button variant="outline" size="sm" asChild disabled={logoUploading}>
+                    <span>
+                      <Building2 className="mr-2 h-4 w-4" />
+                      {logoUploading ? 'Uploading...' : companyLogoUrl ? 'Replace Logo' : 'Upload Logo'}
+                    </span>
+                  </Button>
+                </Label>
+                <input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={handleCompanyLogoUpload}
+                  disabled={logoUploading}
+                />
+                {companyLogoUrl && (
+                  <Button variant="ghost" size="sm" onClick={handleRemoveCompanyLogo} disabled={logoUploading} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                    Remove Logo
+                  </Button>
+                )}
+                <p className="text-xs text-gray-500">PNG, JPG, SVG or WebP. Appears on PowerPoint exports.</p>
               </div>
             </div>
           </CardContent>

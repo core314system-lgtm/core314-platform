@@ -56,6 +56,7 @@ const comparisonFeatures = [
   { name: 'Command Center Dashboard', intel: false, cmd: true, ent: true },
   { name: 'Advanced Signal Analysis', intel: false, cmd: true, ent: true },
   { name: 'Integration Event History', intel: false, cmd: true, ent: true },
+  { name: 'PowerPoint Brief Export', intel: false, cmd: true, ent: true },
   { name: 'Custom Integrations', intel: false, cmd: false, ent: true },
   { name: 'Dedicated Onboarding', intel: false, cmd: false, ent: true },
   { name: 'Executive Reporting', intel: false, cmd: false, ent: true },

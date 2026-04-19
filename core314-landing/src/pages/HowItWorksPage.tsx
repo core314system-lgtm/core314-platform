@@ -188,7 +188,7 @@ export default function HowItWorksPage() {
                           </div>
                         ))}
                       </div>
-                      <p className="text-center text-xs text-slate-400 mt-6">+ 10 more integrations</p>
+                      <p className="text-center text-xs text-slate-400 mt-6">+ many more available integrations</p>
                     </div>
                   )}
                   {step.visual === 'signals' && (
