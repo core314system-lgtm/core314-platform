@@ -20,7 +20,7 @@ export const PRICING = {
     description:
       'Core314 analyzes operational patterns across your business systems and generates AI-powered Operational Briefs explaining what is happening and what actions leadership should take.',
     features: [
-      'Choose up to 3 integrations from 16 available',
+      'Choose up to 3 integrations',
       'Operational Health Score',
       'Signals Dashboard',
       '30 AI Operational Briefs per month',
@@ -40,7 +40,7 @@ export const PRICING = {
       'A full operational intelligence command center for leadership teams that need continuous monitoring and deeper signal analytics.',
     features: [
       'Everything in Intelligence plus:',
-      'Choose up to 10 integrations from 16 available',
+      'Choose up to 10 integrations',
       'Unlimited AI Operational Briefs',
       'Command Center Dashboard',
       'Advanced Signal Analysis',

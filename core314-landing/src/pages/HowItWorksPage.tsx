@@ -38,7 +38,7 @@ const mainSteps = [
     title: 'Connect Your Business Tools',
     desc: 'Link the platforms your team already uses. One click per tool. No migration, no IT team, no disruption to your workflows.',
     details: [
-      'Choose from 16 integrations (CRM, finance, communication, project management)',
+      'Choose from available integrations (CRM, finance, communication, project management)',
       'Secure OAuth connections — no passwords stored',
       'Read-only access — Core314 never modifies your data',
       'Most teams are fully connected in under 5 minutes',

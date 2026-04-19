@@ -7,7 +7,6 @@ import {
   Lock,
   Eye,
   Server,
-  CheckCircle,
   Clock,
   TrendingUp,
   AlertTriangle,
@@ -98,7 +97,7 @@ const benefits = [
 ];
 
 const steps = [
-  { num: '1', title: 'Connect Your Tools', desc: 'Link your business tools in minutes via secure OAuth. Choose from 16 integrations.' },
+  { num: '1', title: 'Connect Your Tools', desc: 'Link your business tools in minutes via secure OAuth. New integrations added regularly.' },
   { num: '2', title: 'Core314 Detects Signals', desc: 'AI monitors your systems and identifies patterns, risks, and anomalies in real time.' },
   { num: '3', title: 'Get Your Operational Brief', desc: 'Receive clear, written intelligence explaining what is happening and what to do next.' },
 ];
@@ -616,97 +615,6 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </motion.div>
-        </div>
-      </section>
-
-      {/* PRICING SNAPSHOT */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={fadeUp}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-14"
-          >
-            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">Simple Pricing</p>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
-              Plans That Scale with Your Business
-            </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Start with a 14-day risk-free trial. No credit card required.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 flex flex-col">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">{PRICING.intelligence.name}</h3>
-              <p className="text-sm text-slate-500 mb-4">{PRICING.intelligence.tagline}</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900">{formatPrice(PRICING.intelligence.monthly)}</span>
-                <span className="text-slate-500 text-sm">/month</span>
-              </div>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {PRICING.intelligence.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link to="/signup" className="block w-full py-3 text-center text-sm font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
-                Start Free Trial
-              </Link>
-            </div>
-
-            <div className="bg-slate-900 border-2 border-sky-500 rounded-2xl p-6 lg:p-8 flex flex-col relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="px-3 py-1 text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full uppercase tracking-wider">Most Popular</span>
-              </div>
-              <h3 className="text-lg font-bold text-white mb-1">{PRICING.commandCenter.name}</h3>
-              <p className="text-sm text-slate-400 mb-4">{PRICING.commandCenter.tagline}</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-white">{formatPrice(PRICING.commandCenter.monthly)}</span>
-                <span className="text-slate-400 text-sm">/month</span>
-              </div>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {PRICING.commandCenter.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-sky-400 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-slate-300">{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link to="/signup" className="block w-full py-3 text-center text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 rounded-xl transition-all shadow-lg shadow-sky-500/25">
-                Start Free Trial
-              </Link>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 flex flex-col">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">{PRICING.enterprise.name}</h3>
-              <p className="text-sm text-slate-500 mb-4">{PRICING.enterprise.tagline}</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900">Custom</span>
-              </div>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {PRICING.enterprise.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link to="/contact" className="block w-full py-3 text-center text-sm font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
-                Contact Sales
-              </Link>
-            </div>
-          </div>
-
-          <p className="text-center mt-8 text-sm text-slate-500">
-            All plans include a <strong className="text-slate-700">14-day risk-free trial</strong>. No credit card required.{' '}
-            <Link to="/pricing" className="text-sky-600 font-medium hover:text-sky-700">Compare plans in detail &rarr;</Link>
-          </p>
         </div>
       </section>
 
