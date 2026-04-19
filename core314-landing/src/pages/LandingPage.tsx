@@ -103,17 +103,70 @@ const steps = [
 ];
 
 const briefSignals = [
-  { severity: 'high', text: '[HubSpot] 5 deals stalled in the pipeline ($320,000 at risk). Acme Corp - Enterprise License ($85K, 28 days), GlobalTech - Platform Migration ($120K, 21 days), Nexus Industries - Annual Renewal ($45K, 22 days).' },
-  { severity: 'high', text: '[QuickBooks] 3 overdue invoices totaling $28,750. INV-1042 (Acme Corp, $12,500, 35 days overdue), INV-1038 (GlobalTech, $8,750, 52 days overdue), INV-1035 (Nexus Industries, $7,500, 28 days overdue).' },
-  { severity: 'medium', text: '[Slack] Average response time is 45 minutes across 4 monitored channels. Communication volume is below typical thresholds (3 messages across 4 channels).' },
-  { severity: 'medium', text: '[Monday + Trello] 3 overdue items on Monday.com (33% completion) and 7 Trello cards past due across 3 boards. Project delivery at risk.' },
+  {
+    severity: 'high' as const,
+    source: 'quickbooks',
+    subtype: 'Overdue Invoices',
+    text: '3 overdue invoices totaling $28,750. Follow up to improve cash flow.',
+    entities: [
+      { name: 'INV-1042: Acme Corp — $12,500', id: 'INV-1042', value: '$12,500', owner: 'Finance Team', status: 'overdue', lastActivity: 'Mar 15', daysInState: 35, detail: '35 days overdue' },
+      { name: 'INV-1038: GlobalTech — $8,750', id: 'INV-1038', value: '$8,750', owner: 'Finance Team', status: 'overdue', lastActivity: 'Feb 26', daysInState: 52, detail: '52 days overdue' },
+      { name: 'INV-1035: Nexus Industries — $7,500', id: 'INV-1035', value: '$7,500', owner: 'Finance Team', status: 'overdue', lastActivity: 'Mar 22', daysInState: 28, detail: '28 days overdue' },
+    ],
+    metrics: { 'open invoices': 8, 'overdue count': 3, 'overdue total': 28750 },
+  },
+  {
+    severity: 'high' as const,
+    source: 'hubspot',
+    subtype: 'Stage Stagnation',
+    text: '5 deals stalled in the pipeline out of 12 total. Revenue at risk — review and take action.',
+    entities: [
+      { name: 'Acme Corp - Enterprise License — $85,000 (Qualified to Buy)', id: 'deal-001', value: '$85,000', owner: 'John Smith', status: 'Qualified to Buy', lastActivity: 'Apr 1', daysInState: 28, detail: 'stalled 28 days' },
+      { name: 'GlobalTech - Platform Migration — $120,000 (Presentation Scheduled)', id: 'deal-002', value: '$120,000', owner: 'Sarah Lee', status: 'Presentation Scheduled', lastActivity: 'Apr 5', daysInState: 21, detail: 'stalled 21 days' },
+      { name: 'Nexus Industries - Annual Renewal — $45,000 (Qualified to Buy)', id: 'deal-003', value: '$45,000', owner: 'Mike Chen', status: 'Qualified to Buy', lastActivity: 'Mar 28', daysInState: 22, detail: 'stalled 22 days' },
+    ],
+    metrics: { 'total deals': 12, 'stalled count': 5, 'pipeline value': 320000 },
+  },
+  {
+    severity: 'medium' as const,
+    source: 'slack',
+    subtype: 'Response Delay',
+    text: 'Average Slack response time is 45 minutes. Teams responding slowly may indicate capacity issues.',
+    entities: [],
+    metrics: { 'avg response time minutes': 45 },
+  },
+  {
+    severity: 'medium' as const,
+    source: 'trello',
+    subtype: 'Delivery Delay',
+    text: '7 Trello cards past due date across 3 boards. 15 total active cards.',
+    entities: [],
+    metrics: { boards: 3, 'total cards': 15, 'overdue count': 7 },
+  },
+];
+
+const briefAccountability = [
+  { entity: 'Acme Corp - Enterprise License', owner: 'John Smith', issue: 'Deal stalled for 28 days' },
+  { entity: 'GlobalTech - Platform Migration', owner: 'Sarah Lee', issue: 'Deal stalled for 21 days' },
+  { entity: 'Nexus Industries - Annual Renewal', owner: 'Mike Chen', issue: 'Deal stalled for 22 days' },
+  { entity: 'INV-1042', owner: 'Finance Team', issue: 'Invoice overdue for 35 days' },
+  { entity: 'INV-1038', owner: 'Finance Team', issue: 'Invoice overdue for 52 days' },
+  { entity: 'INV-1035', owner: 'Finance Team', issue: 'Invoice overdue for 28 days' },
 ];
 
 const briefActions = [
-  'John Smith: Re-engage Acme Corp deal ($85K, Qualified to Buy) \u2014 within 48 hours.',
-  'Sarah Lee: Follow up with GlobalTech on presentation ($120K) \u2014 within 72 hours.',
-  'Finance Team: Pursue overdue invoice payment from Acme Corp (INV-1042, $12,500, 35 days overdue) \u2014 immediately.',
-  'IT Team: Re-authorize Slack app with groups:read scope to monitor private channels \u2014 within 24 hours.',
+  { who: 'Sales Manager', what: 'Re-engage Acme Corp deal', when: 'Within 48 hours' },
+  { who: 'Finance Team', what: 'Follow up on overdue invoices', when: 'Immediately' },
+  { who: 'Project Manager', what: 'Address overdue tasks on Monday.com and Trello', when: 'Within 72 hours' },
+  { who: 'IT Administrator', what: 'Re-authorize Slack app to access private channels', when: 'Within 24 hours' },
+];
+
+const briefRootCauses = [
+  'Overdue invoices indicate delayed follow-ups and potential bottlenecks in payment processes.',
+  'Stalled deals show no activity for over 14 days, suggesting engagement issues or decision-making delays.',
+  'No new deals imply a lack of lead generation or reduced sales activity.',
+  'Low Slack message volume suggests decreased team interaction or engagement.',
+  'Overdue items on Monday.com and Trello indicate delays in project execution and task management.',
 ];
 
 const testimonials = [
@@ -465,48 +518,192 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
             className="max-w-4xl mx-auto bg-slate-900 rounded-2xl p-6 sm:p-10 shadow-2xl border border-slate-700"
           >
-            <div className="flex items-center justify-between mb-6">
+            {/* HEADER */}
+            <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-sky-400 text-xs font-medium uppercase tracking-wider mb-1">Core314 Operational Brief</div>
-                <h3 className="text-xl font-bold text-white">Full Operational Slowdown Detected</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white leading-snug">Operational Event Detected &mdash; Full Operational Slowdown</h3>
               </div>
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Health: 10 / 100</span>
-                <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Critical</span>
+              <div className="hidden sm:flex flex-col items-end gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Score: 10 / 100</span>
+                  <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Critical</span>
+                </div>
+                <span className="text-red-400 text-xs font-medium">&darr;&darr; Critical Decline (-22)</span>
               </div>
             </div>
+            <div className="flex items-center gap-3 text-xs text-slate-400 mb-6">
+              <span>Sunday, April 19, 2026 at 06:09 PM</span>
+              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">High Confidence</span>
+            </div>
 
+            {/* DETECTED SIGNALS WITH ENTITY DETAILS */}
             <div className="mb-6">
-              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Detected Signals</h4>
-              <div className="space-y-2.5">
+              <h4 className="text-sky-400 font-semibold mb-4 uppercase tracking-wider text-xs">Detected Signals</h4>
+              <div className="space-y-5">
                 {briefSignals.map((signal, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${signal.severity === 'high' ? 'bg-red-400' : signal.severity === 'medium' ? 'bg-amber-400' : 'bg-green-400'}`} />
-                    <p className="text-slate-300 text-sm leading-relaxed">{signal.text}</p>
+                  <div key={index} className="border-l-2 border-slate-700 pl-4">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${signal.severity === 'high' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                      <span className="text-slate-400 text-xs uppercase tracking-wider">{signal.source}</span>
+                      <span className="text-slate-500 text-xs">&mdash;</span>
+                      <span className="text-white text-xs font-semibold">{signal.subtype}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: signal.severity === 'high' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)', color: signal.severity === 'high' ? '#f87171' : '#fbbf24' }}>{signal.severity}</span>
+                    </div>
+                    <p className="text-slate-300 text-sm leading-relaxed mb-2">{signal.text}</p>
+                    {signal.entities.length > 0 && (
+                      <div className="bg-slate-800/60 rounded-lg p-3 mb-2">
+                        <div className="text-slate-400 text-xs uppercase tracking-wider mb-2">Entity Details ({signal.entities.length})</div>
+                        <div className="space-y-2">
+                          {signal.entities.map((entity, ei) => (
+                            <div key={ei} className="border-l-2 border-slate-600 pl-3">
+                              <div className="text-white text-sm font-medium">{entity.name}</div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-400 mt-0.5">
+                                <span>ID: <span className="text-slate-300">{entity.id}</span></span>
+                                <span>Value: <span className="text-emerald-400">{entity.value}</span></span>
+                                <span>Owner: <span className="text-sky-400">{entity.owner}</span></span>
+                                <span>Status: <span className="text-amber-400 font-medium">{entity.status}</span></span>
+                                <span>Last Activity: <span className="text-slate-300 font-medium">{entity.lastActivity}</span></span>
+                                <span>Days in State: <span className="text-red-400 font-bold">{entity.daysInState}</span></span>
+                              </div>
+                              <div className="text-xs text-slate-500 mt-0.5">{entity.detail}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      {Object.entries(signal.metrics).map(([key, val]) => (
+                        <span key={key} className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
+                          {key}: <span className="text-white font-medium">{typeof val === 'number' ? val.toLocaleString() : val}</span>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="mb-6">
-              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Cross-System Correlation</h4>
+            {/* CROSS-SYSTEM CORRELATION */}
+            <div className="mb-6 bg-slate-800/40 rounded-lg p-4 border border-slate-700/50">
+              <h4 className="text-sky-400 font-semibold mb-2 uppercase tracking-wider text-xs">Cross-System Correlation</h4>
               <p className="text-slate-300 text-sm leading-relaxed">
-                5 stalled deals in HubSpot ($320,000 pipeline) correlate with 3 overdue invoices in QuickBooks ($28,750),
-                indicating a breakdown between sales conversion and billing execution. Revenue at risk: $320,000.
-                Overdue cash: $28,750. Low Slack engagement and overdue project tasks in Monday + Trello compound the risk.
+                5 stalled deals ($320,000 pipeline) correlate with 3 overdue invoices ($28,750), indicating
+                breakdown between sales conversion and billing execution.
               </p>
             </div>
 
-            <div>
-              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Recommended Actions</h4>
-              <div className="space-y-2.5">
-                {briefActions.map((action, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <ChevronRight className="h-4 w-4 text-sky-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-slate-300 text-sm leading-relaxed">{action}</p>
+            {/* BUSINESS IMPACT */}
+            <div className="mb-6">
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Business Impact</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center">
+                  <div className="text-red-400 text-xs uppercase tracking-wider mb-1">Revenue at Risk</div>
+                  <div className="text-white text-xl font-bold">$320,000</div>
+                </div>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-center">
+                  <div className="text-amber-400 text-xs uppercase tracking-wider mb-1">Overdue Cash</div>
+                  <div className="text-white text-xl font-bold">$28,750</div>
+                </div>
+                <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-3 text-center">
+                  <div className="text-slate-400 text-xs uppercase tracking-wider mb-1">Operational Delays</div>
+                  <div className="text-white text-sm font-medium">Tasks significantly delayed</div>
+                </div>
+              </div>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                The stalled deals represent a substantial portion of the expected pipeline, while overdue invoices strain cash flow.
+                Delays in task completion could lead to client dissatisfaction and potential loss of business.
+              </p>
+            </div>
+
+            {/* ROOT CAUSE ANALYSIS */}
+            <div className="mb-6">
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Root Cause Analysis</h4>
+              <div className="space-y-1.5">
+                {briefRootCauses.map((cause, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-slate-400 text-xs leading-relaxed">{cause}</p>
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* FORECAST PROJECTIONS */}
+            <div className="mb-6">
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Forecast Projections</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-slate-800/50 rounded-lg p-3">
+                  <div className="text-sky-400 text-xs font-semibold mb-1">7-Day Outlook</div>
+                  <p className="text-slate-400 text-xs leading-relaxed">2 of 5 stalled deals may remain inactive, risking potential loss.</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-3">
+                  <div className="text-amber-400 text-xs font-semibold mb-1">14-Day Outlook</div>
+                  <p className="text-slate-400 text-xs leading-relaxed">3 of 5 stalled deals likely lost if engagement does not improve.</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-3">
+                  <div className="text-red-400 text-xs font-semibold mb-1">30-Day Outlook</div>
+                  <p className="text-slate-400 text-xs leading-relaxed">60% of ongoing projects affected if current trends persist.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ACCOUNTABILITY TABLE */}
+            <div className="mb-6">
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Accountability</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left text-slate-400 font-medium py-2 pr-4">Entity</th>
+                      <th className="text-left text-slate-400 font-medium py-2 pr-4">Owner</th>
+                      <th className="text-left text-slate-400 font-medium py-2">Issue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {briefAccountability.map((row, index) => (
+                      <tr key={index} className="border-b border-slate-800">
+                        <td className="text-white py-2 pr-4">{row.entity}</td>
+                        <td className="text-sky-400 py-2 pr-4">{row.owner}</td>
+                        <td className="text-slate-300 py-2">{row.issue}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* RECOMMENDED ACTIONS TABLE */}
+            <div className="mb-6">
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Recommended Actions</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left text-slate-400 font-medium py-2 pr-4">Who</th>
+                      <th className="text-left text-slate-400 font-medium py-2 pr-4">What</th>
+                      <th className="text-left text-slate-400 font-medium py-2">When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {briefActions.map((row, index) => (
+                      <tr key={index} className="border-b border-slate-800">
+                        <td className="text-sky-400 py-2 pr-4 font-medium">{row.who}</td>
+                        <td className="text-white py-2 pr-4">{row.what}</td>
+                        <td className="text-amber-400 py-2 font-medium">{row.when}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* RISK ASSESSMENT */}
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+              <h4 className="text-red-400 font-semibold mb-1 uppercase tracking-wider text-xs">Risk Assessment</h4>
+              <p className="text-slate-300 text-sm leading-relaxed">
+                The current operational slowdown poses a high risk to financial stability and project delivery timelines. Immediate corrective actions are essential.
+              </p>
             </div>
           </motion.div>
         </div>
