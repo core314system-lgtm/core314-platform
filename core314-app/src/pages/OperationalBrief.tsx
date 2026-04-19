@@ -31,7 +31,9 @@ import { useNavigate } from 'react-router-dom';
 import { getSupabaseFunctionUrl, getSupabaseAnonKey } from '../lib/supabase';
 import { authenticatedFetch, SessionExpiredError } from '../utils/authenticatedFetch';
 import { generateBriefPdf } from '../utils/generateBriefPdf';
+import { generateBriefPptx } from '../utils/generateBriefPptx';
 import { HealthScoreLegend } from '../components/HealthScoreLegend';
+import { useSubscription } from '../hooks/useSubscription';
 
 interface BriefUsage {
   plan: string;
@@ -214,6 +216,9 @@ export function OperationalBrief() {
   const [limitReached, setLimitReached] = useState(false);
   const [momentum, setMomentum] = useState<MomentumData | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pptxGenerating, setPptxGenerating] = useState(false);
+  const { hasFeature } = useSubscription(profile?.id);
+  const canExportPptx = hasFeature('pptx_export') || profile?.role === 'admin';
 
   // Test Scenario Mode state
   const isTestMode = import.meta.env.VITE_TEST_MODE === 'true';
@@ -386,6 +391,51 @@ export function OperationalBrief() {
     }
   };
 
+  const handleDownloadPptx = async () => {
+    if (!brief) return;
+    setPdfError(null);
+    setPptxGenerating(true);
+    try {
+      // Fetch company logo URL from profile
+      let companyLogoUrl: string | undefined;
+      if (profile?.id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('company_logo_url')
+          .eq('id', profile.id)
+          .single();
+        if (profileData) {
+          companyLogoUrl = (profileData as Record<string, unknown>).company_logo_url as string | undefined ?? undefined;
+        }
+      }
+
+      await generateBriefPptx({
+        title: brief.title,
+        created_at: brief.created_at,
+        health_score: brief.health_score,
+        confidence: brief.confidence,
+        detected_signals: brief.detected_signals,
+        business_impact: brief.business_impact,
+        recommended_actions: brief.recommended_actions,
+        risk_assessment: brief.risk_assessment,
+        momentum: momentum ?? undefined,
+        userName: profile?.full_name,
+        companyLogoUrl,
+        signal_evidence: brief.data_context?.signal_evidence,
+        root_cause_analysis: brief.data_context?.root_cause_analysis ?? undefined,
+        cross_system_correlation: brief.data_context?.cross_system_correlation ?? undefined,
+        business_impact_structured: brief.data_context?.business_impact_structured ?? undefined,
+        forecast: brief.data_context?.forecast ?? undefined,
+        accountability: brief.data_context?.accountability ?? undefined,
+        score_breakdown: brief.data_context?.score_breakdown ?? undefined,
+      });
+    } catch {
+      setPdfError('Failed to generate PowerPoint. Please try again.');
+    } finally {
+      setPptxGenerating(false);
+    }
+  };
+
   const getHealthColor = (score: number | null) => {
     if (score === null) return 'text-gray-500';
     if (score >= 90) return 'text-green-600';
@@ -525,7 +575,34 @@ export function OperationalBrief() {
               className="border-sky-600 text-sky-600 hover:bg-sky-50 dark:border-sky-400 dark:text-sky-400 dark:hover:bg-sky-950"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download Brief
+              PDF
+            </Button>
+          )}
+          {brief && canExportPptx && (
+            <Button
+              onClick={handleDownloadPptx}
+              disabled={pptxGenerating}
+              variant="outline"
+              className="border-indigo-600 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-950"
+            >
+              {pptxGenerating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              PowerPoint
+            </Button>
+          )}
+          {brief && !canExportPptx && (
+            <Button
+              variant="outline"
+              className="border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500 cursor-not-allowed"
+              onClick={() => navigate('/billing')}
+              title="PowerPoint export is available on Command Center and Enterprise plans"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              PowerPoint
+              <ArrowUpCircle className="h-3.5 w-3.5 ml-1.5" />
             </Button>
           )}
           <Button

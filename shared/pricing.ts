@@ -45,6 +45,7 @@ export const PRICING = {
       'Command Center Dashboard',
       'Advanced Signal Analysis',
       'Integration Event History',
+      'PowerPoint Brief Export',
       'Up to 5 Users',
     ],
     users: 5,
