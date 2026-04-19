@@ -197,19 +197,19 @@ export default function HowItWorksPage() {
                       <div className="space-y-3">
                         <div className="flex items-start gap-3">
                           <div className="mt-1.5 w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                          <p className="text-sm text-slate-300">7 deals stalled with no follow-up in 5+ days</p>
+                          <p className="text-sm text-slate-300">[HubSpot] 5 deals stalled ($320K at risk) &mdash; Acme Corp $85K, GlobalTech $120K</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1.5 w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                          <p className="text-sm text-slate-300">[QuickBooks] 3 overdue invoices totaling $28,750 &mdash; oldest 52 days past due</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <div className="mt-1.5 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-                          <p className="text-sm text-slate-300">Invoice payment times up 32% month-over-month</p>
+                          <p className="text-sm text-slate-300">[Slack] Response time 45 min avg, communication volume below threshold</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <div className="mt-1.5 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-                          <p className="text-sm text-slate-300">Sales-delivery communication spiked 41%</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1.5 w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                          <p className="text-sm text-slate-300">3 new vendor accounts detected in QuickBooks</p>
+                          <p className="text-sm text-slate-300">[Monday + Trello] 10 overdue items across project boards</p>
                         </div>
                       </div>
                     </div>
@@ -218,21 +218,21 @@ export default function HowItWorksPage() {
                     <div className="bg-slate-900 rounded-2xl p-6 text-white">
                       <div className="flex items-center justify-between mb-4">
                         <div className="text-xs text-sky-400 font-medium uppercase tracking-wider">Operational Brief</div>
-                        <span className="bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full text-xs font-medium">Score: 68/100</span>
+                        <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Health: 10/100</span>
                       </div>
                       <p className="text-sm text-slate-300 leading-relaxed mb-4">
-                        Pipeline velocity has decreased this week with multiple high-value deals showing no activity.
-                        Combined with increased invoice payment times, there is moderate risk of revenue impact this quarter.
+                        5 stalled deals in HubSpot ($320K) correlate with 3 overdue invoices in QuickBooks ($28,750),
+                        indicating a breakdown between sales conversion and billing execution.
                       </p>
                       <div className="text-xs text-sky-400 font-medium uppercase tracking-wider mb-2">Actions</div>
                       <div className="space-y-2">
                         <div className="flex items-start gap-2">
                           <ChevronRight className="h-4 w-4 text-sky-400 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-slate-300">Prioritize follow-up on 3 deals closest to closing</p>
+                          <p className="text-sm text-slate-300">John Smith: Re-engage Acme Corp ($85K) &mdash; within 48 hours</p>
                         </div>
                         <div className="flex items-start gap-2">
                           <ChevronRight className="h-4 w-4 text-sky-400 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-slate-300">Escalate invoices over 45 days past due</p>
+                          <p className="text-sm text-slate-300">Finance Team: Pursue INV-1042 payment ($12,500) &mdash; immediately</p>
                         </div>
                       </div>
                     </div>

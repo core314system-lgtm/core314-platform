@@ -103,16 +103,17 @@ const steps = [
 ];
 
 const briefSignals = [
-  { severity: 'high', text: '7 deals in your pipeline have not received follow-up in over 5 days.' },
-  { severity: 'medium', text: 'Invoice payment times increased 32% this month compared to last month.' },
-  { severity: 'medium', text: 'Slack communication between sales and delivery teams spiked 41%.' },
-  { severity: 'low', text: 'QuickBooks expense categorization shows 3 new vendor accounts this week.' },
+  { severity: 'high', text: '[HubSpot] 5 deals stalled in the pipeline ($320,000 at risk). Acme Corp - Enterprise License ($85K, 28 days), GlobalTech - Platform Migration ($120K, 21 days), Nexus Industries - Annual Renewal ($45K, 22 days).' },
+  { severity: 'high', text: '[QuickBooks] 3 overdue invoices totaling $28,750. INV-1042 (Acme Corp, $12,500, 35 days overdue), INV-1038 (GlobalTech, $8,750, 52 days overdue), INV-1035 (Nexus Industries, $7,500, 28 days overdue).' },
+  { severity: 'medium', text: '[Slack] Average response time is 45 minutes across 4 monitored channels. Communication volume is below typical thresholds (3 messages across 4 channels).' },
+  { severity: 'medium', text: '[Monday + Trello] 3 overdue items on Monday.com (33% completion) and 7 Trello cards past due across 3 boards. Project delivery at risk.' },
 ];
 
 const briefActions = [
-  'Follow up on stalled deals \u2014 prioritize the 3 deals closest to closing.',
-  'Review overdue invoices and escalate accounts over 45 days past due.',
-  'Investigate the sales-delivery communication spike for potential delivery bottleneck.',
+  'John Smith: Re-engage Acme Corp deal ($85K, Qualified to Buy) \u2014 within 48 hours.',
+  'Sarah Lee: Follow up with GlobalTech on presentation ($120K) \u2014 within 72 hours.',
+  'Finance Team: Pursue overdue invoice payment from Acme Corp (INV-1042, $12,500, 35 days overdue) \u2014 immediately.',
+  'IT Team: Re-authorize Slack app with groups:read scope to monitor private channels \u2014 within 24 hours.',
 ];
 
 const testimonials = [
@@ -467,11 +468,11 @@ export default function LandingPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <div className="text-sky-400 text-xs font-medium uppercase tracking-wider mb-1">Core314 Operational Brief</div>
-                <h3 className="text-xl font-bold text-white">Weekly Operations Summary</h3>
+                <h3 className="text-xl font-bold text-white">Full Operational Slowdown Detected</h3>
               </div>
               <div className="hidden sm:flex items-center gap-2">
-                <span className="bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full text-xs font-medium">Score: 68 / 100</span>
-                <span className="bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded-full text-xs font-medium">Moderate Risk</span>
+                <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Health: 10 / 100</span>
+                <span className="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-medium">Critical</span>
               </div>
             </div>
 
@@ -488,11 +489,11 @@ export default function LandingPage() {
             </div>
 
             <div className="mb-6">
-              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Business Impact</h4>
+              <h4 className="text-sky-400 font-semibold mb-3 uppercase tracking-wider text-xs">Cross-System Correlation</h4>
               <p className="text-slate-300 text-sm leading-relaxed">
-                Pipeline velocity has decreased this week, with multiple high-value deals showing no activity.
-                Combined with the increase in invoice payment times, there is a moderate risk of revenue impact
-                this quarter. The spike in sales-delivery communication may indicate emerging delivery constraints.
+                5 stalled deals in HubSpot ($320,000 pipeline) correlate with 3 overdue invoices in QuickBooks ($28,750),
+                indicating a breakdown between sales conversion and billing execution. Revenue at risk: $320,000.
+                Overdue cash: $28,750. Low Slack engagement and overdue project tasks in Monday + Trello compound the risk.
               </p>
             </div>
 
