@@ -22,11 +22,11 @@ const faqs = [
   },
   {
     q: 'Do I need a credit card to start the trial?',
-    a: 'No. You can start your 14-day trial without entering any payment information. We want you to experience the value before making any commitment.',
+    a: 'Yes, a credit card is required to start your trial. However, your card will not be charged during the 14-day trial period. You can cancel anytime before the trial ends and you will never be charged.',
   },
   {
     q: 'What integrations are included?',
-    a: 'All 16 integrations are available on every plan. The difference is how many you can connect simultaneously: 3 on Intelligence, 10 on Command Center, and unlimited on Enterprise.',
+    a: 'All integrations are available on every plan. The difference is how many you can connect simultaneously: 3 on Intelligence, 10 on Command Center, and unlimited on Enterprise.',
   },
   {
     q: 'How are Operational Briefs generated?',
@@ -47,7 +47,7 @@ const faqs = [
 ];
 
 const comparisonFeatures = [
-  { name: 'Integrations', intel: '3 of 16', cmd: '10 of 16', ent: 'All 16' },
+  { name: 'Integrations', intel: '3', cmd: '10', ent: 'Unlimited' },
   { name: 'AI Operational Briefs', intel: '30 / month', cmd: 'Unlimited', ent: 'Unlimited' },
   { name: 'Users', intel: '1', cmd: 'Up to 5', ent: 'Up to 20' },
   { name: 'Operational Health Score', intel: true, cmd: true, ent: true },
@@ -116,7 +116,7 @@ export default function PricingPage() {
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}
             className="text-sm text-slate-400"
           >
-            No credit card required &middot; Cancel anytime &middot; Month-to-month billing
+            Card not charged during trial &middot; Cancel anytime &middot; Month-to-month billing
           </motion.p>
         </div>
       </section>
@@ -209,7 +209,7 @@ export default function PricingPage() {
           </div>
 
           <p className="text-center mt-8 text-sm text-slate-500">
-            All plans include a <strong className="text-slate-700">14-day risk-free trial</strong>. No credit card required to start.
+            All plans include a <strong className="text-slate-700">14-day risk-free trial</strong>. Your card is not charged until the trial ends.
           </p>
         </div>
       </section>
@@ -291,13 +291,13 @@ export default function PricingPage() {
               Ready to See What You&apos;ve Been Missing?
             </h2>
             <p className="text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed mb-8">
-              Start your free trial today. No credit card required. If Core314 does not deliver value in 14 days, you pay nothing.
+              Start your free trial today. Your card will not be charged during the trial period. Cancel anytime — if Core314 does not deliver value in 14 days, you pay nothing.
             </p>
             <Link to="/signup" className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-bold text-slate-900 bg-white hover:bg-slate-50 rounded-xl shadow-2xl transition-all">
               Start My Free 14-Day Trial
               <ArrowRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
-            <p className="text-sm text-slate-400 mt-4">No credit card required &middot; Cancel anytime</p>
+            <p className="text-sm text-slate-400 mt-4">Card not charged during trial &middot; Cancel anytime</p>
           </motion.div>
         </div>
       </section>

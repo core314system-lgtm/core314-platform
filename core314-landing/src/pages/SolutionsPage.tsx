@@ -114,7 +114,7 @@ const useCases = [
     icon: Users,
     title: 'Multi-Tool Teams',
     desc: 'Your team uses 5+ tools daily but no one has the full picture. Core314 connects the dots across all your systems.',
-    benefits: ['Cross-tool signal correlation', '16 integrations available', 'One unified brief'],
+    benefits: ['Cross-tool signal correlation', 'Growing integration library', 'One unified brief'],
   },
   {
     icon: Target,
@@ -318,7 +318,7 @@ export default function SolutionsPage() {
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
-            <p className="text-sm text-slate-400">No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime</p>
+            <p className="text-sm text-slate-400">Card not charged during trial &middot; Set up in under 5 minutes &middot; Cancel anytime</p>
           </motion.div>
         </div>
       </section>

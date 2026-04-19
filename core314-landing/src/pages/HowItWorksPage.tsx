@@ -326,7 +326,7 @@ export default function HowItWorksPage() {
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
-            <p className="text-sm text-slate-400">No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime</p>
+            <p className="text-sm text-slate-400">Card not charged during trial &middot; Set up in under 5 minutes &middot; Cancel anytime</p>
           </motion.div>
         </div>
       </section>

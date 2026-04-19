@@ -49,7 +49,7 @@ const stagger = {
 };
 
 const proofMetrics = [
-  { value: '16', label: 'Integrations' },
+  { value: '16+', label: 'Integrations' },
   { value: '5 min', label: 'Setup Time' },
   { value: '100%', label: 'Read-Only Access' },
   { value: '14 days', label: 'Risk-Free Trial' },
@@ -155,11 +155,11 @@ const faqs = [
   },
   {
     q: 'What tools does Core314 connect to?',
-    a: 'Core314 integrates with 16 popular business platforms including Slack, HubSpot, QuickBooks, Jira, Salesforce, Google Calendar, Gmail, Microsoft Teams, and more. New integrations are added regularly.',
+    a: 'Core314 integrates with popular business platforms including Slack, HubSpot, QuickBooks, Jira, Salesforce, Google Calendar, Gmail, Microsoft Teams, and more. New integrations are added regularly.',
   },
   {
     q: 'Can I try it before I commit?',
-    a: 'Yes. Every plan includes a 14-day risk-free trial. No credit card required to start. If Core314 does not deliver value in 14 days, you pay nothing.',
+    a: 'Yes. Every plan includes a 14-day risk-free trial. Your card will not be charged during the trial period, and you can cancel anytime before it ends. If Core314 does not deliver value in 14 days, you pay nothing.',
   },
   {
     q: 'What makes this different from a dashboard tool?',
@@ -294,7 +294,7 @@ export default function LandingPage() {
               transition={{ duration: 0.5, delay: 0.45 }}
               className="text-sm text-slate-400"
             >
-              No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime
+              Card not charged during trial &middot; Set up in under 5 minutes &middot; Cancel anytime
             </motion.p>
           </div>
 
@@ -320,7 +320,7 @@ export default function LandingPage() {
       <section className="py-12 border-y border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-400 mb-8">
-            Connects with 16 tools your team already uses
+            Connects with the tools your team already uses
           </p>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-6 items-center justify-items-center">
             {allIntegrations.map(({ name, Logo }) => (
@@ -712,7 +712,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <p className="text-sm text-slate-400">
-              No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime
+              Card not charged during trial &middot; Set up in under 5 minutes &middot; Cancel anytime
             </p>
           </motion.div>
         </div>

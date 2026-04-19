@@ -227,7 +227,7 @@ export default function ProductPage() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }}
             className="text-center mb-14"
           >
-            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">16 Integrations</p>
+            <p className="text-sky-600 text-sm font-bold uppercase tracking-wider mb-3">16+ Integrations</p>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
               Connects to the Tools You Already Use
             </h2>
@@ -303,7 +303,7 @@ export default function ProductPage() {
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
-            <p className="text-sm text-slate-400">No credit card required &middot; Set up in under 5 minutes &middot; Cancel anytime</p>
+            <p className="text-sm text-slate-400">Card not charged during trial &middot; Set up in under 5 minutes &middot; Cancel anytime</p>
           </motion.div>
         </div>
       </section>
