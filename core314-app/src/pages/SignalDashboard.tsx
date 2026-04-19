@@ -14,6 +14,14 @@ import {
   Briefcase,
   Clock,
   Filter,
+  GitBranch,
+  Trello,
+  Globe,
+  Users,
+  FileText,
+  Video,
+  Sheet,
+  LayoutDashboard,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -40,6 +48,34 @@ const SOURCE_ICONS: Record<string, typeof Activity> = {
   hubspot: Briefcase,
   slack: MessageSquare,
   quickbooks: DollarSign,
+  trello: Trello,
+  jira: LayoutDashboard,
+  github: GitBranch,
+  salesforce: Globe,
+  asana: FileText,
+  notion: FileText,
+  monday: LayoutDashboard,
+  zendesk: Users,
+  zoom: Video,
+  teams: Users,
+  google_sheets: Sheet,
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  hubspot: 'HubSpot',
+  slack: 'Slack',
+  quickbooks: 'QuickBooks',
+  trello: 'Trello',
+  jira: 'Jira',
+  github: 'GitHub',
+  salesforce: 'Salesforce',
+  asana: 'Asana',
+  notion: 'Notion',
+  monday: 'Monday.com',
+  zendesk: 'Zendesk',
+  zoom: 'Zoom',
+  teams: 'Teams',
+  google_sheets: 'Google Sheets',
 };
 
 export function SignalDashboard() {
@@ -125,13 +161,16 @@ export function SignalDashboard() {
           <CardContent className="p-4">
             <div className="text-sm text-gray-500 dark:text-gray-400">Total Active Signals</div>
             <div className="text-3xl font-bold mt-1">{signals.length}</div>
+            <div className="text-xs text-gray-400 mt-1">across {Object.keys(signalsBySource).length} integration{Object.keys(signalsBySource).length !== 1 ? 's' : ''}</div>
           </CardContent>
         </Card>
-        {['hubspot', 'slack', 'quickbooks'].map(source => {
+        {Object.entries(signalsBySource)
+          .sort((a, b) => b[1] - a[1])
+          .map(([source, count]) => {
           const Icon = SOURCE_ICONS[source] || Activity;
-          const count = signalsBySource[source] || 0;
+          const label = SOURCE_LABELS[source] || source.charAt(0).toUpperCase() + source.slice(1);
           return (
-            <Card key={source} className={filterSource === source ? 'ring-2 ring-blue-500' : ''}>
+            <Card key={source} className={`cursor-pointer transition-all ${filterSource === source ? 'ring-2 ring-blue-500' : 'hover:border-blue-300 dark:hover:border-blue-700'}`}>
               <CardContent className="p-4">
                 <button
                   className="w-full text-left"
@@ -139,9 +178,10 @@ export function SignalDashboard() {
                 >
                   <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <Icon className="h-4 w-4" />
-                    {source.charAt(0).toUpperCase() + source.slice(1)}
+                    {label}
                   </div>
                   <div className="text-3xl font-bold mt-1">{count}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{count === 1 ? 'signal' : 'signals'}</div>
                 </button>
               </CardContent>
             </Card>
@@ -212,7 +252,7 @@ export function SignalDashboard() {
                           </Badge>
                           <span className="text-xs text-gray-500 flex items-center gap-1">
                             <SourceIcon className="h-3 w-3" />
-                            {signal.source_integration}
+                            {SOURCE_LABELS[signal.source_integration] || signal.source_integration}
                           </span>
                           <span className="text-xs text-gray-400">
                             {signal.confidence}% confidence

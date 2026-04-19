@@ -171,9 +171,9 @@ export default function IntegrationsPage() {
           </div>
 
           <motion.div
+            key={filter}
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-40px' }}
+            animate="visible"
             variants={stagger}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
           >
