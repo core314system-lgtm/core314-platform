@@ -85,10 +85,10 @@ const PLAN_ENTITLEMENTS: Record<string, TenantEntitlements> = {
     is_beta_tenant: false,
   },
   
-  // Command Center tier - full operational intelligence
+  // Command Center tier - up to 10 integrations
   command_center: {
-    max_connected_integrations: -1,
-    max_fusion_contributors: -1,
+    max_connected_integrations: 10,
+    max_fusion_contributors: 10,
     intelligence_refresh_frequency: 5,
     historical_depth_days: -1,
     cross_integration_depth: 'full',
@@ -97,10 +97,10 @@ const PLAN_ENTITLEMENTS: Record<string, TenantEntitlements> = {
     is_beta_tenant: false,
   },
   
-  // Intelligence tier - expanded access
+  // Intelligence tier - up to 3 integrations
   intelligence: {
-    max_connected_integrations: 10,
-    max_fusion_contributors: 7,
+    max_connected_integrations: 3,
+    max_fusion_contributors: 3,
     intelligence_refresh_frequency: 15,
     historical_depth_days: 90,
     cross_integration_depth: 'deep',

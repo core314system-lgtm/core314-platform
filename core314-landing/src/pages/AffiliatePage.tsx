@@ -115,13 +115,13 @@ export default function AffiliatePage() {
               <p className="text-slate-400 text-sm mb-6">Referring a small number of trusted clients.</p>
               
               <div className="bg-slate-900/50 rounded-lg p-4 mb-6">
-                <div className="text-slate-300 text-sm">5 companies on Analyze ($999/month)</div>
+                <div className="text-slate-300 text-sm">5 companies on Intelligence ($299/month)</div>
               </div>
               
               <div className="border-t border-slate-700 pt-6">
-                <div className="text-sky-400 text-3xl font-bold mb-1">$1,248.75</div>
+                <div className="text-sky-400 text-3xl font-bold mb-1">$373.75</div>
                 <div className="text-slate-300 text-sm mb-2">per month</div>
-                <div className="text-white font-semibold">$14,985 per year</div>
+                <div className="text-white font-semibold">$4,485 per year</div>
               </div>
               
               <p className="text-slate-500 text-xs mt-4">Recurring for the lifetime of the customers.</p>
@@ -134,14 +134,14 @@ export default function AffiliatePage() {
               <p className="text-slate-400 text-sm mb-6">Leveraging an existing professional network.</p>
               
               <div className="bg-slate-900/50 rounded-lg p-4 mb-6 space-y-2">
-                <div className="text-slate-300 text-sm">12 companies on Analyze</div>
-                <div className="text-slate-300 text-sm">6 companies on Observe</div>
+                <div className="text-slate-300 text-sm">12 companies on Intelligence ($299/mo)</div>
+                <div className="text-slate-300 text-sm">6 companies on Command Center ($799/mo)</div>
               </div>
               
               <div className="border-t border-slate-700 pt-6">
-                <div className="text-sky-400 text-3xl font-bold mb-1">~$3,595</div>
+                <div className="text-sky-400 text-3xl font-bold mb-1">~$2,094</div>
                 <div className="text-slate-300 text-sm mb-2">per month</div>
-                <div className="text-white font-semibold">~$43,140 per year</div>
+                <div className="text-white font-semibold">~$25,128 per year</div>
               </div>
               
               <p className="text-slate-500 text-xs mt-4">Grows automatically as clients expand.</p>
@@ -154,13 +154,13 @@ export default function AffiliatePage() {
               <p className="text-slate-400 text-sm mb-6">Sharing Core314 with a broader audience.</p>
               
               <div className="bg-slate-900/50 rounded-lg p-4 mb-6">
-                <div className="text-slate-300 text-sm">25 companies on Analyze</div>
+                <div className="text-slate-300 text-sm">25 companies on Command Center ($799/month)</div>
               </div>
               
               <div className="border-t border-slate-700 pt-6">
-                <div className="text-sky-400 text-3xl font-bold mb-1">~$6,244</div>
+                <div className="text-sky-400 text-3xl font-bold mb-1">~$4,994</div>
                 <div className="text-slate-300 text-sm mb-2">per month</div>
-                <div className="text-white font-semibold">~$74,925 per year</div>
+                <div className="text-white font-semibold">~$59,925 per year</div>
               </div>
               
               <p className="text-slate-500 text-xs mt-4">Without fulfillment, delivery, or support responsibilities.</p>

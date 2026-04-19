@@ -22,8 +22,8 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
   intelligence: {
     tier: 'intelligence',
     status: 'active',
-    maxUsers: 10,
-    maxIntegrations: -1,
+    maxUsers: 1,
+    maxIntegrations: 3,
     features: ['core_dashboard', 'basic_metrics', 'signals_dashboard', 'health_score', 'ai_insights', 'command_center', 'trend_analysis', 'alerts', 'advanced_analytics'],
     maxMetricsPerIntegration: 5,
     hasAIInsights: true,
@@ -31,8 +31,8 @@ const tierFeatures: Record<string, SubscriptionFeatures> = {
   command_center: {
     tier: 'command_center',
     status: 'active',
-    maxUsers: -1,
-    maxIntegrations: -1,
+    maxUsers: 5,
+    maxIntegrations: 10,
     features: ['core_dashboard', 'basic_metrics', 'signals_dashboard', 'health_score', 'ai_insights', 'command_center', 'trend_analysis', 'alerts', 'advanced_analytics', 'signal_analytics', 'api_access'],
     maxMetricsPerIntegration: -1,
     hasAIInsights: true,

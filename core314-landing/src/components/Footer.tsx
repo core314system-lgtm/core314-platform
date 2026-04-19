@@ -122,7 +122,7 @@ export default function Footer() {
         {/* Legal disclaimer */}
         <div className="mt-6 pt-6 border-t border-slate-800">
           <p className="text-xs text-slate-600 leading-relaxed text-center">
-            Slack, HubSpot, and QuickBooks are trademarks of their respective owners. Core314 is not affiliated with or endorsed by these companies. Integration availability may vary and additional integrations are continuously being added.
+            Slack, HubSpot, QuickBooks, Google Calendar, Gmail, Jira, Trello, Microsoft Teams, Google Sheets, Asana, Salesforce, Zoom, GitHub, Zendesk, Notion, and Monday.com are trademarks of their respective owners. Core314 is not affiliated with or endorsed by these companies. Integration availability may vary and additional integrations are continuously being added.
           </p>
         </div>
       </div>
