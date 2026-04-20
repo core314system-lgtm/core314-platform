@@ -2,13 +2,13 @@ import { motion } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { initSupabaseClient } from '../lib/supabase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck, Clock, CreditCard } from 'lucide-react';
 import Header from '../components/Header';
 import { PRICING, formatMonthlyPrice } from '../config/pricing';
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams();
-  const rawPlan = searchParams.get('plan') || 'intelligence';
+  const rawPlan = searchParams.get('plan') || 'command_center';
   // Normalize: URL uses command_center but display map uses commandCenter
   const selectedPlan = rawPlan === 'command_center' ? 'commandCenter' : rawPlan;
   
@@ -118,19 +118,36 @@ export default function SignupPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="text-center mb-10"
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
+            <h1 className="text-4xl md:text-5xl font-bold mb-3 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
               Start Your Free Trial
             </h1>
-            <p className="text-xl text-slate-600">
+            <p className="text-lg text-slate-600 mb-5">
               Selected Plan: <span className="text-sky-600 font-semibold">
-                {plans[selectedPlan as keyof typeof plans]?.name} - {plans[selectedPlan as keyof typeof plans]?.price}
+                {plans[selectedPlan as keyof typeof plans]?.name} — {plans[selectedPlan as keyof typeof plans]?.price}
               </span>
+              <br />
+              <Link to="/pricing" className="text-sm text-sky-500 hover:text-sky-600 transition-colors">
+                Change plan
+              </Link>
             </p>
-            <Link to="/pricing" className="text-sm text-sky-500 hover:text-sky-600 transition-colors">
-              Change plan
-            </Link>
+
+            {/* Industry-standard trial reassurance badges */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
+              <div className="flex items-center gap-2 text-slate-600">
+                <Clock className="h-5 w-5 text-sky-500 flex-shrink-0" />
+                <span className="text-sm font-medium">14-Day Free Trial</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0" />
+                <span className="text-sm font-medium">No Charge During Trial</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <CreditCard className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                <span className="text-sm font-medium">Cancel Anytime</span>
+              </div>
+            </div>
           </motion.div>
 
           <motion.form
@@ -247,13 +264,22 @@ export default function SignupPage() {
                   Creating your account...
                 </>
               ) : (
-                'Start Free Trial'
+                'Start Your 14-Day Free Trial'
               )}
             </button>
 
-            <p className="text-center text-sm text-slate-500 mt-6">
-              Trial begins after your first integration is connected
-            </p>
+            <div className="mt-6 p-4 bg-slate-100 rounded-lg border border-slate-200">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-slate-600">
+                  <p className="font-semibold text-slate-700 mb-1">Your card will not be charged during the trial</p>
+                  <p>
+                    Enjoy full access to the {plans[selectedPlan as keyof typeof plans]?.name} plan for 14 days at no cost.
+                    You will only be billed after your trial ends. Cancel anytime before your trial expires and you won't be charged.
+                  </p>
+                </div>
+              </div>
+            </div>
           </motion.form>
         </div>
       </div>
