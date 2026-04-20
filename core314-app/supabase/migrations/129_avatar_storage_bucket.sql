@@ -9,12 +9,12 @@ VALUES (
     'avatars',
     true,
     5242880, -- 5MB limit
-    ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
 )
 ON CONFLICT (id) DO UPDATE SET
     public = true,
     file_size_limit = 5242880,
-    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 
 -- ============================================================================
 -- Storage policies for avatars bucket
