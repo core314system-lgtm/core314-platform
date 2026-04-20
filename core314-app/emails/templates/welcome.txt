@@ -6,8 +6,8 @@ Your organization {{organization}} has been successfully onboarded to Core314.
 
 You can log in anytime to monitor your system performance, AI metrics, and insights.
 
-Go to Dashboard: https://polite-mochi-fc5be5.netlify.app/
+Go to Dashboard: https://app.core314.com/dashboard
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.
+© 2026 Core314. All rights reserved.

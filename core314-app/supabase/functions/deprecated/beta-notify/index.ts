@@ -63,7 +63,7 @@ const APPROVED_TEMPLATE = `<!DOCTYPE html>
       <p style="margin-top: 30px;"><strong>– The Core314 Team</strong><br><em>"Logic in Motion. Intelligence in Control."</em></p>
     </div>
     <div class="footer">
-      <p>© 2025 Core314. All Rights Reserved.</p>
+      <p>© 2026 Core314. All Rights Reserved.</p>
       <p><a href="https://core314.com/privacy">Privacy Policy</a> | <a href="https://core314.com/terms">Terms of Service</a></p>
     </div>
   </div>
@@ -109,7 +109,7 @@ const REVOKED_TEMPLATE = `<!DOCTYPE html>
       <p style="margin-top: 30px;"><strong>– The Core314 Team</strong><br><em>"Logic in Motion. Intelligence in Control."</em></p>
     </div>
     <div class="footer">
-      <p>© 2025 Core314. All Rights Reserved.</p>
+      <p>© 2026 Core314. All Rights Reserved.</p>
       <p><a href="https://core314.com/privacy">Privacy Policy</a> | <a href="https://core314.com/terms">Terms of Service</a></p>
     </div>
   </div>
