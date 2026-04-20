@@ -147,7 +147,7 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/signup" className="block w-full py-3.5 text-center text-sm font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+              <Link to="/signup?plan=intelligence" className="block w-full py-3.5 text-center text-sm font-bold text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
                 Start 14-Day Free Trial
               </Link>
             </motion.div>
@@ -178,7 +178,7 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/signup" className="block w-full py-3.5 text-center text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 rounded-xl transition-all shadow-lg shadow-sky-500/25">
+              <Link to="/signup?plan=command_center" className="block w-full py-3.5 text-center text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 rounded-xl transition-all shadow-lg shadow-sky-500/25">
                 Start 14-Day Free Trial
               </Link>
             </motion.div>
