@@ -402,19 +402,19 @@ export function OrchestrationBuilder() {
         </CardContent>
       </Card>
 
-      {/* Visual Flow Builder Placeholder */}
+      {/* Visual Flow Editor */}
       <Card>
         <CardHeader>
           <CardTitle>Visual Flow Editor</CardTitle>
           <CardDescription>
-            Drag-and-drop flow builder (Coming Soon)
+            Build automation flows using the form above
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="border-2 border-dashed rounded-lg p-12 text-center text-muted-foreground">
             <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="mb-2">Visual flow editor will be available in the next release</p>
-            <p className="text-sm">For now, flows can be created with the form above</p>
+            <p className="mb-2">Use the flow builder form above to create and manage automation flows</p>
+            <p className="text-sm">Configure triggers, conditions, and actions for each flow</p>
           </div>
         </CardContent>
       </Card>

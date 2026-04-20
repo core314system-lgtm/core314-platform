@@ -17,4 +17,4 @@ Recent Conversation:
 View Ticket: https://app.core314.com/admin/support-tickets?ticket={{ticket_id}}
 
 ---
-© 2025 Core314 Intelligence System. All rights reserved.
+© 2026 Core314 Intelligence System. All rights reserved.

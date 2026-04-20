@@ -257,7 +257,7 @@ async function sendEmailAlert(params: {
           <tr>
             <td style="background:#f9fafb;padding:20px;text-align:center;border-top:1px solid #e5e7eb;">
               <p style="font-size:12px;color:#9ca3af;margin:0;">
-                © 2025 Core314. All rights reserved.
+                © 2026 Core314. All rights reserved.
               </p>
             </td>
           </tr>

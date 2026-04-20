@@ -56,19 +56,19 @@ export function ADPIntelligenceModule() {
           icon={<Users className="h-4 w-4" />}
           label="Headcount Trend"
           value="--"
-          subtext="Placeholder - data coming soon"
+          subtext="Connect ADP to populate"
         />
         <PlaceholderKPI
           icon={<Calendar className="h-4 w-4" />}
           label="Absenteeism Rate"
           value="--"
-          subtext="Placeholder - data coming soon"
+          subtext="Connect ADP to populate"
         />
         <PlaceholderKPI
           icon={<TrendingUp className="h-4 w-4" />}
           label="Workforce Stability"
           value="--"
-          subtext="Placeholder - data coming soon"
+          subtext="Connect ADP to populate"
         />
       </CardContent>
     </Card>

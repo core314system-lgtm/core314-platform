@@ -13,8 +13,8 @@ Activity Summary:
 Performance Trends (Last 24h):
 {{performance_summary}}
 
-View the full dashboard: https://polite-mochi-fc5be5.netlify.app/dashboard
+View the full dashboard: https://app.core314.com/dashboard
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.
+© 2026 Core314. All rights reserved.

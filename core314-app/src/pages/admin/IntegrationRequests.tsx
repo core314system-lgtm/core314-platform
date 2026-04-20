@@ -541,10 +541,9 @@ export function IntegrationRequests() {
     }
   };
 
-  // Phase 3A: Notification hook structure (no external service yet)
+  // Phase 3A: Notification hook for status changes
   const notifyUsersOnStatusChange = (catalogId: string, oldStatus: string, newStatus: string) => {
     console.log(`[AdminIntegrationRequests] Status change notification: ${catalogId} changed from ${oldStatus} to ${newStatus}`);
-    console.log('[AdminIntegrationRequests] TODO: Wire to email/push notification service when ready');
   };
 
   // Phase 3B: Fetch private offers

@@ -33,7 +33,7 @@ const WELCOME_HTML = `<!DOCTYPE html>
                 <table cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="background-color: #ff6b00; border-radius: 6px; text-align: center;">
-                      <a href="https://polite-mochi-fc5be5.netlify.app/" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">Go to Dashboard</a>
+                      <a href="https://app.core314.com/" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">Go to Dashboard</a>
                     </td>
                   </tr>
                 </table>
@@ -41,7 +41,7 @@ const WELCOME_HTML = `<!DOCTYPE html>
             </tr>
             <tr>
               <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2025 Core314. All rights reserved.</p>
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2026 Core314. All rights reserved.</p>
               </td>
             </tr>
           </table>
@@ -59,11 +59,11 @@ Your organization {{organization}} has been successfully onboarded to Core314.
 
 You can log in anytime to monitor your system performance, AI metrics, and insights.
 
-Go to Dashboard: https://polite-mochi-fc5be5.netlify.app/
+Go to Dashboard: https://app.core314.com/
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.`;
+© 2026 Core314. All rights reserved.`;
 
 const OPTIMIZATION_SUCCESS_HTML = `<!DOCTYPE html>
 <html>
@@ -108,7 +108,7 @@ const OPTIMIZATION_SUCCESS_HTML = `<!DOCTYPE html>
                 <table cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="background-color: #ff6b00; border-radius: 6px; text-align: center;">
-                      <a href="https://polite-mochi-fc5be5.netlify.app/admin/optimizations" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">View Optimization Report</a>
+                      <a href="https://app.core314.com/admin/optimizations" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">View Optimization Report</a>
                     </td>
                   </tr>
                 </table>
@@ -116,7 +116,7 @@ const OPTIMIZATION_SUCCESS_HTML = `<!DOCTYPE html>
             </tr>
             <tr>
               <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2025 Core314. All rights reserved.</p>
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2026 Core314. All rights reserved.</p>
               </td>
             </tr>
           </table>
@@ -137,11 +137,11 @@ Optimization Results:
 - Confidence Improvement: +{{confidence_improvement}}%
 - Optimization Type: {{optimization_type}}
 
-View the full optimization report: https://polite-mochi-fc5be5.netlify.app/admin/optimizations
+View the full optimization report: https://app.core314.com/admin/optimizations
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.`;
+© 2026 Core314. All rights reserved.`;
 
 const GOVERNANCE_ALERT_HTML = `<!DOCTYPE html>
 <html>
@@ -191,7 +191,7 @@ const GOVERNANCE_ALERT_HTML = `<!DOCTYPE html>
                 <table cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="background-color: #ff6b00; border-radius: 6px; text-align: center;">
-                      <a href="https://polite-mochi-fc5be5.netlify.app/admin/governance" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">View Governance Log</a>
+                      <a href="https://app.core314.com/admin/governance" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">View Governance Log</a>
                     </td>
                   </tr>
                 </table>
@@ -199,7 +199,7 @@ const GOVERNANCE_ALERT_HTML = `<!DOCTYPE html>
             </tr>
             <tr>
               <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2025 Core314. All rights reserved.</p>
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2026 Core314. All rights reserved.</p>
               </td>
             </tr>
           </table>
@@ -223,11 +223,11 @@ Governance Details:
 AI Explanation:
 {{explanation}}
 
-View the full governance log: https://polite-mochi-fc5be5.netlify.app/admin/governance
+View the full governance log: https://app.core314.com/admin/governance
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.`;
+© 2026 Core314. All rights reserved.`;
 
 const DAILY_DIGEST_HTML = `<!DOCTYPE html>
 <html>
@@ -283,7 +283,7 @@ const DAILY_DIGEST_HTML = `<!DOCTYPE html>
                 <table cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="background-color: #ff6b00; border-radius: 6px; text-align: center;">
-                      <a href="https://polite-mochi-fc5be5.netlify.app/dashboard" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">View Full Dashboard</a>
+                      <a href="https://app.core314.com/dashboard" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">View Full Dashboard</a>
                     </td>
                   </tr>
                 </table>
@@ -291,7 +291,7 @@ const DAILY_DIGEST_HTML = `<!DOCTYPE html>
             </tr>
             <tr>
               <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2025 Core314. All rights reserved.</p>
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2026 Core314. All rights reserved.</p>
               </td>
             </tr>
           </table>
@@ -316,11 +316,11 @@ Activity Summary:
 Performance Trends (Last 24h):
 {{performance_summary}}
 
-View the full dashboard: https://polite-mochi-fc5be5.netlify.app/dashboard
+View the full dashboard: https://app.core314.com/dashboard
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.`;
+© 2026 Core314. All rights reserved.`;
 
 const SUPPORT_ESCALATION_HTML = `<!DOCTYPE html>
 <html>
@@ -362,7 +362,7 @@ const SUPPORT_ESCALATION_HTML = `<!DOCTYPE html>
           </tr>
           <tr>
             <td style="background-color: #f9f9f9; padding: 20px; text-align: center; font-size: 12px; color: #999999;">
-              <p style="margin: 0;">© 2025 Core314 Intelligence System. All rights reserved.</p>
+              <p style="margin: 0;">© 2026 Core314 Intelligence System. All rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -389,7 +389,7 @@ Recent Conversation:
 {{conversation_history}}
 
 ---
-© 2025 Core314 Intelligence System. All rights reserved.`;
+© 2026 Core314 Intelligence System. All rights reserved.`;
 
 const ORGANIZATION_INVITE_HTML = `<!DOCTYPE html>
 <html>
@@ -421,7 +421,7 @@ const ORGANIZATION_INVITE_HTML = `<!DOCTYPE html>
             </tr>
             <tr>
               <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2025 Core314. All rights reserved.</p>
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314 Intelligence System<br>© 2026 Core314. All rights reserved.</p>
               </td>
             </tr>
           </table>
@@ -445,7 +445,7 @@ This invitation expires in 7 days. If you didn't expect this invitation, you can
 
 ---
 Core314 Intelligence System
-© 2025 Core314. All rights reserved.`;
+© 2026 Core314. All rights reserved.`;
 
 const EMAIL_TEMPLATES: Record<string, { subject: string; html: string; text: string }> = {
   welcome: {

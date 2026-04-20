@@ -125,7 +125,7 @@ serve(withSentry(async (req) => {
       .eq('id', user.id)
       .single();
 
-    const appUrl = Deno.env.get('APP_URL') || 'https://polite-mochi-fc5be5.netlify.app';
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.core314.com';
     const inviteLink = `${appUrl}/invite?token=${token}`;
 
     // Send invite email (fire and forget - don't fail if email fails)

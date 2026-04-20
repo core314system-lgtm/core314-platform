@@ -137,7 +137,7 @@ export default function Feedback() {
                 <Label htmlFor="screenshot">Screenshot (Optional)</Label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Screenshot upload functionality coming soon
+                    Paste a screenshot URL or describe the issue visually in your feedback above
                   </p>
                 </div>
               </div>

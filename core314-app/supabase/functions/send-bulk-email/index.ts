@@ -96,7 +96,7 @@ serve(withSentry(async (req) => {
             </tr>
             <tr>
               <td style="padding: 20px 40px 40px 40px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314<br>© 2025 Core314. All rights reserved.</p>
+                <p style="margin: 0; color: #777; font-size: 12px; line-height: 1.4;">Core314<br>© 2026 Core314. All rights reserved.</p>
               </td>
             </tr>
           </table>

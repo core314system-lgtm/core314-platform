@@ -195,13 +195,13 @@ export default async (request: Request, context: Context) => {
             </p>
             
             <center>
-              <a href="https://core314.com/login" class="cta-button">
+              <a href="https://app.core314.com/login" class="cta-button">
                 Access Your Dashboard
               </a>
             </center>
             
             <p class="text">
-              Need help getting started? Visit our <a href="https://core314.com/contact" style="color: #00BFFF;">Help Center</a> 
+              Need help getting started? Visit our <a href="https://core314.com/contact" style="color: #00BFFF;">support page</a> 
               or reply to this email — our team is here to support you.
             </p>
             
@@ -214,7 +214,7 @@ export default async (request: Request, context: Context) => {
           </div>
           
           <div class="footer">
-            <p>© 2025 Core314. All Rights Reserved.</p>
+            <p>© 2026 Core314. All Rights Reserved.</p>
             <p>
               <a href="https://core314.com/privacy" style="color: #00BFFF; text-decoration: none;">Privacy Policy</a> | 
               <a href="https://core314.com/terms" style="color: #00BFFF; text-decoration: none;">Terms of Service</a>
@@ -239,7 +239,7 @@ You now have access to our patent-pending intelligence systems:
 
 Your Core is now active. Connect your systems, synchronize your intelligence, and let logic take over.
 
-Your 14-day free trial has begun. Access your dashboard at: https://core314.com/login
+Your 14-day free trial has begun. Access your dashboard at: https://app.core314.com/login
 
 Need help? Visit https://core314.com/contact or reply to this email.
 
