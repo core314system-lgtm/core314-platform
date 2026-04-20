@@ -452,34 +452,57 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
   }
 
   // ==========================================================================
-  // SLIDE 3+: Detected Signals (2 per slide)
+  // SLIDE 3+: Detected Signals (dynamically fit per slide)
   // ==========================================================================
+
+  // Pre-compute card height for each signal so we can pack slides correctly
+  function computeSignalCardH(ev: PptxSignalEvidence): number {
+    const entCount = Math.min(ev.affected_entities.length, 5);
+    const hasEnt = entCount > 0;
+    const base = 1.0;              // severity badge + source + description
+    const entHeader = hasEnt ? 0.35 : 0;
+    const entRows = entCount * 0.45; // name line + meta line per entity
+    const overflow = ev.affected_entities.length > 5 ? 0.25 : 0;
+    return base + entHeader + entRows + overflow + 0.15;
+  }
+
   if (data.signal_evidence && data.signal_evidence.length > 0) {
-    const signalsPerSlide = 2;
-    for (let chunk = 0; chunk < data.signal_evidence.length; chunk += signalsPerSlide) {
+    const HEADER_H = 1.15;   // space used by content header
+    const FOOTER_H = 0.55;   // footer clearance
+    const CARD_GAP = 0.25;
+    const maxContentY = SLIDE_H - FOOTER_H;
+
+    let si = 0;
+    let pageNum = 0;
+    const totalPages = (() => {
+      let p = 0, y = HEADER_H;
+      for (let i = 0; i < data.signal_evidence.length; i++) {
+        const ch = computeSignalCardH(data.signal_evidence[i]);
+        if (y + ch > maxContentY && y > HEADER_H) { p++; y = HEADER_H; }
+        y += ch + CARD_GAP;
+      }
+      return p + 1;
+    })();
+
+    while (si < data.signal_evidence.length) {
       const signalSlide = pptx.addSlide();
       signalSlide.background = { color: COLORS.white };
+      pageNum++;
 
-      const pageLabel = data.signal_evidence.length > signalsPerSlide
-        ? ` (${Math.floor(chunk / signalsPerSlide) + 1}/${Math.ceil(data.signal_evidence.length / signalsPerSlide)})`
-        : '';
+      const pageLabel = totalPages > 1 ? ` (${pageNum}/${totalPages})` : '';
       addContentHeader(signalSlide, `Detected Signals${pageLabel}`, data.companyLogoUrl);
       addSlideFooter(signalSlide, dateStr);
 
-      let sigY = 1.15;
-      const sliceEnd = Math.min(chunk + signalsPerSlide, data.signal_evidence.length);
+      let sigY = HEADER_H;
 
-      for (let si = chunk; si < sliceEnd; si++) {
+      while (si < data.signal_evidence.length) {
         const ev = data.signal_evidence[si];
-        const sevColor = getSeverityColor(ev.severity);
+        const cardH = computeSignalCardH(ev);
 
-        const entityCount = Math.min(ev.affected_entities.length, 5);
-        const hasEntities = entityCount > 0;
-        const baseCardH = 0.9;
-        const entityHeaderH = hasEntities ? 0.35 : 0;
-        const entityRowH = entityCount * 0.25;
-        const overflowH = ev.affected_entities.length > 5 ? 0.22 : 0;
-        const cardH = baseCardH + entityHeaderH + entityRowH + overflowH + 0.15;
+        // Start a new slide if this card won't fit (unless it's the first card)
+        if (sigY + cardH > maxContentY && sigY > HEADER_H) break;
+
+        const sevColor = getSeverityColor(ev.severity);
 
         signalSlide.addShape('roundRect' as PptxGenJS.ShapeType, {
           x: MARGIN, y: sigY, w: CONTENT_W, h: cardH,
@@ -507,13 +530,14 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
         });
 
         signalSlide.addText(ev.description, {
-          x: MARGIN + 0.2, y: sigY + 0.52, w: CONTENT_W - 0.4, h: 0.35,
+          x: MARGIN + 0.2, y: sigY + 0.52, w: CONTENT_W - 0.4, h: 0.45,
           fontSize: 13, color: COLORS.text, valign: 'top', fontFace: 'Arial',
+          wrap: true,
         });
 
-        if (hasEntities) {
+        if (ev.affected_entities.length > 0) {
           const entitiesToShow = ev.affected_entities.slice(0, 5);
-          let entY = sigY + 0.9;
+          let entY = sigY + 1.0;
 
           signalSlide.addText(`Entity Details (${ev.affected_entities.length}):`, {
             x: MARGIN + 0.2, y: entY, w: 4, h: 0.28,
@@ -526,7 +550,7 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
               ? `${ent.name} ${dashChar} $${ent.value.toLocaleString()}`
               : ent.name;
             signalSlide.addText(`${bulletChar}  ${nameText}`, {
-              x: MARGIN + 0.4, y: entY, w: 5, h: 0.22,
+              x: MARGIN + 0.4, y: entY, w: CONTENT_W - 0.8, h: 0.22,
               fontSize: 11, bold: true, color: COLORS.text, fontFace: 'Arial',
             });
 
@@ -537,11 +561,11 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
 
             if (metaParts.length > 0) {
               signalSlide.addText(metaParts.join('  |  '), {
-                x: MARGIN + 5.5, y: entY, w: CONTENT_W - 6, h: 0.22,
+                x: MARGIN + 0.6, y: entY + 0.22, w: CONTENT_W - 1.0, h: 0.2,
                 fontSize: 10, color: COLORS.textLight, fontFace: 'Arial',
               });
             }
-            entY += 0.25;
+            entY += 0.45;
           }
           if (ev.affected_entities.length > 5) {
             signalSlide.addText(`+${ev.affected_entities.length - 5} more entities...`, {
@@ -551,7 +575,8 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
           }
         }
 
-        sigY += cardH + 0.25;
+        sigY += cardH + CARD_GAP;
+        si++;
       }
     }
   } else if (data.detected_signals.length > 0) {
