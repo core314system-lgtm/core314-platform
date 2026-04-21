@@ -65,7 +65,7 @@ export const handler: Handler = async (event) => {
     let emailSent = false;
 
     if (sendgridApiKey) {
-      const CONTACT_RECIPIENT = 'chris.brown@core314.com';
+      const CONTACT_RECIPIENT = 'admin@core314.com';
 
       const emailHtml = `
         <div style="font-family: Inter, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; color: #1e293b;">
