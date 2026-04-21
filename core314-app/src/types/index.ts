@@ -9,6 +9,8 @@ export interface User {
   subscription_status: 'inactive' | 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
+  beta_status?: 'pending' | 'approved' | 'revoked';
+  beta_approved_at?: string;
   onboarding_status: 'not_started' | 'in_progress' | 'completed';
   created_at: string;
   updated_at: string;

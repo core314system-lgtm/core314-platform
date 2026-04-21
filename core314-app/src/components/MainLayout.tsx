@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
+import { useBetaLifecycleTracker } from '../hooks/useBetaLifecycleTracker';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { supabase } from '../lib/supabase';
@@ -76,6 +77,9 @@ export function MainLayout() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
   const onboarding = useOnboardingStatus();
+
+  // Track beta tester first login and subsequent logins
+  useBetaLifecycleTracker(profile?.id, profile?.beta_status);
   const [integrationCount, setIntegrationCount] = useState<{ current: number; max: number }>({ current: 0, max: 0 });
   const [subscriptionTier, setSubscriptionTier] = useState<string>('none');
   const [canAccessBilling, setCanAccessBilling] = useState<boolean>(false);

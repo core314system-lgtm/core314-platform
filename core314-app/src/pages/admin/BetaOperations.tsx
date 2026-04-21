@@ -33,7 +33,13 @@ import {
   AlertTriangle,
   UserPlus,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  Activity,
+  CreditCard,
+  TrendingUp,
+  CalendarPlus,
+  ExternalLink,
+  DollarSign
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -80,6 +86,29 @@ interface MessagingLog {
   error_message?: string;
 }
 
+interface BetaLifecycle {
+  lifecycle_id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  company: string | null;
+  lifecycle_status: string;
+  beta_accepted_at: string | null;
+  first_login_at: string | null;
+  days_elapsed: number;
+  days_remaining: number;
+  total_days: number;
+  total_logins: number;
+  last_activity_at: string | null;
+  day_38_email_sent_at: string | null;
+  day_45_completed_at: string | null;
+  first_payment_at: string | null;
+  checkout_url: string | null;
+  stripe_subscription_id: string | null;
+  extension_days: number;
+  admin_notes: string | null;
+}
+
 // =============================================================================
 // COMPONENT
 // =============================================================================
@@ -90,7 +119,7 @@ export function BetaOperations() {
   const { toast } = useToast();
 
   // State
-  const [activeTab, setActiveTab] = useState('invitations');
+  const [activeTab, setActiveTab] = useState('lifecycle');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -103,6 +132,8 @@ export function BetaOperations() {
   const [applications, setApplications] = useState<BetaApplication[]>([]);
   const [invitations, setInvitations] = useState<BetaInvitation[]>([]);
   const [messagingLogs, setMessagingLogs] = useState<MessagingLog[]>([]);
+  const [lifecycles, setLifecycles] = useState<BetaLifecycle[]>([]);
+  const [lifecycleLoading, setLifecycleLoading] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -115,6 +146,10 @@ export function BetaOperations() {
     totalMessages: 0,
     sentMessages: 0,
     failedMessages: 0,
+    activeTesters: 0,
+    convertedTesters: 0,
+    conversionRate: 0,
+    betaRevenue: 0,
   });
 
   // =============================================================================
@@ -144,6 +179,7 @@ export function BetaOperations() {
         fetchApplications(),
         fetchInvitations(),
         fetchMessagingLogs(),
+        fetchLifecycles(),
       ]);
     } finally {
       setLoading(false);
@@ -195,6 +231,77 @@ export function BetaOperations() {
       }));
     } catch (error) {
       console.error('Error fetching invitations:', error);
+    }
+  };
+
+  const fetchLifecycles = async () => {
+    setLifecycleLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_active_beta_testers');
+
+      if (error) {
+        console.error('Error fetching lifecycles:', error);
+        // Fallback: direct table query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('beta_tester_lifecycle')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!fallbackError && fallbackData) {
+          const mapped: BetaLifecycle[] = fallbackData.map((bl) => {
+            const firstLogin = bl.first_login_at ? new Date(bl.first_login_at) : null;
+            const totalDays = 45 + (bl.extension_days || 0);
+            const daysElapsed = firstLogin
+              ? Math.floor((Date.now() - firstLogin.getTime()) / (1000 * 60 * 60 * 24))
+              : 0;
+            return {
+              lifecycle_id: bl.id,
+              user_id: bl.user_id,
+              full_name: 'Unknown',
+              email: 'Unknown',
+              company: null,
+              lifecycle_status: bl.lifecycle_status,
+              beta_accepted_at: bl.beta_accepted_at,
+              first_login_at: bl.first_login_at,
+              days_elapsed: daysElapsed,
+              days_remaining: Math.max(0, totalDays - daysElapsed),
+              total_days: totalDays,
+              total_logins: bl.total_logins || 0,
+              last_activity_at: bl.last_activity_at,
+              day_38_email_sent_at: bl.day_38_email_sent_at,
+              day_45_completed_at: bl.day_45_completed_at,
+              first_payment_at: bl.first_payment_at,
+              checkout_url: bl.checkout_url,
+              stripe_subscription_id: bl.stripe_subscription_id,
+              extension_days: bl.extension_days || 0,
+              admin_notes: bl.admin_notes,
+            };
+          });
+          setLifecycles(mapped);
+        }
+        return;
+      }
+
+      setLifecycles(data || []);
+
+      // Update lifecycle stats
+      const active = data?.filter((l: BetaLifecycle) => ['active', 'thanked', 'accepted'].includes(l.lifecycle_status)).length || 0;
+      const converted = data?.filter((l: BetaLifecycle) => l.lifecycle_status === 'converted').length || 0;
+      const completed = data?.filter((l: BetaLifecycle) => ['completed', 'converting', 'converted', 'churned'].includes(l.lifecycle_status)).length || 0;
+      const rate = completed > 0 ? Math.round((converted / completed) * 100) : 0;
+      const revenue = converted * 559.30;
+
+      setStats(prev => ({
+        ...prev,
+        activeTesters: active,
+        convertedTesters: converted,
+        conversionRate: rate,
+        betaRevenue: revenue,
+      }));
+    } catch (error) {
+      console.error('Error fetching lifecycles:', error);
+    } finally {
+      setLifecycleLoading(false);
     }
   };
 
@@ -376,8 +483,177 @@ export function BetaOperations() {
   };
 
   // =============================================================================
+  // LIFECYCLE ACTIONS
+  // =============================================================================
+
+  const createCheckoutForUser = async (userId: string) => {
+    setSending(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/beta-create-checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'Checkout Created',
+          description: `Checkout session created. URL: ${result.checkout_url}`,
+        });
+        await fetchLifecycles();
+      } else {
+        throw new Error(result.error || 'Failed to create checkout');
+      }
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create checkout',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const extendBetaPeriod = async (userId: string) => {
+    setSending(true);
+    try {
+      const { error } = await supabase.rpc('extend_beta_period', {
+        p_user_id: userId,
+        p_extra_days: 15,
+        p_admin_id: profile?.id || null,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Beta Extended',
+        description: 'Beta period extended by 15 days',
+      });
+      await fetchLifecycles();
+    } catch (error) {
+      console.error('Error extending beta:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to extend beta',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const runLifecycleCheck = async () => {
+    setSending(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/beta-lifecycle-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ action: 'auto' }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: 'Lifecycle Check Complete',
+          description: `Day 38 emails: ${result.day38_count || 0}, Day 41: ${result.day41_count || 0}, Day 44: ${result.day44_count || 0}, Completed: ${result.day45_count || 0}`,
+        });
+        await fetchLifecycles();
+      } else {
+        throw new Error(result.error || 'Lifecycle check failed');
+      }
+    } catch (error) {
+      console.error('Error running lifecycle check:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to run lifecycle check',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // =============================================================================
   // HELPERS
   // =============================================================================
+
+  const getLifecycleStatusBadge = (status: string) => {
+    switch (status) {
+      case 'accepted':
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-300"><Clock className="w-3 h-3 mr-1" />Accepted</Badge>;
+      case 'active':
+        return <Badge className="bg-green-100 text-green-800 border-green-300"><Activity className="w-3 h-3 mr-1" />Active</Badge>;
+      case 'thanked':
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-300"><Mail className="w-3 h-3 mr-1" />Thanked</Badge>;
+      case 'completed':
+        return <Badge className="bg-sky-100 text-sky-800 border-sky-300"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
+      case 'converting':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300"><CreditCard className="w-3 h-3 mr-1" />Converting</Badge>;
+      case 'converted':
+        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300"><DollarSign className="w-3 h-3 mr-1" />Converted</Badge>;
+      case 'churned':
+        return <Badge className="bg-red-100 text-red-800 border-red-300"><XCircle className="w-3 h-3 mr-1" />Churned</Badge>;
+      case 'extended':
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-300"><CalendarPlus className="w-3 h-3 mr-1" />Extended</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
+    }
+  };
+
+  const getActivityLevel = (logins: number, daysElapsed: number): string => {
+    if (daysElapsed === 0) return 'New';
+    const rate = logins / daysElapsed;
+    if (rate >= 0.7) return 'High';
+    if (rate >= 0.3) return 'Medium';
+    return 'Low';
+  };
+
+  const getActivityColor = (level: string): string => {
+    switch (level) {
+      case 'High': return 'text-green-600';
+      case 'Medium': return 'text-yellow-600';
+      case 'Low': return 'text-red-600';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getNextAction = (lifecycle: BetaLifecycle): string => {
+    switch (lifecycle.lifecycle_status) {
+      case 'accepted':
+        return 'Awaiting first login';
+      case 'active': {
+        const daysUntilThankYou = lifecycle.total_days - 7 - lifecycle.days_elapsed;
+        if (daysUntilThankYou > 0) return `Thank-you email in ${daysUntilThankYou}d`;
+        return 'Thank-you email due';
+      }
+      case 'thanked':
+        if (!lifecycle.stripe_subscription_id) return 'Awaiting CC collection';
+        return 'CC collected, awaiting Day 45';
+      case 'completed':
+        return 'Create checkout link';
+      case 'converting':
+        return 'Awaiting first payment';
+      case 'converted':
+        return 'Active subscriber';
+      case 'churned':
+        return 'Follow up';
+      default:
+        return '—';
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -473,7 +749,11 @@ export function BetaOperations() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="lifecycle">
+            <Activity className="w-4 h-4 mr-2" />
+            Active Testers
+          </TabsTrigger>
           <TabsTrigger value="invitations">
             <UserPlus className="w-4 h-4 mr-2" />
             Invitations
@@ -491,6 +771,224 @@ export function BetaOperations() {
             Sent History
           </TabsTrigger>
         </TabsList>
+
+        {/* Active Testers / Lifecycle Tab */}
+        <TabsContent value="lifecycle" className="space-y-6">
+          {/* Lifecycle Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Active Testers</p>
+                    <p className="text-2xl font-bold">{stats.activeTesters}</p>
+                    <p className="text-xs text-gray-500">in 45-day program</p>
+                  </div>
+                  <Activity className="h-8 w-8 text-green-500" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Converted</p>
+                    <p className="text-2xl font-bold">{stats.convertedTesters}</p>
+                    <p className="text-xs text-gray-500">paying customers</p>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-emerald-500" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Conversion Rate</p>
+                    <p className="text-2xl font-bold">{stats.conversionRate}%</p>
+                    <p className="text-xs text-gray-500">target: 25%+</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Beta Revenue</p>
+                    <p className="text-2xl font-bold">${stats.betaRevenue.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">at $559.30/mo</p>
+                  </div>
+                  <CreditCard className="h-8 w-8 text-purple-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Actions Bar */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex gap-4 items-center">
+                <Button onClick={runLifecycleCheck} disabled={sending} variant="outline">
+                  <RefreshCw className={`mr-2 h-4 w-4 ${sending ? 'animate-spin' : ''}`} />
+                  Run Lifecycle Check
+                </Button>
+                <p className="text-sm text-gray-500">
+                  Manually triggers Day 38/41/44 emails and Day 45 completions. This runs automatically daily via cron.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Testers Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Beta Tester Lifecycle ({lifecycles.length})</CardTitle>
+              <CardDescription>
+                Track every beta tester from acceptance through paid conversion
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {lifecycleLoading ? (
+                <p className="text-gray-500 text-center py-8">Loading lifecycle data...</p>
+              ) : lifecycles.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No beta testers in lifecycle tracking yet. Approve a beta application to begin.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Day</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Activity</TableHead>
+                        <TableHead>CC Collected</TableHead>
+                        <TableHead>Next Action</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lifecycles.map((lifecycle) => {
+                        const activityLevel = getActivityLevel(lifecycle.total_logins, lifecycle.days_elapsed);
+                        return (
+                          <TableRow key={lifecycle.lifecycle_id}>
+                            <TableCell className="font-medium">
+                              {lifecycle.full_name}
+                              {lifecycle.company && (
+                                <p className="text-xs text-gray-500">{lifecycle.company}</p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">{lifecycle.email}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {lifecycle.first_login_at
+                                    ? `Day ${lifecycle.days_elapsed} of ${lifecycle.total_days}`
+                                    : 'Not started'}
+                                </span>
+                                {lifecycle.first_login_at && (
+                                  <div className="w-24 h-2 bg-gray-200 rounded-full mt-1">
+                                    <div
+                                      className="h-2 rounded-full transition-all"
+                                      style={{
+                                        width: `${Math.min(100, (lifecycle.days_elapsed / lifecycle.total_days) * 100)}%`,
+                                        backgroundColor:
+                                          lifecycle.days_elapsed >= lifecycle.total_days - 7
+                                            ? '#f59e0b'
+                                            : lifecycle.days_elapsed >= lifecycle.total_days
+                                            ? '#ef4444'
+                                            : '#22c55e',
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                {lifecycle.days_remaining > 0 && lifecycle.first_login_at && (
+                                  <span className="text-xs text-gray-500">{lifecycle.days_remaining}d remaining</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{getLifecycleStatusBadge(lifecycle.lifecycle_status)}</TableCell>
+                            <TableCell>
+                              <span className={`font-medium ${getActivityColor(activityLevel)}`}>
+                                {activityLevel}
+                              </span>
+                              <p className="text-xs text-gray-500">{lifecycle.total_logins} logins</p>
+                            </TableCell>
+                            <TableCell>
+                              {lifecycle.stripe_subscription_id ? (
+                                <Badge className="bg-green-100 text-green-800 border-green-300">
+                                  <CreditCard className="w-3 h-3 mr-1" />Yes
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-gray-100 text-gray-800 border-gray-300">
+                                  No
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-gray-600">
+                                {getNextAction(lifecycle)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1 flex-wrap">
+                                {!lifecycle.stripe_subscription_id && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => createCheckoutForUser(lifecycle.user_id)}
+                                    disabled={sending}
+                                    title="Generate Stripe Checkout link"
+                                  >
+                                    <CreditCard className="h-3 w-3 mr-1" />
+                                    Checkout
+                                  </Button>
+                                )}
+                                {lifecycle.checkout_url && !lifecycle.stripe_subscription_id && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => window.open(lifecycle.checkout_url!, '_blank')}
+                                    title="Open checkout URL"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </Button>
+                                )}
+                                {['active', 'thanked', 'completed'].includes(lifecycle.lifecycle_status) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => extendBetaPeriod(lifecycle.user_id)}
+                                    disabled={sending}
+                                    title="Extend beta by 15 days"
+                                  >
+                                    <CalendarPlus className="h-3 w-3 mr-1" />
+                                    +15d
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => sendCheckinEmail(lifecycle.email, lifecycle.full_name)}
+                                  disabled={sending}
+                                  title="Send check-in email"
+                                >
+                                  <Mail className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Invitations Tab */}
         <TabsContent value="invitations" className="space-y-6">
