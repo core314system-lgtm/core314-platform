@@ -24,7 +24,6 @@ import {
   ArrowDown,
   ArrowRight,
   Download,
-  FlaskConical,
   Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -220,11 +219,6 @@ export function OperationalBrief() {
   const { hasFeature } = useSubscription(profile?.id);
   const canExportPptx = hasFeature('pptx_export') || profile?.role === 'admin';
 
-  // Test Scenario Mode state
-  const isTestMode = import.meta.env.VITE_TEST_MODE === 'true';
-  const [selectedScenario, setSelectedScenario] = useState('revenue_slowdown');
-  const [injecting, setInjecting] = useState(false);
-  const [injectResult, setInjectResult] = useState<{ success: boolean; message: string } | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   useEffect(() => {
@@ -316,52 +310,6 @@ export function OperationalBrief() {
     }
   };
 
-  const handleInjectScenario = async () => {
-    if (!profile?.id) return;
-    setInjecting(true);
-    setInjectResult(null);
-
-    try {
-      const url = await getSupabaseFunctionUrl('test-scenario-inject');
-      const anonKey = await getSupabaseAnonKey();
-
-      const response = await authenticatedFetch(async (token) => {
-        return await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'apikey': anonKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ scenario: selectedScenario }),
-        });
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        setInjectResult({
-          success: true,
-          message: result.message || `Injected ${result.events_injected} events, ${result.signals_created} signals detected.`,
-        });
-      } else {
-        setInjectResult({
-          success: false,
-          message: result.error || 'Injection failed. Check Edge Function logs.',
-        });
-      }
-    } catch (err) {
-      console.error('Error injecting scenario:', err);
-      setInjectResult({
-        success: false,
-        message: err instanceof SessionExpiredError
-          ? 'Session expired. Please sign in again.'
-          : 'Failed to inject test scenario.',
-      });
-    } finally {
-      setInjecting(false);
-    }
-  };
 
   const handleDownloadPdf = () => {
     if (!brief) return;
@@ -620,59 +568,6 @@ export function OperationalBrief() {
         </div>
       </div>
 
-      {/* Test Scenario Mode Banner */}
-      {isTestMode && (
-        <div className="rounded-xl border border-purple-500/40 bg-purple-500/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <FlaskConical className="h-5 w-5 text-purple-400 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-purple-300">Test Scenario Mode Active</p>
-                <p className="text-xs text-purple-400/70 mt-0.5">
-                  Inject synthetic data through the full intelligence pipeline
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedScenario}
-                onChange={(e) => setSelectedScenario(e.target.value)}
-                className="bg-slate-800 border border-purple-500/30 text-purple-200 text-sm rounded-lg px-3 py-1.5 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="revenue_slowdown">Revenue Slowdown</option>
-                <option value="cash_flow_risk">Cash Flow Risk</option>
-                <option value="operational_breakdown">Operational Breakdown</option>
-              </select>
-              <Button
-                onClick={handleInjectScenario}
-                disabled={injecting}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                {injecting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <FlaskConical className="h-4 w-4 mr-2" />
-                )}
-                {injecting ? 'Injecting...' : 'Inject Test Data'}
-              </Button>
-            </div>
-          </div>
-          {injectResult && (
-            <div className={`mt-3 rounded-lg p-3 text-sm ${
-              injectResult.success
-                ? 'bg-green-500/10 border border-green-500/30 text-green-300'
-                : 'bg-red-500/10 border border-red-500/30 text-red-300'
-            }`}>
-              {injectResult.message}
-              {injectResult.success && (
-                <span className="block mt-1 text-xs text-green-400/70">
-                  Click "Generate New Brief" above to see the full intelligence output.
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* PDF Error Banner */}
       {pdfError && (
