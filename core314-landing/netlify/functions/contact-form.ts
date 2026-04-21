@@ -99,11 +99,14 @@ export const handler: Handler = async (event) => {
 
     if (!sendgridResponse.ok) {
       const errorText = await sendgridResponse.text();
-      console.error('SendGrid error:', errorText);
+      console.error('SendGrid error:', sendgridResponse.status, errorText);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'Failed to send message. Please try again.' }),
+        body: JSON.stringify({
+          error: 'Failed to send message. Please try again.',
+          debug: { status: sendgridResponse.status, detail: errorText },
+        }),
       };
     }
 
