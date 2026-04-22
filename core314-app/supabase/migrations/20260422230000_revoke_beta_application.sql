@@ -56,7 +56,7 @@ BEGIN
     WHERE user_id = v_user_id;
   END IF;
 
-  RETURN FOUND;
+  RETURN TRUE;
 END;
 $$;
 

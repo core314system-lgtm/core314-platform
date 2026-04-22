@@ -90,14 +90,16 @@ export default function BetaAccessControl() {
       }
 
       // On approval, trigger the full workflow: email + invite + lifecycle
+      let workflowDetails = ''
       if (action === 'approve') {
-        await triggerApprovalWorkflow(applicationId)
+        workflowDetails = await triggerApprovalWorkflow(applicationId)
       }
 
       await fetchApplications()
 
       const label = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'waitlisted'
-      alert(`Successfully ${label} application`)
+      const message = `Successfully ${label} application`
+      alert(workflowDetails ? `${message}\n\n${workflowDetails}` : message)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to perform action'
       console.error('Error performing action:', err)
@@ -141,12 +143,12 @@ export default function BetaAccessControl() {
     }
   }
 
-  const triggerApprovalWorkflow = async (applicationId: string) => {
+  const triggerApprovalWorkflow = async (applicationId: string): Promise<string> => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         console.warn('No session available for approval workflow')
-        return
+        return ''
       }
 
       const url = await getSupabaseFunctionUrl('beta-approve-notify')
@@ -163,12 +165,11 @@ export default function BetaAccessControl() {
 
       if (!response.ok) {
         console.warn('Approval workflow returned error:', result.error)
-        return
+        return `Workflow warning: ${result.error}`
       }
 
       console.log('Approval workflow results:', result)
 
-      // Show detailed results to admin
       const details: string[] = []
       if (result.email_sent) details.push('Approval email sent')
       if (result.email_error) details.push(`Email failed: ${result.email_error}`)
@@ -177,11 +178,10 @@ export default function BetaAccessControl() {
       if (result.lifecycle_created) details.push('Lifecycle tracking created')
       if (result.lifecycle_error) details.push(`Lifecycle failed: ${result.lifecycle_error}`)
 
-      if (details.length > 0) {
-        alert(`Approval workflow:\n${details.join('\n')}`)
-      }
+      return details.join('\n')
     } catch (err) {
       console.warn('Approval workflow failed (non-blocking):', err)
+      return ''
     }
   }
 
