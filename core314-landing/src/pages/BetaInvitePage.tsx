@@ -460,7 +460,7 @@ export default function BetaInvitePage() {
                 value={formData.full_name}
                 onChange={handleInputChange}
                 placeholder="Your full name"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
               />
             </div>
 
@@ -475,7 +475,7 @@ export default function BetaInvitePage() {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="your@email.com"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
               />
             </div>
 
@@ -490,7 +490,7 @@ export default function BetaInvitePage() {
                 value={formData.role_title}
                 onChange={handleInputChange}
                 placeholder="e.g., Operations Manager, Founder, Director"
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
               />
             </div>
 
@@ -503,7 +503,7 @@ export default function BetaInvitePage() {
                 name="company_size"
                 value={formData.company_size}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors bg-white"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors bg-white text-slate-900"
               >
                 <option value="">Select company size</option>
                 <option value="1-10">1–10 employees</option>
@@ -523,7 +523,7 @@ export default function BetaInvitePage() {
                 onChange={handleInputChange}
                 placeholder="List the tools and systems you currently use for operations (e.g., Salesforce, HubSpot, Slack, Notion, etc.)"
                 rows={3}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors resize-none text-slate-900"
               />
             </div>
 
@@ -538,7 +538,7 @@ export default function BetaInvitePage() {
                 onChange={handleInputChange}
                 placeholder="Describe your biggest operational challenge or pain point..."
                 rows={4}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors resize-none text-slate-900"
               />
             </div>
 
@@ -553,7 +553,7 @@ export default function BetaInvitePage() {
                 onChange={handleInputChange}
                 placeholder="Explain why you're interested in participating in the Core314 beta program..."
                 rows={4}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors resize-none text-slate-900"
               />
             </div>
 

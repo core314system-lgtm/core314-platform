@@ -4,9 +4,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 // =============================================================================
 // BETA CREATE CHECKOUT
 // Creates a Stripe Checkout Session for a beta tester with:
-// - 30% off coupon for 6 months
+// - 50% off coupon for 6 months
 // - trial_end set to Day 46 (so no charge until beta period ends)
-// - Command Center plan ($799/mo → $559.30/mo)
+// - Command Center plan ($799/mo → $399.50/mo)
 //
 // Can be called:
 // 1. By admin from Beta Operations UI (POST with user_id)
@@ -19,7 +19,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
-const COUPON_ID = 'beta-tester-30-off-6mo';
+const COUPON_ID = 'beta-tester-50-off-6mo';
 const APP_URL = 'https://app.core314.com';
 
 // =============================================================================
@@ -72,10 +72,10 @@ async function ensureCouponExists(): Promise<{ ok: boolean; error?: string }> {
   console.log('[CHECKOUT] Creating coupon:', COUPON_ID);
   const params = new URLSearchParams();
   params.append('id', COUPON_ID);
-  params.append('percent_off', '30');
+  params.append('percent_off', '50');
   params.append('duration', 'repeating');
   params.append('duration_in_months', '6');
-  params.append('name', 'Core314 Beta Tester Reward - 30% Off for 6 Months');
+  params.append('name', 'Core314 Beta Tester Reward - 50% Off for 6 Months');
 
   const result = await stripeRequest('/coupons', 'POST', params);
 
