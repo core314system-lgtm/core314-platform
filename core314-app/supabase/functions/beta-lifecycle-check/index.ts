@@ -96,7 +96,7 @@ function getDay38ThankYouHTML(data: BetaLifecycleEmailData): string {
                 Your 45-day beta period completes on <strong>${data.day_45_date}</strong>. Here's what that means for you:
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
-                As promised, you've earned an <strong style="color: #00BFFF;">exclusive 30% discount</strong> on the Command Center plan for your first 6 months. That's <strong>${data.discount_amount}/mo</strong> instead of ${data.full_price}/mo — a savings of <strong>$1,438.20 over 6 months</strong>.
+                As promised, you've earned an <strong style="color: #00BFFF;">exclusive 50% discount</strong> on the Command Center plan for your first 6 months. That's <strong>${data.discount_amount}/mo</strong> instead of ${data.full_price}/mo — a savings of <strong>$2,397.00 over 6 months</strong>.
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 24px 0;">
                 This discount is exclusively for beta participants who completed the full program. It's our way of saying: we value the people who believed in us early.
@@ -104,7 +104,7 @@ function getDay38ThankYouHTML(data: BetaLifecycleEmailData): string {
               <!-- CTA Button -->
               <center>
                 <a href="${data.checkout_url}" style="display: inline-block; background: linear-gradient(90deg, #00BFFF, #007BFF); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Claim Your 30% Beta Reward
+                  Claim Your 50% Beta Reward
                 </a>
               </center>
               <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 20px 0 0 0; text-align: center;">
@@ -171,11 +171,11 @@ WHAT HAPPENS NEXT
 
 Your 45-day beta period completes on ${data.day_45_date}. Here's what that means for you:
 
-As promised, you've earned an exclusive 30% discount on the Command Center plan for your first 6 months. That's ${data.discount_amount}/mo instead of ${data.full_price}/mo — a savings of $1,438.20 over 6 months.
+As promised, you've earned an exclusive 50% discount on the Command Center plan for your first 6 months. That's ${data.discount_amount}/mo instead of ${data.full_price}/mo — a savings of $2,397.00 over 6 months.
 
 This discount is exclusively for beta participants who completed the full program. It's our way of saying: we value the people who believed in us early.
 
-CLAIM YOUR 30% BETA REWARD: ${data.checkout_url}
+CLAIM YOUR 50% BETA REWARD: ${data.checkout_url}
 
 Your first payment of ${data.discount_amount} won't be charged until ${data.day_46_date}. You'll continue to have full access to everything you've been using.
 
@@ -215,7 +215,7 @@ function getDay41ReminderHTML(data: BetaLifecycleEmailData): string {
                 ${data.name},
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
-                A few days ago we sent you a thank-you note for your incredible participation in the Core314 beta program — along with your exclusive <strong style="color: #00BFFF;">30% discount</strong> on the Command Center plan.
+                A few days ago we sent you a thank-you note for your incredible participation in the Core314 beta program — along with your exclusive <strong style="color: #00BFFF;">50% discount</strong> on the Command Center plan.
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
                 We wanted to make sure you saw it. Your beta period completes on <strong>${data.day_45_date}</strong>, and we'd love to keep you on board.
@@ -226,7 +226,7 @@ function getDay41ReminderHTML(data: BetaLifecycleEmailData): string {
               <!-- CTA Button -->
               <center>
                 <a href="${data.checkout_url}" style="display: inline-block; background: linear-gradient(90deg, #00BFFF, #007BFF); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Claim Your 30% Discount
+                  Claim Your 50% Discount
                 </a>
               </center>
               <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 20px 0 0 0; text-align: center;">
@@ -255,13 +255,13 @@ function getDay41ReminderText(data: BetaLifecycleEmailData): string {
 
 ${data.name},
 
-A few days ago we sent you a thank-you note for your incredible participation in the Core314 beta program — along with your exclusive 30% discount on the Command Center plan.
+A few days ago we sent you a thank-you note for your incredible participation in the Core314 beta program — along with your exclusive 50% discount on the Command Center plan.
 
 We wanted to make sure you saw it. Your beta period completes on ${data.day_45_date}, and we'd love to keep you on board.
 
 Quick recap: ${data.discount_amount}/mo instead of ${data.full_price}/mo for 6 months. Your first charge won't happen until ${data.day_46_date}.
 
-CLAIM YOUR 30% DISCOUNT: ${data.checkout_url}
+CLAIM YOUR 50% DISCOUNT: ${data.checkout_url}
 
 If you have any questions, just reply to this email.
 
@@ -306,7 +306,7 @@ function getDay44FinalReminderHTML(data: BetaLifecycleEmailData): string {
                 This is a friendly heads-up: your 45-day beta period ends <strong>tomorrow</strong> (${data.day_45_date}).
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
-                Your exclusive <strong style="color: #00BFFF;">30% beta reward</strong> is still available. Lock in ${data.discount_amount}/mo for your first 6 months before it expires.
+                Your exclusive <strong style="color: #00BFFF;">50% beta reward</strong> is still available. Lock in ${data.discount_amount}/mo for your first 6 months before it expires.
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 24px 0;">
                 Once secured, your first charge won't occur until ${data.day_46_date} — and you'll continue with uninterrupted access to everything you've been using.
@@ -314,7 +314,7 @@ function getDay44FinalReminderHTML(data: BetaLifecycleEmailData): string {
               <!-- CTA Button -->
               <center>
                 <a href="${data.checkout_url}" style="display: inline-block; background: linear-gradient(90deg, #f59e0b, #d97706); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Lock In Your 30% Discount Now
+                  Lock In Your 50% Discount Now
                 </a>
               </center>
             </td>
@@ -345,11 +345,11 @@ ${data.name},
 
 This is a friendly heads-up: your 45-day beta period ends tomorrow (${data.day_45_date}).
 
-Your exclusive 30% beta reward is still available. Lock in ${data.discount_amount}/mo for your first 6 months before it expires.
+Your exclusive 50% beta reward is still available. Lock in ${data.discount_amount}/mo for your first 6 months before it expires.
 
 Once secured, your first charge won't occur until ${data.day_46_date} — and you'll continue with uninterrupted access to everything you've been using.
 
-LOCK IN YOUR 30% DISCOUNT NOW: ${data.checkout_url}
+LOCK IN YOUR 50% DISCOUNT NOW: ${data.checkout_url}
 
 Questions? Reply to this email or contact admin@core314.com
 
@@ -499,8 +499,8 @@ serve(async (req) => {
             checkout_url: user.checkout_url || `${supabaseUrl}/functions/v1/beta-create-checkout?user_id=${user.user_id}`,
             day_45_date: day45Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
             day_46_date: day46Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            discount_amount: '$559.30',
-            monthly_price: '$559.30',
+            discount_amount: '$399.50',
+            monthly_price: '$399.50',
             full_price: '$799',
           };
 
@@ -600,8 +600,8 @@ serve(async (req) => {
             checkout_url: user.checkout_url || `${supabaseUrl}/functions/v1/beta-create-checkout?user_id=${user.user_id}`,
             day_45_date: day45Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
             day_46_date: day46Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            discount_amount: '$559.30',
-            monthly_price: '$559.30',
+            discount_amount: '$399.50',
+            monthly_price: '$399.50',
             full_price: '$799',
           };
 
@@ -683,14 +683,14 @@ serve(async (req) => {
             checkout_url: user.checkout_url || `${supabaseUrl}/functions/v1/beta-create-checkout?user_id=${user.user_id}`,
             day_45_date: day45Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
             day_46_date: day46Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-            discount_amount: '$559.30',
-            monthly_price: '$559.30',
+            discount_amount: '$399.50',
+            monthly_price: '$399.50',
             full_price: '$799',
           };
 
           const emailResult = await sendLifecycleEmail(
             profile.email,
-            'Your beta access ends tomorrow — last chance for 30% off',
+            'Your beta access ends tomorrow — last chance for 50% off',
             getDay44FinalReminderHTML(emailData),
             getDay44FinalReminderText(emailData),
           );

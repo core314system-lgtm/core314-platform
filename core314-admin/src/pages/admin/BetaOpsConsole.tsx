@@ -449,7 +449,7 @@ export default function BetaOpsConsole({ defaultTab = 'beta-users' }: BetaOpsCon
         const converted = mapped.filter(l => l.lifecycle_status === 'converted').length;
         const total = mapped.length;
         const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-        const revenue = converted * 559.30; // $799 * 0.7 = $559.30/mo discounted price
+        const revenue = converted * 399.50; // $799 * 0.5 = $399.50/mo discounted price
 
         setLifecycleStats({
           activeTesters: active,
