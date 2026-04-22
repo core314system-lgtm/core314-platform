@@ -38,6 +38,7 @@ import { AddOnPurchases } from './pages/admin/AddOnPurchases';
 import Subscriptions from './pages/admin/Subscriptions';
 import BetaFeedback from './pages/admin/BetaFeedback';
 import BetaOpsConsole from './pages/admin/BetaOpsConsole';
+import BetaAccessControl from './pages/admin/BetaAccessControl';
 import { SystemIntelligenceSummary } from './pages/admin/SystemIntelligenceSummary';
 import HealthCheck from './pages/HealthCheck';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
@@ -121,6 +122,7 @@ function App() {
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="beta-feedback" element={<BetaFeedback />} />
           <Route path="beta-ops" element={<BetaOpsConsole />} />
+          <Route path="beta-access" element={<BetaAccessControl />} />
           {/* Phase 2: Operational Intelligence */}
           <Route path="signal-intelligence" element={<SignalIntelligence />} />
           <Route path="brief-tracker" element={<BriefTracker />} />
