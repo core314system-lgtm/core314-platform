@@ -232,21 +232,20 @@ serve(async (req) => {
       );
     }
 
-    // Create user-scoped client to verify admin role
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Extract JWT token and verify user
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
+      console.error('Auth verification failed:', userError?.message);
       return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
+        JSON.stringify({ error: 'Not authenticated', detail: userError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Verify admin role
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
