@@ -94,6 +94,16 @@ export default function BetaAccessControl() {
       const result = await response.json()
       console.log('Action result:', result)
 
+      // When approving a user, also create their lifecycle tracking record
+      if (action === 'approve') {
+        const { error: lifecycleError } = await supabase.rpc('create_beta_lifecycle', {
+          p_user_id: userId,
+        });
+        if (lifecycleError) {
+          console.warn('Lifecycle record creation failed (may already exist):', lifecycleError.message);
+        }
+      }
+
       await fetchUsers()
 
       alert(`Successfully ${action}d user`)
