@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSupabaseClient } from '../../contexts/SupabaseClientContext'
+import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig'
 
 interface BetaApplication {
   id: string
@@ -88,6 +89,11 @@ export default function BetaAccessControl() {
         throw new Error('Application may have already been processed')
       }
 
+      // On approval, trigger the full workflow: email + invite + lifecycle
+      if (action === 'approve') {
+        await triggerApprovalWorkflow(applicationId)
+      }
+
       await fetchApplications()
 
       const label = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'waitlisted'
@@ -99,6 +105,83 @@ export default function BetaAccessControl() {
       alert(`Error: ${message}`)
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const handleRevoke = async (applicationId: string) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to revoke this approval? The beta spot will be freed up and any lifecycle tracking will be removed.'
+    )
+    if (!confirmed) return
+
+    try {
+      setActionLoading(applicationId)
+      setError(null)
+
+      const { data, error: rpcError } = await supabase.rpc('revoke_beta_application', {
+        application_id: applicationId,
+        notes: 'Approval revoked by admin',
+      })
+
+      if (rpcError) throw rpcError
+
+      if (!data) {
+        throw new Error('Application may have already been processed')
+      }
+
+      await fetchApplications()
+      alert('Approval revoked successfully. Beta spot has been freed.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to revoke approval'
+      console.error('Error revoking approval:', err)
+      setError(message)
+      alert(`Error: ${message}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const triggerApprovalWorkflow = async (applicationId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        console.warn('No session available for approval workflow')
+        return
+      }
+
+      const url = await getSupabaseFunctionUrl('beta-approve-notify')
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ application_id: applicationId }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.warn('Approval workflow returned error:', result.error)
+        return
+      }
+
+      console.log('Approval workflow results:', result)
+
+      // Show detailed results to admin
+      const details: string[] = []
+      if (result.email_sent) details.push('Approval email sent')
+      if (result.email_error) details.push(`Email failed: ${result.email_error}`)
+      if (result.invite_sent) details.push('Account invite sent')
+      if (result.invite_error) details.push(`Invite failed: ${result.invite_error}`)
+      if (result.lifecycle_created) details.push('Lifecycle tracking created')
+      if (result.lifecycle_error) details.push(`Lifecycle failed: ${result.lifecycle_error}`)
+
+      if (details.length > 0) {
+        alert(`Approval workflow:\n${details.join('\n')}`)
+      }
+    } catch (err) {
+      console.warn('Approval workflow failed (non-blocking):', err)
     }
   }
 
@@ -298,7 +381,15 @@ export default function BetaAccessControl() {
                                 </button>
                               </>
                             )}
-                            {app.status === 'approved' && <span className="text-green-400 text-xs font-medium">Approved</span>}
+                            {app.status === 'approved' && (
+                              <button
+                                onClick={() => handleRevoke(app.id)}
+                                disabled={actionLoading === app.id}
+                                className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {actionLoading === app.id ? '...' : 'Revoke'}
+                              </button>
+                            )}
                             {app.status === 'rejected' && <span className="text-red-400 text-xs font-medium">Rejected</span>}
                           </div>
                         </td>
