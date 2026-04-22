@@ -1,51 +1,59 @@
 import { useEffect, useState } from 'react'
 import { useSupabaseClient } from '../../contexts/SupabaseClientContext'
-import { getSupabaseFunctionUrl } from '../../lib/supabaseRuntimeConfig'
 
-interface User {
+interface BetaApplication {
   id: string
+  full_name: string
   email: string
-  full_name: string | null
+  role_title: string
+  company_size: string
+  tools_systems_used: string
+  biggest_challenge: string
+  why_beta_test: string
+  status: 'pending' | 'approved' | 'rejected' | 'waitlisted'
+  reviewed_at: string | null
+  review_notes: string | null
   created_at: string
-  beta_status: 'pending' | 'approved' | 'revoked'
-  beta_approved_at: string | null
+  updated_at: string
 }
 
-type FilterType = 'all' | 'pending' | 'approved' | 'revoked'
+type FilterType = 'all' | 'pending' | 'approved' | 'rejected' | 'waitlisted'
 
 export default function BetaAccessControl() {
   const supabase = useSupabaseClient()
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  const [applications, setApplications] = useState<BetaApplication[]>([])
+  const [filteredApplications, setFilteredApplications] = useState<BetaApplication[]>([])
   const [filter, setFilter] = useState<FilterType>('all')
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchUsers()
+    fetchApplications()
   }, [])
 
   useEffect(() => {
     applyFilter()
-  }, [users, filter])
+  }, [applications, filter])
 
-  const fetchUsers = async () => {
+  const fetchApplications = async () => {
     try {
       setLoading(true)
       setError(null)
 
       const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, created_at, beta_status, beta_approved_at')
+        .from('beta_applications')
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (fetchError) throw fetchError
 
-      setUsers(data || [])
-    } catch (err: any) {
-      console.error('Error fetching users:', err)
-      setError(err.message || 'Failed to fetch users')
+      setApplications(data || [])
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch applications'
+      console.error('Error fetching applications:', err)
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -53,76 +61,55 @@ export default function BetaAccessControl() {
 
   const applyFilter = () => {
     if (filter === 'all') {
-      setFilteredUsers(users)
+      setFilteredApplications(applications)
     } else {
-      setFilteredUsers(users.filter(user => user.beta_status === filter))
+      setFilteredApplications(applications.filter(app => app.status === filter))
     }
   }
 
-  const handleAction = async (userId: string, action: 'approve' | 'revoke' | 'reset') => {
+  const handleAction = async (applicationId: string, action: 'approve' | 'reject' | 'waitlist') => {
     try {
-      setActionLoading(userId)
+      setActionLoading(applicationId)
       setError(null)
 
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        throw new Error('Not authenticated')
+      const rpcName = action === 'approve'
+        ? 'approve_beta_application'
+        : action === 'reject'
+          ? 'reject_beta_application'
+          : 'waitlist_beta_application'
+
+      const { data, error: rpcError } = await supabase.rpc(rpcName, {
+        application_id: applicationId,
+      })
+
+      if (rpcError) throw rpcError
+
+      if (!data) {
+        throw new Error('Application may have already been processed')
       }
 
-      const url = await getSupabaseFunctionUrl('beta-admin')
-      const response = await fetch(
-        url,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            action,
-            userId
-          })
-        }
-      )
+      await fetchApplications()
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Action failed')
-      }
-
-      const result = await response.json()
-      console.log('Action result:', result)
-
-      // When approving a user, also create their lifecycle tracking record
-      if (action === 'approve') {
-        const { error: lifecycleError } = await supabase.rpc('create_beta_lifecycle', {
-          p_user_id: userId,
-        });
-        if (lifecycleError) {
-          console.warn('Lifecycle record creation failed (may already exist):', lifecycleError.message);
-        }
-      }
-
-      await fetchUsers()
-
-      alert(`Successfully ${action}d user`)
-    } catch (err: any) {
+      const label = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'waitlisted'
+      alert(`Successfully ${label} application`)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to perform action'
       console.error('Error performing action:', err)
-      setError(err.message || 'Failed to perform action')
-      alert(`Error: ${err.message}`)
+      setError(message)
+      alert(`Error: ${message}`)
     } finally {
       setActionLoading(null)
     }
   }
 
   const getStatusBadge = (status: string) => {
-    const styles = {
+    const styles: Record<string, string> = {
       pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
       approved: 'bg-green-500/20 text-green-400 border-green-500/50',
-      revoked: 'bg-red-500/20 text-red-400 border-red-500/50'
+      rejected: 'bg-red-500/20 text-red-400 border-red-500/50',
+      waitlisted: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
     }
-    return styles[status as keyof typeof styles] || styles.pending
+    return styles[status] || styles.pending
   }
 
   const getFilterButtonClass = (filterType: FilterType) => {
@@ -134,10 +121,11 @@ export default function BetaAccessControl() {
   }
 
   const stats = {
-    total: users.length,
-    pending: users.filter(u => u.beta_status === 'pending').length,
-    approved: users.filter(u => u.beta_status === 'approved').length,
-    revoked: users.filter(u => u.beta_status === 'revoked').length
+    total: applications.length,
+    pending: applications.filter(a => a.status === 'pending').length,
+    approved: applications.filter(a => a.status === 'approved').length,
+    rejected: applications.filter(a => a.status === 'rejected').length,
+    waitlisted: applications.filter(a => a.status === 'waitlisted').length,
   }
 
   return (
@@ -148,13 +136,13 @@ export default function BetaAccessControl() {
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00BFFF] to-[#007BFF] mb-2">
             Beta Access Control
           </h1>
-          <p className="text-gray-400">Manage user beta access approvals and revocations</p>
+          <p className="text-gray-400">Review and manage beta tester applications from core314.com/beta</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-[#1A1F2E] border border-[#2A3F5F] rounded-lg p-6">
-            <div className="text-gray-400 text-sm mb-1">Total Users</div>
+            <div className="text-gray-400 text-sm mb-1">Total</div>
             <div className="text-3xl font-bold text-white">{stats.total}</div>
           </div>
           <div className="bg-[#1A1F2E] border border-yellow-500/30 rounded-lg p-6">
@@ -166,40 +154,51 @@ export default function BetaAccessControl() {
             <div className="text-3xl font-bold text-green-400">{stats.approved}</div>
           </div>
           <div className="bg-[#1A1F2E] border border-red-500/30 rounded-lg p-6">
-            <div className="text-red-400 text-sm mb-1">Revoked</div>
-            <div className="text-3xl font-bold text-red-400">{stats.revoked}</div>
+            <div className="text-red-400 text-sm mb-1">Rejected</div>
+            <div className="text-3xl font-bold text-red-400">{stats.rejected}</div>
+          </div>
+          <div className="bg-[#1A1F2E] border border-blue-500/30 rounded-lg p-6">
+            <div className="text-blue-400 text-sm mb-1">Waitlisted</div>
+            <div className="text-3xl font-bold text-blue-400">{stats.waitlisted}</div>
+          </div>
+        </div>
+
+        {/* Spots remaining */}
+        <div className="bg-[#1A1F2E] border border-[#2A3F5F] rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 text-sm">
+              Beta spots: <span className="text-white font-semibold">{stats.approved}</span> / 25 filled
+              {' '}({25 - stats.approved} remaining)
+            </span>
+            <div className="w-48 bg-[#0A0F1A] rounded-full h-2">
+              <div
+                className="bg-gradient-to-r from-[#00BFFF] to-[#007BFF] h-2 rounded-full transition-all"
+                style={{ width: `${Math.min((stats.approved / 25) * 100, 100)}%` }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Filters */}
         <div className="bg-[#1A1F2E] border border-[#2A3F5F] rounded-lg p-4 mb-6">
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setFilter('all')}
-              className={getFilterButtonClass('all')}
-            >
+            <button onClick={() => setFilter('all')} className={getFilterButtonClass('all')}>
               All ({stats.total})
             </button>
-            <button
-              onClick={() => setFilter('pending')}
-              className={getFilterButtonClass('pending')}
-            >
+            <button onClick={() => setFilter('pending')} className={getFilterButtonClass('pending')}>
               Pending ({stats.pending})
             </button>
-            <button
-              onClick={() => setFilter('approved')}
-              className={getFilterButtonClass('approved')}
-            >
+            <button onClick={() => setFilter('approved')} className={getFilterButtonClass('approved')}>
               Approved ({stats.approved})
             </button>
-            <button
-              onClick={() => setFilter('revoked')}
-              className={getFilterButtonClass('revoked')}
-            >
-              Revoked ({stats.revoked})
+            <button onClick={() => setFilter('rejected')} className={getFilterButtonClass('rejected')}>
+              Rejected ({stats.rejected})
+            </button>
+            <button onClick={() => setFilter('waitlisted')} className={getFilterButtonClass('waitlisted')}>
+              Waitlisted ({stats.waitlisted})
             </button>
             <button
-              onClick={fetchUsers}
+              onClick={fetchApplications}
               className="ml-auto px-4 py-2 bg-[#2A3F5F] text-gray-300 rounded-lg hover:bg-[#3A4F6F] transition-all flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,103 +216,120 @@ export default function BetaAccessControl() {
           </div>
         )}
 
-        {/* Users Table */}
+        {/* Applications List */}
         <div className="bg-[#1A1F2E] border border-[#2A3F5F] rounded-lg overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-gray-400">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#00BFFF]"></div>
-              <p className="mt-4">Loading users...</p>
+              <p className="mt-4">Loading applications...</p>
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : filteredApplications.length === 0 ? (
             <div className="p-12 text-center text-gray-400">
-              <p>No users found with filter: {filter}</p>
+              <p>No applications found{filter !== 'all' ? ` with status: ${filter}` : ''}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
               <table className="w-full">
                 <thead className="bg-[#0A0F1A] border-b border-[#2A3F5F]">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Approved At
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Applicant</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Company Size</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Applied</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#2A3F5F]">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-[#0A0F1A]/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-white">
-                          {user.full_name || 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-300">{user.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-400">
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(user.beta_status)}`}>
-                          {user.beta_status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-400">
-                          {user.beta_approved_at 
-                            ? new Date(user.beta_approved_at).toLocaleDateString()
-                            : '-'
-                          }
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
-                          {user.beta_status !== 'approved' && (
-                            <button
-                              onClick={() => handleAction(user.id, 'approve')}
-                              disabled={actionLoading === user.id}
-                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {actionLoading === user.id ? '...' : 'Approve'}
-                            </button>
+                  {filteredApplications.map((app) => (
+                    <>
+                      <tr key={app.id} className="hover:bg-[#0A0F1A]/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
+                            className="text-left group"
+                          >
+                            <div className="text-sm font-medium text-white group-hover:text-[#00BFFF] transition-colors">{app.full_name}</div>
+                            <div className="text-xs text-gray-400">{app.email}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {expandedId === app.id ? 'Click to collapse' : 'Click to expand details'}
+                            </div>
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-300">{app.role_title}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-300">{app.company_size}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-400">{new Date(app.created_at).toLocaleDateString()}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getStatusBadge(app.status)}`}>
+                            {app.status}
+                          </span>
+                          {app.reviewed_at && (
+                            <div className="text-xs text-gray-500 mt-1">Reviewed {new Date(app.reviewed_at).toLocaleDateString()}</div>
                           )}
-                          {user.beta_status !== 'revoked' && (
-                            <button
-                              onClick={() => handleAction(user.id, 'revoke')}
-                              disabled={actionLoading === user.id}
-                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {actionLoading === user.id ? '...' : 'Revoke'}
-                            </button>
-                          )}
-                          {user.beta_status !== 'pending' && (
-                            <button
-                              onClick={() => handleAction(user.id, 'reset')}
-                              disabled={actionLoading === user.id}
-                              className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {actionLoading === user.id ? '...' : 'Reset'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end gap-2">
+                            {app.status === 'pending' && (
+                              <>
+                                <button onClick={() => handleAction(app.id, 'approve')} disabled={actionLoading === app.id} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Approve'}
+                                </button>
+                                <button onClick={() => handleAction(app.id, 'reject')} disabled={actionLoading === app.id} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Reject'}
+                                </button>
+                                <button onClick={() => handleAction(app.id, 'waitlist')} disabled={actionLoading === app.id} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Waitlist'}
+                                </button>
+                              </>
+                            )}
+                            {app.status === 'waitlisted' && (
+                              <>
+                                <button onClick={() => handleAction(app.id, 'approve')} disabled={actionLoading === app.id} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Approve'}
+                                </button>
+                                <button onClick={() => handleAction(app.id, 'reject')} disabled={actionLoading === app.id} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Reject'}
+                                </button>
+                              </>
+                            )}
+                            {app.status === 'approved' && <span className="text-green-400 text-xs font-medium">Approved</span>}
+                            {app.status === 'rejected' && <span className="text-red-400 text-xs font-medium">Rejected</span>}
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedId === app.id && (
+                        <tr key={`detail-${app.id}`}>
+                          <td colSpan={6} className="bg-[#0A0F1A]/50 px-6 py-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Tools & Systems Used</h4>
+                                <p className="text-sm text-gray-300 whitespace-pre-wrap">{app.tools_systems_used}</p>
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Biggest Challenge</h4>
+                                <p className="text-sm text-gray-300 whitespace-pre-wrap">{app.biggest_challenge}</p>
+                              </div>
+                              <div className="md:col-span-2">
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Why They Want to Beta Test</h4>
+                                <p className="text-sm text-gray-300 whitespace-pre-wrap">{app.why_beta_test}</p>
+                              </div>
+                              {app.review_notes && (
+                                <div className="md:col-span-2">
+                                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Review Notes</h4>
+                                  <p className="text-sm text-gray-300 whitespace-pre-wrap">{app.review_notes}</p>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   ))}
                 </tbody>
               </table>
