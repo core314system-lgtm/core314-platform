@@ -82,6 +82,7 @@ const navGroups = [
       { path: '/audit', label: 'Audit & Anomalies', icon: AlertTriangle },
       { path: '/beta-feedback', label: 'Beta Feedback', icon: MessageSquare },
       { path: '/beta-ops', label: 'Beta Ops Console', icon: ClipboardList },
+      { path: '/beta-access', label: 'Beta Access Control', icon: Shield },
     ]
   }
 ];
