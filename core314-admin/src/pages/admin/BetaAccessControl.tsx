@@ -390,7 +390,16 @@ export default function BetaAccessControl() {
                                 {actionLoading === app.id ? '...' : 'Revoke'}
                               </button>
                             )}
-                            {app.status === 'rejected' && <span className="text-red-400 text-xs font-medium">Rejected</span>}
+                            {app.status === 'rejected' && (
+                              <>
+                                <button onClick={() => handleAction(app.id, 'approve')} disabled={actionLoading === app.id} className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Approve'}
+                                </button>
+                                <button onClick={() => handleAction(app.id, 'waitlist')} disabled={actionLoading === app.id} className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === app.id ? '...' : 'Waitlist'}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
