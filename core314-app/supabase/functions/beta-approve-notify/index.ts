@@ -74,17 +74,17 @@ function getApprovalEmailHTML(name: string): string {
             <td style="background-color: #1A1F2E; padding: 30px; border-radius: 12px; border: 1px solid #2A3F5F;">
               <h2 style="font-size: 20px; color: #00BFFF; margin: 0 0 15px 0;">Getting Started</h2>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
-                Click the button below to set up your account. You should have received (or will shortly receive) a separate email with your login credentials. If you don't see it, check your spam folder.
+                <strong style="color: #ffffff;">Step 1:</strong> Check your inbox for a second email from <strong>Supabase</strong> (noreply@mail.app.supabase.io) with the subject "You have been invited". This email contains your unique setup link to create your password and activate your account.
+              </p>
+              <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 0 0 20px 0;">
+                Don't see it? Check your spam/junk folder. The invite email may take a few minutes to arrive.
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
-                Once logged in, your 45-day beta period begins on your first sign-in. Take your time getting set up — the clock starts when you're ready.
+                <strong style="color: #ffffff;">Step 2:</strong> Click the link in that email to set your password. Once your account is created, you can log in at <a href="https://app.core314.com" style="color: #00BFFF; text-decoration: none;">app.core314.com</a>.
               </p>
-              <!-- CTA Button -->
-              <center>
-                <a href="https://app.core314.com" style="display: inline-block; background: linear-gradient(90deg, #00BFFF, #007BFF); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Go to Core314 App
-                </a>
-              </center>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                Your 45-day beta period begins on your first sign-in. Take your time getting set up — the clock starts when you're ready.
+              </p>
             </td>
           </tr>
           <!-- Spacer -->
@@ -134,9 +134,11 @@ HERE'S WHAT YOU GET:
 - 50% off for 6 months ($399.50/mo instead of $799/mo) when you convert after the beta
 
 GETTING STARTED:
-Visit https://app.core314.com to set up your account. You should have received (or will shortly receive) a separate email with your login credentials.
+Step 1: Check your inbox for a second email from Supabase (noreply@mail.app.supabase.io) with the subject "You have been invited". This email contains your unique setup link to create your password.
 
-Once logged in, your 45-day beta period begins on your first sign-in. Take your time getting set up - the clock starts when you're ready.
+Step 2: Click the link in that email to set your password. Once your account is created, you can log in at https://app.core314.com
+
+Your 45-day beta period begins on your first sign-in. Take your time getting set up - the clock starts when you're ready.
 
 Questions? Reply to this email or reach us at admin@core314.com.
 
@@ -232,21 +234,20 @@ serve(async (req) => {
       );
     }
 
-    // Create user-scoped client to verify admin role
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Extract JWT token and verify user
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
+      console.error('Auth verification failed:', userError?.message);
       return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
+        JSON.stringify({ error: 'Not authenticated', detail: userError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Verify admin role
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
