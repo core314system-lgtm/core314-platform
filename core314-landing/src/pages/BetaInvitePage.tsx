@@ -10,10 +10,34 @@ import {
   Target, 
   Filter, 
   ClipboardList,
-  Shield
+  Shield,
+  Zap,
+  BarChart3,
+  FileText,
+  Link2,
+  Lightbulb,
+  Users,
 } from 'lucide-react';
 import Footer from '../components/Footer';
 import { initSupabaseClient } from '../lib/supabase';
+import {
+  SlackLogo,
+  HubSpotLogo,
+  QuickBooksLogo,
+  GoogleCalendarLogo,
+  GmailLogo,
+  JiraLogo,
+  TrelloLogo,
+  TeamsLogo,
+  GoogleSheetsLogo,
+  AsanaLogo,
+  SalesforceLogo,
+  ZoomLogo,
+  GitHubLogo,
+  ZendeskLogo,
+  NotionLogo,
+  MondayLogo,
+} from '../components/IntegrationLogos';
 
 interface FormData {
   full_name: string;
@@ -34,6 +58,93 @@ const initialFormData: FormData = {
   biggest_challenge: '',
   why_beta_test: '',
 };
+
+const allIntegrations = [
+  { name: 'Slack', Logo: SlackLogo },
+  { name: 'HubSpot', Logo: HubSpotLogo },
+  { name: 'QuickBooks', Logo: QuickBooksLogo },
+  { name: 'Google Calendar', Logo: GoogleCalendarLogo },
+  { name: 'Gmail', Logo: GmailLogo },
+  { name: 'Jira', Logo: JiraLogo },
+  { name: 'Trello', Logo: TrelloLogo },
+  { name: 'Microsoft Teams', Logo: TeamsLogo },
+  { name: 'Google Sheets', Logo: GoogleSheetsLogo },
+  { name: 'Asana', Logo: AsanaLogo },
+  { name: 'Salesforce', Logo: SalesforceLogo },
+  { name: 'Zoom', Logo: ZoomLogo },
+  { name: 'GitHub', Logo: GitHubLogo },
+  { name: 'Zendesk', Logo: ZendeskLogo },
+  { name: 'Notion', Logo: NotionLogo },
+  { name: 'Monday.com', Logo: MondayLogo },
+];
+
+const capabilities = [
+  {
+    icon: Zap,
+    title: 'Signal Detection Engine',
+    desc: 'AI continuously monitors your connected tools and identifies operational risks, bottlenecks, and anomalies that human review would miss.',
+    color: 'sky',
+  },
+  {
+    icon: FileText,
+    title: 'AI Operational Briefs',
+    desc: 'Written intelligence delivered in plain English \u2014 what is happening across your business, why it matters, and what to do about it.',
+    color: 'indigo',
+  },
+  {
+    icon: BarChart3,
+    title: 'Operational Health Score',
+    desc: 'A single score (0\u2013100) that tells you how healthy your operations are right now \u2014 with category breakdowns and trend tracking.',
+    color: 'emerald',
+  },
+  {
+    icon: Link2,
+    title: 'Cross-System Intelligence',
+    desc: 'Core314 connects data across all your tools to surface patterns no single tool can detect on its own.',
+    color: 'amber',
+  },
+];
+
+const scenarios = [
+  {
+    headline: 'Your sales pipeline says Q3 looks great.',
+    problem: 'But Jira shows your delivery team is at 120% capacity.',
+    result: 'Core314 catches that disconnect before it becomes a missed deadline and a lost client.',
+  },
+  {
+    headline: 'A key team member\u2019s communication patterns have shifted.',
+    problem: 'Slack activity dropped 60% and response times tripled over two weeks.',
+    result: 'Core314 flags potential burnout or disengagement before it impacts delivery.',
+  },
+  {
+    headline: 'QuickBooks shows rising costs but HubSpot shows flat revenue.',
+    problem: 'Each tool looks fine in isolation. Together, they signal a margin squeeze.',
+    result: 'Core314 connects the dots across systems and tells you exactly what is happening.',
+  },
+];
+
+const influenceAreas = [
+  {
+    icon: Link2,
+    title: 'Integration Priorities',
+    desc: 'Tell us which tools matter most to your workflow \u2014 and we build those connections first.',
+  },
+  {
+    icon: FileText,
+    title: 'Brief Format & Delivery',
+    desc: 'Shape how intelligence is written, structured, and delivered to match how you actually make decisions.',
+  },
+  {
+    icon: Zap,
+    title: 'Signal Detection',
+    desc: 'Define what patterns and risks the AI should watch for based on real operational experience.',
+  },
+  {
+    icon: Lightbulb,
+    title: 'Workflows & UX',
+    desc: 'Influence how the platform looks, feels, and operates \u2014 from dashboard layout to alert preferences.',
+  },
+];
 
 export default function BetaInvitePage() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -120,7 +231,6 @@ export default function BetaInvitePage() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {/* Header */}
         <header className="bg-white border-b border-slate-200">
           <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
@@ -167,9 +277,21 @@ export default function BetaInvitePage() {
     );
   }
 
+  const iconBg: Record<string, string> = {
+    sky: 'bg-sky-50',
+    indigo: 'bg-indigo-50',
+    emerald: 'bg-emerald-50',
+    amber: 'bg-amber-50',
+  };
+  const iconColor: Record<string, string> = {
+    sky: 'text-sky-600',
+    indigo: 'text-indigo-600',
+    emerald: 'text-emerald-600',
+    amber: 'text-amber-600',
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -183,7 +305,6 @@ export default function BetaInvitePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12">
-        {/* Back Link */}
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700 mb-8 text-sm font-medium"
@@ -192,22 +313,33 @@ export default function BetaInvitePage() {
           Back to Home
         </Link>
 
-        {/* Hero Section */}
+        {/* HERO SECTION */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-16 relative"
         >
-          {/* Subtle gradient background */}
           <div className="absolute inset-0 bg-gradient-to-br from-sky-50 via-transparent to-slate-50 rounded-3xl -z-10" />
           
           <div className="py-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-sm font-semibold mb-6">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500" />
+              </span>
+              Limited to 25 Beta Testers
+            </div>
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6 leading-tight">
-              Help Shape the Future of<br />Operational Intelligence
+              See What&apos;s Really Happening<br />Across Your Business &mdash; Before Anyone Else
             </h1>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8 leading-relaxed">
-              Core314 is opening a limited, invitation-only beta for operators who want to influence 
-              how modern systems are observed, analyzed, and acted upon.
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-4 leading-relaxed">
+              Core314 is an AI-powered operational intelligence platform that connects your business tools,
+              detects hidden risks, and delivers written briefs so you always know what is going on &mdash;
+              without checking a single dashboard.
+            </p>
+            <p className="text-base text-slate-500 max-w-2xl mx-auto mb-8">
+              The beta program is your chance to shape the platform alongside real operators
+              facing real challenges &mdash; and lock in 50% off for 6 months after launch.
             </p>
             <button
               onClick={scrollToForm}
@@ -218,50 +350,144 @@ export default function BetaInvitePage() {
           </div>
         </motion.section>
 
-        {/* What This Beta Is */}
+        {/* WHAT IS CORE314? */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-6"
+        >
+          <div className="bg-white rounded-xl border border-slate-200 p-8">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="w-12 h-12 bg-sky-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Layers className="w-6 h-6 text-sky-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">What is Core314?</h2>
+                <p className="text-slate-600 leading-relaxed">
+                  Core314 is an Operational Intelligence Platform built for leadership teams.
+                  It connects to the business tools you already use, monitors them continuously with AI,
+                  and delivers clear, written intelligence about what is happening across your entire operation &mdash;
+                  so you can act on facts instead of gut feelings.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {capabilities.map((cap) => {
+                const Icon = cap.icon;
+                return (
+                  <div key={cap.title} className="flex items-start gap-3 p-4 rounded-lg bg-slate-50">
+                    <div className={`w-10 h-10 ${iconBg[cap.color]} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                      <Icon className={`w-5 h-5 ${iconColor[cap.color]}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900 text-sm mb-1">{cap.title}</h3>
+                      <p className="text-slate-600 text-sm leading-relaxed">{cap.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* INTEGRATION LOGOS BAR */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
         >
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-sky-50 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Layers className="w-6 h-6 text-sky-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">What This Beta Is</h2>
-              <p className="text-slate-600 mb-4">
-                This is a collaborative beta program designed to shape Core314 alongside real operators 
-                facing real operational challenges. It is not early access or a preview—it is a working partnership.
-              </p>
-              <ul className="space-y-2 text-slate-600">
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
-                  Built for real operational workflows
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
-                  Free during beta
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
-                  Limited to 25 participants
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
-                  30-day minimum participation
-                </li>
-              </ul>
-            </div>
+          <p className="text-center text-xs font-semibold uppercase tracking-wider text-slate-400 mb-6">
+            Connects with the tools your team already uses
+          </p>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-4 items-center justify-items-center">
+            {allIntegrations.map(({ name, Logo }) => (
+              <div key={name} className="group flex flex-col items-center gap-1.5" title={name}>
+                <Logo className="w-8 h-8 sm:w-10 sm:h-10 opacity-80 group-hover:opacity-100 transition-opacity" />
+                <span className="text-[10px] text-slate-400 group-hover:text-slate-600 transition-colors hidden sm:block">{name}</span>
+              </div>
+            ))}
           </div>
         </motion.section>
 
-        {/* What Beta Testers Receive */}
+        {/* HOW CORE314 IMPROVES YOUR OPERATIONS */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
+          className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
+        >
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Target className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">How Core314 Improves Your Operations</h2>
+              <p className="text-slate-600">
+                Core314 catches the problems that hide between your tools. Here are real scenarios the platform is built to detect:
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {scenarios.map((s, i) => (
+              <div key={i} className="border border-slate-100 rounded-lg p-5 bg-slate-50/50">
+                <p className="font-semibold text-slate-900 mb-1">{s.headline}</p>
+                <p className="text-slate-500 text-sm mb-2">{s.problem}</p>
+                <p className="text-sky-700 text-sm font-medium flex items-start gap-2">
+                  <Zap className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  {s.result}
+                </p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* WHY BETA TESTERS MATTER */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
+        >
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Users className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Why Beta Testers Matter</h2>
+              <p className="text-slate-600">
+                You are not just testing software &mdash; you are building the operational intelligence tool you wish existed.
+                Beta testers directly influence how Core314 works.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {influenceAreas.map((area) => {
+              const Icon = area.icon;
+              return (
+                <div key={area.title} className="flex items-start gap-3 p-4 rounded-lg bg-slate-50">
+                  <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 text-sm mb-1">{area.title}</h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">{area.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        {/* WHAT BETA TESTERS RECEIVE */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
           className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
         >
           <div className="flex items-start gap-4">
@@ -273,34 +499,38 @@ export default function BetaInvitePage() {
               <ul className="space-y-2 text-slate-600">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  Full Core314 access during beta
+                  Full Core314 platform access for 45 days
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  Direct influence on product direction
+                  Direct access to the product team
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  Priority onboarding post-launch
+                  Direct influence on product direction and roadmap
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  <strong>50% discount for first 6 months after launch</strong>
+                  Priority onboarding when the platform launches
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  Early access to new capabilities
+                  <strong>50% discount for the first 6 months after launch</strong>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                  Early access to new capabilities before public release
                 </li>
               </ul>
             </div>
           </div>
         </motion.section>
 
-        {/* What We Expect */}
+        {/* WHAT WE EXPECT */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
           className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
         >
           <div className="flex items-start gap-4">
@@ -315,108 +545,105 @@ export default function BetaInvitePage() {
               <ul className="space-y-2 text-slate-600">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  Real workflow usage
+                  Real workflow usage with your actual business tools
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  30-day participation commitment
+                  30-day minimum active participation commitment
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  Structured, honest feedback
+                  Structured, honest feedback on what works and what does not
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  Working partnership (not passive preview)
+                  Working partnership &mdash; not a passive preview or free trial
                 </li>
               </ul>
             </div>
           </div>
         </motion.section>
 
-        {/* Who This Beta Is For */}
+        {/* WHO THIS IS FOR / NOT FOR */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
+          transition={{ delay: 0.35 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"
         >
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Target className="w-6 h-6 text-indigo-600" />
+          <div className="bg-white rounded-xl border border-slate-200 p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Target className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Who This Is For</h2>
+                <ul className="space-y-2 text-slate-600 text-sm">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+                    Operators, managers, founders, directors
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+                    Teams using 3+ business tools daily
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+                    Multi-system, multi-team environments
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+                    People who feel the pain of operational fragmentation
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+                    Comfortable giving candid, constructive feedback
+                  </li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Who This Beta Is For</h2>
-              <p className="text-slate-600 mb-4">
-                This beta is designed for professionals who operate in complex, multi-system environments 
-                and understand the pain of operational fragmentation.
-              </p>
-              <ul className="space-y-2 text-slate-600">
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  Operators, managers, founders, directors
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  Multi-system environments
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  Operational fragmentation pain
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  Comfortable giving candid feedback
-                </li>
-              </ul>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Filter className="w-6 h-6 text-slate-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Who This Is Not For</h2>
+                <ul className="space-y-2 text-slate-500 text-sm">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                    Casual testers looking for something to try
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                    Students or hobby users
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                    Free-software seekers
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                    Low-engagement or passive participants
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                    Single-tool environments with no cross-system needs
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </motion.section>
 
-        {/* Who This Beta Is NOT For */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
-        >
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Filter className="w-6 h-6 text-slate-500" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Who This Beta Is Not For</h2>
-              <p className="text-slate-600 mb-4">
-                To maintain quality and focus, this beta is not suitable for:
-              </p>
-              <ul className="space-y-2 text-slate-500">
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  Casual testers
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  Students or hobby users
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  Free-software seekers
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full" />
-                  Low-engagement participants
-                </li>
-              </ul>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Application Form */}
+        {/* APPLICATION FORM */}
         <motion.section
           id="beta-application-form"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
+          transition={{ delay: 0.4 }}
           className="bg-white rounded-xl border border-slate-200 p-8 mb-6"
         >
           <div className="flex items-start gap-4 mb-6">
@@ -426,7 +653,7 @@ export default function BetaInvitePage() {
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Beta Application</h2>
               <p className="text-slate-600 mt-1">
-                Complete the form below to apply for beta access.
+                Complete the form below to apply for beta access. All fields are required.
               </p>
             </div>
           </div>
@@ -449,7 +676,6 @@ export default function BetaInvitePage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Full Name <span className="text-red-500">*</span>
@@ -464,7 +690,6 @@ export default function BetaInvitePage() {
               />
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Email Address <span className="text-red-500">*</span>
@@ -479,7 +704,6 @@ export default function BetaInvitePage() {
               />
             </div>
 
-            {/* Role / Title */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Role / Title <span className="text-red-500">*</span>
@@ -494,7 +718,6 @@ export default function BetaInvitePage() {
               />
             </div>
 
-            {/* Company Size */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Company Size <span className="text-red-500">*</span>
@@ -506,13 +729,12 @@ export default function BetaInvitePage() {
                 className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors bg-white text-slate-900"
               >
                 <option value="">Select company size</option>
-                <option value="1-10">1–10 employees</option>
-                <option value="11-100">11–100 employees</option>
+                <option value="1-10">1&ndash;10 employees</option>
+                <option value="11-100">11&ndash;100 employees</option>
                 <option value="100+">100+ employees</option>
               </select>
             </div>
 
-            {/* Tools/Systems Used */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Tools/Systems Currently Used <span className="text-red-500">*</span>
@@ -527,7 +749,6 @@ export default function BetaInvitePage() {
               />
             </div>
 
-            {/* Biggest Challenge */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Biggest Operational Challenge <span className="text-red-500">*</span>
@@ -542,7 +763,6 @@ export default function BetaInvitePage() {
               />
             </div>
 
-            {/* Why Beta Test */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Why Do You Want to Beta Test Core314? <span className="text-red-500">*</span>
@@ -557,7 +777,6 @@ export default function BetaInvitePage() {
               />
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -572,7 +791,7 @@ export default function BetaInvitePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.45 }}
           className="flex items-center justify-center gap-3 text-slate-500 text-sm py-8"
         >
           <Shield className="w-4 h-4" />
