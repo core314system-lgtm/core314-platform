@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import { BriefHighlights } from '../components/onboarding/BriefHighlights';
+import { SampleBriefPreview } from '../components/onboarding/SampleBriefPreview';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -204,7 +205,7 @@ function normalizeBrief(raw: Record<string, unknown>): OperationalBriefData {
 
 export function OperationalBrief() {
   const { profile } = useAuth();
-  const { markBriefViewed, isBriefHighlightsDismissed } = useOnboardingStatus();
+  const { markBriefViewed, isBriefHighlightsDismissed, hasConnectedIntegration, hasGeneratedBrief: onboardingHasBrief } = useOnboardingStatus();
   const navigate = useNavigate();
   const [brief, setBrief] = useState<OperationalBriefData | null>(null);
   const [pastBriefs, setPastBriefs] = useState<OperationalBriefData[]>([]);
@@ -488,6 +489,40 @@ export function OperationalBrief() {
           <Skeleton className="h-24 w-full mt-4 bg-slate-800" />
           <Skeleton className="h-24 w-full mt-4 bg-slate-800" />
         </div>
+      </div>
+    );
+  }
+
+  // Show sample brief preview for users who haven't generated a brief yet
+  if (!brief && !onboardingHasBrief) {
+    return (
+      <div className="p-6 space-y-6 max-w-4xl mx-auto">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <FileText className="h-6 w-6 text-sky-500" />
+              Operational Brief
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              AI-generated analysis of your business operations
+            </p>
+          </div>
+          {hasConnectedIntegration && (
+            <Button
+              onClick={handleGenerateBrief}
+              disabled={generating}
+              className="bg-sky-600 hover:bg-sky-700 text-white"
+            >
+              {generating ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {generating ? 'Generating...' : 'Generate Your First Brief'}
+            </Button>
+          )}
+        </div>
+        <SampleBriefPreview hasConnectedIntegration={hasConnectedIntegration} />
       </div>
     );
   }
