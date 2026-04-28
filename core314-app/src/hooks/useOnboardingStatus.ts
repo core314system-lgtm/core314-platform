@@ -31,11 +31,14 @@ export interface OnboardingStatus {
   onboardingComplete: boolean;
   isBriefHighlightsDismissed: boolean;
   markBriefHighlightsDismissed: () => void;
+  // Server-side activation state
+  activationStatus: 'signed_up' | 'integrating' | 'activated' | 'fully_onboarded' | null;
+  userType: 'beta_tester' | 'trial_user' | 'paid' | null;
+  integrationCount: number;
 }
 
+// localStorage keys — retained for UI-only state (dismissals)
 const WALKTHROUGH_DISMISSED_KEY = 'core314_walkthrough_dismissed';
-const SIGNALS_REVIEWED_KEY = 'core314_signals_reviewed';
-const BRIEF_VIEWED_KEY = 'core314_brief_viewed';
 const FIRST_LOGIN_KEY = 'core314_first_login_seen';
 const ONBOARDING_STARTED_KEY = 'core314_onboarding_started';
 const BRIEF_HIGHLIGHTS_DISMISSED_KEY = 'core314_brief_highlights_dismissed';
@@ -46,6 +49,9 @@ export function useOnboardingStatus(): OnboardingStatus {
   const [hasGeneratedBrief, setHasGeneratedBrief] = useState(false);
   const [hasReviewedSignals, setHasReviewedSignals] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activationStatus, setActivationStatus] = useState<'signed_up' | 'integrating' | 'activated' | 'fully_onboarded' | null>(null);
+  const [userType, setUserType] = useState<'beta_tester' | 'trial_user' | 'paid' | null>(null);
+  const [integrationCount, setIntegrationCount] = useState(0);
   const [isWalkthroughDismissed, setIsWalkthroughDismissed] = useState(() => {
     return localStorage.getItem(WALKTHROUGH_DISMISSED_KEY) === 'true';
   });
@@ -67,37 +73,51 @@ export function useOnboardingStatus(): OnboardingStatus {
     }
 
     try {
-      // Check for connected integrations (real connections only)
-      const { data: integrations } = await supabase
-        .from('user_integrations')
-        .select('id')
-        .eq('user_id', profile.id)
-        .eq('status', 'active')
-        .eq('added_by_user', true)
-        .limit(1);
+      // Primary source: server-side activation state
+      const { data: serverState, error: serverError } = await supabase
+        .rpc('get_activation_state', { p_user_id: profile.id });
 
-      const hasIntegrations = (integrations?.length ?? 0) > 0;
-      setHasConnectedIntegration(hasIntegrations);
+      if (!serverError && serverState && serverState.found) {
+        // Use server-side activation state as source of truth
+        const hasIntegrations = (serverState.integration_count ?? 0) > 0;
+        const hasBriefs = serverState.first_brief_at !== null;
+        const hasSignals = serverState.first_signal_review_at !== null;
 
-      // Check for generated briefs
-      const { data: briefs } = await supabase
-        .from('operational_briefs')
-        .select('id')
-        .eq('user_id', profile.id)
-        .limit(1);
+        setHasConnectedIntegration(hasIntegrations);
+        setHasGeneratedBrief(hasBriefs);
+        setHasReviewedSignals(hasSignals && hasBriefs);
+        setActivationStatus(serverState.activation_status);
+        setUserType(serverState.user_type);
+        setIntegrationCount(serverState.integration_count ?? 0);
+      } else {
+        // Fallback: query tables directly (activation state row may not exist yet)
+        console.debug('[useOnboardingStatus] Server state not found, falling back to direct queries');
 
-      const hasBriefs = (briefs?.length ?? 0) > 0;
-      setHasGeneratedBrief(hasBriefs);
+        const { data: integrations } = await supabase
+          .from('user_integrations')
+          .select('id')
+          .eq('user_id', profile.id)
+          .eq('status', 'active')
+          .eq('added_by_user', true)
+          .limit(1);
 
-      // Check signals reviewed (localStorage — set when user visits signals page)
-      const signalsReviewed = localStorage.getItem(SIGNALS_REVIEWED_KEY) === 'true';
-      // Only count as reviewed if they actually have briefs/signals to review
-      setHasReviewedSignals(signalsReviewed && hasBriefs);
+        const hasIntegrations = (integrations?.length ?? 0) > 0;
+        setHasConnectedIntegration(hasIntegrations);
 
-      // If brief was viewed in localStorage and briefs exist, mark it
-      const briefViewed = localStorage.getItem(BRIEF_VIEWED_KEY) === 'true';
-      if (briefViewed && hasBriefs) {
-        setHasGeneratedBrief(true);
+        const { data: briefs } = await supabase
+          .from('operational_briefs')
+          .select('id')
+          .eq('user_id', profile.id)
+          .limit(1);
+
+        const hasBriefs = (briefs?.length ?? 0) > 0;
+        setHasGeneratedBrief(hasBriefs);
+        setHasReviewedSignals(false);
+        setActivationStatus(
+          hasBriefs ? 'activated' : hasIntegrations ? 'integrating' : 'signed_up'
+        );
+        setUserType(null);
+        setIntegrationCount(hasIntegrations ? 1 : 0);
       }
 
       // Mark first login as seen
@@ -121,13 +141,21 @@ export function useOnboardingStatus(): OnboardingStatus {
     checkStatus();
   }, [checkStatus]);
 
-  const markSignalsReviewed = useCallback(() => {
-    localStorage.setItem(SIGNALS_REVIEWED_KEY, 'true');
+  const markSignalsReviewed = useCallback(async () => {
     setHasReviewedSignals(true);
-  }, []);
+    // Persist to server via RPC
+    if (profile?.id) {
+      try {
+        await supabase.rpc('mark_signals_reviewed', { p_user_id: profile.id });
+      } catch (err) {
+        console.debug('[useOnboardingStatus] Failed to persist signal review:', err);
+      }
+    }
+  }, [profile?.id]);
 
   const markBriefViewed = useCallback(() => {
-    localStorage.setItem(BRIEF_VIEWED_KEY, 'true');
+    // Brief generation is tracked by the DB trigger on operational_briefs insert.
+    // This function is kept for backward compatibility but now just refreshes state.
     setHasGeneratedBrief(true);
   }, []);
 
@@ -194,5 +222,9 @@ export function useOnboardingStatus(): OnboardingStatus {
     onboardingComplete,
     isBriefHighlightsDismissed,
     markBriefHighlightsDismissed,
+    // Server-side activation state
+    activationStatus,
+    userType,
+    integrationCount,
   };
 }
