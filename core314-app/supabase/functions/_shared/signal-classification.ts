@@ -56,6 +56,7 @@ export const NO_DATA_SIGNAL_TYPES = new Set([
   'scope_limitation',
   'data_ingestion_gap',
   'stale_spreadsheets',
+  'email_activity_normal',  // Normal activity — should NOT penalize health score
 ]);
 
 /**
