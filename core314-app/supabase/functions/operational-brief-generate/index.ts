@@ -1056,21 +1056,21 @@ Generate a JSON response with these exact fields:
     // Prevents over-penalization and collapsing to 0 too easily
     let calculatedScore = 100;
 
-    // Severity weights per signal
+    // Severity weights per signal (calibrated: meaningful spread between levels)
     const SEVERITY_WEIGHTS: Record<string, number> = {
-      'critical': 20,
-      'high': 20,
-      'medium': 10,
-      'low': 5,
+      'critical': 25,
+      'high': 15,
+      'medium': 8,
+      'low': 3,
     };
 
-    // Category penalty caps
+    // Category penalty caps (total ~65, prevents score collapse)
     const CATEGORY_CAPS: Record<string, number> = {
-      revenue: 30,
-      cash_flow: 25,
-      operations: 20,
-      communication: 15,
-      scheduling: 10,
+      revenue: 22,
+      cash_flow: 18,
+      operations: 12,
+      communication: 8,
+      scheduling: 5,
     };
 
     // Accumulate penalties per category — SKIP NO_DATA signals (they should NOT reduce score)
@@ -1128,17 +1128,14 @@ Generate a JSON response with these exact fields:
 
     calculatedScore -= totalCappedPenalty;
 
-    // Cross-system correlation penalty
+    // Cross-system correlation penalty (gradual: -5 per category beyond the first)
     let crossSystemPenalty = 0;
-    if (impactedCategories.length >= 3) {
-      crossSystemPenalty = 15;
-    } else if (impactedCategories.length >= 2) {
-      crossSystemPenalty = 10;
+    if (impactedCategories.length >= 2) {
+      crossSystemPenalty = (impactedCategories.length - 1) * 5;
     }
     calculatedScore -= crossSystemPenalty;
 
-    // Positive offset: recovery buffer if any active signals show positive activity
-    // (e.g., open pipeline, active deals, payments in last 30 days)
+    // Positive offset: recovery buffer based on positive activity + integration coverage
     let recoveryBuffer = 0;
     const hasActivePipeline = activeSignals.some(s => {
       const sd = (s.signal_data as Record<string, unknown>) || {};
@@ -1149,6 +1146,7 @@ Generate a JSON response with these exact fields:
       const sd = (s.signal_data as Record<string, unknown>) || {};
       return (sd.payment_total as number) > 0;
     });
+    // Activity-based recovery
     if (hasActivePipeline && hasRecentPayments) {
       recoveryBuffer = 15;
     } else if (hasActivePipeline || hasRecentPayments) {
@@ -1156,6 +1154,10 @@ Generate a JSON response with these exact fields:
     } else if (activeSignals.length > 0) {
       recoveryBuffer = 5;
     }
+    // Integration coverage bonus: +2 per active integration (capped at +20)
+    // More connected integrations = broader operational visibility = higher baseline trust
+    const integrationCoverageBonus = Math.min(connectedCount * 2, 20);
+    recoveryBuffer += integrationCoverageBonus;
     calculatedScore += recoveryBuffer;
 
     // Floor constraint: minimum 10 unless ALL signals are confirmed negative (non-NO_DATA)

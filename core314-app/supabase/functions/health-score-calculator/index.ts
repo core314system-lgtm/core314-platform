@@ -29,12 +29,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Calibrated severity penalty weights
+// Calibrated severity penalty weights (aligned with brief-generate model)
 const SEVERITY_PENALTIES: Record<string, number> = {
-  'low': 6,
-  'medium': 12,
-  'high': 20,
-  'critical': 30,
+  'low': 3,
+  'medium': 8,
+  'high': 15,
+  'critical': 25,
 };
 
 // Signal types that are business-critical and get amplified penalties
@@ -47,7 +47,7 @@ const CRITICAL_BUSINESS_SIGNALS = new Set([
 ]);
 
 // Category amplification multiplier for business-critical signals
-const CATEGORY_AMPLIFICATION = 1.5;
+const CATEGORY_AMPLIFICATION = 1.3;
 
 function getScoreLabel(score: number): string {
   if (score >= 80) return 'Healthy';
@@ -170,12 +170,11 @@ serve(async (req) => {
           });
         }
 
-        // Multi-signal amplification penalty
+        // Multi-signal correlation penalty (gradual: -5 per unique source beyond first)
+        const uniqueSources = new Set(activeSignals.map(s => s.source_integration).filter(Boolean));
         let multiSignalPenalty = 0;
-        if (activeSignals.length >= 5) {
-          multiSignalPenalty = 10;
-        } else if (activeSignals.length >= 3) {
-          multiSignalPenalty = 5;
+        if (uniqueSources.size >= 2) {
+          multiSignalPenalty = (uniqueSources.size - 1) * 5;
         }
         score -= multiSignalPenalty;
         breakdown.multi_signal_penalty = multiSignalPenalty;
@@ -183,17 +182,18 @@ serve(async (req) => {
         const totalDeductions = rawSignalDeductions + multiSignalPenalty;
         breakdown.total_signal_deductions = Math.round(totalDeductions * 10) / 10;
 
-        // Integration coverage bonus (capped at +3 to prevent offsetting major issues)
+        // Integration coverage bonus: +2 per active integration (capped at +20)
+        // More connected integrations = broader operational visibility = higher baseline trust
         const connectedCount = (integrations || []).length;
-        const coverageBonus = Math.min(connectedCount, 3);
+        const coverageBonus = Math.min(connectedCount * 2, 20);
         score += coverageBonus;
         breakdown.integration_coverage = connectedCount;
         breakdown.coverage_bonus = coverageBonus;
 
         // Data freshness check (24h window — integrations polled on schedule)
-        const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const freshIntegrations = (integrations || []).filter(
-          i => i.updated_at && i.updated_at > oneHourAgo
+          i => i.updated_at && i.updated_at > oneDayAgo
         ).length;
         const freshnessPenalty = connectedCount > 0 ? Math.max(0, (connectedCount - freshIntegrations) * 1) : 0;
         score -= freshnessPenalty;
