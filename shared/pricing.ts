@@ -12,9 +12,13 @@
 // 3. Rebuild both apps (Netlify will do this automatically on merge)
 // ============================================================================
 
+// Annual discount: ~17% off (2 months free)
+export const ANNUAL_DISCOUNT_PERCENT = 17;
+
 export const PRICING = {
   intelligence: {
     monthly: 299,
+    annual: 2990, // $249.17/mo effective — save ~$598/yr
     name: 'Intelligence',
     tagline: 'Understand what is happening inside your business and why.',
     description:
@@ -34,6 +38,7 @@ export const PRICING = {
   },
   commandCenter: {
     monthly: 799,
+    annual: 7990, // $665.83/mo effective — save ~$1,598/yr
     name: 'Command Center',
     tagline: 'Continuous operational intelligence for scaling organizations.',
     description:
@@ -93,4 +98,13 @@ export const formatPrice = (amount: number): string => {
 
 export const formatMonthlyPrice = (amount: number): string => {
   return `${formatPrice(amount)}/mo`;
+};
+
+export const formatAnnualMonthly = (annualTotal: number): string => {
+  const monthly = Math.round(annualTotal / 12);
+  return `$${monthly.toLocaleString('en-US')}`;
+};
+
+export const annualSavings = (monthly: number, annual: number): number => {
+  return (monthly * 12) - annual;
 };

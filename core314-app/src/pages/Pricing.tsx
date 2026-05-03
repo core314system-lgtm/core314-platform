@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { createCheckoutSession } from '../services/stripe';
 import { useAuth } from '../hooks/useAuth';
 import { useState } from 'react';
-import { PRICING, formatPrice } from '../config/pricing';
+import { PRICING, formatPrice, formatAnnualMonthly, annualSavings } from '../config/pricing';
 
 // ============================================================================
 // PHASE 13.4: BILLING UX (TRUST-FIRST)
@@ -19,25 +19,41 @@ import { PRICING, formatPrice } from '../config/pricing';
 // NO inline price literals ($99, $199, etc.) are allowed in this file
 // ============================================================================
 
-const tiers = [
+type BillingInterval = 'monthly' | 'annual';
+
+const getTiers = (interval: BillingInterval) => [
   {
     name: PRICING.intelligence.name,
-    price: formatPrice(PRICING.intelligence.monthly),
-    priceId: import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE,
+    displayPrice: interval === 'monthly'
+      ? formatPrice(PRICING.intelligence.monthly)
+      : formatAnnualMonthly(PRICING.intelligence.annual),
+    annualTotal: PRICING.intelligence.annual,
+    savings: annualSavings(PRICING.intelligence.monthly, PRICING.intelligence.annual),
+    priceId: interval === 'monthly'
+      ? import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE
+      : (import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE_ANNUAL || import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE),
     description: PRICING.intelligence.description,
     features: PRICING.intelligence.features as unknown as string[],
   },
   {
     name: PRICING.commandCenter.name,
-    price: formatPrice(PRICING.commandCenter.monthly),
-    priceId: import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER,
+    displayPrice: interval === 'monthly'
+      ? formatPrice(PRICING.commandCenter.monthly)
+      : formatAnnualMonthly(PRICING.commandCenter.annual),
+    annualTotal: PRICING.commandCenter.annual,
+    savings: annualSavings(PRICING.commandCenter.monthly, PRICING.commandCenter.annual),
+    priceId: interval === 'monthly'
+      ? import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER
+      : (import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER_ANNUAL || import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER),
     description: PRICING.commandCenter.description,
     popular: true,
     features: PRICING.commandCenter.features as unknown as string[],
   },
   {
     name: PRICING.enterprise.name,
-    price: 'Custom',
+    displayPrice: 'Custom',
+    annualTotal: 0,
+    savings: 0,
     priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE,
     description: PRICING.enterprise.description,
     isCustom: true,
@@ -50,6 +66,9 @@ export function Pricing() {
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [showAddons, setShowAddons] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
+
+  const tiers = getTiers(billingInterval);
 
   const handleSubscribe = async (priceId: string, tierName: string) => {
     if (!priceId) {
@@ -62,7 +81,7 @@ export function Pricing() {
       await createCheckoutSession({
         priceId,
         email: user?.email,
-        metadata: { tier: tierName.toLowerCase() },
+        metadata: { tier: tierName.toLowerCase(), interval: billingInterval },
       });
     } catch (error) {
       console.error('Checkout error:', error);
@@ -81,6 +100,33 @@ export function Pricing() {
           <p className="text-xl text-gray-600 dark:text-gray-400">
             Select the perfect plan for your organization
           </p>
+
+          {/* Billing interval toggle */}
+          <div className="mt-6 inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 p-1">
+            <button
+              onClick={() => setBillingInterval('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                billingInterval === 'monthly'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingInterval('annual')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                billingInterval === 'annual'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Annual
+              <span className="ml-2 inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">
+                Save 17%
+              </span>
+            </button>
+          </div>
         </div>
 
         <Alert className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
@@ -107,12 +153,22 @@ export function Pricing() {
                 <CardDescription>{tier.description}</CardDescription>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                    {tier.price}
+                    {tier.displayPrice}
                   </span>
                   {!tier.isCustom && (
                     <span className="text-gray-600 dark:text-gray-400">/month</span>
                   )}
                 </div>
+                {!tier.isCustom && billingInterval === 'annual' && (
+                  <div className="mt-1 space-y-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {formatPrice(tier.annualTotal)}/year billed annually
+                    </p>
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                      Save {formatPrice(tier.savings)} per year
+                    </p>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3 mb-6">
