@@ -93,9 +93,9 @@ export function Login() {
 
           <div className="text-sm text-center">
             <span className="text-gray-600 dark:text-gray-400">Don't have an account? </span>
-            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+            <a href="https://core314.com/signup" className="font-medium text-blue-600 hover:text-blue-500">
               Sign up
-            </Link>
+            </a>
           </div>
         </form>
       </div>
