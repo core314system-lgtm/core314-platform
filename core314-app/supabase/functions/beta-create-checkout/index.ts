@@ -75,7 +75,7 @@ async function ensureCouponExists(): Promise<{ ok: boolean; error?: string }> {
   params.append('percent_off', '50');
   params.append('duration', 'repeating');
   params.append('duration_in_months', '6');
-  params.append('name', 'Core314 Beta Tester Reward - 50% Off for 6 Months');
+  params.append('name', 'Beta Tester 50% Off 6 Months');
 
   const result = await stripeRequest('/coupons', 'POST', params);
 
