@@ -1768,6 +1768,107 @@ serve(async (req) => {
           }
         }
 
+        // --- Content-Based Signal Detection ---
+        // Analyze extracted documents from integration_documents table
+        // for stale content, missing documentation, and content anomalies
+        try {
+          const { data: contentDocs } = await supabase
+            .from('integration_documents')
+            .select('id, service_name, source_type, title, source_modified_at, extracted_at, file_size_bytes, external_id')
+            .eq('user_id', userId)
+            .eq('extraction_status', 'complete')
+            .order('source_modified_at', { ascending: true })
+            .limit(100);
+
+          if (contentDocs && contentDocs.length > 0) {
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+            // Detect stale documents (not modified in 30+ days)
+            const staleDocs = contentDocs.filter(doc => {
+              if (!doc.source_modified_at) return false;
+              return new Date(doc.source_modified_at) < thirtyDaysAgo;
+            });
+
+            const veryStaleDocs = staleDocs.filter(doc => {
+              return new Date(doc.source_modified_at) < sixtyDaysAgo;
+            });
+
+            if (staleDocs.length >= 3) {
+              const staleEntities = staleDocs.slice(0, 10).map(doc => ({
+                name: doc.title,
+                last_activity_type: `${doc.service_name} ${doc.source_type}`,
+                last_activity_date: doc.source_modified_at,
+                metric_value: Math.floor((now.getTime() - new Date(doc.source_modified_at).getTime()) / (24 * 60 * 60 * 1000)),
+              }));
+
+              signals.push({
+                signal_type: 'stale_documents',
+                severity: veryStaleDocs.length >= 5 ? 'high' : staleDocs.length >= 5 ? 'medium' : 'low',
+                confidence: 80,
+                description: `${staleDocs.length} document${staleDocs.length > 1 ? 's' : ''} across connected integrations have not been updated in over 30 days. ${veryStaleDocs.length > 0 ? `${veryStaleDocs.length} are over 60 days stale.` : ''} Review these documents for outdated information that may affect operational decisions.`,
+                source_integration: 'content_analysis',
+                signal_data: {
+                  category: 'content_health',
+                  metric: 'stale_documents',
+                  stale_count_30d: staleDocs.length,
+                  stale_count_60d: veryStaleDocs.length,
+                  total_documents: contentDocs.length,
+                  affected_entities: staleEntities,
+                  summary_metrics: {
+                    stale_documents: staleDocs.length,
+                    very_stale_documents: veryStaleDocs.length,
+                    total_documents: contentDocs.length,
+                  },
+                },
+              });
+            }
+
+            // Detect content by service — check for services with zero extracted content
+            const serviceDocCounts: Record<string, number> = {};
+            for (const doc of contentDocs) {
+              serviceDocCounts[doc.service_name] = (serviceDocCounts[doc.service_name] || 0) + 1;
+            }
+
+            // Check which connected integrations have content extraction enabled but no docs
+            const connectedServices = Object.keys(integrationAgeMs);
+            const contentCapableServices = ['google_sheets', 'jira', 'notion'];
+            const missingContentServices = connectedServices.filter(
+              svc => contentCapableServices.includes(svc) && !serviceDocCounts[svc]
+            );
+
+            if (missingContentServices.length > 0) {
+              signals.push({
+                signal_type: 'missing_content_extraction',
+                severity: 'low',
+                confidence: 70,
+                description: `Content extraction is available for ${missingContentServices.join(', ')} but no documents have been extracted yet. Content analysis enables deeper operational insights from your connected tools.`,
+                source_integration: 'content_analysis',
+                signal_data: {
+                  category: 'content_health',
+                  metric: 'missing_content_extraction',
+                  missing_services: missingContentServices,
+                  services_with_content: Object.keys(serviceDocCounts),
+                  affected_entities: missingContentServices.map(svc => ({
+                    name: svc,
+                    last_activity_type: 'no content extracted',
+                    last_activity_date: null,
+                    metric_value: 0,
+                  })),
+                  summary_metrics: {
+                    missing_services: missingContentServices.length,
+                    total_services_with_content: Object.keys(serviceDocCounts).length,
+                  },
+                },
+              });
+            }
+          }
+        } catch (contentErr) {
+          // Content analysis is non-critical; don't fail the whole detection run
+          console.warn(`[signal-detector] Content signal detection error for user ${userId}:`, contentErr);
+        }
+
         // --- Persist Signals ---
         if (signals.length > 0) {
           const now = new Date().toISOString();

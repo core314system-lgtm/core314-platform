@@ -80,6 +80,13 @@ export const PRICING = {
 
 export type PlanId = keyof typeof PRICING;
 
+// Content storage limits per plan (bytes)
+export const PLAN_CONTENT_STORAGE_LIMITS: Record<string, { maxDocuments: number; maxBytes: number }> = {
+  intelligence: { maxDocuments: 500, maxBytes: 1 * 1024 * 1024 * 1024 },       // 1 GB
+  command_center: { maxDocuments: 5000, maxBytes: 10 * 1024 * 1024 * 1024 },   // 10 GB
+  enterprise: { maxDocuments: 50000, maxBytes: 100 * 1024 * 1024 * 1024 },     // 100 GB
+};
+
 // Plan seat limits for enforcement
 export const PLAN_SEAT_LIMITS: Record<string, number> = {
   intelligence: 1,
