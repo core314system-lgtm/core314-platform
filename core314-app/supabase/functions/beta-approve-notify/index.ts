@@ -74,10 +74,10 @@ function getApprovalEmailHTML(name: string): string {
             <td style="background-color: #1A1F2E; padding: 30px; border-radius: 12px; border: 1px solid #2A3F5F;">
               <h2 style="font-size: 20px; color: #00BFFF; margin: 0 0 15px 0;">Getting Started</h2>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
-                <strong style="color: #ffffff;">Step 1:</strong> Check your inbox for a second email from <strong>Supabase</strong> (noreply@mail.app.supabase.io) with the subject "You have been invited". This email contains your unique setup link to create your password and activate your account.
+                <strong style="color: #ffffff;">Step 1:</strong> Check your inbox for a second email from <strong>Core314</strong> with the subject "You have been invited". This email contains your unique setup link to create your password and activate your account.
               </p>
               <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 0 0 20px 0;">
-                Don't see it? Check your spam/junk folder. The invite email may take a few minutes to arrive.
+                Don't see it? Check your spam/junk folder — it may come from <em>noreply@mail.app.supabase.io</em> and could take a few minutes to arrive.
               </p>
               <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
                 <strong style="color: #ffffff;">Step 2:</strong> Click the link in that email to set your password. Once your account is created, you can log in at <a href="https://app.core314.com" style="color: #00BFFF; text-decoration: none;">app.core314.com</a>.
@@ -134,7 +134,7 @@ HERE'S WHAT YOU GET:
 - 50% off for 6 months ($399.50/mo instead of $799/mo) when you convert after the beta
 
 GETTING STARTED:
-Step 1: Check your inbox for a second email from Supabase (noreply@mail.app.supabase.io) with the subject "You have been invited". This email contains your unique setup link to create your password.
+Step 1: Check your inbox for a second email from Core314 with the subject "You have been invited". This email contains your unique setup link to create your password. (Don't see it? Check your spam/junk folder — it may come from noreply@mail.app.supabase.io.)
 
 Step 2: Click the link in that email to set your password. Once your account is created, you can log in at https://app.core314.com
 
