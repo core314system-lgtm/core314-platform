@@ -231,7 +231,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     stripe_subscription_id: subscriptionId,
   });
 
-  // ---- STEP 5: Send password setup email via SendGrid ----
+  // ---- STEP 5: Send branded welcome email (with password setup link) ----
   try {
     // Generate a secure password recovery link using Supabase Admin API
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
@@ -242,85 +242,63 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       },
     });
 
+    let passwordSetupLink: string | undefined;
     if (linkError || !linkData?.properties?.action_link) {
-      log("error", "Failed to generate password setup link", {
+      log("warn", "Failed to generate password setup link — welcome email will be sent without it", {
         error: linkError ? String(linkError) : "No action_link returned",
         email,
       });
     } else {
-      const passwordSetupLink = linkData.properties.action_link;
+      passwordSetupLink = linkData.properties.action_link;
       log("info", "Password setup link generated", { email });
+    }
 
-      // Send the email via SendGrid
-      const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
-      const senderEmail = Deno.env.get("SENDGRID_SENDER_EMAIL") || "support@core314.com";
-      const senderName = Deno.env.get("SENDGRID_SENDER_NAME") || "Core314";
-
-      if (!sendgridApiKey) {
-        log("error", "SENDGRID_API_KEY not set — cannot send password setup email", { email });
-        await logSystemEvent(supabaseAdmin, "email_send", "failure", "SENDGRID_API_KEY not configured", { email });
-      } else {
-        const emailHtml = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#f4f4f4;">
-  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f4;padding:20px;">
-    <tr><td align="center">
-      <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-        <tr><td style="padding:40px 40px 30px 40px;">
-          <h2 style="margin:0 0 20px 0;color:#0ea5e9;font-size:28px;font-weight:bold;">Set Your Core314 Password</h2>
-          <p style="margin:0 0 15px 0;color:#222;font-size:16px;line-height:1.6;">Welcome to Core314!</p>
-          <p style="margin:0 0 15px 0;color:#222;font-size:16px;line-height:1.6;">Your subscription is active and your account has been created. Click the button below to set your password and start using the platform.</p>
-          <table cellpadding="0" cellspacing="0" border="0">
-            <tr><td style="background-color:#0ea5e9;border-radius:6px;text-align:center;">
-              <a href="${passwordSetupLink}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;">Set Your Password</a>
-            </td></tr>
-          </table>
-          <p style="margin:20px 0 0 0;color:#999;font-size:12px;">If you didn't subscribe to Core314, you can safely ignore this email. This link expires in 24 hours.</p>
-        </td></tr>
-        <tr><td style="padding:20px 40px 40px 40px;border-top:1px solid #e0e0e0;">
-          <p style="margin:0;color:#777;font-size:12px;line-height:1.4;">Core314 Operational Intelligence<br>&copy; ${new Date().getFullYear()} Core314. All rights reserved.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-
-        const sgResponse = await fetch("https://api.sendgrid.com/v3/mail/send", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${sendgridApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            personalizations: [{ to: [{ email }] }],
-            from: { email: senderEmail, name: senderName },
-            subject: "Set your Core314 password",
-            content: [
-              { type: "text/plain", value: `Welcome to Core314! Set your password here: ${passwordSetupLink}` },
-              { type: "text/html", value: emailHtml },
-            ],
-          }),
-        });
-
-        if (!sgResponse.ok) {
-          const errBody = await sgResponse.text();
-          log("error", "SendGrid API error for password setup email", {
-            status: sgResponse.status,
-            body: errBody,
-            email,
-          });
-          await logSystemEvent(supabaseAdmin, "email_send", "failure", `SendGrid API error: status ${sgResponse.status}`, { email, status: sgResponse.status, body: errBody });
-        } else {
-          log("info", "Password setup email sent via SendGrid", { email });
-          await logSystemEvent(supabaseAdmin, "email_send", "success", "Password setup email sent", { email });
-        }
+    // Fetch user's full_name from profile (may have been set by handle_new_user trigger)
+    let userName = "there";
+    try {
+      const { data: profileData } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .single();
+      if (profileData?.full_name) {
+        userName = profileData.full_name;
       }
+    } catch (_) { /* non-fatal */ }
+
+    // Call the send-welcome-email edge function
+    const welcomePayload = {
+      email,
+      name: userName,
+      plan,
+      password_setup_link: passwordSetupLink,
+    };
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || SUPABASE_URL;
+    const welcomeResponse = await fetch(`${supabaseUrl}/functions/v1/send-welcome-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify(welcomePayload),
+    });
+
+    if (!welcomeResponse.ok) {
+      const errBody = await welcomeResponse.text();
+      log("error", "Welcome email function call failed", {
+        status: welcomeResponse.status,
+        body: errBody,
+        email,
+      });
+      await logSystemEvent(supabaseAdmin, "email_send", "failure", `Welcome email function error: ${welcomeResponse.status}`, { email });
+    } else {
+      log("info", "Welcome email sent successfully", { email, plan });
+      await logSystemEvent(supabaseAdmin, "email_send", "success", "Welcome email sent via send-welcome-email function", { email, plan });
     }
   } catch (err) {
-    log("error", "Exception sending password setup email", { error: String(err) });
-    await logSystemEvent(supabaseAdmin, "email_send", "failure", `Exception sending password email: ${String(err)}`, { email, error: String(err) });
+    log("error", "Exception sending welcome email", { error: String(err) });
+    await logSystemEvent(supabaseAdmin, "email_send", "failure", `Exception sending welcome email: ${String(err)}`, { email, error: String(err) });
   }
 
   log("info", "Checkout completed — full Stripe-first flow executed", {
