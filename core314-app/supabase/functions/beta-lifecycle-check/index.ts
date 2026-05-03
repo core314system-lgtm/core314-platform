@@ -358,6 +358,228 @@ The Core314 Team
 }
 
 // =============================================================================
+// DAY 7 CHECK-IN EMAIL
+// =============================================================================
+
+function getDay7CheckInHTML(data: BetaLifecycleEmailData): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Week 1 Check-In - Core314 Beta</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0A0F1A; color: #ffffff;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0A0F1A; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="text-align: center; padding-bottom: 30px;">
+              <span style="font-size: 32px; font-weight: 700; color: #00BFFF; letter-spacing: 2px;">CORE314</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background: linear-gradient(135deg, #00BFFF 0%, #007BFF 100%); padding: 40px 30px; border-radius: 12px; text-align: center;">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff;">Your First Week in the Beta</h1>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>
+          <tr>
+            <td style="background-color: #1A1F2E; padding: 30px; border-radius: 12px; border: 1px solid #2A3F5F;">
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                ${data.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                It's been a week since you started the Core314 beta. We wanted to check in and make sure you're getting the most out of your experience.
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 10px 0;">
+                <strong style="color: #00BFFF;">Quick tips to get the most value:</strong>
+              </p>
+              <ul style="margin: 0 0 20px 0; padding-left: 24px; font-size: 16px; line-height: 1.8; color: #E0E0E0;">
+                <li><strong>Connect 2-3 integrations</strong> — More data sources = richer operational intelligence</li>
+                <li><strong>Generate your first brief</strong> — See real insights from your connected tools</li>
+                <li><strong>Review your Health Score</strong> — Understand where your operations stand</li>
+              </ul>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                You have <strong style="color: #00BFFF;">${data.days_remaining} days</strong> remaining in your beta period. The more you use Core314, the more valuable it becomes.
+              </p>
+              <center>
+                <a href="https://app.core314.com/brief" style="display: inline-block; background: linear-gradient(90deg, #00BFFF, #007BFF); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Open Your Dashboard
+                </a>
+              </center>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>
+          <tr>
+            <td style="background-color: #1A1F2E; padding: 20px 30px; border-radius: 12px; border: 1px solid #2A3F5F;">
+              <p style="font-size: 14px; line-height: 1.6; color: #94a3b8; margin: 0;">
+                Having trouble or need help? Reply to this email — we're here for you. Your feedback directly shapes the product.
+              </p>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>
+          <tr>
+            <td style="text-align: center; padding: 20px;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">
+                <a href="mailto:admin@core314.com" style="color: #00BFFF; text-decoration: none;">admin@core314.com</a>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Core314&trade; Technologies LLC. All rights reserved.</p>
+              <p style="margin: 8px 0 0 0; font-size: 12px;">
+                <a href="https://core314.com/privacy" style="color: #00BFFF; text-decoration: none;">Privacy Policy</a> |
+                <a href="https://core314.com/terms" style="color: #00BFFF; text-decoration: none;">Terms of Service</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function getDay7CheckInText(data: BetaLifecycleEmailData): string {
+  return `Your First Week in the Core314 Beta
+
+${data.name},
+
+It's been a week since you started the Core314 beta. We wanted to check in and make sure you're getting the most out of your experience.
+
+QUICK TIPS TO GET THE MOST VALUE:
+- Connect 2-3 integrations — More data sources = richer operational intelligence
+- Generate your first brief — See real insights from your connected tools
+- Review your Health Score — Understand where your operations stand
+
+You have ${data.days_remaining} days remaining in your beta period. The more you use Core314, the more valuable it becomes.
+
+OPEN YOUR DASHBOARD: https://app.core314.com/brief
+
+Having trouble or need help? Reply to this email — we're here for you. Your feedback directly shapes the product.
+
+admin@core314.com
+(c) 2026 Core314 Technologies LLC. All rights reserved.`;
+}
+
+// =============================================================================
+// DAY 21 MID-POINT CHECK-IN EMAIL
+// =============================================================================
+
+function getDay21MidPointHTML(data: BetaLifecycleEmailData): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halfway Through Your Beta - Core314</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0A0F1A; color: #ffffff;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0A0F1A; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="text-align: center; padding-bottom: 30px;">
+              <span style="font-size: 32px; font-weight: 700; color: #00BFFF; letter-spacing: 2px;">CORE314</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); padding: 40px 30px; border-radius: 12px; text-align: center;">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff;">You're Halfway There</h1>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>
+          <tr>
+            <td style="background-color: #1A1F2E; padding: 30px; border-radius: 12px; border: 1px solid #2A3F5F;">
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                ${data.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                You're at the halfway mark of your Core314 beta! Here's a quick snapshot of your journey so far:
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0F172A; border-radius: 8px; margin: 0 0 20px 0;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="font-size: 14px; color: #94a3b8; margin: 0 0 8px 0;">YOUR BETA STATS</p>
+                    <p style="font-size: 16px; color: #E0E0E0; margin: 0 0 4px 0;"><strong style="color: #00BFFF;">${data.days_elapsed}</strong> days in the beta</p>
+                    <p style="font-size: 16px; color: #E0E0E0; margin: 0 0 4px 0;"><strong style="color: #00BFFF;">${data.total_logins}</strong> sessions logged</p>
+                    <p style="font-size: 16px; color: #E0E0E0; margin: 0;"><strong style="color: #00BFFF;">${data.days_remaining}</strong> days remaining</p>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 20px 0;">
+                The second half is where things get interesting. As you build more history, your operational briefs become more insightful and your health score trends become meaningful.
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 10px 0;">
+                <strong style="color: #8B5CF6;">Things to try in the next 3 weeks:</strong>
+              </p>
+              <ul style="margin: 0 0 20px 0; padding-left: 24px; font-size: 16px; line-height: 1.8; color: #E0E0E0;">
+                <li>Add more integrations to expand your intelligence coverage</li>
+                <li>Review your operational brief trends over time</li>
+                <li>Share insights with your team members</li>
+                <li>Send us feedback — your input shapes the product</li>
+              </ul>
+              <p style="font-size: 16px; line-height: 1.6; color: #E0E0E0; margin: 0 0 24px 0;">
+                Remember: beta testers who complete the full program earn an exclusive <strong style="color: #00BFFF;">50% discount</strong> — ${data.discount_amount}/mo instead of ${data.full_price}/mo for 6 months.
+              </p>
+              <center>
+                <a href="https://app.core314.com/brief" style="display: inline-block; background: linear-gradient(90deg, #8B5CF6, #6D28D9); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Continue Exploring
+                </a>
+              </center>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>
+          <tr>
+            <td style="text-align: center; padding: 20px;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #64748b;">
+                <a href="mailto:admin@core314.com" style="color: #00BFFF; text-decoration: none;">admin@core314.com</a>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; 2026 Core314&trade; Technologies LLC. All rights reserved.</p>
+              <p style="margin: 8px 0 0 0; font-size: 12px;">
+                <a href="https://core314.com/privacy" style="color: #00BFFF; text-decoration: none;">Privacy Policy</a> |
+                <a href="https://core314.com/terms" style="color: #00BFFF; text-decoration: none;">Terms of Service</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function getDay21MidPointText(data: BetaLifecycleEmailData): string {
+  return `You're Halfway Through Your Core314 Beta!
+
+${data.name},
+
+You're at the halfway mark of your Core314 beta! Here's a quick snapshot:
+
+YOUR BETA STATS:
+- ${data.days_elapsed} days in the beta
+- ${data.total_logins} sessions logged
+- ${data.days_remaining} days remaining
+
+The second half is where things get interesting. As you build more history, your operational briefs become more insightful and your health score trends become meaningful.
+
+THINGS TO TRY IN THE NEXT 3 WEEKS:
+- Add more integrations to expand your intelligence coverage
+- Review your operational brief trends over time
+- Share insights with your team members
+- Send us feedback — your input shapes the product
+
+Remember: beta testers who complete the full program earn an exclusive 50% discount — ${data.discount_amount}/mo instead of ${data.full_price}/mo for 6 months.
+
+CONTINUE EXPLORING: https://app.core314.com/brief
+
+admin@core314.com
+(c) 2026 Core314 Technologies LLC. All rights reserved.`;
+}
+
+// =============================================================================
 // SEND EMAIL VIA SENDGRID
 // =============================================================================
 
@@ -451,6 +673,168 @@ serve(async (req) => {
     log('ACTION', { action });
 
     const results: Record<string, unknown> = { action, checked_at: new Date().toISOString() };
+
+    // =========================================================================
+    // STEP 0A: Send Day 7 check-in emails
+    // =========================================================================
+    const { data: day7Users } = await supabase
+      .from('beta_tester_lifecycle')
+      .select('id, user_id, first_login_at, total_logins, extension_days, checkout_url')
+      .eq('lifecycle_status', 'active')
+      .not('first_login_at', 'is', null);
+
+    const day7Emails: string[] = [];
+
+    if (day7Users && day7Users.length > 0) {
+      for (const user of day7Users) {
+        const firstLogin = new Date(user.first_login_at);
+        const totalDays = 45 + (user.extension_days || 0);
+        const daysElapsed = Math.floor((Date.now() - firstLogin.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysElapsed >= 7 && daysElapsed < 14) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', user.user_id)
+            .single();
+
+          if (!profile) continue;
+
+          // Check if already sent
+          const { data: existing } = await supabase
+            .from('admin_messaging_log')
+            .select('id')
+            .eq('recipient_email', profile.email)
+            .eq('template_name', 'beta_day7_checkin')
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+
+          const day45Date = new Date(firstLogin.getTime() + totalDays * 24 * 60 * 60 * 1000);
+          const day46Date = new Date(day45Date.getTime() + 24 * 60 * 60 * 1000);
+
+          const emailData: BetaLifecycleEmailData = {
+            name: profile.full_name || 'there',
+            email: profile.email,
+            days_elapsed: daysElapsed,
+            days_remaining: Math.max(0, totalDays - daysElapsed),
+            total_logins: user.total_logins || 0,
+            checkout_url: user.checkout_url || `${supabaseUrl}/functions/v1/beta-create-checkout?user_id=${user.user_id}`,
+            day_45_date: day45Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            day_46_date: day46Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            discount_amount: '$399.50',
+            monthly_price: '$399.50',
+            full_price: '$799',
+          };
+
+          const emailResult = await sendLifecycleEmail(
+            profile.email,
+            'Your first week in the Core314 beta — tips to get the most value',
+            getDay7CheckInHTML(emailData),
+            getDay7CheckInText(emailData),
+          );
+
+          if (emailResult.success) {
+            day7Emails.push(profile.email);
+          }
+
+          await supabase.from('admin_messaging_log').insert({
+            admin_user_id: '00000000-0000-0000-0000-000000000000',
+            recipient_email: profile.email,
+            recipient_name: profile.full_name,
+            template_name: 'beta_day7_checkin',
+            message_type: 'beta_lifecycle',
+            send_status: emailResult.success ? 'sent' : 'failed',
+            error_message: emailResult.error || null,
+            context: { lifecycle_id: user.id, days_elapsed: daysElapsed },
+          });
+        }
+      }
+    }
+
+    results.day7_emails_sent = day7Emails;
+    results.day7_count = day7Emails.length;
+
+    // =========================================================================
+    // STEP 0B: Send Day 21 mid-point check-in emails
+    // =========================================================================
+    const { data: day21Users } = await supabase
+      .from('beta_tester_lifecycle')
+      .select('id, user_id, first_login_at, total_logins, extension_days, checkout_url')
+      .eq('lifecycle_status', 'active')
+      .not('first_login_at', 'is', null);
+
+    const day21Emails: string[] = [];
+
+    if (day21Users && day21Users.length > 0) {
+      for (const user of day21Users) {
+        const firstLogin = new Date(user.first_login_at);
+        const totalDays = 45 + (user.extension_days || 0);
+        const daysElapsed = Math.floor((Date.now() - firstLogin.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysElapsed >= 21 && daysElapsed < 28) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', user.user_id)
+            .single();
+
+          if (!profile) continue;
+
+          // Check if already sent
+          const { data: existing } = await supabase
+            .from('admin_messaging_log')
+            .select('id')
+            .eq('recipient_email', profile.email)
+            .eq('template_name', 'beta_day21_midpoint')
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+
+          const day45Date = new Date(firstLogin.getTime() + totalDays * 24 * 60 * 60 * 1000);
+          const day46Date = new Date(day45Date.getTime() + 24 * 60 * 60 * 1000);
+
+          const emailData: BetaLifecycleEmailData = {
+            name: profile.full_name || 'there',
+            email: profile.email,
+            days_elapsed: daysElapsed,
+            days_remaining: Math.max(0, totalDays - daysElapsed),
+            total_logins: user.total_logins || 0,
+            checkout_url: user.checkout_url || `${supabaseUrl}/functions/v1/beta-create-checkout?user_id=${user.user_id}`,
+            day_45_date: day45Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            day_46_date: day46Date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            discount_amount: '$399.50',
+            monthly_price: '$399.50',
+            full_price: '$799',
+          };
+
+          const emailResult = await sendLifecycleEmail(
+            profile.email,
+            'You\'re halfway through your Core314 beta — here\'s your progress',
+            getDay21MidPointHTML(emailData),
+            getDay21MidPointText(emailData),
+          );
+
+          if (emailResult.success) {
+            day21Emails.push(profile.email);
+          }
+
+          await supabase.from('admin_messaging_log').insert({
+            admin_user_id: '00000000-0000-0000-0000-000000000000',
+            recipient_email: profile.email,
+            recipient_name: profile.full_name,
+            template_name: 'beta_day21_midpoint',
+            message_type: 'beta_lifecycle',
+            send_status: emailResult.success ? 'sent' : 'failed',
+            error_message: emailResult.error || null,
+            context: { lifecycle_id: user.id, days_elapsed: daysElapsed },
+          });
+        }
+      }
+    }
+
+    results.day21_emails_sent = day21Emails;
+    results.day21_count = day21Emails.length;
 
     // =========================================================================
     // STEP 1: Find Day 38 users who need thank-you emails
