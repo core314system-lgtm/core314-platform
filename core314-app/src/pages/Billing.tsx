@@ -6,8 +6,8 @@ import { Badge } from '../components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import { PlanCard } from '../components/billing/PlanCard';
 import { UsageProgressBar } from '../components/billing/UsageProgressBar';
-import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink, Receipt, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Loader2, CreditCard, AlertCircle, CheckCircle, ExternalLink, Receipt, Calendar, Gift, Clock, Star } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { PRICING } from '../../../shared/pricing';
 
@@ -71,14 +71,31 @@ const PLAN_FEATURES = {
   ],
 };
 
+interface BetaLifecycleInfo {
+  found: boolean;
+  lifecycle_status?: string;
+  days_elapsed?: number;
+  days_remaining?: number;
+  total_days?: number;
+  stripe_subscription_id?: string | null;
+  checkout_url?: string | null;
+  day_45_completed_at?: string | null;
+  first_login_at?: string | null;
+}
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ygvkegcstaowikessigx.supabase.co';
+
 export default function Billing() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [subscriptionSummary, setSubscriptionSummary] = useState<SubscriptionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingAction, setProcessingAction] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [integrationsUsed, setIntegrationsUsed] = useState(0);
+  const [betaLifecycle, setBetaLifecycle] = useState<BetaLifecycleInfo | null>(null);
+  const [claimingDiscount, setClaimingDiscount] = useState(false);
 
   const fetchSubscriptionData = async () => {
     if (!user) return;
@@ -103,8 +120,63 @@ export default function Billing() {
     }
   };
 
+  // Handle query params from Stripe checkout redirect
+  useEffect(() => {
+    const betaConverted = searchParams.get('beta_converted');
+    const betaCanceled = searchParams.get('beta_conversion');
+    const alreadySubscribed = searchParams.get('already_subscribed');
+
+    if (betaConverted === 'true') {
+      setNotification({
+        type: 'success',
+        message: 'Welcome aboard! Your beta discount has been applied. You now have full Command Center access at 50% off for 6 months.',
+      });
+      // Clean up URL params
+      searchParams.delete('beta_converted');
+      setSearchParams(searchParams, { replace: true });
+    } else if (betaCanceled === 'canceled') {
+      setNotification({
+        type: 'error',
+        message: 'Checkout was canceled. Your beta discount is still available — claim it anytime before your beta period ends.',
+      });
+      searchParams.delete('beta_conversion');
+      setSearchParams(searchParams, { replace: true });
+    } else if (alreadySubscribed === 'true') {
+      setNotification({
+        type: 'success',
+        message: 'You already have an active subscription with your beta discount applied.',
+      });
+      searchParams.delete('already_subscribed');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
+
+  // Fetch beta lifecycle status
+  const fetchBetaLifecycle = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.rpc('get_beta_lifecycle_status', {
+        p_user_id: user.id,
+      });
+      if (!error && data) {
+        setBetaLifecycle(data as BetaLifecycleInfo);
+      }
+    } catch {
+      // Not a beta tester — that's fine
+    }
+  };
+
+  const handleClaimBetaDiscount = () => {
+    if (!user) return;
+    setClaimingDiscount(true);
+    // Redirect to the beta-create-checkout edge function which handles
+    // Stripe coupon creation, customer setup, and checkout session
+    window.location.href = `${SUPABASE_URL}/functions/v1/beta-create-checkout?user_id=${user.id}`;
+  };
+
   useEffect(() => {
     fetchSubscriptionData();
+    fetchBetaLifecycle();
 
     const channel = supabase
       .channel('user-subscription-changes')
@@ -254,6 +326,68 @@ export default function Billing() {
           )}
           <AlertTitle>{notification.type === 'success' ? 'Success' : 'Error'}</AlertTitle>
           <AlertDescription>{notification.message}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Beta Tester Discount Banner */}
+      {betaLifecycle?.found && !betaLifecycle.stripe_subscription_id && (
+        <Card className="border-2 border-cyan-500 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full bg-cyan-100 dark:bg-cyan-900">
+                  <Gift className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Star className="h-5 w-5 text-amber-500" />
+                    Beta Tester Exclusive: 50% Off Command Center
+                  </h3>
+                  <p className="text-muted-foreground mt-1">
+                    As a valued beta participant, you've earned <strong className="text-cyan-700 dark:text-cyan-400">$399.50/mo</strong> instead of $799/mo for your first 6 months.
+                    {betaLifecycle.days_remaining != null && betaLifecycle.days_remaining > 0 && (
+                      <span className="ml-1">
+                        You have <strong>{betaLifecycle.days_remaining} days</strong> remaining in your beta period.
+                      </span>
+                    )}
+                    {betaLifecycle.lifecycle_status === 'completed' && (
+                      <span className="ml-1 text-amber-600 dark:text-amber-400 font-medium">
+                        Your beta period has ended — claim your discount before it expires.
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    No charge until your beta period ends. Cancel anytime.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="lg"
+                onClick={handleClaimBetaDiscount}
+                disabled={claimingDiscount}
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-lg whitespace-nowrap"
+              >
+                {claimingDiscount ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Gift className="mr-2 h-4 w-4" />
+                )}
+                Claim Your 50% Discount
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Already converted banner */}
+      {betaLifecycle?.found && betaLifecycle.stripe_subscription_id && (
+        <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800 dark:text-green-200">Beta Discount Active</AlertTitle>
+          <AlertDescription className="text-green-700 dark:text-green-300">
+            Your 50% beta tester discount is applied to your subscription. You're paying $399.50/mo for the first 6 months.
+          </AlertDescription>
         </Alert>
       )}
 
