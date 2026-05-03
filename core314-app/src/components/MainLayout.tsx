@@ -23,6 +23,8 @@ import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { OnboardingNudge } from './onboarding/OnboardingNudge';
 import { GuidedWalkthrough } from './onboarding/GuidedWalkthrough';
 import { TrialCountdownBanner } from './TrialCountdownBanner';
+import { NpsSurvey } from './NpsSurvey';
+import { TwoFactorSetupPrompt } from './TwoFactorSetupPrompt';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -251,6 +253,9 @@ export function MainLayout() {
             </div>
           </header>
           
+          {/* 2FA setup prompt — shown after 7 days if not dismissed */}
+          <TwoFactorSetupPrompt />
+
           {/* Contextual onboarding nudge banner — only shown if user has NO briefs */}
           {!onboarding.loading && !onboarding.hasGeneratedBrief && (
             <div className="px-6 pt-3">
@@ -266,6 +271,9 @@ export function MainLayout() {
           <div className="flex-1 overflow-auto">
             <Outlet />
           </div>
+
+          {/* NPS Survey — shown after 14 days, bottom-right popup */}
+          <NpsSurvey />
 
           {/* Guided Walkthrough - first login only, hidden once a brief exists */}
           <GuidedWalkthrough

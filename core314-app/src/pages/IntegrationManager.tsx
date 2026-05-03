@@ -52,6 +52,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AnalysisProcessingScreen } from '../components/onboarding/AnalysisProcessingScreen';
 import { RequestIntegrationModal } from '../components/integrations/RequestIntegrationModal';
 import { SERVICE_BRAND_LOGOS } from '../components/integrations/BrandLogos';
+import { RecommendedIntegrationBadge } from '../components/RecommendedIntegrationBadge';
 
 interface IntegrationInfo {
   id: string;
@@ -975,6 +976,7 @@ export function IntegrationManager() {
   };
 
   const connectedCount = integrations.filter(i => isConnected(i.id)).length;
+  const connectedServices = integrations.filter(i => isConnected(i.id)).map(i => i.service_name);
 
   // Check if the user has reached their integration limit
   const integrationLimit = PLAN_INTEGRATION_LIMITS[userPlan] ?? PLAN_INTEGRATION_LIMITS['intelligence'];
@@ -1155,6 +1157,12 @@ export function IntegrationManager() {
                         <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
                           <Key className="h-3 w-3 mr-1" /> API Key
                         </Badge>
+                      )}
+                      {!connected && (
+                        <RecommendedIntegrationBadge
+                          serviceName={integration.service_name}
+                          connectedServices={connectedServices}
+                        />
                       )}
                     </div>
                   </div>
