@@ -81,6 +81,9 @@ interface BetaLifecycleInfo {
   checkout_url?: string | null;
   day_45_completed_at?: string | null;
   first_login_at?: string | null;
+  beta_program_active?: boolean;
+  eligible_for_discount?: boolean;
+  discount_deadline?: string | null;
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ygvkegcstaowikessigx.supabase.co';
@@ -126,12 +129,15 @@ export default function Billing() {
     const betaCanceled = searchParams.get('beta_conversion');
     const alreadySubscribed = searchParams.get('already_subscribed');
 
+    const betaEnded = searchParams.get('beta_ended');
+    const betaExpired = searchParams.get('beta_expired');
+    const betaIneligible = searchParams.get('beta_ineligible');
+
     if (betaConverted === 'true') {
       setNotification({
         type: 'success',
         message: 'Welcome aboard! Your beta discount has been applied. You now have full Command Center access at 50% off for 6 months.',
       });
-      // Clean up URL params
       searchParams.delete('beta_converted');
       setSearchParams(searchParams, { replace: true });
     } else if (betaCanceled === 'canceled') {
@@ -147,6 +153,27 @@ export default function Billing() {
         message: 'You already have an active subscription with your beta discount applied.',
       });
       searchParams.delete('already_subscribed');
+      setSearchParams(searchParams, { replace: true });
+    } else if (betaEnded === 'true') {
+      setNotification({
+        type: 'error',
+        message: 'The beta program has ended. Discount offers are no longer available.',
+      });
+      searchParams.delete('beta_ended');
+      setSearchParams(searchParams, { replace: true });
+    } else if (betaExpired === 'true') {
+      setNotification({
+        type: 'error',
+        message: 'Your beta discount offer has expired. The deadline to claim was the last day of your beta period.',
+      });
+      searchParams.delete('beta_expired');
+      setSearchParams(searchParams, { replace: true });
+    } else if (betaIneligible === 'true') {
+      setNotification({
+        type: 'error',
+        message: 'You are not yet eligible for the beta discount. Complete the beta testing program requirements first.',
+      });
+      searchParams.delete('beta_ineligible');
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
@@ -329,8 +356,8 @@ export default function Billing() {
         </Alert>
       )}
 
-      {/* Beta Tester Discount Banner */}
-      {betaLifecycle?.found && !betaLifecycle.stripe_subscription_id && (
+      {/* Beta Tester Discount Banner — only shown when eligible */}
+      {betaLifecycle?.found && betaLifecycle.eligible_for_discount && (
         <Card className="border-2 border-cyan-500 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -350,7 +377,12 @@ export default function Billing() {
                         You have <strong>{betaLifecycle.days_remaining} days</strong> remaining in your beta period.
                       </span>
                     )}
-                    {betaLifecycle.lifecycle_status === 'completed' && (
+                    {betaLifecycle.days_remaining != null && betaLifecycle.days_remaining <= 1 && betaLifecycle.days_remaining >= 0 && (
+                      <span className="ml-1 text-red-600 dark:text-red-400 font-bold">
+                        Last day! Claim your discount now or lose it forever.
+                      </span>
+                    )}
+                    {betaLifecycle.lifecycle_status === 'completed' && betaLifecycle.days_remaining == null && (
                       <span className="ml-1 text-amber-600 dark:text-amber-400 font-medium">
                         Your beta period has ended — claim your discount before it expires.
                       </span>

@@ -169,6 +169,32 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Check if beta program is globally active
+    const { data: settingValue } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'beta_program_active')
+      .single();
+
+    const betaProgramActive = settingValue?.value === true || settingValue?.value === 'true';
+
+    if (!betaProgramActive) {
+      log('BETA_PROGRAM_INACTIVE');
+      const errorMsg = 'The beta program has ended. Discount offers are no longer available.';
+
+      if (req.method === 'GET') {
+        return new Response(null, {
+          status: 302,
+          headers: { ...corsHeaders, 'Location': `${APP_URL}/billing?beta_ended=true` },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ error: errorMsg }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get user_id from query params (GET) or body (POST)
     let userId: string | null = null;
 
@@ -217,6 +243,51 @@ serve(async (req) => {
         JSON.stringify({ error: 'Beta lifecycle record not found. User must be an approved beta tester.' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Eligibility check: beta tester must have completed the program
+    // Eligible statuses: completed (finished 45 days), converting (in checkout flow),
+    // extended (admin extended period), active/thanked (still within beta period)
+    const eligibleStatuses = ['completed', 'converting', 'extended', 'active', 'thanked'];
+    if (!eligibleStatuses.includes(lifecycle.lifecycle_status)) {
+      log('INELIGIBLE_STATUS', { status: lifecycle.lifecycle_status });
+      const errorMsg = `Beta tester is not eligible for discount. Current status: ${lifecycle.lifecycle_status}`;
+
+      if (req.method === 'GET') {
+        return new Response(null, {
+          status: 302,
+          headers: { ...corsHeaders, 'Location': `${APP_URL}/billing?beta_ineligible=true` },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({ error: errorMsg }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Deadline check: discount must be claimed before beta period expires
+    if (lifecycle.first_login_at) {
+      const firstLogin = new Date(lifecycle.first_login_at);
+      const totalDays = 45 + (lifecycle.extension_days || 0);
+      const deadline = new Date(firstLogin.getTime() + totalDays * 24 * 60 * 60 * 1000);
+
+      if (new Date() > deadline) {
+        log('DISCOUNT_EXPIRED', { deadline: deadline.toISOString(), now: new Date().toISOString() });
+        const errorMsg = 'Your beta discount offer has expired. The deadline to claim was the last day of your beta period.';
+
+        if (req.method === 'GET') {
+          return new Response(null, {
+            status: 302,
+            headers: { ...corsHeaders, 'Location': `${APP_URL}/billing?beta_expired=true` },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // If already has a subscription, redirect to billing
