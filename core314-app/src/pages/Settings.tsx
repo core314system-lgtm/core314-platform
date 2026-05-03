@@ -11,7 +11,9 @@ import {
   Check,
   Camera,
   Key,
-  Building2
+  Building2,
+  Download,
+  Shield
 } from 'lucide-react';
 
 export function Settings() {
@@ -31,6 +33,8 @@ export function Settings() {
   const [emailUpdateMessage, setEmailUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   const [passwordResetMessage, setPasswordResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dataExportLoading, setDataExportLoading] = useState(false);
+  const [dataExportMessage, setDataExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -214,6 +218,51 @@ export function Settings() {
       });
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleDataExport = async () => {
+    if (!user) return;
+    setDataExportLoading(true);
+    setDataExportMessage(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/gdpr-data-export`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error((errData as Record<string, string>).error || 'Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `core314-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      setDataExportMessage({ type: 'success', text: 'Your data export has been downloaded.' });
+    } catch (err) {
+      console.error('Data export error:', err);
+      setDataExportMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to export data. Please try again.',
+      });
+    } finally {
+      setDataExportLoading(false);
     }
   };
 
@@ -447,6 +496,59 @@ export function Settings() {
                   )}
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+        {/* Privacy & Data Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Privacy & Data
+            </CardTitle>
+            <CardDescription>
+              Manage your data and privacy preferences. Under GDPR Article 20, you have the right to export your personal data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Export Your Data</Label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Download a copy of all your personal data stored in Core314, including your profile,
+                integrations, signals, briefs, and email communications.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleDataExport}
+                disabled={dataExportLoading}
+              >
+                {dataExportLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {dataExportLoading ? 'Exporting...' : 'Export My Data'}
+              </Button>
+              {dataExportMessage && (
+                <p className={`text-xs ${dataExportMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {dataExportMessage.text}
+                </p>
+              )}
+            </div>
+            <div className="pt-4 border-t space-y-2">
+              <Label>Cookie Preferences</Label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                You can manage your cookie preferences at any time. Click below to update your choices.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem('core314-cookie-consent');
+                  window.location.reload();
+                }}
+              >
+                Manage Cookie Preferences
+              </Button>
             </div>
           </CardContent>
         </Card>

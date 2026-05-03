@@ -28,6 +28,7 @@ import { SentryTest } from './pages/SentryTest';
 import SentryVerify from './pages/SentryVerify';
 import { useAuth } from './hooks/useAuth';
 import { Toaster } from './components/ui/toaster';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { OrganizationProvider } from './contexts/OrganizationContext';
 import { OnboardingProvider } from './contexts/OnboardingContext';
 import { SupportChatProvider } from './contexts/SupportChatContext';
@@ -163,6 +164,7 @@ function App() {
         </Route>
         </Routes>
         <Toaster />
+        <CookieConsentBanner />
       </Router>
     );
 }
