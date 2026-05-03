@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -152,6 +152,29 @@ export default function BetaInvitePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [betaProgramActive, setBetaProgramActive] = useState<boolean | null>(null);
+
+  // Check if beta program is still active
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = await initSupabaseClient();
+        const { data } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'beta_program_active')
+          .single();
+
+        if (data) {
+          setBetaProgramActive(data.value === true || data.value === 'true');
+        } else {
+          setBetaProgramActive(true); // Default to active if setting not found
+        }
+      } catch {
+        setBetaProgramActive(true); // Default to active on error
+      }
+    })();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -227,6 +250,53 @@ export default function BetaInvitePage() {
       formElement.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Show "program ended" page when beta is shut down
+  if (betaProgramActive === false) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200">
+          <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8" />
+              <span className="text-xl font-semibold text-slate-900">Core314</span>
+            </Link>
+          </div>
+        </header>
+
+        <main className="max-w-2xl mx-auto px-6 py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-slate-400" />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-4">
+              Beta Program Has Ended
+            </h1>
+            <p className="text-lg text-slate-600 mb-4">
+              Thank you to all our beta testers who helped shape Core314.
+              The beta testing program has concluded.
+            </p>
+            <p className="text-slate-500 mb-8">
+              Core314 is now available for general access. Visit our main site to learn more
+              about our operational intelligence platform.
+            </p>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-colors shadow-lg shadow-sky-500/25"
+            >
+              Visit Core314.com
+            </Link>
+          </motion.div>
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

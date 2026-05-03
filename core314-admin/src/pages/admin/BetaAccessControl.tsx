@@ -29,14 +29,72 @@ export default function BetaAccessControl() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [betaProgramActive, setBetaProgramActive] = useState<boolean>(true)
+  const [togglingProgram, setTogglingProgram] = useState(false)
+  const [showShutdownConfirm, setShowShutdownConfirm] = useState(false)
 
   useEffect(() => {
     fetchApplications()
+    fetchBetaProgramStatus()
   }, [])
 
   useEffect(() => {
     applyFilter()
   }, [applications, filter])
+
+  const fetchBetaProgramStatus = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'beta_program_active')
+        .single()
+
+      if (!fetchError && data) {
+        setBetaProgramActive(data.value === true || data.value === 'true')
+      }
+    } catch (err) {
+      console.error('Error fetching beta program status:', err)
+    }
+  }
+
+  const handleToggleBetaProgram = async () => {
+    if (betaProgramActive) {
+      // Shutting down — show confirmation
+      setShowShutdownConfirm(true)
+      return
+    }
+    // Re-enabling — just do it
+    await toggleBetaProgram(true)
+  }
+
+  const toggleBetaProgram = async (newValue: boolean) => {
+    try {
+      setTogglingProgram(true)
+      setShowShutdownConfirm(false)
+
+      const { data, error: rpcError } = await supabase.rpc('set_system_setting', {
+        p_key: 'beta_program_active',
+        p_value: newValue,
+      })
+
+      if (rpcError) throw rpcError
+      if (data && !data.success) throw new Error(data.error || 'Failed to update setting')
+
+      setBetaProgramActive(newValue)
+      alert(newValue
+        ? 'Beta program re-activated. Beta testers can now claim discounts.'
+        : 'Beta program shut down. All beta discount offers are now disabled. Core314 is ready for launch.'
+      )
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to toggle beta program'
+      console.error('Error toggling beta program:', err)
+      setError(message)
+      alert(`Error: ${message}`)
+    } finally {
+      setTogglingProgram(false)
+    }
+  }
 
   const fetchApplications = async () => {
     try {
@@ -221,6 +279,75 @@ export default function BetaAccessControl() {
           </h1>
           <p className="text-gray-400">Review and manage beta tester applications from core314.com/beta</p>
         </div>
+
+        {/* Beta Program Toggle */}
+        <div className={`border rounded-lg p-6 mb-8 ${
+          betaProgramActive
+            ? 'bg-green-950/20 border-green-500/30'
+            : 'bg-red-950/20 border-red-500/30'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${betaProgramActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                Beta Program: {betaProgramActive ? 'Active' : 'Shut Down'}
+              </h2>
+              <p className="text-gray-400 text-sm mt-1">
+                {betaProgramActive
+                  ? 'Beta testers can apply, access the platform, and claim their 50% discount.'
+                  : 'Beta program is off. No new applications, no discount offers. Core314 is in launch mode.'
+                }
+              </p>
+            </div>
+            <button
+              onClick={handleToggleBetaProgram}
+              disabled={togglingProgram}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                betaProgramActive
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+            >
+              {togglingProgram ? 'Updating...' : betaProgramActive ? 'Shut Down Beta Program' : 'Re-activate Beta Program'}
+            </button>
+          </div>
+        </div>
+
+        {/* Shutdown Confirmation Modal */}
+        {showShutdownConfirm && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div className="bg-[#1A1F2E] border border-red-500/50 rounded-xl p-8 max-w-lg mx-4">
+              <h3 className="text-2xl font-bold text-red-400 mb-4">Confirm Beta Program Shutdown</h3>
+              <div className="space-y-3 text-gray-300 mb-6">
+                <p>This will permanently shut down the beta testing program:</p>
+                <ul className="list-disc list-inside space-y-2 text-sm">
+                  <li>No new beta applications will be accepted</li>
+                  <li>Beta discount offers will be disabled for all users</li>
+                  <li>The beta landing page will show "program ended"</li>
+                  <li>Only testers who already claimed their discount keep it</li>
+                </ul>
+                <p className="text-amber-400 font-medium mt-4">
+                  This signals that Core314 is ready for public launch.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowShutdownConfirm(false)}
+                  className="px-4 py-2 bg-[#2A3F5F] text-gray-300 rounded-lg hover:bg-[#3A4F6F] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => toggleBetaProgram(false)}
+                  disabled={togglingProgram}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50"
+                >
+                  {togglingProgram ? 'Shutting Down...' : 'Shut Down Beta Program'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
