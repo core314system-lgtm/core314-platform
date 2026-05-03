@@ -42,6 +42,7 @@ import { IntegrationManager } from './pages/IntegrationManager';
 import { TeamMembers } from './pages/TeamMembers';
 import { IntegrationRequests } from './pages/admin/IntegrationRequests';
 import { BriefArchive } from './pages/BriefArchive';
+import { DocumentLibrary } from './pages/DocumentLibrary';
 
 // Feature flag to enable/disable AI Support widget
 // Disabled by default until backend Edge Functions are properly deployed
@@ -145,6 +146,7 @@ function App() {
             <Route path="health" element={<HealthScore />} />
             <Route path="integration-manager" element={<IntegrationManager />} />
             <Route path="team-members" element={<TeamMembers />} />
+            <Route path="documents" element={<DocumentLibrary />} />
             
             {/* Legacy dashboard redirect — role-aware */}
             <Route path="dashboard" element={<DefaultRedirect />} />

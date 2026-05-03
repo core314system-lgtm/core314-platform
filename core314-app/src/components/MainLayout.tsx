@@ -18,6 +18,7 @@ import {
   ChevronDown,
   CreditCard,
   ShieldCheck,
+  Database,
 } from 'lucide-react';
 import { OrganizationSwitcher } from './OrganizationSwitcher';
 import { OnboardingNudge } from './onboarding/OnboardingNudge';
@@ -48,6 +49,7 @@ const getNavItems = (_integrationBadge?: string, isAdmin?: boolean, _subscriptio
     { path: '/signals', label: 'Signal Dashboard', icon: Activity },
     { path: '/health', label: 'Health Score', icon: Heart },
     { path: '/integration-manager', label: 'Integrations', icon: Layers },
+    { path: '/documents', label: 'Document Library', icon: Database },
     { path: '/team-members', label: 'Team Members', icon: Users },
   ];
 
