@@ -592,6 +592,7 @@ export function OperationalBrief() {
   }
 
   return (
+    <>
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1335,5 +1336,6 @@ export function OperationalBrief() {
           </div>
         </div>
       )}
+    </>
   );
 }
