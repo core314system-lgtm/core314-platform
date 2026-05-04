@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 // =============================================================================
 // GDPR DATA EXPORT
 // Allows authenticated users to request a full export of their personal data.
-// Returns a JSON file containing all user data stored in the system.
+// Returns a readable plain text file containing all user data stored in the system.
 // Complies with GDPR Article 20 (Right to Data Portability).
 // =============================================================================
 
@@ -14,34 +14,45 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-function escapeCsvValue(val: unknown): string {
-  if (val === null || val === undefined) return '';
-  const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
+function formatValue(val: unknown): string {
+  if (val === null || val === undefined) return '(none)';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
 }
 
-function arrayToCsv(label: string, rows: Record<string, unknown>[]): string {
-  if (!rows || rows.length === 0) return `\n--- ${label} ---\nNo data\n`;
-  const headers = Object.keys(rows[0]);
-  const lines = [
-    `\n--- ${label} ---`,
-    headers.map(escapeCsvValue).join(','),
-    ...rows.map(row => headers.map(h => escapeCsvValue(row[h])).join(',')),
-  ];
-  return lines.join('\n') + '\n';
+function formatLabel(key: string): string {
+  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function objectToCsv(label: string, obj: Record<string, unknown> | null): string {
-  if (!obj) return `\n--- ${label} ---\nNo data\n`;
+function objectToText(label: string, obj: Record<string, unknown> | null): string {
+  if (!obj) return `\n${'='.repeat(60)}\n  ${label}\n${'='.repeat(60)}\n\n  No data\n`;
   const lines = [
-    `\n--- ${label} ---`,
-    'Field,Value',
-    ...Object.entries(obj).map(([k, v]) => `${escapeCsvValue(k)},${escapeCsvValue(v)}`),
+    `\n${'='.repeat(60)}`,
+    `  ${label}`,
+    `${'='.repeat(60)}`,
+    '',
+    ...Object.entries(obj).map(([k, v]) => `  ${formatLabel(k)}: ${formatValue(v)}`),
+    '',
   ];
-  return lines.join('\n') + '\n';
+  return lines.join('\n');
+}
+
+function arrayToText(label: string, rows: Record<string, unknown>[]): string {
+  if (!rows || rows.length === 0) return `\n${'='.repeat(60)}\n  ${label}\n${'='.repeat(60)}\n\n  No records\n`;
+  const lines = [
+    `\n${'='.repeat(60)}`,
+    `  ${label} (${rows.length} record${rows.length !== 1 ? 's' : ''})`,
+    `${'='.repeat(60)}`,
+    '',
+  ];
+  rows.forEach((row, i) => {
+    lines.push(`  --- Record ${i + 1} ---`);
+    Object.entries(row).forEach(([k, v]) => {
+      lines.push(`    ${formatLabel(k)}: ${formatValue(v)}`);
+    });
+    lines.push('');
+  });
+  return lines.join('\n');
 }
 
 serve(async (req) => {
@@ -93,7 +104,7 @@ serve(async (req) => {
         exported_at: new Date().toISOString(),
         user_id: userId,
         user_email: user.email,
-        format: 'CSV',
+        format: 'Plain Text',
         gdpr_article: 'Article 20 - Right to Data Portability',
       },
     };
@@ -202,35 +213,42 @@ serve(async (req) => {
       context: { user_id: userId, tables_exported: Object.keys(exportData).length },
     });
 
-    // Build CSV output with sections
-    const csvParts: string[] = [
-      'Core314 Data Export',
-      `Exported: ${new Date().toISOString()}`,
-      `User: ${user.email || userId}`,
-      `GDPR Article 20 - Right to Data Portability`,
+    // Build readable plain text output with sections
+    const parts: string[] = [
+      '╔══════════════════════════════════════════════════════════╗',
+      '║              CORE314 — YOUR DATA EXPORT                 ║',
+      '╚══════════════════════════════════════════════════════════╝',
+      '',
+      `  Exported: ${new Date().toISOString()}`,
+      `  User:     ${user.email || userId}`,
+      `  GDPR Article 20 — Right to Data Portability`,
     ];
 
-    csvParts.push(objectToCsv('Profile', profile as Record<string, unknown> | null));
-    csvParts.push(arrayToCsv('Organization Memberships', (exportData.organization_memberships as Record<string, unknown>[]) || []));
-    csvParts.push(arrayToCsv('Integrations', (exportData.integrations as Record<string, unknown>[]) || []));
-    csvParts.push(arrayToCsv('Subscriptions', (exportData.subscriptions as Record<string, unknown>[]) || []));
-    csvParts.push(objectToCsv('Activation State', activationState as Record<string, unknown> | null));
-    csvParts.push(objectToCsv('Beta Lifecycle', betaLifecycle as Record<string, unknown> | null));
-    csvParts.push(arrayToCsv('Beta Applications', (exportData.beta_applications as Record<string, unknown>[]) || []));
-    csvParts.push(arrayToCsv('Operational Signals', (exportData.operational_signals as Record<string, unknown>[]) || []));
-    csvParts.push(arrayToCsv('Email Communications', (exportData.email_communications as Record<string, unknown>[]) || []));
-    csvParts.push(arrayToCsv('Team Invites Sent', (exportData.team_invites_sent as Record<string, unknown>[]) || []));
+    parts.push(objectToText('Profile', profile as Record<string, unknown> | null));
+    parts.push(arrayToText('Organization Memberships', (exportData.organization_memberships as Record<string, unknown>[]) || []));
+    parts.push(arrayToText('Integrations', (exportData.integrations as Record<string, unknown>[]) || []));
+    parts.push(arrayToText('Subscriptions', (exportData.subscriptions as Record<string, unknown>[]) || []));
+    parts.push(objectToText('Activation State', activationState as Record<string, unknown> | null));
+    parts.push(objectToText('Beta Lifecycle', betaLifecycle as Record<string, unknown> | null));
+    parts.push(arrayToText('Beta Applications', (exportData.beta_applications as Record<string, unknown>[]) || []));
+    parts.push(arrayToText('Operational Signals', (exportData.operational_signals as Record<string, unknown>[]) || []));
+    parts.push(arrayToText('Email Communications', (exportData.email_communications as Record<string, unknown>[]) || []));
+    parts.push(arrayToText('Team Invites Sent', (exportData.team_invites_sent as Record<string, unknown>[]) || []));
 
-    const csvContent = csvParts.join('\n');
+    parts.push(`\n${'='.repeat(60)}`);
+    parts.push('  End of export');
+    parts.push(`${'='.repeat(60)}\n`);
+
+    const textContent = parts.join('\n');
 
     return new Response(
-      csvContent,
+      textContent,
       {
         status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="core314-data-export-${userId}.csv"`,
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Disposition': `attachment; filename="core314-data-export-${userId}.txt"`,
         },
       }
     );
