@@ -31,7 +31,7 @@ BEGIN
     -- Archive a batch
     WITH batch AS (
       SELECT id FROM integration_events
-      WHERE created_at < NOW() - INTERVAL '90 days'
+      WHERE ingested_at < NOW() - INTERVAL '90 days'
       LIMIT v_batch_size
       FOR UPDATE SKIP LOCKED
     ),
@@ -49,7 +49,7 @@ BEGIN
     DELETE FROM integration_events
     WHERE id IN (
       SELECT id FROM integration_events
-      WHERE created_at < NOW() - INTERVAL '90 days'
+      WHERE ingested_at < NOW() - INTERVAL '90 days'
       LIMIT v_batch_size
     );
 
@@ -118,9 +118,8 @@ CREATE INDEX IF NOT EXISTS idx_integration_events_user_service_occurred
 CREATE INDEX IF NOT EXISTS idx_integration_events_user_event_type
   ON integration_events(user_id, event_type, occurred_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_integration_events_created_at_for_archive
-  ON integration_events(created_at)
-  WHERE created_at < NOW() - INTERVAL '90 days';
+CREATE INDEX IF NOT EXISTS idx_integration_events_ingested_at_for_archive
+  ON integration_events(ingested_at);
 
 CREATE INDEX IF NOT EXISTS idx_operational_signals_inactive_old
   ON operational_signals(is_active, created_at)
