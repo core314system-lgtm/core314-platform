@@ -14,6 +14,36 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+function escapeCsvValue(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function arrayToCsv(label: string, rows: Record<string, unknown>[]): string {
+  if (!rows || rows.length === 0) return `\n--- ${label} ---\nNo data\n`;
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    `\n--- ${label} ---`,
+    headers.map(escapeCsvValue).join(','),
+    ...rows.map(row => headers.map(h => escapeCsvValue(row[h])).join(',')),
+  ];
+  return lines.join('\n') + '\n';
+}
+
+function objectToCsv(label: string, obj: Record<string, unknown> | null): string {
+  if (!obj) return `\n--- ${label} ---\nNo data\n`;
+  const lines = [
+    `\n--- ${label} ---`,
+    'Field,Value',
+    ...Object.entries(obj).map(([k, v]) => `${escapeCsvValue(k)},${escapeCsvValue(v)}`),
+  ];
+  return lines.join('\n') + '\n';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -63,7 +93,7 @@ serve(async (req) => {
         exported_at: new Date().toISOString(),
         user_id: userId,
         user_email: user.email,
-        format: 'JSON',
+        format: 'CSV',
         gdpr_article: 'Article 20 - Right to Data Portability',
       },
     };
@@ -172,14 +202,35 @@ serve(async (req) => {
       context: { user_id: userId, tables_exported: Object.keys(exportData).length },
     });
 
+    // Build CSV output with sections
+    const csvParts: string[] = [
+      'Core314 Data Export',
+      `Exported: ${new Date().toISOString()}`,
+      `User: ${user.email || userId}`,
+      `GDPR Article 20 - Right to Data Portability`,
+    ];
+
+    csvParts.push(objectToCsv('Profile', profile as Record<string, unknown> | null));
+    csvParts.push(arrayToCsv('Organization Memberships', (exportData.organization_memberships as Record<string, unknown>[]) || []));
+    csvParts.push(arrayToCsv('Integrations', (exportData.integrations as Record<string, unknown>[]) || []));
+    csvParts.push(arrayToCsv('Subscriptions', (exportData.subscriptions as Record<string, unknown>[]) || []));
+    csvParts.push(objectToCsv('Activation State', activationState as Record<string, unknown> | null));
+    csvParts.push(objectToCsv('Beta Lifecycle', betaLifecycle as Record<string, unknown> | null));
+    csvParts.push(arrayToCsv('Beta Applications', (exportData.beta_applications as Record<string, unknown>[]) || []));
+    csvParts.push(arrayToCsv('Operational Signals', (exportData.operational_signals as Record<string, unknown>[]) || []));
+    csvParts.push(arrayToCsv('Email Communications', (exportData.email_communications as Record<string, unknown>[]) || []));
+    csvParts.push(arrayToCsv('Team Invites Sent', (exportData.team_invites_sent as Record<string, unknown>[]) || []));
+
+    const csvContent = csvParts.join('\n');
+
     return new Response(
-      JSON.stringify(exportData, null, 2),
+      csvContent,
       {
         status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
-          'Content-Disposition': `attachment; filename="core314-data-export-${userId}.json"`,
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="core314-data-export-${userId}.csv"`,
         },
       }
     );
