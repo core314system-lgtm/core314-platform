@@ -65,7 +65,7 @@ export function TwoFactorSetupPrompt() {
           className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/40"
           asChild
         >
-          <Link to="/settings">
+          <Link to="/settings/security">
             <ExternalLink className="h-3 w-3 mr-1" />
             Enable 2FA
           </Link>
