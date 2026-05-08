@@ -14,7 +14,7 @@ import { sendIntegrationFailureEmail } from '../_shared/integration-notification
  * Each poll function handles its own rate limiting via integration_ingestion_state.
  * 
  * Flow:
- *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers → signal-detector → signal-correlator
+ *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers → entity-resolver → signal-detector → signal-correlator
  */
 
 const corsHeaders = {
@@ -232,9 +232,29 @@ serve(async (req) => {
       updated_at: now.toISOString(),
     }, { onConflict: 'user_id,user_integration_id,service_name' });
 
-    // Step 3: Run signal detector (analyzes integration_events → creates operational_signals)
+    // Step 3: Run entity resolver (cross-system identity resolution)
+    const entityStart = Date.now();
+    console.log('[scheduler] Step 3/6: Running entity resolver...');
+    const entityResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'entity-resolver');
+    results.push({
+      step: 'entity-resolver',
+      success: entityResult.ok,
+      message: entityResult.ok
+        ? `Resolved ${entityResult.data.entities_resolved || 0} entities (${entityResult.data.new_entities || 0} new)`
+        : `Entity resolution failed: ${entityResult.data.error || 'unknown error'}`,
+      duration_ms: Date.now() - entityStart,
+      details: entityResult.ok ? {
+        events_processed: entityResult.data.events_processed,
+        entities_resolved: entityResult.data.entities_resolved,
+        new_entities: entityResult.data.new_entities,
+        source_records_created: entityResult.data.source_records_created,
+      } : undefined,
+    });
+    console.log(`[scheduler] Step 3/6: Entity resolver ${entityResult.ok ? 'SUCCESS' : 'FAILED'} (${Date.now() - entityStart}ms)`);
+
+    // Step 4: Run signal detector (analyzes integration_events → creates operational_signals)
     const signalStart = Date.now();
-    console.log('[scheduler] Step 3/5: Running signal detector...');
+    console.log('[scheduler] Step 4/6: Running signal detector...');
     const signalResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-detector');
     results.push({
       step: 'signal-detector',
@@ -249,11 +269,11 @@ serve(async (req) => {
         signals_deactivated: signalResult.data.signals_deactivated,
       } : undefined,
     });
-    console.log(`[scheduler] Step 3/5: Signal detector ${signalResult.ok ? 'SUCCESS' : 'FAILED'} (${Date.now() - signalStart}ms)`);
+    console.log(`[scheduler] Step 4/6: Signal detector ${signalResult.ok ? 'SUCCESS' : 'FAILED'} (${Date.now() - signalStart}ms)`);
 
-    // Step 4: Run signal correlator (groups signals from multiple integrations into correlated events)
+    // Step 5: Run signal correlator (groups signals from multiple integrations into correlated events)
     const correlatorStart = Date.now();
-    console.log('[scheduler] Step 4/5: Running signal correlator...');
+    console.log('[scheduler] Step 5/6: Running signal correlator...');
     const correlatorResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-correlator');
     results.push({
       step: 'signal-correlator',
@@ -268,7 +288,7 @@ serve(async (req) => {
       } : undefined,
     });
 
-    // Step 5: Log scheduler run to a tracking table (for UI to query)
+    // Step 6: Log scheduler run to a tracking table (for UI to query)
     const totalDuration = Date.now() - startTime;
     const allSuccess = results.every(r => r.success);
     const failedSteps = results.filter(r => !r.success).map(r => r.step);
@@ -292,7 +312,7 @@ serve(async (req) => {
       updated_at: now.toISOString(),
     }, { onConflict: 'user_id,user_integration_id,service_name' });
 
-    console.log(`[scheduler] Step 4/5: Signal correlator ${results[results.length - 1].success ? 'SUCCESS' : 'FAILED'} (${Date.now() - correlatorStart}ms)`);
+    console.log(`[scheduler] Step 5/6: Signal correlator ${results[results.length - 1].success ? 'SUCCESS' : 'FAILED'} (${Date.now() - correlatorStart}ms)`);
     console.log(`[scheduler] ========== SCHEDULER RUN COMPLETE ==========`);
     console.log(`[scheduler] Duration: ${totalDuration}ms | Status: ${allSuccess ? 'ALL SUCCESS' : `FAILURES: ${failedSteps.join(', ')}`}`);
     console.log(`[scheduler] Next run: ${new Date(now.getTime() + 15 * 60 * 1000).toISOString()}`);

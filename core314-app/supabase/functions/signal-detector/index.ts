@@ -1898,6 +1898,32 @@ serve(async (req) => {
 
           // Upsert new signals (avoid duplicates by checking signal_type + source + user)
           for (const signal of signals) {
+            // Resolve entity IDs for this signal from affected_entities
+            let resolvedEntityIds: string[] = [];
+            try {
+              const affectedEntities = (signal.signal_data.affected_entities as Array<{ name?: string }>) || [];
+              if (affectedEntities.length > 0) {
+                const entityNames = affectedEntities
+                  .map(e => e.name)
+                  .filter((n): n is string => !!n)
+                  .slice(0, 10);
+
+                if (entityNames.length > 0) {
+                  const { data: matchedEntities } = await supabase
+                    .from('resolved_entities')
+                    .select('id, canonical_name')
+                    .eq('user_id', userId)
+                    .in('canonical_name', entityNames);
+
+                  if (matchedEntities && matchedEntities.length > 0) {
+                    resolvedEntityIds = matchedEntities.map(e => e.id);
+                  }
+                }
+              }
+            } catch {
+              // Entity resolution is non-blocking
+            }
+
             // Check if this exact signal type already exists and is active
             const { data: existing } = await supabase
               .from('operational_signals')
@@ -1918,6 +1944,7 @@ serve(async (req) => {
                   description: signal.description,
                   signal_data: signal.signal_data,
                   detected_at: now,
+                  ...(resolvedEntityIds.length > 0 ? { resolved_entity_ids: resolvedEntityIds } : {}),
                 })
                 .eq('id', existing[0].id);
             } else {
@@ -1934,6 +1961,7 @@ serve(async (req) => {
                   signal_data: signal.signal_data,
                   detected_at: now,
                   is_active: true,
+                  resolved_entity_ids: resolvedEntityIds,
                 });
               totalSignalsCreated++;
             }

@@ -181,6 +181,9 @@ serve(async (req) => {
               time_window_start: userEvent.time_window_start,
               time_window_end: userEvent.time_window_end,
               combined_severity: userEvent.combined_severity,
+              correlation_type: userEvent.correlation_type || 'multi_integration',
+              resolved_entity_id: userEvent.resolved_entity_id || null,
+              resolved_entity_name: userEvent.resolved_entity_name || null,
               signals: userEvent.signals,
               failure_pattern: userEvent.failure_pattern || null,
               correlated_at: new Date().toISOString(),
@@ -202,6 +205,38 @@ serve(async (req) => {
       .eq('is_active', true)
       .order('severity', { ascending: true }) // critical first
       .limit(20);
+
+    // ── Step 2b: Fetch resolved entities for cross-system context ──────
+    let entityContext = '';
+    try {
+      const { data: resolvedEntities } = await supabase
+        .from('resolved_entities')
+        .select('id, entity_type, canonical_name, canonical_email, canonical_domain, source_count, metadata')
+        .eq('user_id', user.id)
+        .order('source_count', { ascending: false })
+        .limit(20);
+
+      if (resolvedEntities && resolvedEntities.length > 0) {
+        const { data: sourceRecords } = await supabase
+          .from('entity_source_records')
+          .select('resolved_entity_id, source_integration, source_name, match_method, match_confidence')
+          .eq('user_id', user.id)
+          .in('resolved_entity_id', resolvedEntities.map(e => e.id));
+
+        const entityLines = resolvedEntities.map(entity => {
+          const sources = (sourceRecords || []).filter(s => s.resolved_entity_id === entity.id);
+          const integrationList = sources.map(s => `${s.source_integration} ("${s.source_name || 'unknown'}")`).join(', ');
+          return `  • ${entity.canonical_name} [${entity.entity_type}] — seen in ${entity.source_count} systems: ${integrationList}`;
+        });
+
+        entityContext = `\nCROSS-SYSTEM RESOLVED ENTITIES (${resolvedEntities.length} matched):
+These entities have been identified as the same person/company across multiple integrations:
+${entityLines.join('\n')}
+`;
+      }
+    } catch {
+      // Entity resolution context is non-blocking
+    }
 
     // ── Step 3: Fetch latest health score ─────────────────────────────
     const { data: healthScoreData } = await supabase
@@ -792,7 +827,7 @@ ALL ACTIVE SIGNALS:
 ${signalSummary}
 
 SIGNAL CATEGORIES PRESENT: ${signalCategoriesList.length > 0 ? signalCategoriesList.join(', ') : 'none'}
-
+${entityContext}
 RAW METRICS:
 CRM (HubSpot): ${crmSummary}
 Communication (Slack): ${commSummary}
@@ -819,6 +854,7 @@ MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
 - All analysis must be grounded in the provided data_context above.
 - This is a CORRELATED EVENT brief — multiple signals from different integrations have been detected within the same time window.
 - Structure the brief as an "Operational Event Detected" narrative, NOT as a list of independent signals.
+- When CROSS-SYSTEM RESOLVED ENTITIES are present, use the canonical name and mention which systems the entity appears in.
 - Do NOT invent data. If entity data is missing, state "specific entity details unavailable".
 
 STRICT SIGNAL-TO-INTEGRATION MAPPING (MANDATORY):
@@ -891,7 +927,7 @@ DETECTED OPERATIONAL SIGNALS:
 ${signalSummary}
 
 SIGNAL CATEGORIES PRESENT: ${signalCategoriesList.length > 0 ? signalCategoriesList.join(', ') : 'none'}
-
+${entityContext}
 RAW METRICS:
 CRM (HubSpot): ${crmSummary}
 Communication (Slack): ${commSummary}
@@ -918,6 +954,7 @@ MANDATORY ENTITY-LEVEL INTELLIGENCE INSTRUCTIONS:
 - If entity data exists in the signals above and is not shown in your response, the response is INVALID.
 - All analysis must be grounded in the provided data_context above.
 - Write as if you are a senior business analyst presenting to the CEO.
+- When CROSS-SYSTEM RESOLVED ENTITIES are present, reference entity appearances across systems to demonstrate cross-platform intelligence.
 - Do NOT invent data. If entity data is missing, state "specific entity details unavailable".
 
 STRICT SIGNAL-TO-INTEGRATION MAPPING (MANDATORY):
