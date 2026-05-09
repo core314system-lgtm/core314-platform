@@ -31,7 +31,6 @@ import {
   ChevronRight,
   Fingerprint,
   GitMerge,
-  BarChart3
 } from 'lucide-react';
 
 const navGroups = [
