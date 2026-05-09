@@ -55,6 +55,7 @@ interface OperationalSignal {
   signal_data: Record<string, unknown>;
   detected_at: string;
   is_active: boolean;
+  resolved_entity_ids: string[] | null;
 }
 
 interface CorrelatedEvent {
@@ -67,6 +68,9 @@ interface CorrelatedEvent {
   time_window_start: string;
   time_window_end: string;
   combined_severity: string;
+  correlation_type: 'multi_integration' | 'entity_based';
+  resolved_entity_id?: string;
+  resolved_entity_name?: string;
   signals: Array<{
     id: string;
     signal_type: string;
@@ -243,6 +247,7 @@ serve(async (req) => {
           time_window_start: new Date(Math.min(...timestamps)).toISOString(),
           time_window_end: new Date(Math.max(...timestamps)).toISOString(),
           combined_severity: computeCombinedSeverity(severities),
+          correlation_type: 'multi_integration',
           signals: cluster.map(s => ({
             id: s.id,
             signal_type: s.signal_type,
@@ -265,6 +270,70 @@ serve(async (req) => {
           (detectedPattern ? ` pattern=${detectedPattern.pattern} (${detectedPattern.confidence})` : ' pattern=none')
         );
       }
+    }
+
+    // ── Step 4b: Entity-based correlation ────────────────────────────────
+    // Group signals that share the same resolved_entity_id, even if they
+    // don't meet the 2+ integration threshold. This catches cross-system
+    // patterns for the same person/company.
+    const entityGroups = new Map<string, Array<OperationalSignal & { category: string }>>();
+    for (const signal of annotatedSignals) {
+      if (signal.resolved_entity_ids && signal.resolved_entity_ids.length > 0) {
+        for (const entityId of signal.resolved_entity_ids) {
+          if (!entityGroups.has(entityId)) entityGroups.set(entityId, []);
+          entityGroups.get(entityId)!.push(signal);
+        }
+      }
+    }
+
+    // Already-correlated signal IDs (avoid double-counting)
+    const alreadyCorrelated = new Set(correlatedEvents.flatMap(e => e.signal_ids));
+
+    for (const [entityId, entitySignals] of entityGroups) {
+      // Need at least 2 signals from different integrations for this entity
+      const uniqueIntegrations = [...new Set(entitySignals.map(s => s.source_integration))];
+      if (uniqueIntegrations.length < 2) continue;
+
+      // Filter out signals already in a multi-integration correlation
+      const uncorrelatedSignals = entitySignals.filter(s => !alreadyCorrelated.has(s.id));
+      if (uncorrelatedSignals.length < 2) continue;
+
+      const uncorrelatedIntegrations = [...new Set(uncorrelatedSignals.map(s => s.source_integration))];
+      if (uncorrelatedIntegrations.length < 2) continue;
+
+      const timestamps = uncorrelatedSignals.map(s => new Date(s.detected_at).getTime());
+      const severities = uncorrelatedSignals.map(s => s.severity);
+      const categories = [...new Set(uncorrelatedSignals.map(s => s.category))];
+
+      const entityEvent: CorrelatedEvent = {
+        correlation_id: crypto.randomUUID(),
+        organization_id: uncorrelatedSignals[0].organization_id,
+        user_id: uncorrelatedSignals[0].user_id,
+        signal_ids: uncorrelatedSignals.map(s => s.id),
+        integrations_involved: uncorrelatedIntegrations,
+        operational_categories: categories,
+        time_window_start: new Date(Math.min(...timestamps)).toISOString(),
+        time_window_end: new Date(Math.max(...timestamps)).toISOString(),
+        combined_severity: computeCombinedSeverity(severities),
+        correlation_type: 'entity_based',
+        resolved_entity_id: entityId,
+        signals: uncorrelatedSignals.map(s => ({
+          id: s.id,
+          signal_type: s.signal_type,
+          severity: s.severity,
+          source_integration: s.source_integration,
+          category: s.category,
+          description: s.description,
+          signal_data: s.signal_data || {},
+        })),
+        failure_pattern: detectFailurePattern(categories),
+      };
+
+      correlatedEvents.push(entityEvent);
+      console.log(
+        `[signal-correlator] Entity-based correlation: ${entityEvent.correlation_id} ` +
+        `entity=${entityId} (${uncorrelatedIntegrations.join(', ')}) signals=${uncorrelatedSignals.length}`
+      );
     }
 
     // ── Step 5: Return correlated events ───────────────────────────────
