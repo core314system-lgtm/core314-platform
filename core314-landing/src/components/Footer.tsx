@@ -38,12 +38,6 @@ export default function Footer() {
             <p className="text-sm leading-relaxed mb-4">
               Operational Intelligence Platform for Leadership Teams. Patent Pending.
             </p>
-            <a
-              href="mailto:support@core314.com"
-              className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
-            >
-              support@core314.com
-            </a>
           </div>
 
           {/* Product */}
