@@ -182,10 +182,14 @@ serve(async (req) => {
         const totalDeductions = rawSignalDeductions + multiSignalPenalty;
         breakdown.total_signal_deductions = Math.round(totalDeductions * 10) / 10;
 
-        // Integration coverage bonus: +2 per active integration (capped at +20)
-        // More connected integrations = broader operational visibility = higher baseline trust
+        // Integration coverage bonus: +1 per active integration (capped at +5)
+        // Provides minor baseline trust for broader visibility, but must not offset real penalties
         const connectedCount = (integrations || []).length;
-        const coverageBonus = Math.min(connectedCount * 2, 20);
+        const rawCoverageBonus = Math.min(connectedCount, 5);
+        // Cap coverage bonus so it never offsets more than half the signal penalties
+        const coverageBonus = rawSignalDeductions > 0
+          ? Math.min(rawCoverageBonus, Math.round(rawSignalDeductions * 0.5))
+          : rawCoverageBonus;
         score += coverageBonus;
         breakdown.integration_coverage = connectedCount;
         breakdown.coverage_bonus = coverageBonus;
