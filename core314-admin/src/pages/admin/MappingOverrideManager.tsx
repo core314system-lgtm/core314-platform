@@ -45,7 +45,7 @@ const OVERRIDE_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 const EMPTY_FORM = {
   field_mapping_id: '',
   user_id: '',
-  override_type: 'disable' as const,
+  override_type: 'disable' as 'disable' | 'remap' | 'custom_transform',
   override_config: '{}',
 };
 

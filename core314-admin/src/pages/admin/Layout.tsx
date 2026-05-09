@@ -31,7 +31,6 @@ import {
   ChevronRight,
   Fingerprint,
   GitMerge,
-  BarChart3,
   Network,
   ArrowRightLeft,
   Settings2,

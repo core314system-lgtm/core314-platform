@@ -60,7 +60,7 @@ const EMPTY_FORM = {
   target_entity_type: 'person',
   target_field: '',
   transform_rule: '',
-  hint_type: 'person' as const,
+  hint_type: 'person' as 'person' | 'company',
   priority: 100,
   is_active: true,
   description: '',
