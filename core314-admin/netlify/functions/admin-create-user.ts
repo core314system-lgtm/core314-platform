@@ -178,7 +178,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       const planName = tierToPlanName[subscriptionTier];
       if (planName) {
         try {
-          await supabaseAdmin
+          const { error: subInsertError } = await supabaseAdmin
             .from('user_subscriptions')
             .insert({
               user_id: newUserId,
@@ -186,6 +186,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
               status: 'active',
               metadata: { source: 'admin_created', created_by: caller.id },
             });
+          if (subInsertError) {
+            console.error('Failed to create user_subscriptions (non-fatal):', subInsertError);
+          }
         } catch (subError) {
           console.error('Failed to create user_subscriptions (non-fatal):', subError);
         }
