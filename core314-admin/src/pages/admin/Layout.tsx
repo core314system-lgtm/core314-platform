@@ -28,7 +28,10 @@ import {
   Target,
   ClipboardList,
   MessageSquare,
-  ChevronRight
+  ChevronRight,
+  Fingerprint,
+  GitMerge,
+  BarChart3
 } from 'lucide-react';
 
 const navGroups = [
@@ -52,6 +55,16 @@ const navGroups = [
       { path: '/brief-tracker', label: 'Brief Tracker', icon: FileText },
       { path: '/health-scores', label: 'Health Scores', icon: HeartPulse },
       { path: '/integration-health', label: 'Integration Health', icon: Wifi },
+    ]
+  },
+  {
+    id: 'entity-resolution',
+    label: 'Entity Resolution',
+    icon: Fingerprint,
+    items: [
+      { path: '/entity-browser', label: 'Entity Browser', icon: Users },
+      { path: '/entity-merge-queue', label: 'Merge Queue', icon: GitMerge },
+      { path: '/entity-match-stats', label: 'Match Statistics', icon: BarChart3 },
     ]
   },
   {

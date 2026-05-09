@@ -47,6 +47,10 @@ import { SentryTest } from './pages/SentryTest';
 import SentryVerify from './pages/SentryVerify';
 // New Phase 2 pages
 import { SignalIntelligence } from './pages/admin/SignalIntelligence';
+// Phase 1: Entity Resolution pages
+import { EntityBrowser } from './pages/admin/EntityBrowser';
+import { EntityMergeQueue } from './pages/admin/EntityMergeQueue';
+import { EntityMatchStats } from './pages/admin/EntityMatchStats';
 import { BriefTracker } from './pages/admin/BriefTracker';
 import { HealthScoreDashboard } from './pages/admin/HealthScoreDashboard';
 import { IntegrationHealthMonitor } from './pages/admin/IntegrationHealthMonitor';
@@ -130,6 +134,10 @@ function App() {
           <Route path="integration-health" element={<IntegrationHealthMonitor />} />
           <Route path="admin-audit" element={<AdminAuditLog />} />
           <Route path="platform-alerts" element={<PlatformAlerts />} />
+          {/* Phase 1: Entity Resolution */}
+          <Route path="entity-browser" element={<EntityBrowser />} />
+          <Route path="entity-merge-queue" element={<EntityMergeQueue />} />
+          <Route path="entity-match-stats" element={<EntityMatchStats />} />
           <Route path="sentry-test" element={<SentryTest />} />
           {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
             <Route path="sentry-verify" element={<SentryVerify />} />

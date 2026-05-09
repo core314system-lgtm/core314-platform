@@ -125,6 +125,162 @@ async function fetchHealthScores() {
   return { data: enriched, tableExists: true };
 }
 
+async function fetchEntities() {
+  const exists = await tableExists('resolved_entities');
+  if (!exists) return { data: [], tableExists: false };
+
+  const { data, error } = await supabaseAdmin
+    .from('resolved_entities')
+    .select('*')
+    .order('updated_at', { ascending: false })
+    .limit(500);
+
+  if (error) return { data: [], error: error.message };
+
+  // Fetch source records for each entity
+  const entityIds = (data || []).map(e => e.id);
+  const { data: sourceRecords } = await supabaseAdmin
+    .from('entity_source_records')
+    .select('*')
+    .in('resolved_entity_id', entityIds.length > 0 ? entityIds : ['00000000-0000-0000-0000-000000000000']);
+
+  // Enrich with profile data
+  const userIds = [...new Set((data || []).map(e => e.user_id).filter(Boolean))];
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  const sourceMap = new Map<string, typeof sourceRecords>();
+  (sourceRecords || []).forEach(sr => {
+    const existing = sourceMap.get(sr.resolved_entity_id) || [];
+    existing.push(sr);
+    sourceMap.set(sr.resolved_entity_id, existing);
+  });
+
+  const enriched = (data || []).map(e => ({
+    ...e,
+    profiles: profileMap.get(e.user_id) || null,
+    source_records: sourceMap.get(e.id) || [],
+  }));
+
+  return { data: enriched, tableExists: true };
+}
+
+async function fetchEntityMatchLog() {
+  const exists = await tableExists('entity_match_log');
+  if (!exists) return { data: [], tableExists: false };
+
+  const { data, error } = await supabaseAdmin
+    .from('entity_match_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  if (error) return { data: [], error: error.message };
+
+  // Enrich with entity names
+  const entityIds = [...new Set((data || []).map(m => m.resolved_entity_id).filter(Boolean))];
+  const { data: entities } = await supabaseAdmin
+    .from('resolved_entities')
+    .select('id, canonical_name, entity_type')
+    .in('id', entityIds.length > 0 ? entityIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const userIds = [...new Set((data || []).map(m => m.user_id).filter(Boolean))];
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const entityMap = new Map((entities || []).map(e => [e.id, e]));
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+  const enriched = (data || []).map(m => ({
+    ...m,
+    entity: entityMap.get(m.resolved_entity_id) || null,
+    profiles: profileMap.get(m.user_id) || null,
+  }));
+
+  return { data: enriched, tableExists: true };
+}
+
+async function fetchEntityStats() {
+  const reExists = await tableExists('resolved_entities');
+  const srExists = await tableExists('entity_source_records');
+  const mlExists = await tableExists('entity_match_log');
+
+  if (!reExists) return { tableExists: false, stats: {} };
+
+  const { data: entities } = await supabaseAdmin
+    .from('resolved_entities')
+    .select('id, entity_type, source_count, created_at');
+
+  const { data: sourceRecords } = srExists
+    ? await supabaseAdmin.from('entity_source_records').select('id, source_integration, match_method, match_confidence')
+    : { data: [] };
+
+  const { data: matchLogs } = mlExists
+    ? await supabaseAdmin.from('entity_match_log').select('id, match_method, match_confidence, created_at')
+    : { data: [] };
+
+  const totalEntities = (entities || []).length;
+  const personCount = (entities || []).filter(e => e.entity_type === 'person').length;
+  const companyCount = (entities || []).filter(e => e.entity_type === 'company').length;
+  const totalSourceRecords = (sourceRecords || []).length;
+  const totalMatchLogs = (matchLogs || []).length;
+
+  // Match method distribution
+  const methodCounts: Record<string, number> = {};
+  (sourceRecords || []).forEach(sr => {
+    methodCounts[sr.match_method] = (methodCounts[sr.match_method] || 0) + 1;
+  });
+
+  // Integration distribution
+  const integrationCounts: Record<string, number> = {};
+  (sourceRecords || []).forEach(sr => {
+    integrationCounts[sr.source_integration] = (integrationCounts[sr.source_integration] || 0) + 1;
+  });
+
+  // Confidence distribution
+  const confidenceBuckets = { high: 0, medium: 0, low: 0 };
+  (sourceRecords || []).forEach(sr => {
+    const conf = Number(sr.match_confidence);
+    if (conf >= 95) confidenceBuckets.high++;
+    else if (conf >= 85) confidenceBuckets.medium++;
+    else confidenceBuckets.low++;
+  });
+
+  // Entities over time (last 30 days)
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dailyCounts: Record<string, number> = {};
+  (entities || []).forEach(e => {
+    const date = new Date(e.created_at).toISOString().split('T')[0];
+    if (new Date(e.created_at) >= thirtyDaysAgo) {
+      dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+    }
+  });
+
+  const avgSourcesPerEntity = totalEntities > 0 ? (totalSourceRecords / totalEntities).toFixed(1) : '0';
+
+  return {
+    tableExists: true,
+    stats: {
+      totalEntities,
+      personCount,
+      companyCount,
+      totalSourceRecords,
+      totalMatchLogs,
+      avgSourcesPerEntity,
+      methodCounts,
+      integrationCounts,
+      confidenceBuckets,
+      dailyCounts,
+    },
+  };
+}
+
 async function fetchIntegrationHealth() {
   // Check both user_integrations and integration_health_logs
   const uiExists = await tableExists('user_integrations');
@@ -233,11 +389,20 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       case 'integration-health':
         result = await fetchIntegrationHealth();
         break;
+      case 'entities':
+        result = await fetchEntities();
+        break;
+      case 'entity-match-log':
+        result = await fetchEntityMatchLog();
+        break;
+      case 'entity-stats':
+        result = await fetchEntityStats();
+        break;
       default:
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Invalid type. Use: signals, briefs, health-scores, integration-health' }),
+          body: JSON.stringify({ error: 'Invalid type. Use: signals, briefs, health-scores, integration-health, entities, entity-match-log, entity-stats' }),
         };
     }
 
