@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { personHint } from '../_shared/entity-hints.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -193,11 +194,7 @@ serve(async (req) => {
             recent_prs_opened_7d: recentPRsOpened,
             repo_summary: repoSummary.slice(0, 10),
             poll_timestamp: now.toISOString(),
-            entity_hints: username !== 'Unknown' ? [{
-              name: username,
-              external_id: username,
-              entity_type: 'person' as const,
-            }] : [],
+            entity_hints: [personHint({ name: username !== 'Unknown' ? username : undefined, external_id: username !== 'Unknown' ? username : undefined })].filter(Boolean),
           },
         });
 
