@@ -134,7 +134,123 @@ function jaroWinklerSimilarity(s1: string, s2: string): number {
   return jaro + prefix * 0.1 * (1 - jaro);
 }
 
-// ── Entity Extraction from Integration Events ────────────────────────────
+// ── Declarative Ontology Mapping Engine ───────────────────────────────────
+
+interface FieldMapping {
+  id: string;
+  source_field_path: string;
+  target_entity_type: string;
+  target_field: string;
+  hint_type: 'person' | 'company';
+  transform_rule: string | null;
+  priority: number;
+}
+
+function resolveFieldPath(obj: Record<string, unknown>, path: string): unknown[] {
+  if (path.includes('[]')) {
+    const [arrayPath, rest] = path.split('[]', 2);
+    const arr = resolveFieldPath(obj, arrayPath.replace(/\.$/, ''));
+    if (!arr || arr.length === 0) return [];
+    const results: unknown[] = [];
+    for (const item of arr) {
+      if (Array.isArray(item)) {
+        for (const el of item) {
+          if (rest && rest.startsWith('.') && typeof el === 'object' && el !== null) {
+            results.push(...resolveFieldPath(el as Record<string, unknown>, rest.slice(1)));
+          } else {
+            results.push(el);
+          }
+        }
+      }
+    }
+    return results;
+  }
+
+  const parts = path.split('.');
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined) return [];
+    if (typeof current === 'object' && !Array.isArray(current)) {
+      current = (current as Record<string, unknown>)[part];
+    } else {
+      return [];
+    }
+  }
+  if (current === null || current === undefined) return [];
+  return Array.isArray(current) ? current : [current];
+}
+
+function applyTransform(value: unknown, rule: string | null): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  const str = String(value).trim();
+  if (!str) return undefined;
+  if (!rule) return str;
+
+  switch (rule) {
+    case 'split_email_domain': {
+      const parts = str.split('@');
+      return parts.length === 2 ? parts[1].toLowerCase() : undefined;
+    }
+    case 'split_email_local': {
+      const parts = str.split('@');
+      return parts.length >= 1 ? parts[0].replace(/[._]/g, ' ') : undefined;
+    }
+    case 'normalize_phone':
+      return normalizePhone(str);
+    case 'title_case':
+      return str.replace(/\b\w/g, c => c.toUpperCase());
+    case 'lowercase':
+      return str.toLowerCase();
+    default:
+      return str;
+  }
+}
+
+async function extractEntitiesFromMappings(
+  supabase: ReturnType<typeof createClient>,
+  serviceName: string,
+  metadata: Record<string, unknown>,
+): Promise<{ hints: EntityHint[]; mappingsApplied: number }> {
+  const { data: mappings } = await supabase
+    .from('integration_field_mappings')
+    .select('id, source_field_path, target_entity_type, target_field, hint_type, transform_rule, priority')
+    .eq('integration_service_name', serviceName)
+    .eq('is_active', true)
+    .order('priority', { ascending: true });
+
+  if (!mappings || mappings.length === 0) {
+    return { hints: [], mappingsApplied: 0 };
+  }
+
+  const hintMap = new Map<string, EntityHint>();
+  let mappingsApplied = 0;
+
+  for (const mapping of mappings as FieldMapping[]) {
+    const values = resolveFieldPath(metadata, mapping.source_field_path);
+    if (values.length === 0) continue;
+
+    mappingsApplied++;
+
+    for (const rawValue of values.slice(0, 20)) {
+      const transformed = applyTransform(rawValue, mapping.transform_rule);
+      if (!transformed) continue;
+
+      const key = `${mapping.hint_type}:${transformed.toLowerCase()}`;
+      const existing = hintMap.get(key) || {
+        source_integration: serviceName,
+        entity_type: mapping.hint_type,
+      };
+
+      (existing as Record<string, unknown>)[mapping.target_field] = transformed;
+      hintMap.set(key, existing as EntityHint);
+    }
+  }
+
+  const hints = Array.from(hintMap.values()).filter(h => h.name || h.email);
+  return { hints, mappingsApplied };
+}
+
+// ── Entity Extraction from Integration Events (legacy hardcoded) ──────────
 
 function extractEntitiesFromEvent(
   eventType: string,
@@ -546,7 +662,38 @@ serve(async (req) => {
     for (const event of events) {
       try {
         const metadata = (event.metadata as Record<string, unknown>) || {};
-        const hints = extractEntitiesFromEvent(event.event_type, metadata, event.service_name);
+
+        // Try declarative ontology mappings first
+        const { hints: ontologyHints, mappingsApplied } = await extractEntitiesFromMappings(
+          supabase, event.service_name, metadata
+        );
+
+        // Fall back to hardcoded extraction + generic entity_hints
+        const legacyHints = extractEntitiesFromEvent(event.event_type, metadata, event.service_name);
+
+        // Merge: ontology hints take priority, then legacy, deduplicated by name+email
+        const seen = new Set<string>();
+        const hints: EntityHint[] = [];
+        for (const h of [...ontologyHints, ...legacyHints]) {
+          const key = `${h.entity_type}:${(h.email || h.name || '').toLowerCase()}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            hints.push(h);
+          }
+        }
+
+        // Log ontology processing
+        if (mappingsApplied > 0) {
+          await supabase.from('ontology_processing_log').insert({
+            user_id: event.user_id,
+            integration_event_id: event.id,
+            integration_service_name: event.service_name,
+            mappings_applied: mappingsApplied,
+            entities_extracted: ontologyHints.length,
+            processing_time_ms: 0,
+            details: { ontology_hints: ontologyHints.length, legacy_hints: legacyHints.length },
+          }).then(() => {}).catch(() => {});
+        }
 
         if (hints.length === 0) continue;
 
