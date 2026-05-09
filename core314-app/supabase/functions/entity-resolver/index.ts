@@ -161,6 +161,8 @@ function resolveFieldPath(obj: Record<string, unknown>, path: string): unknown[]
             results.push(el);
           }
         }
+      } else if (!rest || rest === '') {
+        results.push(item);
       }
     }
     return results;
@@ -206,6 +208,11 @@ function applyTransform(value: unknown, rule: string | null): string | undefined
   }
 }
 
+function getArrayBasePath(fieldPath: string): string | null {
+  const idx = fieldPath.indexOf('[]');
+  return idx >= 0 ? fieldPath.substring(0, idx) : null;
+}
+
 async function extractEntitiesFromMappings(
   supabase: ReturnType<typeof createClient>,
   serviceName: string,
@@ -225,25 +232,81 @@ async function extractEntitiesFromMappings(
   const hintMap = new Map<string, EntityHint>();
   let mappingsApplied = 0;
 
+  const arrayGroups = new Map<string, FieldMapping[]>();
+  const scalarMappings: FieldMapping[] = [];
+
   for (const mapping of mappings as FieldMapping[]) {
+    const basePath = getArrayBasePath(mapping.source_field_path);
+    if (basePath) {
+      const group = arrayGroups.get(`${mapping.hint_type}:${basePath}`) || [];
+      group.push(mapping);
+      arrayGroups.set(`${mapping.hint_type}:${basePath}`, group);
+    } else {
+      scalarMappings.push(mapping);
+    }
+  }
+
+  for (const [groupKey, groupMappings] of arrayGroups) {
+    const basePath = groupKey.split(':').slice(1).join(':');
+    const hintType = groupMappings[0].hint_type;
+    const baseArray = resolveFieldPath(metadata, basePath);
+    if (baseArray.length === 0) continue;
+
+    const items = baseArray.flatMap(item => Array.isArray(item) ? item : [item]);
+
+    for (let i = 0; i < Math.min(items.length, 20); i++) {
+      const item = items[i];
+      const key = `${hintType}:array:${basePath}:${i}`;
+      const hint: EntityHint = hintMap.get(key) || {
+        source_integration: serviceName,
+        entity_type: hintType,
+      } as EntityHint;
+
+      for (const mapping of groupMappings) {
+        const restPath = mapping.source_field_path.split('[]')[1]?.replace(/^\./, '') || '';
+        let rawValue: unknown;
+        if (restPath && typeof item === 'object' && item !== null) {
+          const resolved = resolveFieldPath(item as Record<string, unknown>, restPath);
+          rawValue = resolved[0];
+        } else {
+          rawValue = item;
+        }
+        const transformed = applyTransform(rawValue, mapping.transform_rule);
+        if (transformed) {
+          (hint as Record<string, unknown>)[mapping.target_field] = transformed;
+        }
+      }
+
+      mappingsApplied++;
+      hintMap.set(key, hint);
+    }
+  }
+
+  const scalarHintMap = new Map<string, EntityHint>();
+  for (const mapping of scalarMappings) {
     const values = resolveFieldPath(metadata, mapping.source_field_path);
     if (values.length === 0) continue;
 
     mappingsApplied++;
 
-    for (const rawValue of values.slice(0, 20)) {
-      const transformed = applyTransform(rawValue, mapping.transform_rule);
-      if (!transformed) continue;
+    const key = `scalar:${mapping.hint_type}`;
+    const hint = scalarHintMap.get(key) || {
+      source_integration: serviceName,
+      entity_type: mapping.hint_type,
+    } as EntityHint;
 
-      const key = `${mapping.hint_type}:${transformed.toLowerCase()}`;
-      const existing = hintMap.get(key) || {
-        source_integration: serviceName,
-        entity_type: mapping.hint_type,
-      };
-
-      (existing as Record<string, unknown>)[mapping.target_field] = transformed;
-      hintMap.set(key, existing as EntityHint);
+    const transformed = applyTransform(values[0], mapping.transform_rule);
+    if (transformed) {
+      (hint as Record<string, unknown>)[mapping.target_field] = transformed;
     }
+    scalarHintMap.set(key, hint);
+  }
+
+  for (const [, hint] of scalarHintMap) {
+    const name = (hint as Record<string, unknown>).name as string | undefined;
+    const email = (hint as Record<string, unknown>).email as string | undefined;
+    const fallbackKey = `scalar:${hint.entity_type}:${name || email || 'unknown'}`;
+    hintMap.set(fallbackKey, hint);
   }
 
   const hints = Array.from(hintMap.values()).filter(h => h.name || h.email);
