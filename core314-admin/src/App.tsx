@@ -51,6 +51,11 @@ import { SignalIntelligence } from './pages/admin/SignalIntelligence';
 import { EntityBrowser } from './pages/admin/EntityBrowser';
 import { EntityMergeQueue } from './pages/admin/EntityMergeQueue';
 import { EntityMatchStats } from './pages/admin/EntityMatchStats';
+// Phase 2: Ontology Abstraction Layer pages
+import { EntityTypeManager } from './pages/admin/EntityTypeManager';
+import { IntegrationMappingManager } from './pages/admin/IntegrationMappingManager';
+import { MappingOverrideManager } from './pages/admin/MappingOverrideManager';
+import { OntologyViewer } from './pages/admin/OntologyViewer';
 import { BriefTracker } from './pages/admin/BriefTracker';
 import { HealthScoreDashboard } from './pages/admin/HealthScoreDashboard';
 import { IntegrationHealthMonitor } from './pages/admin/IntegrationHealthMonitor';
@@ -138,6 +143,11 @@ function App() {
           <Route path="entity-browser" element={<EntityBrowser />} />
           <Route path="entity-merge-queue" element={<EntityMergeQueue />} />
           <Route path="entity-match-stats" element={<EntityMatchStats />} />
+          {/* Phase 2: Ontology Abstraction Layer */}
+          <Route path="ontology-types" element={<EntityTypeManager />} />
+          <Route path="ontology-mappings" element={<IntegrationMappingManager />} />
+          <Route path="ontology-overrides" element={<MappingOverrideManager />} />
+          <Route path="ontology-viewer" element={<OntologyViewer />} />
           <Route path="sentry-test" element={<SentryTest />} />
           {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
             <Route path="sentry-verify" element={<SentryVerify />} />

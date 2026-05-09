@@ -31,6 +31,11 @@ import {
   ChevronRight,
   Fingerprint,
   GitMerge,
+  BarChart3,
+  Network,
+  ArrowRightLeft,
+  Settings2,
+  Eye,
 } from 'lucide-react';
 
 const navGroups = [
@@ -64,6 +69,17 @@ const navGroups = [
       { path: '/entity-browser', label: 'Entity Browser', icon: Users },
       { path: '/entity-merge-queue', label: 'Merge Queue', icon: GitMerge },
       { path: '/entity-match-stats', label: 'Match Statistics', icon: BarChart3 },
+    ]
+  },
+  {
+    id: 'ontology',
+    label: 'Ontology Layer',
+    icon: Network,
+    items: [
+      { path: '/ontology-types', label: 'Entity Types', icon: Settings2 },
+      { path: '/ontology-mappings', label: 'Mapping Rules', icon: ArrowRightLeft },
+      { path: '/ontology-overrides', label: 'Overrides', icon: Settings2 },
+      { path: '/ontology-viewer', label: 'Ontology Viewer', icon: Eye },
     ]
   },
   {
