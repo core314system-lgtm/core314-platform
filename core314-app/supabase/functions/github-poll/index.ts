@@ -193,6 +193,11 @@ serve(async (req) => {
             recent_prs_opened_7d: recentPRsOpened,
             repo_summary: repoSummary.slice(0, 10),
             poll_timestamp: now.toISOString(),
+            entity_hints: username !== 'Unknown' ? [{
+              name: username,
+              external_id: username,
+              entity_type: 'person' as const,
+            }] : [],
           },
         });
 

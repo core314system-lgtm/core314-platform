@@ -179,6 +179,7 @@ serve(async (req) => {
             database_summary: databaseSummary.slice(0, 5),
             page_summary: pageSummary.slice(0, 5),
             poll_timestamp: now.toISOString(),
+            entity_hints: [] as Array<Record<string, unknown>>,
           },
         });
 

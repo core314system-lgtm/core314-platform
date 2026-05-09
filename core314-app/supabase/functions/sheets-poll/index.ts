@@ -186,6 +186,7 @@ serve(async (req) => {
             sheet_summary: sheetSummary,
             poll_timestamp: now.toISOString(),
             period: '7_days',
+            entity_hints: [] as Array<Record<string, unknown>>,
           },
         });
 

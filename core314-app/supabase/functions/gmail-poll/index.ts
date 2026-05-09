@@ -153,6 +153,12 @@ serve(async (req) => {
             threads_total_all_time: profile.threadsTotal,
             poll_timestamp: now.toISOString(),
             period: '7_days',
+            entity_hints: profile.emailAddress ? [{
+              name: profile.emailAddress.split('@')[0].replace(/[._]/g, ' '),
+              email: profile.emailAddress,
+              domain: profile.emailAddress.split('@')[1] || undefined,
+              entity_type: 'person' as const,
+            }] : [],
           },
         });
 

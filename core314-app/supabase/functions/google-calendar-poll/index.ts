@@ -221,6 +221,27 @@ serve(async (req) => {
             total_meeting_hours: Math.round(totalMeetingMinutes / 60 * 10) / 10,
             poll_timestamp: now.toISOString(),
             period: '7_days_ahead',
+            entity_hints: (() => {
+              const hints: Array<{ name: string; email?: string; entity_type: 'person' }> = [];
+              const seen = new Set<string>();
+              for (const event of events.slice(0, 30)) {
+                const attendees = (event as Record<string, unknown>).attendees as Array<{ email?: string; displayName?: string }> | undefined;
+                if (attendees) {
+                  for (const a of attendees.slice(0, 5)) {
+                    const key = a.email || a.displayName || '';
+                    if (key && !seen.has(key)) {
+                      seen.add(key);
+                      hints.push({
+                        name: a.displayName || (a.email ? a.email.split('@')[0].replace(/[._]/g, ' ') : ''),
+                        email: a.email,
+                        entity_type: 'person' as const,
+                      });
+                    }
+                  }
+                }
+              }
+              return hints.filter(h => h.name).slice(0, 20);
+            })(),
           },
         });
 

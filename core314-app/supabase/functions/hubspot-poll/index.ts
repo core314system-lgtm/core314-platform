@@ -480,6 +480,19 @@ serve(async (req) => {
             portal_id: metrics.portalId,
             poll_timestamp: now.toISOString(),
             api_errors: metrics.apiErrors.length > 0 ? metrics.apiErrors.slice(0, 10) : undefined,
+            entity_hints: [
+              ...(metrics.portalName ? [{
+                name: metrics.portalName,
+                domain: metrics.portalId ? `hub-${metrics.portalId}.hubspot.com` : undefined,
+                external_id: metrics.portalId || undefined,
+                entity_type: 'company' as const,
+              }] : []),
+              ...metrics.stalledDealNames.slice(0, 5).map(name => ({
+                name,
+                entity_type: 'company' as const,
+                external_id: undefined as string | undefined,
+              })),
+            ].filter(h => h.name),
           },
         });
 

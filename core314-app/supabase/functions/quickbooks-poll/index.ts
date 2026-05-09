@@ -460,6 +460,10 @@ serve(async (req) => {
               avg_days_to_payment: metrics.avgDaysToPayment,
               data_range_days: 90,
               poll_timestamp: now.toISOString(),
+              entity_hints: metrics.companyName ? [{
+                name: metrics.companyName,
+                entity_type: 'company' as const,
+              }] : [],
             },
           });
 

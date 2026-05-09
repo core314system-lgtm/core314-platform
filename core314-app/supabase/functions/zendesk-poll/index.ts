@@ -171,6 +171,11 @@ serve(async (req) => {
             total_ratings: totalRatings,
             ticket_summary: ticketSummary.slice(0, 10),
             poll_timestamp: now.toISOString(),
+            entity_hints: subdomain ? [{
+              name: subdomain,
+              domain: `${subdomain}.zendesk.com`,
+              entity_type: 'company' as const,
+            }] : [],
           },
         });
 

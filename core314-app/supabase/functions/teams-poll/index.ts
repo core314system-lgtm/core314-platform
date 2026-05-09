@@ -141,6 +141,10 @@ serve(async (req) => {
             team_summary: teamSummary,
             user_display_name: displayName,
             poll_timestamp: now.toISOString(),
+            entity_hints: displayName ? [{
+              name: displayName,
+              entity_type: 'person' as const,
+            }] : [],
           },
         });
 

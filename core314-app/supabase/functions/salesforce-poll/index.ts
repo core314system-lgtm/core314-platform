@@ -184,6 +184,10 @@ serve(async (req) => {
             open_cases: openCases,
             opportunity_summary: opportunitySummary.slice(0, 10),
             poll_timestamp: now.toISOString(),
+            entity_hints: opportunitySummary.slice(0, 10).map(opp => ({
+              name: opp.name,
+              entity_type: 'company' as const,
+            })).filter(h => h.name),
           },
         });
 
