@@ -21,6 +21,7 @@ import { RefreshCw, Pencil, Mail, Settings, UserPlus } from 'lucide-react';
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -52,7 +53,10 @@ export function UserManagement() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    }
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -65,6 +69,7 @@ export function UserManagement() {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -160,9 +165,9 @@ export function UserManagement() {
             <Mail className="mr-2 h-4 w-4" />
             Send Email
           </Button>
-          <Button onClick={fetchUsers} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+          <Button onClick={() => fetchUsers(true)} disabled={refreshing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
       </div>
