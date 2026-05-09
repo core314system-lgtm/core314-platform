@@ -13,9 +13,10 @@ import {
   TableRow,
 } from '../../components/ui/table';
 import { EditUserModal } from '../../components/modals/EditUserModal';
+import { CreateUserModal } from '../../components/modals/CreateUserModal';
 import { EmailUsersModal } from '../../components/modals/EmailUsersModal';
 import { ReplyToSettingsModal } from '../../components/modals/ReplyToSettingsModal';
-import { RefreshCw, Pencil, Mail, Settings } from 'lucide-react';
+import { RefreshCw, Pencil, Mail, Settings, UserPlus } from 'lucide-react';
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -24,6 +25,7 @@ export function UserManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [replyToSettingsOpen, setReplyToSettingsOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; is_platform_admin: boolean } | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
 
@@ -82,6 +84,11 @@ export function UserManagement() {
       setSelectedUser(null);
     };
 
+    const handleUserCreated = (newUser: User) => {
+      setUsers(prev => [newUser, ...prev]);
+      setCreateModalOpen(false);
+    };
+
     const filteredUsers = showDeleted 
       ? users 
       : users.filter(u => !u.deleted_at);
@@ -131,6 +138,13 @@ export function UserManagement() {
           <p className="text-gray-600 dark:text-gray-400">Manage all users and their permissions</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="default"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Create User
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => setReplyToSettingsOpen(true)}
@@ -249,6 +263,12 @@ export function UserManagement() {
         users={users}
         open={emailModalOpen}
         onOpenChange={setEmailModalOpen}
+      />
+
+      <CreateUserModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onUserCreated={handleUserCreated}
       />
 
       <ReplyToSettingsModal

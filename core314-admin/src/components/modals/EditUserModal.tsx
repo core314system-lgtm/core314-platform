@@ -100,39 +100,27 @@ export function EditUserModal({
       setDeleteError(null);
 
       try {
-        // Delete directly from profiles table using the admin user's session
-        const { error: deleteError } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', user.id);
-
-        if (deleteError) {
-          console.error('Profile delete error:', deleteError);
-          // If delete fails (e.g. RLS or FK constraints), fall back to soft delete
-          const { error: softDeleteError } = await supabase
-            .from('profiles')
-            .update({
-              deleted_at: new Date().toISOString(),
-              subscription_status: 'canceled',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', user.id);
-
-          if (softDeleteError) {
-            throw new Error(softDeleteError.message || 'Failed to delete user');
-          }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('No active session');
         }
 
-        // Log to admin audit log
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          await supabase.from('admin_audit_logs').insert({
-            admin_id: session.user.id,
-            action: 'user.delete',
-            target_type: 'user',
-            target_id: user.id,
-            details: { email: user.email, full_name: user.full_name },
-          }).then(() => {}, () => {}); // non-blocking
+        const response = await fetch('/.netlify/functions/admin-delete-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            mode: 'hard',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to delete user');
         }
 
         onUserDeleted?.(user.id);
