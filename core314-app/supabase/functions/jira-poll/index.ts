@@ -343,6 +343,13 @@ serve(async (req) => {
             auth_method: isOAuth ? 'oauth2' : 'api_key',
             poll_timestamp: now.toISOString(),
             period: '7_days',
+            entity_hints: Object.entries(assigneeCounts)
+              .filter(([name]) => name !== 'Unassigned')
+              .slice(0, 20)
+              .map(([name]) => ({
+                name,
+                entity_type: 'person' as const,
+              })),
           },
         });
 

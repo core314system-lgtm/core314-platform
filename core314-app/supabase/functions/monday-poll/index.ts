@@ -180,6 +180,7 @@ serve(async (req) => {
 
         // Fetch workspace users
         let totalUsers = 0;
+        const mondayUsers: Array<{ id: string; name: string; email: string }> = [];
         try {
           const usersQuery = `{ users(limit: 50) { id name email } }`;
           const usersResponse = await fetch(graphqlEndpoint, {
@@ -190,7 +191,13 @@ serve(async (req) => {
 
           if (usersResponse.ok) {
             const usersData = await usersResponse.json();
-            totalUsers = (usersData.data?.users || []).length;
+            const users = usersData.data?.users || [];
+            totalUsers = users.length;
+            for (const u of users) {
+              if (u.name || u.email) {
+                mondayUsers.push({ id: u.id as string, name: u.name as string, email: u.email as string });
+              }
+            }
           }
         } catch (apiErr) {
           console.warn('[monday-poll] Users fetch error:', apiErr);
@@ -216,6 +223,12 @@ serve(async (req) => {
             total_users: totalUsers,
             board_summary: boardSummary.slice(0, 5),
             poll_timestamp: now.toISOString(),
+            entity_hints: mondayUsers.slice(0, 20).map(u => ({
+              name: u.name,
+              email: u.email || undefined,
+              external_id: u.id,
+              entity_type: 'person' as const,
+            })),
           },
         });
 

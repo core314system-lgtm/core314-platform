@@ -148,6 +148,11 @@ serve(async (req) => {
             completion_rate: totalTasks > 0 ? Math.round(completedTasks / totalTasks * 100) : 0,
             project_summary: projectSummary,
             poll_timestamp: now.toISOString(),
+            entity_hints: workspaces.slice(0, 5).map((ws: Record<string, unknown>) => ({
+              name: ws.name as string,
+              external_id: ws.gid as string,
+              entity_type: 'company' as const,
+            })).filter((h: { name: string }) => h.name),
           },
         });
 

@@ -153,6 +153,10 @@ serve(async (req) => {
             total_participants: totalParticipants,
             meeting_summary: meetingSummary.slice(0, 10),
             poll_timestamp: now.toISOString(),
+            entity_hints: userDisplayName !== 'Unknown' ? [{
+              name: userDisplayName,
+              entity_type: 'person' as const,
+            }] : [],
           },
         });
 

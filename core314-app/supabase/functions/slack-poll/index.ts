@@ -568,6 +568,11 @@ serve(async (req) => {
             data_complete: metrics.channelsAnalyzed >= metrics.activeChannels,
             api_errors: metrics.apiErrors.length > 0 ? metrics.apiErrors.slice(0, 5) : undefined,
             poll_timestamp: now.toISOString(),
+            entity_hints: metrics.workspaceInfo.teamName ? [{
+              name: metrics.workspaceInfo.teamName,
+              external_id: metrics.workspaceInfo.teamId || undefined,
+              entity_type: 'company' as const,
+            }] : [],
           },
         });
 

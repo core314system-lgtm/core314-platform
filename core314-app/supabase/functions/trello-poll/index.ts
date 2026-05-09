@@ -135,6 +135,7 @@ serve(async (req) => {
             overdue_cards: overdueCards,
             board_activity: boardActivity,
             poll_timestamp: now.toISOString(),
+            entity_hints: [] as Array<Record<string, unknown>>,
           },
         });
 
