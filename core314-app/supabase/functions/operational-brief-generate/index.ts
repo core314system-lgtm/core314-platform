@@ -609,21 +609,33 @@ ${entityLines.join('\n')}
       stalled_deals: 'revenue', pipeline_stagnation: 'revenue', deal_velocity_decline: 'revenue',
       deal_stage_delay: 'revenue', no_new_deals: 'revenue', no_crm_activity: 'revenue',
       low_crm_activity: 'revenue', revenue_decline: 'revenue',
+      low_win_rate: 'revenue', low_lead_conversion: 'revenue',
       // cash_flow
       overdue_invoices: 'cash_flow', low_collection_rate: 'cash_flow', high_expense_ratio: 'cash_flow',
-      no_financial_activity: 'cash_flow',
+      no_financial_activity: 'cash_flow', invoice_inactivity: 'cash_flow', payment_inactivity: 'cash_flow',
+      expense_inactivity: 'cash_flow',
       // operations
       overdue_cards: 'operations', stalled_cards: 'operations', board_inactivity: 'operations',
       overdue_issues: 'operations', low_velocity: 'operations', blocker_accumulation: 'operations',
       overdue_tasks: 'operations', low_completion_rate: 'operations', workload_imbalance: 'operations',
       stale_spreadsheets: 'operations', no_sheet_activity: 'operations',
+      overdue_items: 'operations', stuck_items: 'operations', no_board_activity: 'operations',
+      stale_pull_requests: 'operations', high_issue_backlog: 'operations', low_dev_activity: 'operations',
+      sprint_at_risk: 'operations', milestone_at_risk: 'operations',
+      stale_workspace: 'operations', no_workspace_activity: 'operations', low_page_activity: 'operations',
       // communication
       low_communication: 'communication', communication_spike: 'communication', slow_response: 'communication',
       low_engagement: 'communication', low_team_activity: 'communication', channel_inactivity: 'communication',
       integration_inactive: 'communication', data_ingestion_gap: 'communication', scope_limitation: 'communication',
       email_volume_spike: 'communication', low_email_activity: 'communication', low_response_ratio: 'communication',
+      email_backlog: 'communication', email_activity_normal: 'communication',
+      message_volume_drop: 'communication', channel_activity_drop: 'communication',
       // scheduling
-      meeting_overload: 'scheduling', low_meeting_activity: 'scheduling',
+      meeting_overload: 'scheduling', low_meeting_activity: 'scheduling', scheduling_conflicts: 'scheduling',
+      after_hours_meetings: 'scheduling',
+      // customer
+      high_support_volume: 'operations', urgent_tickets: 'operations', low_resolution_rate: 'operations',
+      low_satisfaction: 'operations', high_ticket_volume: 'operations',
     };
 
     // Classify each signal and collect unique categories
@@ -1183,18 +1195,21 @@ Generate a JSON response with these exact fields:
       const sd = (s.signal_data as Record<string, unknown>) || {};
       return (sd.payment_total as number) > 0;
     });
-    // Activity-based recovery
+    // Activity-based recovery: only applies when positive business activity is detected
     if (hasActivePipeline && hasRecentPayments) {
       recoveryBuffer = 15;
     } else if (hasActivePipeline || hasRecentPayments) {
       recoveryBuffer = 10;
-    } else if (activeSignals.length > 0) {
-      recoveryBuffer = 5;
     }
-    // Integration coverage bonus: +2 per active integration (capped at +20)
-    // More connected integrations = broader operational visibility = higher baseline trust
-    const integrationCoverageBonus = Math.min(connectedCount * 2, 20);
+    // Integration coverage bonus: +1 per active integration (capped at +5)
+    // Provides minor baseline trust for broader visibility, but must not offset real penalties
+    const integrationCoverageBonus = Math.min(connectedCount, 5);
     recoveryBuffer += integrationCoverageBonus;
+    // Cap total recovery so it never offsets more than half the signal penalties
+    if (totalCappedPenalty > 0) {
+      const maxRecovery = Math.round(totalCappedPenalty * 0.5);
+      recoveryBuffer = Math.min(recoveryBuffer, maxRecovery);
+    }
     calculatedScore += recoveryBuffer;
 
     // Floor constraint: minimum 10 unless ALL signals are confirmed negative (non-NO_DATA)
