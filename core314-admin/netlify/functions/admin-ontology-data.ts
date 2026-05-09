@@ -107,6 +107,11 @@ async function fetchOntologyStats() {
   (mappings || []).forEach(m => {
     mappingsByEntityType[m.target_entity_type] = (mappingsByEntityType[m.target_entity_type] || 0) + 1;
   });
+  const mappingMatrix: Record<string, Record<string, number>> = {};
+  (mappings || []).forEach(m => {
+    if (!mappingMatrix[m.integration_service_name]) mappingMatrix[m.integration_service_name] = {};
+    mappingMatrix[m.integration_service_name][m.target_entity_type] = (mappingMatrix[m.integration_service_name][m.target_entity_type] || 0) + 1;
+  });
 
   return {
     entityTypes: types || [],
@@ -117,6 +122,7 @@ async function fetchOntologyStats() {
     entityTypeNames,
     mappingsByIntegration,
     mappingsByEntityType,
+    mappingMatrix,
     recentLogs: (logs || []).slice(0, 50),
   };
 }

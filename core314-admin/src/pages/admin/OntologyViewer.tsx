@@ -20,6 +20,7 @@ interface OntologyStats {
   entityTypeNames: string[];
   mappingsByIntegration: Record<string, number>;
   mappingsByEntityType: Record<string, number>;
+  mappingMatrix: Record<string, Record<string, number>>;
   recentLogs: Array<{
     id: string;
     integration_service_name: string;
@@ -233,13 +234,13 @@ export function OntologyViewer() {
                       </Badge>
                     </td>
                     {stats.entityTypeNames.sort().map(type => {
-                      const hasMapping = stats.mappingsByIntegration[integration] > 0 &&
-                        stats.mappingsByEntityType[type] > 0;
+                      const count = stats.mappingMatrix?.[integration]?.[type] || 0;
+                      const hasMapping = count > 0;
                       return (
                         <td key={type} className="text-center py-2 px-3">
                           {hasMapping ? (
                             <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-800 text-xs font-medium">
-                              &#10003;
+                              {count}
                             </div>
                           ) : (
                             <span className="text-muted-foreground">—</span>
