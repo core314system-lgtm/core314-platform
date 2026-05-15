@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TaskOrder } from '../lib/types'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Search } from 'lucide-react'
+import { Upload, MapPin, Search } from 'lucide-react'
 
 export default function TaskOrders() {
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
@@ -39,10 +39,10 @@ export default function TaskOrders() {
   }
 
   const statusLabel: Record<string, string> = {
-    draft: 'Draft',
-    in_progress: 'In Progress',
-    under_review: 'Under Review',
-    submitted: 'Submitted',
+    draft: 'New / Intake',
+    in_progress: 'Evaluating',
+    under_review: 'Bid Review',
+    submitted: 'Bid Submitted',
     awarded: 'Awarded',
     not_awarded: 'Not Awarded',
   }
@@ -50,12 +50,15 @@ export default function TaskOrders() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Task Orders</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Incoming Task Orders</h1>
+          <p className="text-sm text-gray-500">RFQs received for bid evaluation</p>
+        </div>
         <Link
           to="/task-orders/new"
           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <Plus size={18} /> New Task Order
+          <Upload size={18} /> Register New RFQ
         </Link>
       </div>
 
@@ -74,16 +77,23 @@ export default function TaskOrders() {
         <div className="text-center text-gray-500 py-12">Loading...</div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 mb-4">
-            {search ? 'No task orders match your search.' : 'No task orders yet.'}
+          <Upload className="mx-auto text-gray-300 mb-4" size={48} />
+          <p className="text-gray-700 font-medium mb-2">
+            {search ? 'No task orders match your search.' : 'No incoming task orders registered yet'}
           </p>
           {!search && (
-            <Link
-              to="/task-orders/new"
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700"
-            >
-              <Plus size={18} /> Create Your First Task Order
-            </Link>
+            <>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                When you receive an RFQ or task order package, register it here to begin
+                the document upload and AI-powered analysis workflow.
+              </p>
+              <Link
+                to="/task-orders/new"
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700"
+              >
+                <Upload size={18} /> Register Your First Task Order
+              </Link>
+            </>
           )}
         </div>
       ) : (

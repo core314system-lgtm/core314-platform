@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Upload, FileText, Info } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const US_STATES = [
@@ -46,7 +46,7 @@ export default function NewTaskOrder() {
       .single()
 
     if (error) {
-      alert('Error creating task order: ' + error.message)
+      alert('Error registering task order: ' + error.message)
       setLoading(false)
       return
     }
@@ -60,12 +60,34 @@ export default function NewTaskOrder() {
         <Link to="/task-orders" className="text-gray-500 hover:text-gray-700">
           <ArrowLeft size={20} />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">New Task Order</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Register Incoming Task Order</h1>
+          <p className="text-sm text-gray-500">Enter the details from the RFQ package you received</p>
+        </div>
+      </div>
+
+      {/* Workflow Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+        <Info className="text-blue-600 shrink-0 mt-0.5" size={20} />
+        <div className="text-sm text-blue-800">
+          <p className="font-medium mb-1">How this works:</p>
+          <ol className="list-decimal list-inside space-y-1 text-blue-700">
+            <li>Register the task order details below</li>
+            <li>Upload all RFQ documents (SOW, pricing sheets, exhibits, amendments, etc.)</li>
+            <li>Run AI analysis to extract requirements, risks, and compliance items</li>
+            <li>Generate compliance matrices, subcontractor RFQs, and bid summaries</li>
+          </ol>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5">
+        <div className="flex items-center gap-2 text-gray-700 mb-2">
+          <FileText size={18} />
+          <span className="font-medium">RFQ / Task Order Details</span>
+        </div>
+
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Task Order Title *</label>
           <input
             type="text"
             name="title"
@@ -75,6 +97,7 @@ export default function NewTaskOrder() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required
           />
+          <p className="text-xs text-gray-400 mt-1">A descriptive name to identify this task order</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -85,6 +108,7 @@ export default function NewTaskOrder() {
               name="solicitation_number"
               value={form.solicitation_number}
               onChange={handleChange}
+              placeholder="From the RFQ cover page"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -95,13 +119,14 @@ export default function NewTaskOrder() {
               name="task_order_number"
               value={form.task_order_number}
               onChange={handleChange}
+              placeholder="If assigned"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Site / Facility Name</label>
           <input
             type="text"
             name="site_name"
@@ -138,7 +163,7 @@ export default function NewTaskOrder() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Bid Due Date</label>
           <input
             type="date"
             name="due_date"
@@ -146,15 +171,17 @@ export default function NewTaskOrder() {
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          <p className="text-xs text-gray-400 mt-1">When is the bid response due?</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Initial Notes</label>
           <textarea
             name="notes"
             value={form.notes}
             onChange={handleChange}
             rows={3}
+            placeholder="Any initial observations about this RFQ..."
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -163,9 +190,10 @@ export default function NewTaskOrder() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? 'Creating...' : 'Create Task Order'}
+            <Upload size={18} />
+            {loading ? 'Registering...' : 'Register & Upload Documents'}
           </button>
           <Link
             to="/task-orders"
