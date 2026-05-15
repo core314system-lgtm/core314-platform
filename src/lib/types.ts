@@ -190,6 +190,7 @@ export interface ClarificationQuestion {
   section_reference: string
   priority: string
   impact: string
+  subcontractor_trade?: string
 }
 
 export interface PricingRisk {
@@ -204,7 +205,7 @@ export interface PricingRisk {
 
 export interface ExecutiveSummary {
   overview: string
-  site_summary: string
+  site_summary: string | { site_name?: string; address?: string; service_period?: string; key_details?: Record<string, string> }
   scope_categories: Array<{ category: string; description: string }>
   staffing_requirements: string
   subcontractor_categories: string[]

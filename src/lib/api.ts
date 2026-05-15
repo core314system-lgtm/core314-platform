@@ -158,16 +158,35 @@ export async function generateClarificationQuestions(
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
 
-  const systemPrompt = `You are an expert government contract analyst who identifies ambiguities and gaps in task order RFQ documents.
-Generate proposed clarification questions based on document gaps and ambiguities.
+  const systemPrompt = `You are an expert subcontractor procurement specialist analyzing task order SOW documents from the perspective of the subcontractors who will actually perform the work. Your job is to identify EVERY piece of missing information that a subcontractor would need to provide an accurate quote.
+
+CRITICAL: Analyze EACH Statement of Work (SOW) individually and thoroughly. For each requirement in each SOW, ask yourself: "If I were a subcontractor reading this, do I have enough information to price this work?" If the answer is no, generate a clarification question.
+
+Common things subcontractors need that are often missing from SOWs:
+- QUANTITIES: How many fire extinguishers? How many HVAC units? How many restrooms? How many light fixtures? How many doors?
+- TYPES/SPECS: What type of fire extinguishers (ABC, K-class, CO2)? What HVAC system types (split, packaged, chiller)? What size units (tonnage)?
+- DIMENSIONS/MEASUREMENTS: Square footage of areas to be cleaned/treated/salted? Linear feet of sidewalks? Acreage of grounds? Number of floors? Building square footage per service area?
+- FREQUENCIES not specified: How often for inspections? Daily/weekly/monthly service schedules? Seasonal variations?
+- EQUIPMENT/MATERIALS: Who provides chemicals/supplies? What equipment is required? Who provides replacement parts?
+- SITE ACCESS: Hours of access? Security clearance requirements? Escort requirements? Loading dock availability?
+- LABOR REQUIREMENTS: Prevailing wage rates applicable? Certifications required (EPA, OSHA, state licenses)? Background check requirements?
+- SCOPE BOUNDARIES: Where does one service end and another begin? What areas are included/excluded? What constitutes "emergency" vs "routine"?
+- RESPONSE TIMES: Emergency response time requirements? After-hours call requirements?
+- EXISTING CONDITIONS: Current equipment age/condition? Known issues? Warranty status on existing equipment?
+- REPORTING: What reports are required? What format? How frequently?
+
+Generate at LEAST 15-30 clarification questions covering multiple SOW documents. Do NOT limit yourself to just the main requirements — look for anomalies, missing details, vague language, conflicting information, and anything that would prevent a subcontractor from submitting a complete and accurate quote.
+
 Return a JSON object with key "questions", an array of objects with:
-- question: the proposed clarification question
-- category: missing_quantities, unclear_frequencies, missing_equipment, access_restrictions, shutdown_requirements, missing_dimensions, missing_vendor_info, pricing_inconsistencies, conflicting_documents, vague_staffing, other
-- source_document: which document triggered this question
-- section_reference: the relevant section
-- priority: low, medium, high, critical
-- impact: what happens if this isn't clarified
-Format questions in a professional style suitable for submission to the contracting officer.`
+- question: the proposed clarification question (written from the perspective of what a subcontractor performing the work would need to know)
+- category: missing_quantities, unclear_frequencies, missing_equipment, access_restrictions, shutdown_requirements, missing_dimensions, missing_specifications, missing_site_conditions, labor_requirements, scope_boundaries, response_times, reporting_requirements, pricing_inconsistencies, conflicting_documents, vague_staffing, materials_responsibility, existing_conditions, other
+- source_document: which specific SOW document triggered this question
+- section_reference: the relevant section or requirement
+- priority: low, medium, high, critical (critical = cannot price without this info, high = significant pricing impact, medium = could affect accuracy, low = nice to know)
+- impact: specific explanation of what happens if this isn't clarified (e.g., "Subcontractor cannot determine if 20 or 200 extinguishers need servicing, leading to potential 10x pricing variance")
+- subcontractor_trade: which trade/service category this affects (e.g., "Fire Life Safety", "HVAC", "Janitorial", "Snow Removal")
+
+Format questions in a professional style suitable for submission to the contracting officer. Each question should reference specific SOW language when possible.`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
@@ -208,7 +227,7 @@ export async function generateExecutiveSummary(
 Generate a comprehensive executive summary suitable for leadership review.
 Return a JSON object with:
 - overview: task order overview paragraph
-- site_summary: site description and key details
+- site_summary: STRING (plain text paragraph describing the site, address, facility type, and key details - do NOT return an object)
 - scope_categories: array of {category, description}
 - staffing_requirements: summary of staffing needs
 - subcontractor_categories: array of categories that are subcontractor-heavy

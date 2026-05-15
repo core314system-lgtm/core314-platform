@@ -46,14 +46,14 @@ export default function ExecutiveSummaryPage() {
         <div className="space-y-6">
           {/* Confidence Rating */}
           <div className={`rounded-xl p-6 border ${
-            summary.confidence_rating === 'high' ? 'bg-green-50 border-green-200' :
-            summary.confidence_rating === 'medium' ? 'bg-yellow-50 border-yellow-200' :
+            summary.confidence_rating?.toLowerCase() === 'high' ? 'bg-green-50 border-green-200' :
+            summary.confidence_rating?.toLowerCase() === 'medium' ? 'bg-yellow-50 border-yellow-200' :
             'bg-red-50 border-red-200'
           }`}>
             <div className="flex items-center gap-3">
               <Target size={24} className={
-                summary.confidence_rating === 'high' ? 'text-green-600' :
-                summary.confidence_rating === 'medium' ? 'text-yellow-600' :
+                summary.confidence_rating?.toLowerCase() === 'high' ? 'text-green-600' :
+                summary.confidence_rating?.toLowerCase() === 'medium' ? 'text-yellow-600' :
                 'text-red-600'
               } />
               <div>
@@ -74,7 +74,20 @@ export default function ExecutiveSummaryPage() {
           {/* Site Summary */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="font-semibold text-gray-900 mb-3">Site Summary</h3>
-            <p className="text-gray-700">{summary.site_summary}</p>
+            {typeof summary.site_summary === 'string' ? (
+              <p className="text-gray-700">{summary.site_summary}</p>
+            ) : summary.site_summary && typeof summary.site_summary === 'object' ? (
+              <div className="space-y-2 text-gray-700 text-sm">
+                {summary.site_summary.site_name && <p><strong>Site:</strong> {summary.site_summary.site_name}</p>}
+                {summary.site_summary.address && <p><strong>Address:</strong> {summary.site_summary.address}</p>}
+                {summary.site_summary.service_period && <p><strong>Service Period:</strong> {summary.site_summary.service_period}</p>}
+                {summary.site_summary.key_details && Object.entries(summary.site_summary.key_details).map(([k, v]) => (
+                  <p key={k}><strong>{k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> {v}</p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No site summary available.</p>
+            )}
           </div>
 
           {/* Scope Categories */}
@@ -119,15 +132,15 @@ export default function ExecutiveSummaryPage() {
               <div className="space-y-3">
                 {summary.major_risks.map((risk, i) => (
                   <div key={i} className={`rounded-lg p-4 border-l-4 ${
-                    risk.severity === 'critical' || risk.severity === 'high' ? 'bg-red-50 border-red-500' :
-                    risk.severity === 'medium' ? 'bg-yellow-50 border-yellow-500' :
+                    risk.severity?.toLowerCase() === 'critical' || risk.severity?.toLowerCase() === 'high' ? 'bg-red-50 border-red-500' :
+                    risk.severity?.toLowerCase() === 'medium' ? 'bg-yellow-50 border-yellow-500' :
                     'bg-gray-50 border-gray-300'
                   }`}>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                        risk.severity === 'critical' ? 'bg-red-100 text-red-700' :
-                        risk.severity === 'high' ? 'bg-orange-100 text-orange-700' :
-                        risk.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        risk.severity?.toLowerCase() === 'critical' ? 'bg-red-100 text-red-700' :
+                        risk.severity?.toLowerCase() === 'high' ? 'bg-orange-100 text-orange-700' :
+                        risk.severity?.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-green-100 text-green-700'
                       }`}>{risk.severity}</span>
                       <h4 className="font-medium text-gray-900">{risk.risk}</h4>
@@ -173,8 +186,8 @@ export default function ExecutiveSummaryPage() {
                       <p className="text-xs text-gray-500">Owner: {item.owner} | {item.deadline_note}</p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      item.priority === 'critical' || item.priority === 'high' ? 'bg-red-100 text-red-700' :
-                      item.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      item.priority?.toLowerCase() === 'critical' || item.priority?.toLowerCase() === 'high' ? 'bg-red-100 text-red-700' :
+                      item.priority?.toLowerCase() === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-green-100 text-green-700'
                     }`}>{item.priority}</span>
                   </div>
