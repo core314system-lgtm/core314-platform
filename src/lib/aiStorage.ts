@@ -24,14 +24,19 @@ export async function saveAiOutput(taskOrderId: string, outputType: string, data
 export async function loadAiOutput<T>(taskOrderId: string, outputType: string): Promise<T | null> {
   const path = aiOutputPath(taskOrderId, outputType)
 
-  const { data, error } = await supabase.storage.from(BUCKET).download(path)
+  // Use createSignedUrl to bypass CDN cache
+  const { data: urlData, error: urlError } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, 60)
 
-  if (error || !data) {
+  if (urlError || !urlData?.signedUrl) {
     return null
   }
 
   try {
-    const text = await data.text()
+    const res = await fetch(urlData.signedUrl)
+    if (!res.ok) return null
+    const text = await res.text()
     return JSON.parse(text) as T
   } catch {
     return null

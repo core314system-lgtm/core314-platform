@@ -5,6 +5,19 @@ const MAX_TOTAL_CHARS = 120000
 const MAX_RETRIES = 3
 const RETRY_BASE_DELAY = 5000
 
+// Global directive prepended to every AI prompt to enforce factual accuracy
+const TRUTH_DIRECTIVE = `ABSOLUTE RULES — VIOLATIONS ARE UNACCEPTABLE:
+1. Your job is to EXTRACT information that IS in the documents. Read each document thoroughly and extract every fact, requirement, specification, date, quantity, and detail you find. Be thorough — extract MORE, not less.
+2. NEVER ADD information that is NOT in the documents. Do not fabricate, assume, infer, or guess. If the documents say "Facility Manager" and no other staffing roles, then the ONLY staffing role is Facility Manager. Do not invent additional staff, positions, or resources.
+3. NEVER use speculative language like "may require", "will likely need", "additional staff as needed", "depending on scope", or "exact number will depend on." If the document doesn't say it, don't say it.
+4. When documents describe a subcontracted service model (subcontractors perform the work, a Facility Manager manages them), state that EXACTLY. Do not imply the prime contractor has direct employees performing services unless the documents explicitly say so.
+5. If information is missing from the documents (e.g., quantities not listed, frequencies not specified), flag it as "Not specified in documents" — do NOT fill the gap with your own guess.
+6. Quantities, counts, measurements, and frequencies must come EXACTLY from the documents. Never estimate or round.
+7. Each SOW document covers a specific trade — analyze them individually. Extract the specific requirements, tasks, and frequencies from each SOW.
+8. Cite the source document name for every extracted fact.
+
+`
+
 function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text
   const half = Math.floor(maxChars / 2)
@@ -26,12 +39,12 @@ async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<Rec
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         response_format: { type: 'json_object' },
-        temperature: 0.2,
-        max_tokens: 8192,
+        temperature: 0.1,
+        max_tokens: 16384,
       }),
     })
 
@@ -75,23 +88,23 @@ export async function analyzeDocuments(
   const docsText = buildDocsText(documentTexts, documentNames)
 
   const systemPrompt = `You are an expert government contract analyst specializing in facility maintenance, IFSM, and task order RFQ analysis.
-Analyze the provided task order documents and extract structured information.
+Analyze the provided task order documents and extract ONLY information that is EXPLICITLY stated in the documents.
 
-IMPORTANT: You MUST populate the "requirements" array with at least 10-30 individual requirements extracted from the documents. Each maintenance task, inspection, service standard, staffing requirement, reporting obligation, safety protocol, or compliance item should be its own requirement entry. Do NOT leave requirements empty.
+IMPORTANT: You MUST populate the "requirements" array with individual requirements extracted DIRECTLY from the documents. Each maintenance task, inspection, service standard, staffing requirement, reporting obligation, safety protocol, or compliance item should be its own requirement entry. Use the EXACT language from the documents wherever possible.
 
-Also extract task order metadata:
+Extract task order metadata ONLY if explicitly stated in the documents:
 - task_order_metadata: {title, solicitation_number, task_order_number, contract_number, contract_vehicle, site_name, location_city, location_state, contracting_officer, co_email, co_phone, period_of_performance_start, period_of_performance_end, estimated_value, naics_code, set_aside, response_due_date}
 
 Return a JSON object with these keys:
-- task_order_metadata: object with the fields above (use null for any not found)
-- requirements: array of {requirement, source_document, page_section, service_category, frequency, equipment_needed, staffing_needed, compliance_type, risk_level} - MUST have entries
-- service_categories: array of {category, description, subcontractor_heavy, estimated_scope}
-- staffing_requirements: array of {role, count, qualifications, certifications_needed, source_document}
+- task_order_metadata: object with the fields above (use null for any field NOT EXPLICITLY found in documents — do NOT guess)
+- requirements: array of {requirement, source_document, page_section, service_category, frequency, equipment_needed, staffing_needed, compliance_type, risk_level} — every field must come from the documents or be marked "Not specified"
+- service_categories: array of {category, description, subcontractor_heavy, estimated_scope} — categories must match what the documents describe, not what you think should exist
+- staffing_requirements: array of {role, count, qualifications, certifications_needed, source_document} — ONLY roles explicitly mentioned in the documents. If documents say "Facility Manager" and no other positions, that is the ONLY entry. Do NOT add roles that are not in the documents.
 - compliance_items: array of {requirement, source_document, section, responsible_party, status, risk_level, notes}
-- unclear_items: array of {issue, source_document, section, suggested_clarification}
+- unclear_items: array of {issue, source_document, section, suggested_clarification} — flag anything ambiguous or missing from the documents
 - pricing_alignment_issues: array of {issue, source_document, pricing_sheet_reference, risk_level}
 - key_dates: array of {date, description, source_document}
-- summary: string with a brief overview of the task order scope`
+- summary: string — factual overview using ONLY what the documents state. Do NOT add context, industry knowledge, or assumptions.`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
@@ -106,18 +119,19 @@ export async function generateComplianceMatrix(
   const docsText = buildDocsText(documentTexts, documentNames)
 
   const systemPrompt = `You are an expert government contract compliance analyst.
-Generate a detailed compliance matrix from the task order documents.
+Generate a detailed compliance matrix from the task order documents. Every item MUST be directly traceable to a specific document and section.
+
 Return a JSON object with key "items", an array of objects with:
-- requirement: the specific requirement text
-- source_document: which document it came from
-- page_section: page/section/paragraph reference
-- service_category: which service category this falls under
-- responsible_party: who is responsible (prime, subcontractor, joint)
+- requirement: the EXACT requirement text from the documents (quote or closely paraphrase the document language)
+- source_document: which document it came from (use the exact document filename)
+- page_section: page/section/paragraph reference as specifically as possible
+- service_category: which service category this falls under (as described in the documents)
+- responsible_party: who is responsible — use ONLY what the documents state. In a subcontracted model, services are performed by subcontractors managed by the Facility Manager. Do NOT assume the prime contractor has direct employees performing the work unless the documents explicitly say so.
 - proposal_response_needed: boolean
-- pricing_impact: none, low, medium, high
+- pricing_impact: none, low, medium, high — based on what the documents describe, not assumptions
 - risk_level: low, medium, high, critical
 - status: covered, unclear, missing, needs_review
-- notes: any assumptions or clarifications needed`
+- notes: flag any missing information or ambiguity found in the documents. Do NOT fill gaps with assumptions.`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
@@ -133,15 +147,18 @@ export async function generateRfqPackages(
 
   const systemPrompt = `You are an expert subcontractor procurement specialist for government facility maintenance contracts.
 Generate subcontractor-specific RFQ packages for each service category identified in the documents.
+
+IMPORTANT: Base EVERY detail on what is EXPLICITLY in the documents. For scope summaries, quote or closely paraphrase the SOW language. For frequencies, use ONLY what the documents state. If a frequency is not specified, say "Frequency not specified in SOW — requires clarification."
+
 Return a JSON object with key "packages", an array of objects with:
-- service_category: the service category name
-- scope_summary: clear summary of work scope
-- required_frequency: how often the service is needed
-- site_assumptions: site-specific details and assumptions
-- equipment_details: required equipment or area details
-- licenses_certifications: required licenses and certifications
-- questions_for_subcontractor: array of questions to ask
-- due_date_note: when quotes are needed
+- service_category: the service category name (as described in the documents)
+- scope_summary: clear summary using the ACTUAL scope described in the specific SOW document — do NOT generalize or add scope items not in the document
+- required_frequency: ONLY what the documents explicitly state. If not specified, say "Not specified in documents"
+- site_assumptions: site-specific details ONLY from the documents. If not provided, say "Site details not specified — site visit recommended"
+- equipment_details: equipment or area details ONLY as stated in the documents. Include quantities and types ONLY if provided.
+- licenses_certifications: required licenses and certifications ONLY if explicitly stated in the SOW
+- questions_for_subcontractor: array of questions — these should highlight missing info from the SOW that a subcontractor would need
+- due_date_note: when quotes are needed (from documents, or "Not specified" if not stated)
 - quote_format: expected quote format and line items
 - sales_tax_treatment: required sales tax handling (request not-to-exceed if exact unavailable)
 - partnership_language: note about seeking long-term preferred partners for multiple task orders (no guarantee of award)`
@@ -162,31 +179,32 @@ export async function generateClarificationQuestions(
 
 CRITICAL: Analyze EACH Statement of Work (SOW) individually and thoroughly. For each requirement in each SOW, ask yourself: "If I were a subcontractor reading this, do I have enough information to price this work?" If the answer is no, generate a clarification question.
 
-Common things subcontractors need that are often missing from SOWs:
-- QUANTITIES: How many fire extinguishers? How many HVAC units? How many restrooms? How many light fixtures? How many doors?
-- TYPES/SPECS: What type of fire extinguishers (ABC, K-class, CO2)? What HVAC system types (split, packaged, chiller)? What size units (tonnage)?
-- DIMENSIONS/MEASUREMENTS: Square footage of areas to be cleaned/treated/salted? Linear feet of sidewalks? Acreage of grounds? Number of floors? Building square footage per service area?
-- FREQUENCIES not specified: How often for inspections? Daily/weekly/monthly service schedules? Seasonal variations?
-- EQUIPMENT/MATERIALS: Who provides chemicals/supplies? What equipment is required? Who provides replacement parts?
-- SITE ACCESS: Hours of access? Security clearance requirements? Escort requirements? Loading dock availability?
-- LABOR REQUIREMENTS: Prevailing wage rates applicable? Certifications required (EPA, OSHA, state licenses)? Background check requirements?
-- SCOPE BOUNDARIES: Where does one service end and another begin? What areas are included/excluded? What constitutes "emergency" vs "routine"?
-- RESPONSE TIMES: Emergency response time requirements? After-hours call requirements?
-- EXISTING CONDITIONS: Current equipment age/condition? Known issues? Warranty status on existing equipment?
-- REPORTING: What reports are required? What format? How frequently?
+For each SOW, look for these specific gaps:
+- QUANTITIES: How many units/items? (e.g., how many fire extinguishers and what types — ABC, K-class, CO2? How many HVAC units and what tonnage? How many restrooms? How many doors?)
+- DIMENSIONS/MEASUREMENTS: Square footage of areas to be cleaned/treated/salted? Linear feet of sidewalks? Acreage of grounds? Number of floors?
+- FREQUENCIES: If the SOW says "periodic" or "regular" but doesn't specify exact schedule — flag it. If daily/weekly/monthly is stated, note it; if not, ask.
+- EQUIPMENT/MATERIALS: Who provides chemicals, supplies, parts? What specific equipment is needed? Are replacement parts included?
+- SPECIFICATIONS: What standards apply? What quality levels? What specific types of materials/products?
+- SITE CONDITIONS: Current condition of equipment? Age of systems? Known deficiencies? Building layout affecting service delivery?
+- ACCESS: Hours of access? Security requirements? Escort requirements? Restricted areas?
+- LABOR: Prevailing wage requirements? Certification requirements (EPA, OSHA, state licenses)? Background checks?
+- SCOPE BOUNDARIES: What's included vs excluded? Emergency vs routine? What constitutes "as needed"?
+- RESPONSE TIMES: Emergency response requirements? After-hours requirements? Notification procedures?
+- REPORTING: What reports are required? Format? Frequency? To whom?
+- CONFLICTING INFO: Do any SOWs conflict with each other or with the pricing sheet? Do quantities in one document mismatch another?
 
-Generate at LEAST 15-30 clarification questions covering multiple SOW documents. Do NOT limit yourself to just the main requirements — look for anomalies, missing details, vague language, conflicting information, and anything that would prevent a subcontractor from submitting a complete and accurate quote.
+Generate at LEAST 15-30 clarification questions covering multiple SOW documents. Reference SPECIFIC SOW language when identifying gaps.
 
 Return a JSON object with key "questions", an array of objects with:
 - question: the proposed clarification question (written from the perspective of what a subcontractor performing the work would need to know)
 - category: missing_quantities, unclear_frequencies, missing_equipment, access_restrictions, shutdown_requirements, missing_dimensions, missing_specifications, missing_site_conditions, labor_requirements, scope_boundaries, response_times, reporting_requirements, pricing_inconsistencies, conflicting_documents, vague_staffing, materials_responsibility, existing_conditions, other
-- source_document: which specific SOW document triggered this question
-- section_reference: the relevant section or requirement
+- source_document: which SPECIFIC SOW document triggered this question (use exact filename)
+- section_reference: the relevant section or requirement text from the document
 - priority: low, medium, high, critical (critical = cannot price without this info, high = significant pricing impact, medium = could affect accuracy, low = nice to know)
-- impact: specific explanation of what happens if this isn't clarified (e.g., "Subcontractor cannot determine if 20 or 200 extinguishers need servicing, leading to potential 10x pricing variance")
+- impact: specific explanation of what happens if this isn't clarified — be concrete about pricing impact (e.g., "Without knowing the number and type of fire extinguishers, the subcontractor cannot determine if this is a $5,000 or $50,000 annual service")
 - subcontractor_trade: which trade/service category this affects (e.g., "Fire Life Safety", "HVAC", "Janitorial", "Snow Removal")
 
-Format questions in a professional style suitable for submission to the contracting officer. Each question should reference specific SOW language when possible.`
+Format questions in a professional style suitable for submission to the contracting officer. Each question MUST reference specific SOW language.`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
@@ -201,15 +219,18 @@ export async function generatePricingRisks(
   const docsText = buildDocsText(documentTexts, documentNames)
 
   const systemPrompt = `You are an expert pricing analyst for government facility maintenance contracts.
-Identify all pricing risks, gaps, and issues in the task order documents.
+Identify all pricing risks, gaps, and issues in the task order documents. Every risk you identify MUST be directly tied to something you found (or did NOT find) in a specific document.
+
+Do NOT invent generic risks. Each risk must reference the specific document and section that creates the risk. If a pricing sheet has empty cells, reference those exact cells. If an SOW lacks quantities needed for pricing, cite the specific requirement.
+
 Return a JSON object with key "risks", an array of objects with:
-- risk: description of the pricing risk
+- risk: description of the pricing risk — be specific about what is missing or problematic, referencing exact document language
 - category: missing_quotes, unpriced_scope, duplicate_scope, underpriced, labor_assumptions, salary_assumptions, sales_tax, markup_issues, reimbursable_vs_fixed, high_risk_category, leadership_review_needed
-- source_document: relevant document
-- section_reference: relevant section
+- source_document: the EXACT document filename where the risk originates
+- section_reference: the specific section, cell, or requirement
 - severity: low, medium, high, critical
-- recommended_action: what should be done to address this
-- financial_impact: estimated impact if not addressed`
+- recommended_action: what should be done — be specific and actionable
+- financial_impact: describe the impact based ONLY on what the documents reveal. Do NOT estimate dollar amounts unless the documents provide enough data to calculate them.`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
@@ -224,19 +245,27 @@ export async function generateExecutiveSummary(
   const docsText = buildDocsText(documentTexts, documentNames)
 
   const systemPrompt = `You are an expert government contract strategist preparing a management-ready executive bid summary.
-Generate a comprehensive executive summary suitable for leadership review.
+Generate a comprehensive executive summary suitable for leadership review. EVERY statement must be directly supported by the provided documents.
+
+CRITICAL RULES FOR THIS SUMMARY:
+- The overview must describe ONLY what the documents say about the scope, site, and contract structure.
+- The staffing_requirements field must state ONLY the staffing explicitly described in the documents. In facility management task orders where all services are subcontracted, the staffing requirement is typically ONE Facility Manager who manages subcontractors — state this ONLY if that is what the documents describe. Do NOT add "additional staff" or imply there will be direct employees performing services unless the documents explicitly state this.
+- For scope_categories, list ONLY the service categories that have corresponding SOW documents provided.
+- For major_risks, identify risks based on gaps or issues found IN the documents — not generic industry risks.
+- For bid_strategy, base recommendations on the ACTUAL scope and requirements in the documents.
+
 Return a JSON object with:
-- overview: task order overview paragraph
-- site_summary: STRING (plain text paragraph describing the site, address, facility type, and key details - do NOT return an object)
-- scope_categories: array of {category, description}
-- staffing_requirements: summary of staffing needs
-- subcontractor_categories: array of categories that are subcontractor-heavy
-- major_risks: array of {risk, severity, mitigation}
-- pricing_assumptions: array of key pricing assumptions
-- unanswered_questions: array of critical unanswered questions
-- bid_strategy: recommended bid strategy paragraph
+- overview: task order overview paragraph — factual, based ONLY on document content
+- site_summary: STRING — plain text paragraph with site name, address, facility type, and key details ONLY as stated in the documents. Do NOT return an object.
+- scope_categories: array of {category, description} — ONLY categories with corresponding SOW documents
+- staffing_requirements: STRING — state ONLY what the documents say about staffing. If documents describe a Facility Manager overseeing subcontracted services, say exactly that. Do NOT add staff positions that are not in the documents.
+- subcontractor_categories: array of service categories that will be subcontracted (based on the SOW structure)
+- major_risks: array of {risk, severity, mitigation} — risks must be traced to specific document gaps or issues
+- pricing_assumptions: array of key pricing assumptions — ONLY those supported by the documents
+- unanswered_questions: array of critical unanswered questions — things the documents should address but don't
+- bid_strategy: recommended bid strategy paragraph — based on the actual scope and requirements in the documents
 - confidence_rating: high, medium, or low
-- confidence_rationale: why this confidence level
+- confidence_rationale: why this confidence level — cite specific document evidence
 - action_items: array of {action, owner, deadline_note, priority}`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
@@ -303,7 +332,8 @@ export async function compareTaskOrders(
   priorTitle: string,
 ) {
   const systemPrompt = `You are an expert government contract analyst comparing task orders.
-Compare the current task order against the prior task order and identify differences.
+Compare the current task order against the prior task order and identify differences. EVERY difference you report must be directly supported by the document text. Do NOT infer or assume changes — only report what is explicitly different between the two sets of documents.
+
 Return a JSON object with:
 - similar_requirements: array of {requirement, current_reference, prior_reference}
 - changed_requirements: array of {requirement, current_version, prior_version, change_type}
@@ -315,7 +345,7 @@ Return a JSON object with:
 - repeated_language: array of {section, language_summary}
 - prior_questions_relevant: array of {question, still_relevant, notes}
 - prior_risks_relevant: array of {risk, still_relevant, notes}
-- summary: overall comparison summary paragraph`
+- summary: overall comparison summary paragraph — factual, citing specific differences found`
 
   const currentText = currentTexts.map(t => truncateText(t, MAX_CHARS_PER_DOC)).join('\n\n')
   const priorText = priorTexts.map(t => truncateText(t, MAX_CHARS_PER_DOC)).join('\n\n')

@@ -208,47 +208,36 @@ export default function TaskOrderDetail() {
       const args = [texts, names, taskOrder.title, taskOrder.site_name] as const
       const pause = () => new Promise(r => setTimeout(r, 3000))
 
-      if (!aiStatus.analysis) {
-        const analysis = await analyzeDocuments(...args)
-        await saveAiOutput(id, 'analysis', analysis)
-        setAnalysisResult(analysis as unknown as AnalysisResult)
-        setAiStatus(prev => ({ ...prev, analysis: true }))
-        await pause()
-      }
+      // Always regenerate all outputs (overwrites existing)
+      const analysis = await analyzeDocuments(...args)
+      await saveAiOutput(id, 'analysis', analysis)
+      setAnalysisResult(analysis as unknown as AnalysisResult)
+      setAiStatus(prev => ({ ...prev, analysis: true }))
+      await pause()
 
-      if (!aiStatus.compliance_matrix) {
-        const matrix = await generateComplianceMatrix(...args)
-        await saveAiOutput(id, 'compliance_matrix', matrix)
-        setAiStatus(prev => ({ ...prev, compliance_matrix: true }))
-        await pause()
-      }
+      const matrix = await generateComplianceMatrix(...args)
+      await saveAiOutput(id, 'compliance_matrix', matrix)
+      setAiStatus(prev => ({ ...prev, compliance_matrix: true }))
+      await pause()
 
-      if (!aiStatus.rfq_packages) {
-        const packages = await generateRfqPackages(...args)
-        await saveAiOutput(id, 'rfq_packages', packages)
-        setAiStatus(prev => ({ ...prev, rfq_packages: true }))
-        await pause()
-      }
+      const packages = await generateRfqPackages(...args)
+      await saveAiOutput(id, 'rfq_packages', packages)
+      setAiStatus(prev => ({ ...prev, rfq_packages: true }))
+      await pause()
 
-      if (!aiStatus.clarification_questions) {
-        const questions = await generateClarificationQuestions(...args)
-        await saveAiOutput(id, 'clarification_questions', questions)
-        setAiStatus(prev => ({ ...prev, clarification_questions: true }))
-        await pause()
-      }
+      const questions = await generateClarificationQuestions(...args)
+      await saveAiOutput(id, 'clarification_questions', questions)
+      setAiStatus(prev => ({ ...prev, clarification_questions: true }))
+      await pause()
 
-      if (!aiStatus.pricing_risks) {
-        const risks = await generatePricingRisks(...args)
-        await saveAiOutput(id, 'pricing_risks', risks)
-        setAiStatus(prev => ({ ...prev, pricing_risks: true }))
-        await pause()
-      }
+      const risks = await generatePricingRisks(...args)
+      await saveAiOutput(id, 'pricing_risks', risks)
+      setAiStatus(prev => ({ ...prev, pricing_risks: true }))
+      await pause()
 
-      if (!aiStatus.executive_summary) {
-        const summary = await generateExecutiveSummary(...args)
-        await saveAiOutput(id, 'executive_summary', summary)
-        setAiStatus(prev => ({ ...prev, executive_summary: true }))
-      }
+      const summary = await generateExecutiveSummary(...args)
+      await saveAiOutput(id, 'executive_summary', summary)
+      setAiStatus(prev => ({ ...prev, executive_summary: true }))
 
       // Update task order status
       await supabase.from('task_orders').update({ status: 'in_progress' }).eq('id', id)
