@@ -232,6 +232,85 @@ export interface TaskOrderComparison {
   summary: string
 }
 
+// ========== Subcontractor Bid Management Types ==========
+
+export type SowStatus = 'not_started' | 'subs_identified' | 'rfqs_sent' | 'quotes_received' | 'evaluating' | 'awarded'
+
+export type OutreachStatus = 'identified' | 'invited' | 'reviewing' | 'questions_pending' | 'quote_submitted' | 'declined' | 'no_response' | 'awarded' | 'not_selected'
+
+export type CommType = 'rfq_sent' | 'question' | 'response' | 'follow_up' | 'quote_received' | 'clarification' | 'award_notice' | 'decline_notice' | 'note'
+
+export type QuoteStatus = 'received' | 'under_review' | 'clarification_needed' | 'accepted' | 'rejected' | 'expired'
+
+export interface SowItem {
+  id: string
+  task_order_id: string
+  sow_name: string
+  service_category: string
+  description: string | null
+  source_document: string | null
+  status: SowStatus
+  awarded_subcontractor_id: string | null
+  awarded_amount: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SowSubcontractor {
+  id: string
+  sow_item_id: string
+  subcontractor_id: string
+  match_score: number
+  outreach_status: OutreachStatus
+  rfq_sent_date: string | null
+  rfq_due_date: string | null
+  response_date: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  subcontractor?: Subcontractor
+}
+
+export interface SowCommunication {
+  id: string
+  sow_subcontractor_id: string
+  comm_type: CommType
+  direction: 'outbound' | 'inbound' | 'internal'
+  subject: string | null
+  body: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export interface SowQuote {
+  id: string
+  sow_subcontractor_id: string
+  sow_item_id: string
+  subcontractor_id: string
+  total_amount: number | null
+  monthly_amount: number | null
+  annual_amount: number | null
+  labor_cost: number | null
+  materials_cost: number | null
+  equipment_cost: number | null
+  overhead_markup: number | null
+  scope_inclusions: string | null
+  scope_exclusions: string | null
+  assumptions: string | null
+  timeline: string | null
+  payment_terms: string | null
+  validity_period: string | null
+  attachment_path: string | null
+  status: QuoteStatus
+  reviewer_notes: string | null
+  submitted_at: string
+  reviewed_at: string | null
+  created_at: string
+  // Joined
+  subcontractor?: Subcontractor
+}
+
 // Storage keys for AI outputs in Supabase Storage
 export function aiOutputPath(taskOrderId: string, outputType: string): string {
   return `${taskOrderId}/ai_outputs/${outputType}.json`

@@ -558,6 +558,8 @@ export default function TaskOrderDetail() {
           <div className="px-6 pb-6 border-t border-gray-100 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
+                { label: 'SOW Bid Management', link: `/task-orders/${id}/sow-tracker`, key: '', desc: 'Match subs to SOWs, track RFQs, quotes & communications', highlight: true },
+                { label: 'Bid Summary Dashboard', link: `/task-orders/${id}/bid-summary`, key: '', desc: 'Aggregated pricing, quote coverage, and recommendations', highlight: true },
                 { label: 'Compliance Matrix', link: `/task-orders/${id}/compliance`, key: 'compliance_matrix', desc: 'Requirements mapped to source documents with risk levels' },
                 { label: 'Subcontractor RFQ Packages', link: `/task-orders/${id}/rfq-packages`, key: 'rfq_packages', desc: 'Scope packages ready to send to subcontractors' },
                 { label: 'Clarification Questions', link: `/task-orders/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
@@ -569,11 +571,13 @@ export default function TaskOrderDetail() {
                   key={item.label}
                   to={item.link}
                   className={`block rounded-lg border p-4 hover:shadow-md transition-shadow ${
+                    'highlight' in item && item.highlight ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200' :
                     item.key && aiStatus[item.key] ? 'border-green-200 bg-green-50' : 'border-gray-200'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-gray-900">{item.label}</span>
+                    {'highlight' in item && item.highlight && <Users size={16} className="text-blue-500" />}
                     {item.key && aiStatus[item.key] && <CheckCircle size={16} className="text-green-500" />}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{item.desc}</p>

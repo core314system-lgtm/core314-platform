@@ -17,6 +17,8 @@ import QuoteManagement from './pages/QuoteManagement'
 import VendorTracker from './pages/VendorTracker'
 import TaskOrderComparisonPage from './pages/TaskOrderComparison'
 import ExportCenter from './pages/ExportCenter'
+import SowTracker from './pages/SowTracker'
+import BidSummary from './pages/BidSummary'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -64,6 +66,10 @@ export default function App() {
 
           {/* Module 10: Executive Summary */}
           <Route path="/task-orders/:id/executive-summary" element={<ProtectedRoute><ExecutiveSummaryPage /></ProtectedRoute>} />
+
+          {/* SOW Bid Management */}
+          <Route path="/task-orders/:id/sow-tracker" element={<ProtectedRoute><SowTracker /></ProtectedRoute>} />
+          <Route path="/task-orders/:id/bid-summary" element={<ProtectedRoute><BidSummary /></ProtectedRoute>} />
 
           {/* Module 11: Export Center */}
           <Route path="/task-orders/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
