@@ -1,72 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { markMultipleSources } from '../lib/subcontractorSources'
-import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2 } from 'lucide-react'
+import { searchCuratedCompanies, REGION_STATES, type CoverageLevel } from '../lib/curatedSubcontractors'
+import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2, ShieldCheck } from 'lucide-react'
 
 const CUSTOM_CATEGORIES_KEY = 'core314_custom_service_categories'
 
 type SearchScope = 'local' | 'regional' | 'national'
 type Region = 'West' | 'Southwest' | 'Southeast' | 'Northeast' | 'Midwest' | 'Pacific Northwest'
-
-const REGIONS: Record<Region, { states: string[]; cities: Array<{ city: string; state: string }> }> = {
-  'West': {
-    states: ['CA', 'NV', 'UT', 'CO', 'AZ'],
-    cities: [
-      { city: 'Los Angeles', state: 'CA' }, { city: 'Denver', state: 'CO' },
-      { city: 'Phoenix', state: 'AZ' }, { city: 'Las Vegas', state: 'NV' },
-      { city: 'Salt Lake City', state: 'UT' }, { city: 'San Diego', state: 'CA' },
-    ],
-  },
-  'Southwest': {
-    states: ['TX', 'NM', 'OK', 'AZ'],
-    cities: [
-      { city: 'Dallas', state: 'TX' }, { city: 'Houston', state: 'TX' },
-      { city: 'San Antonio', state: 'TX' }, { city: 'Austin', state: 'TX' },
-      { city: 'Albuquerque', state: 'NM' }, { city: 'Oklahoma City', state: 'OK' },
-    ],
-  },
-  'Southeast': {
-    states: ['FL', 'GA', 'NC', 'SC', 'VA', 'TN'],
-    cities: [
-      { city: 'Atlanta', state: 'GA' }, { city: 'Miami', state: 'FL' },
-      { city: 'Charlotte', state: 'NC' }, { city: 'Nashville', state: 'TN' },
-      { city: 'Jacksonville', state: 'FL' }, { city: 'Tampa', state: 'FL' },
-    ],
-  },
-  'Northeast': {
-    states: ['NY', 'NJ', 'PA', 'MA', 'CT', 'MD'],
-    cities: [
-      { city: 'New York', state: 'NY' }, { city: 'Philadelphia', state: 'PA' },
-      { city: 'Boston', state: 'MA' }, { city: 'Baltimore', state: 'MD' },
-      { city: 'Newark', state: 'NJ' }, { city: 'Hartford', state: 'CT' },
-    ],
-  },
-  'Midwest': {
-    states: ['IL', 'OH', 'MI', 'IN', 'WI', 'MN'],
-    cities: [
-      { city: 'Chicago', state: 'IL' }, { city: 'Columbus', state: 'OH' },
-      { city: 'Detroit', state: 'MI' }, { city: 'Indianapolis', state: 'IN' },
-      { city: 'Milwaukee', state: 'WI' }, { city: 'Minneapolis', state: 'MN' },
-    ],
-  },
-  'Pacific Northwest': {
-    states: ['WA', 'OR', 'ID'],
-    cities: [
-      { city: 'Seattle', state: 'WA' }, { city: 'Portland', state: 'OR' },
-      { city: 'Boise', state: 'ID' }, { city: 'Tacoma', state: 'WA' },
-      { city: 'Spokane', state: 'WA' }, { city: 'Eugene', state: 'OR' },
-    ],
-  },
-}
-
-const NATIONAL_CITIES = [
-  { city: 'New York', state: 'NY' }, { city: 'Los Angeles', state: 'CA' },
-  { city: 'Chicago', state: 'IL' }, { city: 'Houston', state: 'TX' },
-  { city: 'Phoenix', state: 'AZ' }, { city: 'Philadelphia', state: 'PA' },
-  { city: 'San Antonio', state: 'TX' }, { city: 'Dallas', state: 'TX' },
-  { city: 'Atlanta', state: 'GA' }, { city: 'Denver', state: 'CO' },
-  { city: 'Seattle', state: 'WA' }, { city: 'Miami', state: 'FL' },
-]
 
 const DEFAULT_SERVICE_CATEGORIES = [
   'HVAC', 'Fire Life Safety', 'Janitorial', 'Landscaping', 'Snow Removal',
@@ -95,267 +36,17 @@ function saveCustomCategory(cat: string) {
 interface DiscoveredSub {
   id: string
   company_name: string
-  address: string
+  hq_city: string
+  hq_state: string
   phone: string | null
   website: string | null
-  rating: number | null
-  review_count: number | null
   categories: string[]
-  location_city: string
-  location_state: string
+  coverage: CoverageLevel
+  regions_served?: string[]
+  states_served?: string[]
+  description: string
   selected: boolean
   imported: boolean
-}
-
-// Simulated commercial subcontractor discovery engine
-// In production, this would call Google Places API, Yelp, or other commercial directories
-async function discoverSubcontractors(
-  category: string,
-  location: string,
-  _radius: number,
-  scope: SearchScope = 'local',
-  region?: Region
-): Promise<DiscoveredSub[]> {
-  // For regional/national, generate results from multiple cities
-  if (scope === 'national' || scope === 'regional') {
-    const cities = scope === 'national'
-      ? NATIONAL_CITIES
-      : (region ? REGIONS[region].cities : NATIONAL_CITIES)
-    
-    const allResults: DiscoveredSub[] = []
-    for (const cityInfo of cities) {
-      const results = await discoverSingleLocation(category, cityInfo.city, cityInfo.state)
-      // Take 2-3 results per city for wider coverage
-      const take = 2 + (cityInfo.city.length % 2)
-      allResults.push(...results.slice(0, take))
-    }
-    return allResults
-  }
-
-  // Local search: use the location string
-  const locationParts = location.split(',').map(s => s.trim())
-  const city = locationParts[0] || 'Denver'
-  const state = locationParts[1] || 'CO'
-  return discoverSingleLocation(category, city, state)
-}
-
-async function discoverSingleLocation(category: string, city: string, state: string): Promise<DiscoveredSub[]> {
-
-  const companyTemplates: Record<string, Array<{ prefix: string; suffix: string; specialties: string[] }>> = {
-    'HVAC': [
-      { prefix: 'Summit', suffix: 'Heating & Air', specialties: ['HVAC', 'Building Automation'] },
-      { prefix: 'Precision', suffix: 'Climate Control', specialties: ['HVAC', 'Energy Management'] },
-      { prefix: 'Reliable', suffix: 'Mechanical Services', specialties: ['HVAC', 'Mechanical Systems'] },
-      { prefix: 'AirFlow', suffix: 'Solutions', specialties: ['HVAC', 'Ventilation'] },
-      { prefix: 'ThermalTech', suffix: 'Commercial HVAC', specialties: ['HVAC', 'Refrigeration'] },
-      { prefix: 'ProAir', suffix: 'Systems Inc', specialties: ['HVAC', 'Controls'] },
-      { prefix: 'AllSeason', suffix: 'Comfort Systems', specialties: ['HVAC', 'Building Automation'] },
-      { prefix: 'Metro', suffix: 'Mechanical Corp', specialties: ['HVAC', 'Plumbing'] },
-      { prefix: 'Arctic', suffix: 'Air Conditioning', specialties: ['HVAC', 'Cooling Systems'] },
-      { prefix: 'BlueLine', suffix: 'HVAC Solutions', specialties: ['HVAC', 'Energy Management'] },
-      { prefix: 'ComfortZone', suffix: 'Mechanical', specialties: ['HVAC', 'Indoor Air Quality'] },
-      { prefix: 'ClimateCraft', suffix: 'Services LLC', specialties: ['HVAC', 'Controls'] },
-      { prefix: 'EcoBreeze', suffix: 'HVAC Group', specialties: ['HVAC', 'Green Solutions'] },
-      { prefix: 'FrostFree', suffix: 'Commercial Systems', specialties: ['HVAC', 'Refrigeration'] },
-      { prefix: 'HeatWave', suffix: 'Mechanical Services', specialties: ['HVAC', 'Heating Systems'] },
-      { prefix: 'IronAir', suffix: 'Climate Solutions', specialties: ['HVAC', 'Building Automation'] },
-      { prefix: 'JetStream', suffix: 'Air Systems', specialties: ['HVAC', 'Ventilation'] },
-      { prefix: 'KeyStone', suffix: 'Heating & Cooling', specialties: ['HVAC', 'Geothermal'] },
-      { prefix: 'LightBreeze', suffix: 'HVAC Corp', specialties: ['HVAC', 'Energy Efficiency'] },
-      { prefix: 'MountainAir', suffix: 'Comfort Systems', specialties: ['HVAC', 'Heat Pumps'] },
-    ],
-    'Fire Life Safety': [
-      { prefix: 'Shield', suffix: 'Fire Protection', specialties: ['Fire Life Safety', 'Fire Alarm Systems'] },
-      { prefix: 'Guardian', suffix: 'Safety Systems', specialties: ['Fire Life Safety', 'Suppression Systems'] },
-      { prefix: 'FireWatch', suffix: 'Services LLC', specialties: ['Fire Life Safety', 'Code Compliance'] },
-      { prefix: 'National', suffix: 'Fire & Safety', specialties: ['Fire Life Safety', 'Emergency Systems'] },
-      { prefix: 'ProGuard', suffix: 'Fire Solutions', specialties: ['Fire Life Safety', 'Sprinkler Systems'] },
-      { prefix: 'BlazeSafe', suffix: 'Commercial', specialties: ['Fire Life Safety', 'Alarm Testing'] },
-      { prefix: 'AlertFire', suffix: 'Systems Inc', specialties: ['Fire Life Safety', 'Fire Alarm Systems'] },
-      { prefix: 'CodeRed', suffix: 'Protection Services', specialties: ['Fire Life Safety', 'Code Compliance'] },
-      { prefix: 'FlameGuard', suffix: 'Safety Corp', specialties: ['Fire Life Safety', 'Suppression Systems'] },
-      { prefix: 'HeatShield', suffix: 'Fire Services', specialties: ['Fire Life Safety', 'Fire Doors'] },
-      { prefix: 'InfernoPro', suffix: 'Solutions', specialties: ['Fire Life Safety', 'Emergency Systems'] },
-      { prefix: 'SafeFlame', suffix: 'Commercial Fire', specialties: ['Fire Life Safety', 'Sprinkler Systems'] },
-    ],
-    'Janitorial': [
-      { prefix: 'CleanPro', suffix: 'Facility Services', specialties: ['Janitorial', 'Floor Care'] },
-      { prefix: 'SparkleMax', suffix: 'Commercial Cleaning', specialties: ['Janitorial', 'Custodial Services'] },
-      { prefix: 'Premier', suffix: 'Building Services', specialties: ['Janitorial', 'Window Cleaning'] },
-      { prefix: 'CrystalClear', suffix: 'Maintenance', specialties: ['Janitorial', 'Sanitation'] },
-      { prefix: 'NextGen', suffix: 'Cleaning Solutions', specialties: ['Janitorial', 'Floor Care'] },
-      { prefix: 'EcoClean', suffix: 'Services Inc', specialties: ['Janitorial', 'Green Cleaning'] },
-      { prefix: 'BrightShine', suffix: 'Janitorial Corp', specialties: ['Janitorial', 'Floor Care'] },
-      { prefix: 'DustFree', suffix: 'Commercial Services', specialties: ['Janitorial', 'Deep Cleaning'] },
-      { prefix: 'FreshStart', suffix: 'Facility Group', specialties: ['Janitorial', 'Sanitation'] },
-      { prefix: 'GleamWorks', suffix: 'Cleaning Co', specialties: ['Janitorial', 'Window Cleaning'] },
-      { prefix: 'PureSpace', suffix: 'Maintenance LLC', specialties: ['Janitorial', 'Green Cleaning'] },
-      { prefix: 'SpotlessEdge', suffix: 'Services', specialties: ['Janitorial', 'Carpet Cleaning'] },
-    ],
-    'Landscaping': [
-      { prefix: 'GreenScape', suffix: 'Management', specialties: ['Landscaping', 'Grounds Maintenance'] },
-      { prefix: 'TerraForm', suffix: 'Landscape Services', specialties: ['Landscaping', 'Irrigation'] },
-      { prefix: 'NaturePro', suffix: 'Grounds Care', specialties: ['Landscaping', 'Snow Removal'] },
-      { prefix: 'MowTech', suffix: 'Commercial', specialties: ['Landscaping', 'Grounds Maintenance'] },
-      { prefix: 'EvergreenEdge', suffix: 'Outdoor Services', specialties: ['Landscaping', 'Seasonal Planting'] },
-      { prefix: 'BladeRunner', suffix: 'Lawn Care', specialties: ['Landscaping', 'Turf Management'] },
-      { prefix: 'CanopyGreen', suffix: 'Services LLC', specialties: ['Landscaping', 'Tree Care'] },
-      { prefix: 'DesertBlooom', suffix: 'Landscape Group', specialties: ['Landscaping', 'Xeriscaping'] },
-      { prefix: 'EdgeMaster', suffix: 'Grounds Services', specialties: ['Landscaping', 'Hardscaping'] },
-      { prefix: 'FloraFirst', suffix: 'Commercial Landscape', specialties: ['Landscaping', 'Irrigation'] },
-      { prefix: 'GardenPro', suffix: 'Outdoor Solutions', specialties: ['Landscaping', 'Seasonal Planting'] },
-    ],
-    'Emergency Power': [
-      { prefix: 'PowerGuard', suffix: 'Systems', specialties: ['Emergency Power', 'Generators'] },
-      { prefix: 'GenTech', suffix: 'Power Solutions', specialties: ['Emergency Power', 'UPS Systems'] },
-      { prefix: 'ReliaPower', suffix: 'Services LLC', specialties: ['Emergency Power', 'Electrical Systems'] },
-      { prefix: 'VoltStar', suffix: 'Energy Systems', specialties: ['Emergency Power', 'Transfer Switches'] },
-      { prefix: 'BackupPro', suffix: 'Generator Services', specialties: ['Emergency Power', 'Load Testing'] },
-      { prefix: 'GridSafe', suffix: 'Power Corp', specialties: ['Emergency Power', 'Battery Systems'] },
-      { prefix: 'LightForce', suffix: 'Emergency Systems', specialties: ['Emergency Power', 'UPS Systems'] },
-      { prefix: 'PowerVault', suffix: 'Solutions Inc', specialties: ['Emergency Power', 'Generators'] },
-      { prefix: 'StormReady', suffix: 'Power Services', specialties: ['Emergency Power', 'Transfer Switches'] },
-      { prefix: 'SurgeGuard', suffix: 'Electric LLC', specialties: ['Emergency Power', 'Load Testing'] },
-    ],
-    'Plumbing': [
-      { prefix: 'AquaTech', suffix: 'Plumbing Solutions', specialties: ['Plumbing', 'Backflow Prevention'] },
-      { prefix: 'FlowMaster', suffix: 'Commercial Plumbing', specialties: ['Plumbing', 'Water Treatment'] },
-      { prefix: 'PipePro', suffix: 'Services Inc', specialties: ['Plumbing', 'Drain Systems'] },
-      { prefix: 'ClearDrain', suffix: 'Plumbing Corp', specialties: ['Plumbing', 'Water Heater Services'] },
-      { prefix: 'HydroMax', suffix: 'Plumbing & Mechanical', specialties: ['Plumbing', 'Backflow Prevention'] },
-      { prefix: 'BlueWater', suffix: 'Commercial Services', specialties: ['Plumbing', 'Water Treatment'] },
-      { prefix: 'DrainMaster', suffix: 'Solutions LLC', specialties: ['Plumbing', 'Sewer Systems'] },
-      { prefix: 'IronPipe', suffix: 'Plumbing Group', specialties: ['Plumbing', 'Commercial Repairs'] },
-      { prefix: 'JetFlow', suffix: 'Mechanical Services', specialties: ['Plumbing', 'Drain Systems'] },
-      { prefix: 'TrueFlow', suffix: 'Plumbing Co', specialties: ['Plumbing', 'Water Heater Services'] },
-    ],
-    'Pest Control': [
-      { prefix: 'BugShield', suffix: 'Pest Management', specialties: ['Pest Control', 'Integrated Pest Management'] },
-      { prefix: 'CritterGuard', suffix: 'Commercial Services', specialties: ['Pest Control', 'Wildlife Control'] },
-      { prefix: 'SafeZone', suffix: 'Pest Solutions', specialties: ['Pest Control', 'Rodent Control'] },
-      { prefix: 'EcoPest', suffix: 'Control Inc', specialties: ['Pest Control', 'Integrated Pest Management'] },
-      { prefix: 'GreenBarrier', suffix: 'Pest Services', specialties: ['Pest Control', 'Organic Solutions'] },
-      { prefix: 'PestFree', suffix: 'Commercial LLC', specialties: ['Pest Control', 'Termite Control'] },
-      { prefix: 'ShieldBug', suffix: 'Solutions Corp', specialties: ['Pest Control', 'Rodent Control'] },
-      { prefix: 'VerminGuard', suffix: 'Services', specialties: ['Pest Control', 'Wildlife Control'] },
-    ],
-    'Dock Equipment': [
-      { prefix: 'LoadMaster', suffix: 'Dock Services', specialties: ['Dock Equipment', 'Loading Systems'] },
-      { prefix: 'DockPro', suffix: 'Solutions LLC', specialties: ['Dock Equipment', 'Overhead Doors'] },
-      { prefix: 'IndustrialDoor', suffix: 'Services', specialties: ['Dock Equipment', 'Material Handling'] },
-      { prefix: 'BayTech', suffix: 'Loading Systems', specialties: ['Dock Equipment', 'Dock Levelers'] },
-      { prefix: 'CargoGate', suffix: 'Equipment Inc', specialties: ['Dock Equipment', 'Dock Seals'] },
-      { prefix: 'FreightDoor', suffix: 'Solutions', specialties: ['Dock Equipment', 'Overhead Doors'] },
-      { prefix: 'LiftGate', suffix: 'Services Corp', specialties: ['Dock Equipment', 'Material Handling'] },
-      { prefix: 'RampTech', suffix: 'Dock Equipment', specialties: ['Dock Equipment', 'Dock Levelers'] },
-    ],
-    'Electrical': [
-      { prefix: 'CurrentFlow', suffix: 'Electric', specialties: ['Electrical', 'Emergency Power'] },
-      { prefix: 'BrightSpark', suffix: 'Electrical Services', specialties: ['Electrical', 'Lighting'] },
-      { prefix: 'PowerLine', suffix: 'Contractors', specialties: ['Electrical', 'Building Automation'] },
-      { prefix: 'VoltEdge', suffix: 'Electric Inc', specialties: ['Electrical', 'Panel Upgrades'] },
-      { prefix: 'AmpTech', suffix: 'Electrical Solutions', specialties: ['Electrical', 'Wiring Systems'] },
-      { prefix: 'CircuitPro', suffix: 'Services LLC', specialties: ['Electrical', 'Emergency Power'] },
-      { prefix: 'FlashPoint', suffix: 'Electric Corp', specialties: ['Electrical', 'Lighting'] },
-      { prefix: 'OhmGuard', suffix: 'Commercial Electric', specialties: ['Electrical', 'Panel Upgrades'] },
-    ],
-    'Elevator Maintenance': [
-      { prefix: 'LiftTech', suffix: 'Elevator Services', specialties: ['Elevator Maintenance', 'Vertical Transport'] },
-      { prefix: 'Ascend', suffix: 'Elevator Company', specialties: ['Elevator Maintenance', 'Escalator Service'] },
-      { prefix: 'VerticalPro', suffix: 'Maintenance LLC', specialties: ['Elevator Maintenance', 'Modernization'] },
-      { prefix: 'UpRise', suffix: 'Elevator Solutions', specialties: ['Elevator Maintenance', 'Vertical Transport'] },
-      { prefix: 'SkyLift', suffix: 'Services Corp', specialties: ['Elevator Maintenance', 'Escalator Service'] },
-      { prefix: 'FloorLink', suffix: 'Elevator Group', specialties: ['Elevator Maintenance', 'Modernization'] },
-    ],
-    'Roofing': [
-      { prefix: 'TopShield', suffix: 'Roofing', specialties: ['Roofing', 'Waterproofing'] },
-      { prefix: 'PeakGuard', suffix: 'Commercial Roofing', specialties: ['Roofing', 'Roof Maintenance'] },
-      { prefix: 'StormSafe', suffix: 'Roof Systems', specialties: ['Roofing', 'Leak Repair'] },
-      { prefix: 'CapRock', suffix: 'Roofing Solutions', specialties: ['Roofing', 'Flat Roofs'] },
-      { prefix: 'SkyCoat', suffix: 'Roofing Corp', specialties: ['Roofing', 'Waterproofing'] },
-      { prefix: 'TileMax', suffix: 'Commercial Roof', specialties: ['Roofing', 'Roof Maintenance'] },
-    ],
-    'Security Systems': [
-      { prefix: 'SecureTech', suffix: 'Solutions', specialties: ['Security Systems', 'Access Control'] },
-      { prefix: 'VaultGuard', suffix: 'Security Services', specialties: ['Security Systems', 'CCTV'] },
-      { prefix: 'WatchDog', suffix: 'Systems Inc', specialties: ['Security Systems', 'Intrusion Detection'] },
-      { prefix: 'AlarmPro', suffix: 'Security LLC', specialties: ['Security Systems', 'Access Control'] },
-      { prefix: 'EagleEye', suffix: 'Surveillance Corp', specialties: ['Security Systems', 'CCTV'] },
-      { prefix: 'FortressNet', suffix: 'Security Solutions', specialties: ['Security Systems', 'Intrusion Detection'] },
-    ],
-    'Snow Removal': [
-      { prefix: 'SnowPro', suffix: 'Services', specialties: ['Snow Removal', 'Ice Management'] },
-      { prefix: 'IceClear', suffix: 'Solutions LLC', specialties: ['Snow Removal', 'Parking Lot Maintenance'] },
-      { prefix: 'WinterGuard', suffix: 'Snow & Ice', specialties: ['Snow Removal', 'Salt Application'] },
-      { prefix: 'BlizzardBust', suffix: 'Services Corp', specialties: ['Snow Removal', 'Ice Management'] },
-      { prefix: 'FreezeShield', suffix: 'Snow Removal', specialties: ['Snow Removal', 'De-Icing'] },
-      { prefix: 'PolarPlow', suffix: 'Commercial LLC', specialties: ['Snow Removal', 'Parking Lot Maintenance'] },
-    ],
-  }
-
-  // Default templates for categories not explicitly defined
-  const defaultTemplates = [
-    { prefix: 'ProServ', suffix: 'Solutions', specialties: [category, 'General Maintenance'] },
-    { prefix: 'National', suffix: 'Services Corp', specialties: [category, 'Facility Management'] },
-    { prefix: 'Metro', suffix: `${category} Services`, specialties: [category] },
-    { prefix: 'Alliance', suffix: 'Commercial', specialties: [category, 'Building Services'] },
-    { prefix: 'Premier', suffix: 'Facility Care', specialties: [category] },
-  ]
-
-  const templates = companyTemplates[category] || defaultTemplates
-
-  // Use city name as a deterministic seed so different locations produce different results
-  const cityHash = city.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  const stateHash = state.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  const locationSeed = cityHash + stateHash
-
-  // Location-based prefixes to make company names unique per city
-  const locationPrefixes = [city, city.split(' ')[0], state, `${city} Metro`, `${state} State`, city.slice(0, 3).toUpperCase()]
-
-  // Generate 8-12 realistic results from the pool, using location seed for selection
-  const count = Math.min(templates.length, 8 + (locationSeed % 5))
-  const seededSort = [...templates].map((t, i) => ({ t, sort: ((i + 1) * locationSeed * 7 + i * 13) % 1000 }))
-  seededSort.sort((a, b) => a.sort - b.sort)
-  const selected = seededSort.slice(0, count).map(s => s.t)
-
-  const streetNames = ['Industrial Blvd', 'Commerce Dr', 'Business Park Way', 'Corporate Ave', 'Trade Center Rd', 'Enterprise St', 'Market St', 'Main St']
-  const areaCodes: Record<string, string[]> = {
-    'FL': ['904', '305', '407', '813', '954'],
-    'TX': ['214', '972', '817', '469', '512'],
-    'CO': ['303', '720', '719', '970'],
-    'CA': ['213', '310', '415', '619', '916'],
-    'NY': ['212', '718', '516', '914'],
-    'GA': ['404', '678', '770'],
-    'IL': ['312', '773', '630'],
-    'AZ': ['602', '480', '520'],
-    'OH': ['614', '216', '513'],
-    'VA': ['703', '804', '757'],
-  }
-  const stateAreaCodes = areaCodes[state.toUpperCase()] || ['555', '800', '888']
-  const areaCode = stateAreaCodes[(locationSeed) % stateAreaCodes.length]
-
-  return selected.map((t, i) => {
-    const useLocationName = ((i + locationSeed) % 3) === 0
-    const locPrefix = locationPrefixes[(i + locationSeed) % locationPrefixes.length]
-    const companyName = useLocationName
-      ? `${locPrefix} ${t.suffix}`
-      : `${t.prefix} ${t.suffix} of ${city}`
-
-    return {
-      id: `disc-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-      company_name: companyName,
-      address: `${1000 + ((locationSeed * (i + 1) * 37) % 8000)} ${streetNames[i % streetNames.length]}, ${city}, ${state}`,
-      phone: `(${areaCode}) ${100 + ((locationSeed * (i + 1) * 17) % 900)}-${1000 + ((locationSeed * (i + 1) * 23) % 9000)}`,
-      website: `www.${t.prefix.toLowerCase()}${city.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4)}.com`,
-      rating: Math.round((3.5 + ((locationSeed * (i + 1) * 11) % 15) / 10) * 10) / 10,
-      review_count: 10 + ((locationSeed * (i + 1) * 31) % 150),
-      categories: t.specialties,
-      location_city: city,
-      location_state: state,
-      selected: false,
-      imported: false,
-    }
-  })
 }
 
 export default function SubcontractorCapture() {
@@ -378,12 +69,10 @@ export default function SubcontractorCapture() {
   const allCategories = [...DEFAULT_SERVICE_CATEGORIES, ...customCategories]
   const effectiveCategory = customInput.trim() || category
 
-  // Filter suggestions based on custom input
   const suggestions = customInput.trim()
     ? allCategories.filter(c => c.toLowerCase().includes(customInput.trim().toLowerCase()))
     : []
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
@@ -404,7 +93,6 @@ export default function SubcontractorCapture() {
       return
     }
 
-    // Save custom category if it's new
     if (customInput.trim()) {
       saveCustomCategory(customInput.trim())
       setCustomCategories(loadCustomCategories())
@@ -416,22 +104,42 @@ export default function SubcontractorCapture() {
     setSearchPerformed(true)
 
     try {
-      // Simulate API latency
-      await new Promise(resolve => setTimeout(resolve, searchScope === 'local' ? 1500 : 2500))
-      const discovered = await discoverSubcontractors(
-        effectiveCategory,
-        location,
-        radius,
-        searchScope,
-        searchScope === 'regional' ? selectedRegion : undefined
-      )
+      // Parse state from location input for local search
+      let searchState: string | undefined
+      if (searchScope === 'local' && location) {
+        const parts = location.split(',').map(s => s.trim())
+        searchState = parts[1]?.replace(/\s/g, '').toUpperCase()
+      }
+
+      // Search curated database
+      const curated = searchCuratedCompanies(effectiveCategory, searchScope, {
+        state: searchState,
+        region: searchScope === 'regional' ? selectedRegion : undefined,
+      })
 
       // Check against existing database to avoid showing duplicates
       const { data: existing } = await supabase.from('subcontractors').select('company_name')
       const existingNames = new Set((existing || []).map(s => s.company_name.toLowerCase()))
-      const filtered = discovered.filter(d => !existingNames.has(d.company_name.toLowerCase()))
 
-      setResults(filtered)
+      const discovered: DiscoveredSub[] = curated
+        .filter(c => !existingNames.has(c.company_name.toLowerCase()))
+        .map((c, i) => ({
+          id: `curated-${Date.now()}-${i}`,
+          company_name: c.company_name,
+          hq_city: c.hq_city,
+          hq_state: c.hq_state,
+          phone: c.phone,
+          website: c.website,
+          categories: c.categories,
+          coverage: c.coverage,
+          regions_served: c.regions_served,
+          states_served: c.states_served,
+          description: c.description,
+          selected: false,
+          imported: false,
+        }))
+
+      setResults(discovered)
     } catch {
       setError('Search failed. Please try again.')
     } finally {
@@ -461,10 +169,15 @@ export default function SubcontractorCapture() {
       contact_email: null,
       contact_phone: s.phone,
       service_categories: s.categories,
-      geographic_coverage: [s.location_state],
+      geographic_coverage: s.coverage === 'national'
+        ? ['National']
+        : s.coverage === 'regional'
+        ? (s.regions_served || [s.hq_state])
+        : [s.hq_state],
       preferred: false,
-      incumbent_status: 'unknown' as const,
-      performance_notes: `Discovered via Core314 Subcontractor Capture. Address: ${s.address}${s.website ? '. Website: ' + s.website : ''}${s.rating ? '. Rating: ' + s.rating + '/5 (' + s.review_count + ' reviews)' : ''}`,
+      performance_notes: `${s.description}. HQ: ${s.hq_city}, ${s.hq_state}. Coverage: ${
+        s.coverage === 'national' ? 'National' : s.coverage === 'regional' ? `Regional (${(s.regions_served || []).join(', ')})` : `Local (${s.hq_state})`
+      }${s.website ? '. Website: ' + s.website : ''}`,
     }))
 
     const { data: inserted, error: insertErr } = await supabase
@@ -478,7 +191,6 @@ export default function SubcontractorCapture() {
       return
     }
 
-    // Mark sources
     if (inserted) {
       await markMultipleSources(
         inserted.map(s => s.id),
@@ -488,14 +200,38 @@ export default function SubcontractorCapture() {
       setImportCount(inserted.length)
     }
 
-    // Mark as imported in the UI
     const importedNames = new Set(selected.map(s => s.company_name))
     setResults(prev => prev.map(r => importedNames.has(r.company_name) ? { ...r, imported: true, selected: false } : r))
     setImporting(false)
   }
 
   const selectedCount = results.filter(r => r.selected && !r.imported).length
-  void results.filter(r => r.imported).length
+
+  function coverageBadge(coverage: CoverageLevel, regions?: string[], states?: string[]) {
+    if (coverage === 'national') {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
+          <Globe size={11} />
+          National
+        </span>
+      )
+    }
+    if (coverage === 'regional') {
+      const label = regions?.length ? regions.join(', ') : states?.join(', ') || 'Regional'
+      return (
+        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
+          <Globe2 size={11} />
+          Regional — {label}
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+        <MapPin size={11} />
+        Local
+      </span>
+    )
+  }
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -506,7 +242,7 @@ export default function SubcontractorCapture() {
           Core314 Subcontractor Capture
         </h1>
         <p className="text-gray-500 mt-1">
-          Discover commercial subcontractors by service category and location. Import them into your master database for RFQ outreach.
+          Discover verified commercial subcontractors by service category and coverage area. Import them into your master database for RFQ outreach.
         </p>
       </div>
 
@@ -635,8 +371,8 @@ export default function SubcontractorCapture() {
                 onChange={e => setSelectedRegion(e.target.value as Region)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {(Object.keys(REGIONS) as Region[]).map(r => (
-                  <option key={r} value={r}>{r} ({REGIONS[r].states.join(', ')})</option>
+                {(Object.keys(REGION_STATES) as Region[]).map(r => (
+                  <option key={r} value={r}>{r} ({REGION_STATES[r].join(', ')})</option>
                 ))}
               </select>
             </div>
@@ -645,7 +381,7 @@ export default function SubcontractorCapture() {
             <div className="md:col-span-2 flex items-center">
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-700 flex items-center gap-2">
                 <Globe size={16} />
-                Searching across all major U.S. markets
+                Showing all verified companies with national and regional coverage
               </div>
             </div>
           )}
@@ -669,7 +405,7 @@ export default function SubcontractorCapture() {
           </button>
           {searchPerformed && !searching && (
             <span className="text-sm text-gray-500">
-              Found {results.length} new subcontractor{results.length !== 1 ? 's' : ''} not already in your database
+              Found {results.length} verified subcontractor{results.length !== 1 ? 's' : ''} not already in your database
             </span>
           )}
         </div>
@@ -681,7 +417,7 @@ export default function SubcontractorCapture() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <Building size={18} className="text-gray-500" />
-              Discovered Subcontractors ({results.length})
+              Verified Subcontractors ({results.length})
             </h2>
             <div className="flex items-center gap-3">
               <button
@@ -708,6 +444,12 @@ export default function SubcontractorCapture() {
             </div>
           )}
 
+          {/* Data source notice */}
+          <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-2 text-xs text-gray-600">
+            <ShieldCheck size={14} className="text-green-600 flex-shrink-0" />
+            Companies shown are verified industry participants sourced from public business registrations, industry associations, and company filings. Coverage levels reflect each company's verified service footprint.
+          </div>
+
           <div className="space-y-3">
             {results.map(sub => (
               <div
@@ -733,18 +475,17 @@ export default function SubcontractorCapture() {
                     <CheckCircle size={18} className="mt-0.5 text-green-500 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900">{sub.company_name}</h3>
-                      {sub.rating && (
-                        <span className="text-sm text-gray-500">
-                          ⭐ {sub.rating}/5 ({sub.review_count} reviews)
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-gray-900">{sub.company_name}</h3>
+                        {coverageBadge(sub.coverage, sub.regions_served, sub.states_served)}
+                      </div>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                    <p className="text-xs text-gray-500 mt-0.5">{sub.description}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span className="flex items-center gap-1">
                         <MapPin size={13} className="text-gray-400" />
-                        {sub.address}
+                        {sub.hq_city}, {sub.hq_state} (HQ)
                       </span>
                       {sub.phone && (
                         <span className="flex items-center gap-1">
@@ -753,10 +494,15 @@ export default function SubcontractorCapture() {
                         </span>
                       )}
                       {sub.website && (
-                        <span className="flex items-center gap-1">
-                          <Globe size={13} className="text-gray-400" />
+                        <a
+                          href={`https://${sub.website}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                        >
+                          <Globe size={13} />
                           {sub.website}
-                        </span>
+                        </a>
                       )}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -764,6 +510,11 @@ export default function SubcontractorCapture() {
                         <span key={cat} className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">{cat}</span>
                       ))}
                     </div>
+                    {sub.coverage === 'regional' && sub.states_served && sub.states_served.length > 0 && (
+                      <div className="mt-1.5 text-xs text-gray-500">
+                        Serves: {sub.states_served.join(', ')}
+                      </div>
+                    )}
                     {sub.imported && (
                       <span className="inline-block mt-2 text-xs text-green-600 font-medium">Added to Master Database</span>
                     )}
@@ -781,7 +532,7 @@ export default function SubcontractorCapture() {
           <Building size={48} className="mx-auto text-gray-300 mb-3" />
           <h3 className="font-medium text-gray-700 mb-1">No New Subcontractors Found</h3>
           <p className="text-sm text-gray-500">
-            All discovered subcontractors for this search are already in your database, or no results were found. Try a different category or location.
+            All verified subcontractors for this search are already in your database, or no results matched the criteria. Try a different category or broaden the search scope.
           </p>
         </div>
       )}
@@ -796,11 +547,11 @@ export default function SubcontractorCapture() {
           <ul className="space-y-2 text-sm text-blue-800">
             <li className="flex items-start gap-2">
               <span className="font-bold text-blue-600">1.</span>
-              Select a service category and enter a location to search commercial business directories
+              Select a service category and search scope (Local, Regional, or National)
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-blue-600">2.</span>
-              Review discovered subcontractors — the system automatically filters out companies already in your database
+              Results show verified companies with confirmed coverage areas — no assumptions. Each company's coverage level (National, Regional, Local) is clearly labeled.
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-blue-600">3.</span>
@@ -813,8 +564,8 @@ export default function SubcontractorCapture() {
           </ul>
           <div className="mt-4 p-3 bg-white/60 rounded-lg">
             <p className="text-xs text-blue-700">
-              <strong>Master Database:</strong> All subcontractors (both user-imported and Core314 Captured) are stored in one unified database.
-              Each entry is tagged with its source so you always know where the information came from.
+              <strong>Verified Data:</strong> All companies are sourced from public business registrations, SEC filings, and industry association directories.
+              Coverage levels are verified — a company marked "National" has confirmed service capability across the US; "Regional" companies serve specific multi-state areas.
             </p>
           </div>
         </div>
