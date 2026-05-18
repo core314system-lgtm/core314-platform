@@ -91,6 +91,10 @@ export interface TaskOrderMetadata {
   co_phone?: string | null
   period_of_performance_start?: string | null
   period_of_performance_end?: string | null
+  pop_total_duration?: string | null
+  pop_base_period?: string | null
+  pop_option_periods?: string[] | null
+  pop_structure_summary?: string | null
   estimated_value?: string | null
   naics_code?: string | null
   set_aside?: string | null

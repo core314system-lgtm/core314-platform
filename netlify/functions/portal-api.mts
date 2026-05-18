@@ -1,0 +1,373 @@
+import type { Context } from "@netlify/functions"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
+)
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Content-Type": "application/json",
+}
+
+async function validateToken(token: string) {
+  const { data, error } = await supabase
+    .from("rfq_tokens")
+    .select("*, sow_items(*), task_orders(*), subcontractors(*), sow_subcontractors(*)")
+    .eq("token", token)
+    .eq("is_active", true)
+    .single()
+
+  if (error || !data) return null
+  if (new Date(data.expires_at) < new Date()) return null
+  return data
+}
+
+// GET /api/portal-api?token=xxx — load portal data
+async function handleGet(url: URL) {
+  const token = url.searchParams.get("token")
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Token required" }), { status: 400, headers: corsHeaders })
+  }
+
+  const tokenData = await validateToken(token)
+  if (!tokenData) {
+    return new Response(JSON.stringify({ error: "Invalid or expired token" }), { status: 403, headers: corsHeaders })
+  }
+
+  // Update portal viewed timestamp
+  await supabase
+    .from("sow_subcontractors")
+    .update({ portal_viewed_at: new Date().toISOString() })
+    .eq("id", tokenData.sow_subcontractor_id)
+
+  // Get form template for this SOW/task order
+  let formTemplate = null
+  const { data: sowTemplate } = await supabase
+    .from("quote_form_templates")
+    .select("*, quote_form_fields(*)")
+    .eq("sow_item_id", tokenData.sow_item_id)
+    .single()
+
+  if (sowTemplate) {
+    formTemplate = sowTemplate
+  } else {
+    // Try task-order-level template
+    const { data: toTemplate } = await supabase
+      .from("quote_form_templates")
+      .select("*, quote_form_fields(*)")
+      .eq("task_order_id", tokenData.task_order_id)
+      .is("sow_item_id", null)
+      .single()
+    if (toTemplate) formTemplate = toTemplate
+  }
+
+  // If no custom template, use defaults
+  if (!formTemplate) {
+    formTemplate = {
+      id: "default",
+      name: "Standard Quote Form",
+      fields: getDefaultFields(),
+    }
+  } else {
+    // Sort fields by display_order
+    formTemplate.fields = (formTemplate.quote_form_fields || []).sort(
+      (a: any, b: any) => a.display_order - b.display_order
+    )
+  }
+
+  // Get existing questions (shared ones + this sub's own)
+  const { data: questions } = await supabase
+    .from("subcontractor_questions")
+    .select("*")
+    .eq("sow_item_id", tokenData.sow_item_id)
+    .or(`shared_with_all.eq.true,subcontractor_id.eq.${tokenData.subcontractor_id}`)
+    .order("created_at", { ascending: true })
+
+  // Get existing quote if already submitted
+  const { data: existingQuote } = await supabase
+    .from("sow_quotes")
+    .select("*")
+    .eq("sow_subcontractor_id", tokenData.sow_subcontractor_id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single()
+
+  // Get task order documents (non-sensitive ones) — SOW-specific + task-order-level
+  const { data: rawDocs } = await supabase
+    .from("documents")
+    .select("id, file_name, file_path, file_type, file_size, category")
+    .eq("task_order_id", tokenData.task_order_id)
+    .in("category", ["sow", "flowdown", "pricing_sheet", "exhibit", "site_info", "amendment"])
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
+  const documents = (rawDocs || [])
+    .filter((d: any) => {
+      const parts = d.file_path?.split("/") || []
+      if (parts.length >= 3 && parts[1] === tokenData.sow_item_id) return true
+      if (parts.length < 3) return true
+      return false
+    })
+    .map((d: any) => ({
+      ...d,
+      download_url: `${supabaseUrl}/storage/v1/object/public/task-order-documents/${d.file_path}`,
+    }))
+
+  return new Response(
+    JSON.stringify({
+      task_order: {
+        title: (tokenData as any).task_orders?.title,
+        site_name: (tokenData as any).task_orders?.site_name,
+        location_city: (tokenData as any).task_orders?.location_city,
+        location_state: (tokenData as any).task_orders?.location_state,
+        due_date: (tokenData as any).task_orders?.due_date,
+        solicitation_number: (tokenData as any).task_orders?.solicitation_number,
+        notes: (tokenData as any).task_orders?.notes,
+      },
+      sow: {
+        id: (tokenData as any).sow_items?.id,
+        sow_name: (tokenData as any).sow_items?.sow_name,
+        service_category: (tokenData as any).sow_items?.service_category,
+        description: (tokenData as any).sow_items?.description,
+      },
+      subcontractor: {
+        company_name: (tokenData as any).subcontractors?.company_name,
+        contact_name: (tokenData as any).subcontractors?.contact_name,
+      },
+      rfq_due_date: (tokenData as any).sow_subcontractors?.rfq_due_date,
+      outreach_status: (tokenData as any).sow_subcontractors?.outreach_status,
+      form_template: formTemplate,
+      existing_quote: existingQuote,
+      questions: questions || [],
+      documents: documents || [],
+    }),
+    { headers: corsHeaders }
+  )
+}
+
+// POST /api/portal-api — submit quote or question
+async function handlePost(req: Request) {
+  const body = await req.json()
+  const { token, action } = body
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Token required" }), { status: 400, headers: corsHeaders })
+  }
+
+  const tokenData = await validateToken(token)
+  if (!tokenData) {
+    return new Response(JSON.stringify({ error: "Invalid or expired token" }), { status: 403, headers: corsHeaders })
+  }
+
+  if (action === "submit_quote") {
+    return handleQuoteSubmission(tokenData, body)
+  } else if (action === "submit_question") {
+    return handleQuestionSubmission(tokenData, body)
+  } else if (action === "decline") {
+    return handleDecline(tokenData, body)
+  }
+
+  return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: corsHeaders })
+}
+
+async function handleQuoteSubmission(tokenData: any, body: any) {
+  const { quote_data, custom_fields } = body
+
+  // Insert into sow_quotes
+  const quoteRecord: Record<string, any> = {
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    sow_item_id: tokenData.sow_item_id,
+    subcontractor_id: tokenData.subcontractor_id,
+    status: "received",
+    submitted_at: new Date().toISOString(),
+  }
+
+  // Map standard fields
+  const standardFields = [
+    "total_amount", "monthly_amount", "annual_amount",
+    "labor_cost", "materials_cost", "equipment_cost", "overhead_markup",
+    "scope_inclusions", "scope_exclusions", "assumptions",
+    "timeline", "payment_terms", "validity_period",
+  ]
+  for (const field of standardFields) {
+    if (quote_data[field] !== undefined && quote_data[field] !== null && quote_data[field] !== "") {
+      quoteRecord[field] = quote_data[field]
+    }
+  }
+
+  const { data: quote, error: quoteErr } = await supabase
+    .from("sow_quotes")
+    .insert(quoteRecord)
+    .select()
+    .single()
+
+  if (quoteErr) {
+    return new Response(JSON.stringify({ error: quoteErr.message }), { status: 500, headers: corsHeaders })
+  }
+
+  // Save custom field values
+  if (custom_fields && Object.keys(custom_fields).length > 0) {
+    await supabase.from("portal_quote_submissions").insert({
+      rfq_token_id: tokenData.id,
+      sow_quote_id: quote.id,
+      custom_fields,
+    })
+  }
+
+  // Update outreach status
+  await supabase
+    .from("sow_subcontractors")
+    .update({
+      outreach_status: "quote_submitted",
+      response_date: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tokenData.sow_subcontractor_id)
+
+  // Auto-update SOW status
+  const { data: sow } = await supabase
+    .from("sow_items")
+    .select("status")
+    .eq("id", tokenData.sow_item_id)
+    .single()
+
+  if (sow && (sow.status === "not_started" || sow.status === "subs_identified" || sow.status === "rfqs_sent")) {
+    await supabase
+      .from("sow_items")
+      .update({ status: "quotes_received", updated_at: new Date().toISOString() })
+      .eq("id", tokenData.sow_item_id)
+  }
+
+  // Log communication
+  const sub = tokenData.subcontractors
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "quote_received",
+    direction: "inbound",
+    subject: `Quote submitted via portal`,
+    body: `${sub?.company_name || "Subcontractor"} submitted a quote of $${quoteRecord.total_amount || "N/A"} through the subcontractor portal.`,
+  })
+
+  return new Response(
+    JSON.stringify({ success: true, quote_id: quote.id }),
+    { headers: corsHeaders }
+  )
+}
+
+async function handleQuestionSubmission(tokenData: any, body: any) {
+  const { question_text, related_section } = body
+
+  if (!question_text?.trim()) {
+    return new Response(JSON.stringify({ error: "Question text required" }), { status: 400, headers: corsHeaders })
+  }
+
+  const { data: question, error } = await supabase
+    .from("subcontractor_questions")
+    .insert({
+      rfq_token_id: tokenData.id,
+      sow_subcontractor_id: tokenData.sow_subcontractor_id,
+      sow_item_id: tokenData.sow_item_id,
+      task_order_id: tokenData.task_order_id,
+      subcontractor_id: tokenData.subcontractor_id,
+      question_text: question_text.trim(),
+      related_section: related_section || null,
+      status: "pending",
+    })
+    .select()
+    .single()
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+  }
+
+  // Update outreach status to questions_pending if currently just invited
+  const { data: sowSub } = await supabase
+    .from("sow_subcontractors")
+    .select("outreach_status")
+    .eq("id", tokenData.sow_subcontractor_id)
+    .single()
+
+  if (sowSub && sowSub.outreach_status === "invited") {
+    await supabase
+      .from("sow_subcontractors")
+      .update({ outreach_status: "questions_pending", updated_at: new Date().toISOString() })
+      .eq("id", tokenData.sow_subcontractor_id)
+  }
+
+  // Log communication
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "question",
+    direction: "inbound",
+    subject: `Question from portal${related_section ? `: ${related_section}` : ""}`,
+    body: question_text.trim(),
+  })
+
+  return new Response(
+    JSON.stringify({ success: true, question_id: question.id }),
+    { headers: corsHeaders }
+  )
+}
+
+async function handleDecline(tokenData: any, body: any) {
+  const { reason } = body
+
+  await supabase
+    .from("sow_subcontractors")
+    .update({
+      outreach_status: "declined",
+      response_date: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tokenData.sow_subcontractor_id)
+
+  // Log communication
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "decline_notice",
+    direction: "inbound",
+    subject: "RFQ Declined via portal",
+    body: reason || "Subcontractor declined to quote via the portal.",
+  })
+
+  return new Response(
+    JSON.stringify({ success: true }),
+    { headers: corsHeaders }
+  )
+}
+
+function getDefaultFields() {
+  return [
+    { id: "total_amount", field_name: "total_amount", field_label: "Total Amount ($)", field_type: "currency", is_required: true, help_text: "Total annual contract value", display_order: 0, is_default_field: true, default_field_key: "total_amount" },
+    { id: "monthly_amount", field_name: "monthly_amount", field_label: "Monthly Amount ($)", field_type: "currency", is_required: false, help_text: "Monthly recurring cost", display_order: 1, is_default_field: true, default_field_key: "monthly_amount" },
+    { id: "labor_cost", field_name: "labor_cost", field_label: "Labor Cost ($)", field_type: "currency", is_required: false, help_text: "Total labor component", display_order: 2, is_default_field: true, default_field_key: "labor_cost" },
+    { id: "materials_cost", field_name: "materials_cost", field_label: "Materials Cost ($)", field_type: "currency", is_required: false, help_text: "Total materials component", display_order: 3, is_default_field: true, default_field_key: "materials_cost" },
+    { id: "equipment_cost", field_name: "equipment_cost", field_label: "Equipment Cost ($)", field_type: "currency", is_required: false, help_text: "Total equipment component", display_order: 4, is_default_field: true, default_field_key: "equipment_cost" },
+    { id: "overhead_markup", field_name: "overhead_markup", field_label: "Overhead/Markup (%)", field_type: "number", is_required: false, help_text: "Overhead percentage", display_order: 5, is_default_field: true, default_field_key: "overhead_markup" },
+    { id: "scope_inclusions", field_name: "scope_inclusions", field_label: "Scope Inclusions", field_type: "textarea", is_required: true, help_text: "What is included in your quote", display_order: 6, is_default_field: true, default_field_key: "scope_inclusions" },
+    { id: "scope_exclusions", field_name: "scope_exclusions", field_label: "Scope Exclusions", field_type: "textarea", is_required: false, help_text: "What is not included", display_order: 7, is_default_field: true, default_field_key: "scope_exclusions" },
+    { id: "assumptions", field_name: "assumptions", field_label: "Assumptions", field_type: "textarea", is_required: false, help_text: "Key assumptions your pricing is based on", display_order: 8, is_default_field: true, default_field_key: "assumptions" },
+    { id: "timeline", field_name: "timeline", field_label: "Timeline / Mobilization", field_type: "text", is_required: false, help_text: "How quickly you can mobilize", display_order: 9, is_default_field: true, default_field_key: "timeline" },
+    { id: "payment_terms", field_name: "payment_terms", field_label: "Payment Terms", field_type: "text", is_required: false, help_text: "e.g., Net 30, Net 45", display_order: 10, is_default_field: true, default_field_key: "payment_terms" },
+    { id: "validity_period", field_name: "validity_period", field_label: "Quote Validity Period", field_type: "text", is_required: false, help_text: "How long this quote is valid", display_order: 11, is_default_field: true, default_field_key: "validity_period" },
+  ]
+}
+
+export default async (req: Request, context: Context) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  const url = new URL(req.url)
+
+  if (req.method === "GET") {
+    return handleGet(url)
+  } else if (req.method === "POST") {
+    return handlePost(req)
+  }
+
+  return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: corsHeaders })
+}

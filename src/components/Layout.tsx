@@ -7,25 +7,35 @@ import {
   Building,
   Shield,
   GitCompareArrows,
+  Brain,
+  HelpCircle,
   LogOut,
   Menu,
   X,
+  Radar,
 } from 'lucide-react'
 import { useState } from 'react'
+import GlobalChat from './GlobalChat'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/task-orders', label: 'Incoming RFQs', icon: ClipboardList },
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },
+  { path: '/subcontractor-capture', label: 'Core314 Capture', icon: Radar },
   { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
   { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
   { path: '/comparison', label: 'Compare Task Orders', icon: GitCompareArrows },
+  { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
+  { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { signOut, profile } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Hide global chat on task order detail pages (they have their own task-specific chat)
+  const isTaskOrderDetailPage = /^\/task-orders\/[^/]+$/.test(location.pathname)
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -98,6 +108,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* Global Core314 Intelligence chat — hidden on task order detail pages which have their own chat */}
+      {!isTaskOrderDetailPage && <GlobalChat />}
     </div>
   )
 }

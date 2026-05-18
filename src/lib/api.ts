@@ -93,7 +93,16 @@ Analyze the provided task order documents and extract ONLY information that is E
 IMPORTANT: You MUST populate the "requirements" array with individual requirements extracted DIRECTLY from the documents. Each maintenance task, inspection, service standard, staffing requirement, reporting obligation, safety protocol, or compliance item should be its own requirement entry. Use the EXACT language from the documents wherever possible.
 
 Extract task order metadata ONLY if explicitly stated in the documents:
-- task_order_metadata: {title, solicitation_number, task_order_number, contract_number, contract_vehicle, site_name, location_city, location_state, contracting_officer, co_email, co_phone, period_of_performance_start, period_of_performance_end, estimated_value, naics_code, set_aside, response_due_date}
+- task_order_metadata: {title, solicitation_number, task_order_number, contract_number, contract_vehicle, site_name, location_city, location_state, contracting_officer, co_email, co_phone, period_of_performance_start, period_of_performance_end, pop_total_duration, pop_base_period, pop_option_periods, pop_structure_summary, estimated_value, naics_code, set_aside, response_due_date}
+
+PERIOD OF PERFORMANCE (PoP) EXTRACTION — CRITICAL:
+- period_of_performance_start: the START date of the BASE period (first day of performance)
+- period_of_performance_end: the END date of the ENTIRE contract including ALL option periods (last possible day)
+- pop_total_duration: total duration of the FULL contract including all options (e.g., "6 years")
+- pop_base_period: description of the base period with dates (e.g., "2-year base period: October 1, 2026 — September 30, 2028")
+- pop_option_periods: array of each option period with dates (e.g., ["Option Period 1 (2 years): October 1, 2028 — September 30, 2030", "Option Period 2 (2 years): October 1, 2030 — September 30, 2032"])
+- pop_structure_summary: concise summary like "6-year PoP: 2-year base + two 2-year option periods"
+- You MUST distinguish between the base period and option periods. Do NOT report only the base period dates as if they are the full PoP. Search ALL documents for option period language, ordering period references, and contract duration details.
 
 Return a JSON object with these keys:
 - task_order_metadata: object with the fields above (use null for any field NOT EXPLICITLY found in documents — do NOT guess)
@@ -104,7 +113,7 @@ Return a JSON object with these keys:
 - unclear_items: array of {issue, source_document, section, suggested_clarification} — flag anything ambiguous or missing from the documents
 - pricing_alignment_issues: array of {issue, source_document, pricing_sheet_reference, risk_level}
 - key_dates: array of {date, description, source_document}
-- summary: string — factual overview using ONLY what the documents state. Do NOT add context, industry knowledge, or assumptions.`
+- summary: string — factual overview using ONLY what the documents state. MUST include the full Period of Performance structure (base period AND option periods with dates, e.g., "6-year PoP: 2-year base period (Oct 2026 — Sep 2028) with two 2-year option periods"). Do NOT state only the base period as if it is the full PoP. Do NOT add context, industry knowledge, or assumptions.`
 
   const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
@@ -249,6 +258,7 @@ Generate a comprehensive executive summary suitable for leadership review. EVERY
 
 CRITICAL RULES FOR THIS SUMMARY:
 - The overview must describe ONLY what the documents say about the scope, site, and contract structure.
+- The overview MUST include the FULL Period of Performance (PoP) structure: base period dates AND option period dates. Do NOT state only the base period as if it is the full PoP. Example: "The Period of Performance is 6 years: a 2-year base period (October 1, 2026 — September 30, 2028) with two 2-year option periods (Option 1: October 1, 2028 — September 30, 2030; Option 2: October 1, 2030 — September 30, 2032)."
 - The staffing_requirements field must state ONLY the staffing explicitly described in the documents. In facility management task orders where all services are subcontracted, the staffing requirement is typically ONE Facility Manager who manages subcontractors — state this ONLY if that is what the documents describe. Do NOT add "additional staff" or imply there will be direct employees performing services unless the documents explicitly state this.
 - For scope_categories, list ONLY the service categories that have corresponding SOW documents provided.
 - For major_risks, identify risks based on gaps or issues found IN the documents — not generic industry risks.

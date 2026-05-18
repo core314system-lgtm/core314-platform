@@ -19,6 +19,13 @@ import TaskOrderComparisonPage from './pages/TaskOrderComparison'
 import ExportCenter from './pages/ExportCenter'
 import SowTracker from './pages/SowTracker'
 import BidSummary from './pages/BidSummary'
+import PricingMatrix from './pages/PricingMatrix'
+import HelpCenter from './pages/HelpCenter'
+import DebriefPage from './pages/Debrief'
+import IntelligenceLibrary from './pages/IntelligenceLibrary'
+import SubcontractorCapture from './pages/SubcontractorCapture'
+import SubcontractorPortal from './pages/SubcontractorPortal'
+import QuoteFormBuilder from './pages/QuoteFormBuilder'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -33,6 +40,9 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+
+          {/* Public Subcontractor Portal (no auth required) */}
+          <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
           {/* Dashboard */}
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -70,12 +80,23 @@ export default function App() {
           {/* SOW Bid Management */}
           <Route path="/task-orders/:id/sow-tracker" element={<ProtectedRoute><SowTracker /></ProtectedRoute>} />
           <Route path="/task-orders/:id/bid-summary" element={<ProtectedRoute><BidSummary /></ProtectedRoute>} />
+          <Route path="/task-orders/:id/pricing-matrix" element={<ProtectedRoute><PricingMatrix /></ProtectedRoute>} />
+          <Route path="/task-orders/:id/form-builder" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
+          <Route path="/task-orders/:id/form-builder/:sowId" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
 
           {/* Module 11: Export Center */}
           <Route path="/task-orders/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
 
           {/* Module 1: Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />
+          <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
+
+          {/* Debrief & Intelligence */}
+          <Route path="/task-orders/:id/debrief" element={<ProtectedRoute><DebriefPage /></ProtectedRoute>} />
+          <Route path="/intelligence" element={<ProtectedRoute><IntelligenceLibrary /></ProtectedRoute>} />
+
+          {/* Help Center */}
+          <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

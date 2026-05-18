@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder, Document as Doc, DocumentCategory, AnalysisResult } from '../lib/types'
 import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors } from '../lib/api'
-import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin } from 'lucide-react'
+import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen } from 'lucide-react'
+import TaskOrderChat from '../components/TaskOrderChat'
 
 const CATEGORIES: { value: DocumentCategory; label: string }[] = [
   { value: 'sow', label: 'Statement of Work' },
@@ -32,7 +33,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function TaskOrderDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { user } = useAuth()
+  const [deleting, setDeleting] = useState(false)
   const [taskOrder, setTaskOrder] = useState<TaskOrder | null>(null)
   const [documents, setDocuments] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,6 +131,48 @@ export default function TaskOrderDetail() {
     await supabase.storage.from('task-order-documents').remove([doc.file_path])
     await supabase.from('documents').delete().eq('id', doc.id)
     fetchDocuments()
+  }
+
+  async function handleDeleteTaskOrder() {
+    if (!id || !taskOrder) return
+    const msg = `DELETE ENTIRE TASK ORDER: "${taskOrder.title}"?\n\nThis will permanently remove:\n- The task order record\n- All uploaded documents\n- All AI analysis outputs\n- All SOW items, subcontractor assignments, quotes, and communications\n\nThis action cannot be undone.`
+    if (!confirm(msg)) return
+    if (!confirm('Are you absolutely sure? Type OK to confirm.')) return
+    setDeleting(true)
+    try {
+      // Delete SOW-related data first (cascade should handle most, but be explicit)
+      await supabase.from('sow_items').delete().eq('task_order_id', id)
+      // Delete documents from storage
+      const { data: docs } = await supabase.from('documents').select('file_path').eq('task_order_id', id)
+      if (docs && docs.length > 0) {
+        const paths = docs.map(d => d.file_path)
+        await supabase.storage.from('task-order-documents').remove(paths)
+      }
+      // Delete AI outputs from storage
+      const { data: aiFiles } = await supabase.storage.from('task-order-documents').list(`${id}/ai_outputs`)
+      if (aiFiles && aiFiles.length > 0) {
+        await supabase.storage.from('task-order-documents').remove(aiFiles.map(f => `${id}/ai_outputs/${f.name}`))
+      }
+      // Delete quote files from storage
+      const { data: quoteFolders } = await supabase.storage.from('task-order-documents').list(`${id}/quotes`)
+      if (quoteFolders) {
+        for (const folder of quoteFolders) {
+          const { data: quoteFiles } = await supabase.storage.from('task-order-documents').list(`${id}/quotes/${folder.name}`)
+          if (quoteFiles && quoteFiles.length > 0) {
+            await supabase.storage.from('task-order-documents').remove(quoteFiles.map(f => `${id}/quotes/${folder.name}/${f.name}`))
+          }
+        }
+      }
+      // Delete document records
+      await supabase.from('documents').delete().eq('task_order_id', id)
+      // Delete task order (cascades should handle remaining FKs)
+      await supabase.from('task_orders').delete().eq('id', id)
+      navigate('/task-orders')
+    } catch (err) {
+      console.error('Delete task order error:', err)
+      alert('Failed to delete task order. Check console for details.')
+      setDeleting(false)
+    }
   }
 
   async function handleAnalyze() {
@@ -289,11 +334,41 @@ export default function TaskOrderDetail() {
                 {analysisResult.task_order_metadata.set_aside && <span><strong>Set-Aside:</strong> {analysisResult.task_order_metadata.set_aside}</span>}
                 {analysisResult.task_order_metadata.period_of_performance_start && <span><strong>PoP Start:</strong> {analysisResult.task_order_metadata.period_of_performance_start}</span>}
                 {analysisResult.task_order_metadata.period_of_performance_end && <span><strong>PoP End:</strong> {analysisResult.task_order_metadata.period_of_performance_end}</span>}
+                {analysisResult.task_order_metadata.pop_total_duration && <span><strong>Total PoP:</strong> {analysisResult.task_order_metadata.pop_total_duration}</span>}
+                {analysisResult.task_order_metadata.pop_structure_summary && <span className="col-span-2 md:col-span-3"><strong>PoP Structure:</strong> {analysisResult.task_order_metadata.pop_structure_summary}</span>}
               </div>
+              {analysisResult.task_order_metadata.pop_base_period && (
+                <div className="mt-2 text-gray-700 space-y-1">
+                  <div><strong>Base Period:</strong> {analysisResult.task_order_metadata.pop_base_period}</div>
+                  {analysisResult.task_order_metadata.pop_option_periods && analysisResult.task_order_metadata.pop_option_periods.length > 0 && (
+                    <div>
+                      <strong>Option Periods:</strong>
+                      <ul className="ml-4 list-disc">
+                        {analysisResult.task_order_metadata.pop_option_periods.map((op: string, i: number) => (
+                          <li key={i}>{op}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            to={`/task-orders/${id}/debrief`}
+            className="text-sm bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5"
+          >
+            <BookOpen size={14} /> Add Debrief
+          </Link>
+          <button
+            onClick={handleDeleteTaskOrder}
+            disabled={deleting}
+            className="text-sm bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 border border-red-200 flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Trash2 size={14} /> {deleting ? 'Deleting...' : 'Delete Task Order'}
+          </button>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
             taskOrder.status === 'draft' ? 'bg-gray-100 text-gray-700' :
             taskOrder.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
@@ -560,6 +635,7 @@ export default function TaskOrderDetail() {
               {[
                 { label: 'SOW Bid Management', link: `/task-orders/${id}/sow-tracker`, key: '', desc: 'Match subs to SOWs, track RFQs, quotes & communications', highlight: true },
                 { label: 'Bid Summary Dashboard', link: `/task-orders/${id}/bid-summary`, key: '', desc: 'Aggregated pricing, quote coverage, and recommendations', highlight: true },
+                { label: 'Pricing Decision Matrix', link: `/task-orders/${id}/pricing-matrix`, key: '', desc: 'Select subs, set markup, calculate supplier totals & option year pricing', highlight: true },
                 { label: 'Compliance Matrix', link: `/task-orders/${id}/compliance`, key: 'compliance_matrix', desc: 'Requirements mapped to source documents with risk levels' },
                 { label: 'Subcontractor RFQ Packages', link: `/task-orders/${id}/rfq-packages`, key: 'rfq_packages', desc: 'Scope packages ready to send to subcontractors' },
                 { label: 'Clarification Questions', link: `/task-orders/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
@@ -642,6 +718,13 @@ export default function TaskOrderDetail() {
           <p className="text-sm text-gray-600 whitespace-pre-wrap">{taskOrder.notes}</p>
         </div>
       )}
+
+      {/* AI Chat Assistant */}
+      <TaskOrderChat
+        taskOrderId={id!}
+        taskOrderTitle={taskOrder.title}
+        analysisResult={analysisResult as Record<string, unknown> | null}
+      />
     </div>
   )
 }

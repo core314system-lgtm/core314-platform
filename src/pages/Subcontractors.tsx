@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Subcontractor } from '../lib/types'
 import { parseExcelForSubcontractors } from '../lib/documentParser'
-import { Plus, Search, MapPin, Star, Upload, X, FileSpreadsheet, Edit2, Trash2, Globe, Building, ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { loadSourceRegistry, type SubSource } from '../lib/subcontractorSources'
+import { Plus, Search, MapPin, Star, Upload, X, FileSpreadsheet, Edit2, Trash2, Globe, Building, ChevronDown, ChevronUp, Download, Radar } from 'lucide-react'
 
 const US_REGIONS: Record<string, string[]> = {
   'Northeast': ['CT', 'ME', 'MA', 'NH', 'NJ', 'NY', 'PA', 'RI', 'VT'],
@@ -23,12 +25,6 @@ const SERVICE_CATEGORY_OPTIONS = [
   'Building Automation', 'Grounds Maintenance', 'Waste Management', 'General Maintenance',
 ]
 
-const INCUMBENT_OPTIONS = [
-  { value: 'known', label: 'Incumbent', color: 'bg-green-100 text-green-700' },
-  { value: 'suspected', label: 'Suspected Incumbent', color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'not_incumbent', label: 'Not Incumbent', color: 'bg-gray-100 text-gray-600' },
-  { value: 'unknown', label: 'Unknown', color: 'bg-gray-50 text-gray-400' },
-]
 
 const AVAILABILITY_OPTIONS = [
   { value: 'available', label: 'Available', color: 'bg-green-100 text-green-700' },
@@ -78,17 +74,20 @@ export default function Subcontractors() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [sourceRegistry, setSourceRegistry] = useState<Record<string, { source: SubSource }>>({})
   const [showImport, setShowImport] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState<Array<Record<string, string>>>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<SubForm>({ ...emptyForm })
-  const [filterIncumbent, setFilterIncumbent] = useState<string>('')
+
   const [filterCategory, setFilterCategory] = useState<string>('')
+  const [filterSource, setFilterSource] = useState<string>('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSubcontractors()
+    loadSourceRegistry().then(setSourceRegistry)
   }, [])
 
   async function fetchSubcontractors() {
@@ -98,6 +97,10 @@ export default function Subcontractors() {
       .order('company_name')
     setSubcontractors(data || [])
     setLoading(false)
+  }
+
+  function getSubSource(id: string): SubSource {
+    return sourceRegistry[id]?.source || 'user_database'
   }
 
   function handleRegionToggle(region: string) {
@@ -129,6 +132,16 @@ export default function Subcontractors() {
     }))
   }
 
+  function isDuplicate(name: string, email: string | null, excludeId?: string): Subcontractor | undefined {
+    const normName = name.trim().toLowerCase()
+    return subcontractors.find(s => {
+      if (excludeId && s.id === excludeId) return false
+      if (s.company_name.trim().toLowerCase() === normName) return true
+      if (email && s.contact_email && s.contact_email.trim().toLowerCase() === email.trim().toLowerCase()) return true
+      return false
+    })
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     const record = {
@@ -144,8 +157,17 @@ export default function Subcontractors() {
     }
 
     if (editingId) {
+      const dup = isDuplicate(form.company_name, form.contact_email, editingId)
+      if (dup) {
+        if (!confirm(`A subcontractor with a matching name or email already exists: "${dup.company_name}". Save anyway?`)) return
+      }
       await supabase.from('subcontractors').update(record).eq('id', editingId)
     } else {
+      const dup = isDuplicate(form.company_name, form.contact_email)
+      if (dup) {
+        alert(`Duplicate detected: "${dup.company_name}" already exists in the database.\n\nMatched by: ${dup.company_name.trim().toLowerCase() === form.company_name.trim().toLowerCase() ? 'Company Name' : 'Email'}\n\nPlease edit the existing entry instead of creating a duplicate.`)
+        return
+      }
       await supabase.from('subcontractors').insert(record)
     }
 
@@ -185,6 +207,13 @@ export default function Subcontractors() {
     fetchSubcontractors()
   }
 
+  async function handleClearAll() {
+    if (!confirm(`DELETE ALL ${subcontractors.length} SUBCONTRACTORS?\n\nThis will permanently remove every subcontractor from the database.\n\nThis action cannot be undone.`)) return
+    if (!confirm('Are you absolutely sure? This removes ALL subcontractor data.')) return
+    await supabase.from('subcontractors').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    fetchSubcontractors()
+  }
+
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -200,9 +229,26 @@ export default function Subcontractors() {
   async function handleImportConfirm() {
     setImporting(true)
     const columnMap = detectColumns(importPreview[0] || {})
+    // Build a set of existing names and emails for fast duplicate checking
+    const existingNames = new Set(subcontractors.map(s => s.company_name.trim().toLowerCase()))
+    const existingEmails = new Set(subcontractors.filter(s => s.contact_email).map(s => s.contact_email!.trim().toLowerCase()))
+    // Also track names added during this import to prevent intra-import duplicates
+    const importedNames = new Set<string>()
+    let skipped = 0
+    let imported = 0
+
     for (const row of importPreview) {
       const companyName = row[columnMap.company_name] || ''
       if (!companyName) continue
+      const normName = companyName.trim().toLowerCase()
+      const email = (row[columnMap.contact_email] || '').trim().toLowerCase()
+
+      // Skip duplicates
+      if (existingNames.has(normName) || importedNames.has(normName) || (email && existingEmails.has(email))) {
+        skipped++
+        continue
+      }
+
       const serviceCategories = (row[columnMap.service_categories] || '').split(/[,;|]/).map(s => s.trim()).filter(Boolean)
       const geoCoverage = (row[columnMap.geographic_coverage] || '').split(/[,;|]/).map(s => s.trim()).filter(Boolean)
       const incumbentRaw = (row[columnMap.incumbent_status] || '').toLowerCase()
@@ -221,11 +267,18 @@ export default function Subcontractors() {
         preferred: false,
         incumbent_status: incumbentStatus,
       })
+      importedNames.add(normName)
+      if (email) existingEmails.add(email)
+      imported++
     }
+
     setImporting(false)
     setShowImport(false)
     setImportPreview([])
     fetchSubcontractors()
+    if (skipped > 0) {
+      alert(`Import complete: ${imported} new subcontractors added, ${skipped} duplicates skipped.`)
+    }
   }
 
   function detectColumns(row: Record<string, string>) {
@@ -275,8 +328,8 @@ export default function Subcontractors() {
     if (search && !s.company_name.toLowerCase().includes(search.toLowerCase()) &&
       !s.service_categories?.some(c => c.toLowerCase().includes(search.toLowerCase())) &&
       !s.geographic_coverage?.some(g => g.toLowerCase().includes(search.toLowerCase()))) return false
-    if (filterIncumbent && s.incumbent_status !== filterIncumbent) return false
     if (filterCategory && !s.service_categories?.some(c => c.toLowerCase().includes(filterCategory.toLowerCase()))) return false
+    if (filterSource && getSubSource(s.id) !== filterSource) return false
     return true
   })
 
@@ -284,10 +337,18 @@ export default function Subcontractors() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Subcontractor Database</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Master Subcontractor Database</h1>
           <p className="text-sm text-gray-500">{subcontractors.length} subcontractors in database</p>
         </div>
         <div className="flex gap-2">
+          <Link to="/subcontractor-capture" className="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
+            <Radar size={18} /> Core314 Capture
+          </Link>
+          {subcontractors.length > 0 && (
+            <button onClick={handleClearAll} className="bg-red-50 text-red-600 px-3 py-2 rounded-lg font-medium hover:bg-red-100 border border-red-200 transition-colors flex items-center gap-2 text-sm">
+              <Trash2 size={16} /> Clear All ({subcontractors.length})
+            </button>
+          )}
           <button onClick={exportToCSV} className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm">
             <Download size={16} /> Export CSV
           </button>
@@ -398,22 +459,6 @@ export default function Subcontractors() {
               <input type="text" value={form.certifications} onChange={e => setForm(prev => ({ ...prev, certifications: e.target.value }))}
                 placeholder="e.g., EPA Lead, OSHA 30, 8(a), HUBZone"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-            </div>
-          </div>
-
-          {/* Incumbent Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Incumbent Status</label>
-            <div className="flex gap-2">
-              {INCUMBENT_OPTIONS.map(opt => (
-                <button key={opt.value} type="button"
-                  onClick={() => setForm(prev => ({ ...prev, incumbent_status: opt.value }))}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-colors ${
-                    form.incumbent_status === opt.value ? opt.color + ' border-current' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                  }`}>
-                  {opt.label}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -544,15 +589,16 @@ export default function Subcontractors() {
             value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
         </div>
-        <select value={filterIncumbent} onChange={e => setFilterIncumbent(e.target.value)}
-          className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-          <option value="">All Statuses</option>
-          {INCUMBENT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
           className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
           <option value="">All Categories</option>
           {SERVICE_CATEGORY_OPTIONS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+        </select>
+        <select value={filterSource} onChange={e => setFilterSource(e.target.value)}
+          className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <option value="">All Sources</option>
+          <option value="user_database">User Database</option>
+          <option value="core314_capture">Core314 Capture</option>
         </select>
       </div>
 
@@ -561,9 +607,9 @@ export default function Subcontractors() {
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <p className="text-gray-500 mb-4">
-            {search || filterIncumbent || filterCategory ? 'No subcontractors match your filters.' : 'No subcontractors in the database yet.'}
+            {search || filterCategory ? 'No subcontractors match your filters.' : 'No subcontractors in the database yet.'}
           </p>
-          {!search && !filterIncumbent && !filterCategory && (
+          {!search && !filterCategory && (
             <p className="text-sm text-gray-400">Use &quot;Import Excel/CSV&quot; to upload your existing vendor list, or add subcontractors one at a time.</p>
           )}
         </div>
@@ -578,6 +624,13 @@ export default function Subcontractors() {
                     <h3 className="font-semibold text-gray-900">{sub.company_name}</h3>
                     {sub.preferred && <Star className="text-amber-500 fill-amber-500" size={16} />}
                     {sub.small_business && <span className="text-xs bg-green-50 text-green-700 px-1.5 py-0.5 rounded">SB</span>}
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      getSubSource(sub.id) === 'core314_capture'
+                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                        : 'bg-gray-50 text-gray-500 border border-gray-200'
+                    }`}>
+                      {getSubSource(sub.id) === 'core314_capture' ? 'Core314 Capture' : 'User Database'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-4 mt-1">
                     {sub.contact_name && <p className="text-sm text-gray-600">{sub.contact_name}</p>}
@@ -586,11 +639,6 @@ export default function Subcontractors() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    INCUMBENT_OPTIONS.find(o => o.value === sub.incumbent_status)?.color || 'bg-gray-50 text-gray-400'
-                  }`}>
-                    {INCUMBENT_OPTIONS.find(o => o.value === sub.incumbent_status)?.label || 'Unknown'}
-                  </span>
                   <button onClick={() => handleEdit(sub)} className="text-gray-400 hover:text-blue-600 p-1" title="Edit">
                     <Edit2 size={16} />
                   </button>
