@@ -34,15 +34,7 @@ export default function GlobalChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [, setContextLoaded] = useState(false)
-  const [context, setContext] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (open) {
-      buildContext()
-    }
-  }, [open])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -50,173 +42,453 @@ export default function GlobalChat() {
 
   async function buildContext() {
     const parts: string[] = []
+    const now = new Date()
+    const todayStr = now.toISOString().split('T')[0]
+    const fmt = (v: number | string | null | undefined) => {
+      if (v == null || v === '') return 'N/A'
+      if (typeof v === 'number') return `$${v.toLocaleString()}`
+      return String(v)
+    }
+    const fmtDate = (d: string | null | undefined) => {
+      if (!d) return 'N/A'
+      try { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) } catch { return d }
+    }
+    const isToday = (d: string | null | undefined) => {
+      if (!d) return false
+      try {
+        const date = new Date(d)
+        return date.getFullYear() === now.getFullYear() &&
+               date.getMonth() === now.getMonth() &&
+               date.getDate() === now.getDate()
+      } catch { return false }
+    }
+    const isThisWeek = (d: string | null | undefined) => {
+      if (!d) return false
+      try {
+        const date = new Date(d)
+        const diffMs = now.getTime() - date.getTime()
+        return diffMs >= 0 && diffMs < 7 * 24 * 60 * 60 * 1000
+      } catch { return false }
+    }
 
-    // Fetch all task orders
+    parts.push(`=== CURRENT DATE/TIME: ${now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })} (${todayStr}) ===`)
+
+    // ========== 1. TASK ORDERS (full detail) ==========
     const { data: taskOrders } = await supabase
       .from('task_orders')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (taskOrders && taskOrders.length > 0) {
-      parts.push(`--- TASK ORDERS (${taskOrders.length}) ---`)
+      parts.push(`=== TASK ORDERS (${taskOrders.length}) ===`)
       for (const to of taskOrders) {
-        parts.push(`Task Order: ${to.title} | Site: ${to.site_name || 'N/A'} | Location: ${to.location_city ? `${to.location_city}, ${to.location_state}` : 'N/A'} | Status: ${to.status} | Due: ${to.response_deadline || 'N/A'}`)
+        const lines = [
+          `Task Order: ${to.title}`,
+          `  Solicitation: ${to.solicitation_number || 'N/A'} | TO#: ${to.task_order_number || 'N/A'} | Contract#: ${to.contract_number || 'N/A'}`,
+          `  Site: ${to.site_name || 'N/A'} | Location: ${to.location_city ? `${to.location_city}, ${to.location_state}` : 'N/A'}`,
+          `  Status: ${to.status} | Due: ${to.due_date || to.response_deadline || 'N/A'}`,
+          `  Estimated Value: ${to.estimated_value || 'Not specified'}`,
+          `  Contract Vehicle: ${to.contract_vehicle || 'N/A'} | NAICS: ${to.naics_code || 'N/A'} | Set-Aside: ${to.set_aside || 'N/A'}`,
+          `  Period of Performance: ${to.period_of_performance_start || 'N/A'} to ${to.period_of_performance_end || 'N/A'}`,
+          `  Contracting Officer: ${to.contracting_officer || 'N/A'}${to.co_email ? ` (${to.co_email})` : ''}${to.co_phone ? ` ${to.co_phone}` : ''}`,
+          `  Created: ${fmtDate(to.created_at)} | Last Updated: ${fmtDate(to.updated_at)}`,
+        ]
+        if (to.notes) lines.push(`  Notes: ${to.notes}`)
+        parts.push(lines.join('\n'))
       }
     } else {
-      parts.push('--- TASK ORDERS (0) ---')
+      parts.push('=== TASK ORDERS (0) ===')
       parts.push('No task orders have been registered yet.')
     }
 
-    // Fetch all subcontractors
-    const { data: subcontractors } = await supabase
-      .from('subcontractors')
-      .select('*')
-
-    if (subcontractors && subcontractors.length > 0) {
-      parts.push(`\n--- SUBCONTRACTOR DATABASE (${subcontractors.length}) ---`)
-      const byCat: Record<string, number> = {}
-      const byStatus: Record<string, number> = {}
-      for (const sub of subcontractors) {
-        const cats = sub.service_categories as string[] || []
-        for (const c of cats) {
-          byCat[c] = (byCat[c] || 0) + 1
-        }
-        const incumbentStatus = (sub.incumbent_status as string) || 'unknown'
-        byStatus[incumbentStatus] = (byStatus[incumbentStatus] || 0) + 1
-      }
-      parts.push(`Subcontractors by service category: ${Object.entries(byCat).map(([k, v]) => `${k} (${v})`).join(', ')}`)
-      parts.push(`Subcontractors by incumbent status: ${Object.entries(byStatus).map(([k, v]) => `${k} (${v})`).join(', ')}`)
-      for (const sub of subcontractors) {
-        const cats = (sub.service_categories as string[] || []).join(', ')
-        const states = (sub.states_covered as string[] || [])
-        const coverage = sub.nationwide ? 'Nationwide' : `${states.length} states`
-        parts.push(`  - ${sub.company_name} | Contact: ${sub.contact_name || 'N/A'} | Email: ${sub.contact_email || 'N/A'} | Categories: ${cats || 'N/A'} | Coverage: ${coverage} | Incumbent: ${sub.incumbent_status || 'unknown'} | Availability: ${sub.availability || 'N/A'}`)
-      }
-    } else {
-      parts.push('\n--- SUBCONTRACTOR DATABASE (0) ---')
-      parts.push('No subcontractors have been added to the database yet.')
-    }
-
-    // Fetch all SOW items across all task orders
+    // ========== 2. SOW ITEMS (full detail with financials) ==========
     const { data: sowItems } = await supabase
       .from('sow_items')
       .select('*')
       .order('task_order_id')
 
-    if (sowItems && sowItems.length > 0) {
-      parts.push(`\n--- SOW ITEMS ACROSS ALL TASK ORDERS (${sowItems.length}) ---`)
-      const byTaskOrder: Record<string, typeof sowItems> = {}
-      for (const sow of sowItems) {
-        const toTitle = taskOrders?.find(t => t.id === sow.task_order_id)?.title || sow.task_order_id
-        if (!byTaskOrder[toTitle]) byTaskOrder[toTitle] = []
-        byTaskOrder[toTitle].push(sow)
-      }
-      for (const [toTitle, sows] of Object.entries(byTaskOrder)) {
-        parts.push(`\n${toTitle}:`)
-        for (const sow of sows) {
-          parts.push(`  - ${sow.sow_name} | Category: ${sow.service_category} | Status: ${sow.status}${sow.awarded_amount ? ` | Awarded: $${sow.awarded_amount}` : ''}`)
-        }
-      }
+    // ========== 3. SUBCONTRACTORS (full detail) ==========
+    const { data: subcontractors } = await supabase
+      .from('subcontractors')
+      .select('*')
 
-      // Fetch all quotes (query without FK join to avoid silent failures)
-      const { data: quotes } = await supabase
-        .from('sow_quotes')
-        .select('*')
-
-      // Build a subcontractor lookup map
-      const subLookup: Record<string, string> = {}
-      if (subcontractors) {
-        for (const s of subcontractors) {
-          subLookup[s.id] = s.company_name
-        }
-      }
-
-      if (quotes && quotes.length > 0) {
-        parts.push(`\n--- ALL QUOTES (${quotes.length}) ---`)
-        for (const q of quotes) {
-          const subName = subLookup[q.subcontractor_id] || 'Unknown'
-          const sowName = sowItems.find(s => s.id === q.sow_item_id)?.sow_name || q.sow_item_id
-          const toTitle = taskOrders?.find(t => t.id === sowItems.find(s => s.id === q.sow_item_id)?.task_order_id)?.title || 'Unknown'
-          parts.push(`${subName} → ${sowName} (${toTitle}): $${q.total_amount || 'N/A'} | Status: ${q.status}`)
-        }
-      } else {
-        parts.push('\n--- ALL QUOTES (0) ---')
-        parts.push('No quotes have been submitted across any task order.')
-      }
-
-      // SOWs missing quotes
-      const sowIdsWithQuotes = new Set((quotes || []).map(q => q.sow_item_id))
-      const sowsMissingQuotes = sowItems.filter(s => !sowIdsWithQuotes.has(s.id))
-      if (sowsMissingQuotes.length > 0) {
-        parts.push(`\n--- SOWs MISSING QUOTES (${sowsMissingQuotes.length}) ---`)
-        for (const sow of sowsMissingQuotes) {
-          const toTitle = taskOrders?.find(t => t.id === sow.task_order_id)?.title || 'Unknown'
-          parts.push(`  - ${sow.sow_name} (${toTitle})`)
-        }
-      } else {
-        parts.push('\n--- SOWs MISSING QUOTES (0) ---')
-        parts.push('All SOWs across all task orders have at least one quote.')
-      }
-
-      // Per-task-order quote summary for accuracy
-      parts.push(`\n--- QUOTE COVERAGE SUMMARY BY TASK ORDER ---`)
-      for (const [toTitle, sows] of Object.entries(byTaskOrder)) {
-        const sowCount = sows.length
-        const sowsWithQ = sows.filter(s => sowIdsWithQuotes.has(s.id)).length
-        const quoteCount = (quotes || []).filter(q => sows.some(s => s.id === q.sow_item_id)).length
-        parts.push(`${toTitle}: ${sowCount} SOWs, ${quoteCount} total quotes, ${sowsWithQ}/${sowCount} SOWs have at least one quote`)
-        for (const sow of sows) {
-          const sqCount = (quotes || []).filter(q => q.sow_item_id === sow.id).length
-          parts.push(`  - ${sow.sow_name}: ${sqCount} quote(s)${sqCount === 0 ? ' ⚠ MISSING' : ''}`)
-        }
+    const subLookup: Record<string, string> = {}
+    if (subcontractors) {
+      for (const s of subcontractors) {
+        subLookup[s.id] = s.company_name
       }
     }
 
-    // Fetch document counts per task order
+    // ========== 4. SOW-SUBCONTRACTOR ASSIGNMENTS ==========
+    const { data: sowSubs } = await supabase
+      .from('sow_subcontractors')
+      .select('*')
+
+    // ========== 5. QUOTES ==========
+    const { data: quotes } = await supabase
+      .from('sow_quotes')
+      .select('*')
+
+    // ========== 6. COMMUNICATIONS ==========
+    const { data: comms } = await supabase
+      .from('sow_communications')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    // ========== 7. DOCUMENTS ==========
     const { data: docs } = await supabase
       .from('documents')
-      .select('task_order_id, file_name')
+      .select('*')
 
+    // ========== 8. SUBCONTRACTOR QUESTIONS ==========
+    const { data: subQuestions } = await supabase
+      .from('subcontractor_questions')
+      .select('*')
+
+    // ========== 9. EMAIL TRACKING ==========
+    const { data: emailTracking } = await supabase
+      .from('email_tracking')
+      .select('*')
+
+    // ========== 10. RFQ TOKENS ==========
+    const { data: rfqTokens } = await supabase
+      .from('rfq_tokens')
+      .select('*')
+
+    // ========== 11. COMPETITORS ==========
+    const { data: competitors } = await supabase
+      .from('competitors')
+      .select('*')
+
+    // ========== 12. COMPANY PROFILE ==========
+    const { data: companyProfile } = await supabase
+      .from('company_profile')
+      .select('*')
+      .limit(1)
+
+    // Build SOW details with all financial data
+    if (sowItems && sowItems.length > 0) {
+      const byTaskOrder: Record<string, { to: (typeof taskOrders extends (infer T)[] | null ? T : never); sows: typeof sowItems }> = {}
+      for (const sow of sowItems) {
+        const to = taskOrders?.find(t => t.id === sow.task_order_id)
+        const toTitle = to?.title || sow.task_order_id
+        if (!byTaskOrder[toTitle]) byTaskOrder[toTitle] = { to: to as any, sows: [] }
+        byTaskOrder[toTitle].sows.push(sow)
+      }
+
+      parts.push(`\n=== SOW BREAKDOWN BY TASK ORDER ===`)
+      for (const [toTitle, { to, sows }] of Object.entries(byTaskOrder)) {
+        // Calculate task order totals
+        const totalEstimated = sows.reduce((sum, s) => {
+          const est = s.notes?.match(/Estimated value: \$([\d,]+)/)?.[1]
+          return sum + (est ? parseInt(est.replace(/,/g, '')) : 0)
+        }, 0)
+        const totalAwarded = sows.reduce((sum, s) => sum + (parseFloat(s.awarded_amount) || 0), 0)
+        const quoteCount = (quotes || []).filter(q => sows.some(s => s.id === q.sow_item_id)).length
+
+        parts.push(`\n${toTitle}: ${sows.length} SOWs | Est Total: ${totalEstimated > 0 ? fmt(totalEstimated) : (to?.estimated_value || 'Not specified')} | Awarded Total: ${totalAwarded > 0 ? fmt(totalAwarded) : '$0 (not yet awarded)'}  | ${quoteCount} quotes received`)
+
+        for (const sow of sows) {
+          const estMatch = sow.notes?.match(/Estimated value: \$([\d,]+)/)
+          const estValue = estMatch ? `$${estMatch[1]}` : 'N/A'
+          const awardedSub = sow.awarded_subcontractor_id ? (subLookup[sow.awarded_subcontractor_id] || 'Unknown') : null
+
+          let line = `  SOW: ${sow.sow_name} | Category: ${sow.service_category} | Status: ${sow.status} | Estimated: ${estValue}`
+          if (sow.awarded_amount) line += ` | Awarded: ${fmt(parseFloat(sow.awarded_amount))}`
+          if (awardedSub) line += ` to ${awardedSub}`
+          if (sow.description) line += `\n    Description: ${sow.description.substring(0, 200)}`
+          if (sow.notes && !estMatch) line += `\n    Notes: ${sow.notes.substring(0, 200)}`
+
+          // Show subcontractors assigned to this SOW
+          const assignments = (sowSubs || []).filter(ss => ss.sow_item_id === sow.id)
+          if (assignments.length > 0) {
+            const assignmentDetails = assignments.map(a => {
+              const subName = subLookup[a.subcontractor_id] || 'Unknown'
+              let detail = `${subName} (${a.outreach_status})`
+              if (a.rfq_sent_date) detail += ` RFQ sent: ${new Date(a.rfq_sent_date).toLocaleDateString()}`
+              if (a.email_opened_at) detail += ' [opened]'
+              if (a.email_clicked_at) detail += ' [clicked portal]'
+              return detail
+            }).join('; ')
+            line += `\n    Assigned Subs: ${assignmentDetails}`
+          }
+
+          // Show quotes for this SOW
+          const sowQuotes = (quotes || []).filter(q => q.sow_item_id === sow.id)
+          if (sowQuotes.length > 0) {
+            for (const q of sowQuotes) {
+              const qSub = subLookup[q.subcontractor_id] || 'Unknown'
+              let qLine = `    Quote from ${qSub}: Total=${fmt(q.total_amount)}`
+              if (q.monthly_amount) qLine += ` Monthly=${fmt(q.monthly_amount)}`
+              if (q.annual_amount) qLine += ` Annual=${fmt(q.annual_amount)}`
+              if (q.labor_cost) qLine += ` Labor=${fmt(q.labor_cost)}`
+              if (q.materials_cost) qLine += ` Materials=${fmt(q.materials_cost)}`
+              if (q.equipment_cost) qLine += ` Equipment=${fmt(q.equipment_cost)}`
+              if (q.overhead_markup) qLine += ` Markup=${q.overhead_markup}%`
+              qLine += ` | Status: ${q.status}`
+              if (q.scope_inclusions) qLine += `\n      Inclusions: ${q.scope_inclusions.substring(0, 150)}`
+              if (q.scope_exclusions) qLine += `\n      Exclusions: ${q.scope_exclusions.substring(0, 150)}`
+              if (q.timeline) qLine += ` | Timeline: ${q.timeline}`
+              if (q.payment_terms) qLine += ` | Terms: ${q.payment_terms}`
+              if (q.reviewer_notes) qLine += `\n      Review Notes: ${q.reviewer_notes.substring(0, 150)}`
+              line += '\n' + qLine
+            }
+          } else {
+            line += '\n    Quotes: NONE RECEIVED'
+          }
+
+          parts.push(line)
+        }
+      }
+
+      // Pre-calculated summary for quick answers
+      const sowIdsWithQuotes = new Set((quotes || []).map(q => q.sow_item_id))
+      parts.push(`\n=== QUICK SUMMARY ===`)
+      for (const [toTitle, { to, sows }] of Object.entries(byTaskOrder)) {
+        const sowCount = sows.length
+        const sowsWithQ = sows.filter(s => sowIdsWithQuotes.has(s.id)).length
+        const qCount = (quotes || []).filter(q => sows.some(s => s.id === q.sow_item_id)).length
+        const totalEstimated = sows.reduce((sum, s) => {
+          const est = s.notes?.match(/Estimated value: \$([\d,]+)/)?.[1]
+          return sum + (est ? parseInt(est.replace(/,/g, '')) : 0)
+        }, 0)
+        const totalAwarded = sows.reduce((sum, s) => sum + (parseFloat(s.awarded_amount) || 0), 0)
+        const totalQuotedMin = (quotes || []).filter(q => sows.some(s => s.id === q.sow_item_id) && q.total_amount).reduce((min, q) => Math.min(min, parseFloat(q.total_amount)), Infinity)
+        const totalQuotedMax = (quotes || []).filter(q => sows.some(s => s.id === q.sow_item_id) && q.total_amount).reduce((max, q) => Math.max(max, parseFloat(q.total_amount)), 0)
+
+        let summary = `${toTitle} (${to?.status || 'unknown'}): ${sowCount} SOWs, ${qCount} quotes, ${sowsWithQ}/${sowCount} SOWs covered`
+        if (totalEstimated > 0) summary += ` | Estimated: ${fmt(totalEstimated)}`
+        if (to?.estimated_value) summary += ` | Contract Est: ${to.estimated_value}`
+        if (totalAwarded > 0) summary += ` | Total Awarded: ${fmt(totalAwarded)}`
+        if (totalQuotedMax > 0) summary += ` | Quote Range: ${fmt(totalQuotedMin)} - ${fmt(totalQuotedMax)}`
+        parts.push(summary)
+
+        // Flag SOWs missing quotes
+        const missing = sows.filter(s => !sowIdsWithQuotes.has(s.id))
+        if (missing.length > 0) {
+          parts.push(`  Missing quotes: ${missing.map(s => s.sow_name).join(', ')}`)
+        }
+      }
+    }
+
+    // ========== SUBCONTRACTOR DATABASE ==========
+    if (subcontractors && subcontractors.length > 0) {
+      parts.push(`\n=== SUBCONTRACTOR DATABASE (${subcontractors.length}) ===`)
+      const byCat: Record<string, number> = {}
+      const byStatus: Record<string, number> = {}
+      for (const sub of subcontractors) {
+        const cats = sub.service_categories as string[] || []
+        for (const c of cats) byCat[c] = (byCat[c] || 0) + 1
+        byStatus[sub.incumbent_status || 'unknown'] = (byStatus[sub.incumbent_status || 'unknown'] || 0) + 1
+      }
+      parts.push(`By category: ${Object.entries(byCat).map(([k, v]) => `${k} (${v})`).join(', ')}`)
+      parts.push(`By incumbent status: ${Object.entries(byStatus).map(([k, v]) => `${k} (${v})`).join(', ')}`)
+
+      for (const sub of subcontractors) {
+        const cats = (sub.service_categories as string[] || []).join(', ')
+        const states = sub.states_covered as string[] || []
+        const regions = sub.regions as string[] || []
+        const certs = sub.certifications as string[] || []
+        const coverage = sub.nationwide ? 'Nationwide' : (regions.length > 0 ? `Regions: ${regions.join(', ')}` : `${states.length} states`)
+        let line = `  ${sub.company_name} | Contact: ${sub.contact_name || 'N/A'} | Email: ${sub.contact_email || 'N/A'} | Phone: ${sub.contact_phone || 'N/A'} | Categories: ${cats || 'N/A'} | Coverage: ${coverage} | Incumbent: ${sub.incumbent_status || 'unknown'} | Availability: ${sub.availability || 'N/A'} | Added: ${fmtDate(sub.created_at)}`
+        if (certs.length > 0) line += ` | Certifications: ${certs.join(', ')}`
+        if (sub.small_business) line += ' | Small Business: Yes'
+        if (sub.duns_number) line += ` | DUNS: ${sub.duns_number}`
+        if (sub.cage_code) line += ` | CAGE: ${sub.cage_code}`
+        if (sub.website) line += ` | Web: ${sub.website}`
+        if (sub.performance_notes) line += `\n    Performance: ${sub.performance_notes.substring(0, 200)}`
+        parts.push(line)
+      }
+    } else {
+      parts.push('\n=== SUBCONTRACTOR DATABASE (0) ===')
+      parts.push('No subcontractors in database.')
+    }
+
+    // ========== RFQ OUTREACH STATUS ==========
+    if (sowSubs && sowSubs.length > 0) {
+      const statusCounts: Record<string, number> = {}
+      for (const ss of sowSubs) statusCounts[ss.outreach_status] = (statusCounts[ss.outreach_status] || 0) + 1
+      parts.push(`\n=== RFQ OUTREACH STATUS (${sowSubs.length} assignments) ===`)
+      parts.push(`Status breakdown: ${Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(', ')}`)
+
+      // Email engagement stats
+      const emailsSent = sowSubs.filter(ss => ss.email_sent_at).length
+      const emailsOpened = sowSubs.filter(ss => ss.email_opened_at).length
+      const portalViewed = sowSubs.filter(ss => ss.portal_viewed_at).length
+      if (emailsSent > 0) {
+        parts.push(`Email engagement: ${emailsSent} sent, ${emailsOpened} opened (${Math.round(emailsOpened/emailsSent*100)}% open rate), ${portalViewed} viewed portal`)
+      }
+    }
+
+    // ========== SUBCONTRACTOR QUESTIONS ==========
+    if (subQuestions && subQuestions.length > 0) {
+      const pending = subQuestions.filter(q => q.status === 'pending')
+      const answered = subQuestions.filter(q => q.status === 'answered' || q.status === 'shared')
+      parts.push(`\n=== SUBCONTRACTOR QUESTIONS (${subQuestions.length}) ===`)
+      parts.push(`Pending: ${pending.length} | Answered: ${answered.length}`)
+      for (const q of subQuestions.slice(0, 20)) {
+        const subName = subLookup[q.subcontractor_id] || 'Unknown'
+        const toTitle = taskOrders?.find(t => t.id === q.task_order_id)?.title || 'Unknown'
+        let line = `  Q from ${subName} (${toTitle}): "${q.question_text.substring(0, 150)}" [${q.status}]`
+        if (q.answer_text) line += `\n    A: "${q.answer_text.substring(0, 150)}"`
+        parts.push(line)
+      }
+    }
+
+    // ========== COMMUNICATIONS (summary + recent) ==========
+    if (comms && comms.length > 0) {
+      const byType: Record<string, number> = {}
+      for (const c of comms) byType[c.comm_type] = (byType[c.comm_type] || 0) + 1
+      parts.push(`\n=== COMMUNICATIONS (${comms.length}) ===`)
+      parts.push(`By type: ${Object.entries(byType).map(([k, v]) => `${k}: ${v}`).join(', ')}`)
+      // Show most recent 10
+      parts.push('Recent activity:')
+      for (const c of comms.slice(0, 10)) {
+        const ssId = c.sow_subcontractor_id
+        const ss = (sowSubs || []).find(s => s.id === ssId)
+        const subName = ss ? (subLookup[ss.subcontractor_id] || 'Unknown') : 'Unknown'
+        parts.push(`  ${new Date(c.created_at).toLocaleDateString()} | ${c.comm_type} (${c.direction}) | ${subName}: ${(c.subject || '').substring(0, 100)}`)
+      }
+    }
+
+    // ========== DOCUMENTS ==========
     if (docs && docs.length > 0) {
-      const docsByTo: Record<string, number> = {}
+      parts.push(`\n=== DOCUMENTS (${docs.length}) ===`)
+      const docsByTo: Record<string, typeof docs> = {}
       for (const d of docs) {
         const toTitle = taskOrders?.find(t => t.id === d.task_order_id)?.title || d.task_order_id
-        docsByTo[toTitle] = (docsByTo[toTitle] || 0) + 1
+        if (!docsByTo[toTitle]) docsByTo[toTitle] = []
+        docsByTo[toTitle].push(d)
       }
-      parts.push(`\n--- DOCUMENTS ---`)
-      parts.push(`Total documents: ${docs.length}`)
-      for (const [toTitle, count] of Object.entries(docsByTo)) {
-        parts.push(`  - ${toTitle}: ${count} documents`)
+      for (const [toTitle, toDocs] of Object.entries(docsByTo)) {
+        const byCat: Record<string, number> = {}
+        for (const d of toDocs) byCat[d.category || 'other'] = (byCat[d.category || 'other'] || 0) + 1
+        parts.push(`  ${toTitle}: ${toDocs.length} docs (${Object.entries(byCat).map(([k, v]) => `${k}: ${v}`).join(', ')})`)
+        for (const d of toDocs) {
+          parts.push(`    ${d.file_name} [${d.category}] ${d.file_type || ''} (${Math.round((d.file_size || 0) / 1024)}KB)`)
+        }
       }
     }
 
-    // Intelligence data from debriefs
+    // ========== COMPANY PROFILE ==========
+    if (companyProfile && companyProfile.length > 0) {
+      const cp = companyProfile[0]
+      parts.push(`\n=== COMPANY PROFILE ===`)
+      parts.push(`Company: ${cp.company_name} | CAGE: ${cp.cage_code || 'N/A'} | DUNS: ${cp.duns_number || 'N/A'}`)
+      if (cp.naics_codes?.length) parts.push(`NAICS: ${cp.naics_codes.join(', ')}`)
+      if (cp.contract_vehicles?.length) parts.push(`Contract Vehicles: ${cp.contract_vehicles.join(', ')}`)
+      if (cp.primary_contact_name) parts.push(`Primary Contact: ${cp.primary_contact_name} (${cp.primary_contact_email || ''}) ${cp.primary_contact_phone || ''}`)
+    }
+
+    // ========== COMPETITORS ==========
+    if (competitors && competitors.length > 0) {
+      parts.push(`\n=== COMPETITOR INTELLIGENCE (${competitors.length}) ===`)
+      for (const c of competitors) {
+        let line = `  ${c.company_name} | Beat us: ${c.wins_against_us}x | We beat them: ${c.losses_against_us}x`
+        if (c.avg_price_difference) line += ` | Avg price diff: ${fmt(c.avg_price_difference)}`
+        if (c.known_services?.length) line += ` | Services: ${c.known_services.join(', ')}`
+        if (c.known_regions?.length) line += ` | Regions: ${c.known_regions.join(', ')}`
+        if (c.notes) line += `\n    Notes: ${c.notes.substring(0, 200)}`
+        parts.push(line)
+      }
+    }
+
+    // ========== INTELLIGENCE (from debriefs) ==========
     const [intelligence, debriefs] = await Promise.all([loadIntelligence(), loadAllDebriefs()])
     if (intelligence && debriefs.length > 0) {
-      parts.push(`\n--- INTELLIGENCE SUMMARY (from ${debriefs.length} debriefs) ---`)
+      parts.push(`\n=== INTELLIGENCE SUMMARY (from ${debriefs.length} debriefs) ===`)
       parts.push(`Win Rate: ${intelligence.win_rate}% | Wins: ${intelligence.wins} | Losses: ${intelligence.losses} | No-Bids: ${intelligence.no_bids}`)
-      if (intelligence.top_loss_reasons.length > 0) {
-        parts.push(`Top Loss Reasons: ${intelligence.top_loss_reasons.map(r => `${r.reason} (${r.count}x)`).join(', ')}`)
-      }
-      if (intelligence.top_strengths.length > 0) {
-        parts.push(`Top Strengths: ${intelligence.top_strengths.map(s => `${s.strength} (${s.count}x)`).join(', ')}`)
-      }
-      if (intelligence.pricing_insights.length > 0) {
-        parts.push(`Pricing Insights: ${intelligence.pricing_insights.join('; ')}`)
-      }
-      if (intelligence.competitors.length > 0) {
-        parts.push(`Known Competitors: ${intelligence.competitors.map(c => `${c.name} (beat us ${c.wins_against_us}x, we beat them ${c.losses_against_us}x)`).join(', ')}`)
-      }
+      if (intelligence.top_loss_reasons.length > 0) parts.push(`Top Loss Reasons: ${intelligence.top_loss_reasons.map(r => `${r.reason} (${r.count}x)`).join(', ')}`)
+      if (intelligence.top_strengths.length > 0) parts.push(`Top Strengths: ${intelligence.top_strengths.map(s => `${s.strength} (${s.count}x)`).join(', ')}`)
+      if (intelligence.pricing_insights.length > 0) parts.push(`Pricing Insights: ${intelligence.pricing_insights.join('; ')}`)
+      if (intelligence.competitors.length > 0) parts.push(`Known Competitors: ${intelligence.competitors.map(c => `${c.name} (beat us ${c.wins_against_us}x, we beat them ${c.losses_against_us}x)`).join(', ')}`)
       parts.push(`Data Maturity: ${intelligence.data_maturity} — ${intelligence.data_maturity_description}`)
 
-      parts.push(`\n--- RECENT DEBRIEFS ---`)
-      for (const d of debriefs.slice(0, 5)) {
-        parts.push(`${d.task_order_title}: ${d.outcome} | Our Price: $${d.our_proposed_price || 'N/A'}${d.winning_competitor ? ` | Winner: ${d.winning_competitor}` : ''}${d.lessons_learned ? ` | Lesson: ${d.lessons_learned.substring(0, 200)}` : ''}`)
+      parts.push(`\n=== DEBRIEFS ===`)
+      for (const d of debriefs.slice(0, 10)) {
+        let line = `${d.task_order_title}: ${d.outcome} | Our Price: ${fmt(d.our_proposed_price)}`
+        if (d.final_award_price) line += ` | Award Price: ${fmt(d.final_award_price)}`
+        if (d.government_estimate) line += ` | Govt Est: ${fmt(d.government_estimate)}`
+        if (d.winning_competitor) line += ` | Winner: ${d.winning_competitor}`
+        if (d.winning_competitor_price) line += ` at ${fmt(d.winning_competitor_price)}`
+        if (d.lessons_learned) line += `\n    Lessons: ${d.lessons_learned.substring(0, 200)}`
+        if (d.sub_performance_notes) line += `\n    Sub Performance: ${d.sub_performance_notes.substring(0, 200)}`
+        parts.push(line)
       }
     }
 
-    setContext(parts.join('\n'))
-    setContextLoaded(true)
+    // ========== RFQ PORTAL ACTIVITY ==========
+    if (rfqTokens && rfqTokens.length > 0) {
+      const activeTokens = rfqTokens.filter(t => t.is_active)
+      const expiredTokens = rfqTokens.filter(t => !t.is_active || new Date(t.expires_at) < new Date())
+      parts.push(`\n=== RFQ PORTAL ACCESS ===`)
+      parts.push(`Total portal links: ${rfqTokens.length} | Active: ${activeTokens.length} | Expired: ${expiredTokens.length}`)
+    }
+
+    // ========== EMAIL TRACKING SUMMARY ==========
+    if (emailTracking && emailTracking.length > 0) {
+      const byEvent: Record<string, number> = {}
+      for (const e of emailTracking) byEvent[e.event_type] = (byEvent[e.event_type] || 0) + 1
+      parts.push(`\n=== EMAIL TRACKING ===`)
+      parts.push(`Events: ${Object.entries(byEvent).map(([k, v]) => `${k}: ${v}`).join(', ')}`)
+    }
+
+    // ========== RECENT ACTIVITY (pre-calculated for temporal questions) ==========
+    parts.push(`\n=== RECENT ACTIVITY (as of ${todayStr}) ===`)
+    parts.push(`NOTE: "Today" means ${todayStr}. All timestamps are compared using date components (year, month, day) after parsing into Date objects, so timezone variations in the database are handled correctly.`)
+
+    // Subcontractors added today/this week + most recent
+    const subsToday = (subcontractors || []).filter(s => isToday(s.created_at))
+    const subsThisWeek = (subcontractors || []).filter(s => isThisWeek(s.created_at))
+    parts.push(`New subcontractors added to MASTER DATABASE TODAY: ${subsToday.length}${subsToday.length > 0 ? ` — ${subsToday.map(s => s.company_name).join(', ')}` : ''}`)
+    parts.push(`New subcontractors added to MASTER DATABASE THIS WEEK: ${subsThisWeek.length}${subsThisWeek.length > 0 ? ` — ${subsThisWeek.map(s => s.company_name).join(', ')}` : ''}`)
+    parts.push(`Total subcontractors in master database: ${(subcontractors || []).length}`)
+    // Find most recent subcontractor addition
+    const sortedSubs = [...(subcontractors || [])].filter(s => s.created_at).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    if (sortedSubs.length > 0) {
+      const mostRecent = sortedSubs.slice(0, 5)
+      parts.push(`Most recently added subcontractors: ${mostRecent.map(s => `${s.company_name} (${fmtDate(s.created_at)})`).join(', ')}`)
+    }
+
+    // SOW assignments today/this week (subcontractors aligned to specific SOWs)
+    const assignmentsToday = (sowSubs || []).filter(s => isToday(s.created_at))
+    const assignmentsThisWeek = (sowSubs || []).filter(s => isThisWeek(s.created_at))
+    parts.push(`SOW subcontractor assignments made TODAY: ${assignmentsToday.length}${assignmentsToday.length > 0 ? ` (subcontractors were aligned/assigned to task order SOWs)` : ''}`)
+    parts.push(`SOW subcontractor assignments made THIS WEEK: ${assignmentsThisWeek.length}`)
+    parts.push(`Total SOW assignments: ${(sowSubs || []).length}`)
+
+    // Task orders created today/this week
+    const tosToday = (taskOrders || []).filter(t => isToday(t.created_at))
+    const tosThisWeek = (taskOrders || []).filter(t => isThisWeek(t.created_at))
+    parts.push(`Task orders created TODAY: ${tosToday.length}${tosToday.length > 0 ? ` — ${tosToday.map(t => t.title).join(', ')}` : ''}`)
+    parts.push(`Task orders created THIS WEEK: ${tosThisWeek.length}${tosThisWeek.length > 0 ? ` — ${tosThisWeek.map(t => t.title).join(', ')}` : ''}`)
+
+    // Quotes received today/this week
+    const quotesToday = (quotes || []).filter(q => isToday(q.created_at))
+    const quotesThisWeek = (quotes || []).filter(q => isThisWeek(q.created_at))
+    parts.push(`Quotes received TODAY: ${quotesToday.length}`)
+    parts.push(`Quotes received THIS WEEK: ${quotesThisWeek.length}`)
+    parts.push(`Total quotes: ${(quotes || []).length}`)
+
+    // Documents uploaded today/this week
+    const docsToday = (docs || []).filter(d => isToday(d.uploaded_at))
+    const docsThisWeek = (docs || []).filter(d => isThisWeek(d.uploaded_at))
+    parts.push(`Documents uploaded TODAY: ${docsToday.length}`)
+    parts.push(`Documents uploaded THIS WEEK: ${docsThisWeek.length}`)
+
+    // Communications today/this week
+    const commsToday = (comms || []).filter(c => isToday(c.created_at))
+    const commsThisWeek = (comms || []).filter(c => isThisWeek(c.created_at))
+    parts.push(`Communications TODAY: ${commsToday.length}`)
+    parts.push(`Communications THIS WEEK: ${commsThisWeek.length}`)
+
+    // RFQ outreach today/this week
+    const rfqsSentToday = (sowSubs || []).filter(s => isToday(s.email_sent_at))
+    const rfqsSentThisWeek = (sowSubs || []).filter(s => isThisWeek(s.email_sent_at))
+    parts.push(`RFQ emails sent TODAY: ${rfqsSentToday.length}`)
+    parts.push(`RFQ emails sent THIS WEEK: ${rfqsSentThisWeek.length}`)
+
+    return parts.join('\n')
   }
 
   async function sendMessage(userMessage: string) {
@@ -228,19 +500,34 @@ export default function GlobalChat() {
     setLoading(true)
 
     try {
-      const systemPrompt = `You are Core314 Intelligence, the AI assistant for the Task Order Intelligence platform by Core314 Technologies LLC. You have access to real-time data about all task orders, subcontractors, quotes, and bid management across the user's account, plus historical intelligence from debriefs.
+      // Re-fetch ALL data fresh from the database for EVERY question
+      console.log('[Core314 Intelligence] Building fresh context for question:', userMessage.substring(0, 100))
+      const contextStart = performance.now()
+      const freshContext = await buildContext()
+      const contextMs = Math.round(performance.now() - contextStart)
+      console.log(`[Core314 Intelligence] Context built in ${contextMs}ms, size: ${freshContext.length} chars`)
 
-RULES:
-- Answer based on the ACCOUNT DATA below. Reference specific names, numbers, and dollar amounts from the data.
-- Never fabricate or invent information. If the data doesn't contain what's being asked about, say so.
-- When answering about quotes, coverage, or gaps, use the QUOTE COVERAGE SUMMARY — it has pre-calculated accurate counts.
-- When answering about wins, losses, or competitors, use the INTELLIGENCE SUMMARY section.
-- Be concise and direct. Use bullet points for lists. Format money as currency.
-- When the data clearly answers a question (even if the answer is "none" or "zero"), give that answer directly and confidently.
+      const systemPrompt = `You are Core314 Intelligence, the AI assistant for the Task Order Intelligence platform by Core314 Technologies LLC.
+
+You have access to a LIVE DATABASE SNAPSHOT taken at the exact moment the user asked this question. The data below is comprehensive and current — it includes every task order, SOW, subcontractor, quote, RFQ, communication, document, and metric in the system.
+
+CRITICAL RULES — FOLLOW EXACTLY:
+1. ONLY answer from the ACCOUNT DATA below. This is your single source of truth. Every number, name, date, and status you cite MUST come from this data.
+2. NEVER fabricate, estimate, or assume information not present in the data. If the data does not contain what is asked, say: "That specific data is not currently tracked in the system. Here is what IS available: [list relevant data]."
+3. ALWAYS provide specific numbers. Never say "various" or "several" — count them. Never say "some amount" — state the dollar figure. Never say "recently" — state the date.
+4. For FINANCIAL questions: Use estimated_value, awarded_amount, total_amount fields. Calculate sums, averages, and ranges. Distinguish between estimates (subject to change) and awarded amounts (finalized). State which task orders are "awarded" vs "evaluating" when relevant.
+5. For TIME-BASED questions ("today", "this week", "when"): The RECENT ACTIVITY section has pre-calculated counts for today and this week with names listed. Use these counts DIRECTLY — they are pre-calculated from the database at query time and are authoritative. Do NOT try to recount from the individual records. Every record also has its Added/Created date for manual verification.
+6. For STATUS questions: Use exact status values from the data and explain their meaning.
+7. For SUBCONTRACTOR questions: Include company name, contact info, service categories, coverage area, and any assignment/outreach status. IMPORTANT: The platform tracks subcontractors in TWO ways: (a) the Master Subcontractor Database (new companies added), and (b) SOW Assignments (existing subcontractors assigned/aligned to specific task order SOWs). When the user asks about "adding" subcontractors, report BOTH: new companies added to the master database AND new SOW assignments made. These are distinct actions.
+8. For RFQ/OUTREACH questions: Include outreach_status, email engagement (sent/opened/clicked), portal views, and question counts.
+9. Format: Be concise but thorough. Use bullet points. Format dollars as currency ($X,XXX). Format dates clearly. Bold key figures. Always provide context — don't just say a number, explain what it means.
+10. When the factual answer is "zero" or "none", state that confidently. Then ALWAYS provide helpful context: what the total count is, when the most recent activity was, and any related activity. For example, if zero subcontractors were added today, also mention the total count, when the last ones were added, and any SOW assignments made today.
+11. If data seems incomplete or inconsistent, note what you see and suggest what might be missing — but never invent the missing data.
+12. PROACTIVE CONTEXT: After answering the direct question, briefly mention 1-2 related data points the user might find useful. For example, after answering about subcontractors, mention how many are assigned to SOWs or have been contacted via RFQ.
 ${SMART_NOTES_PROMPT}
 
-ACCOUNT DATA:
-${context}`
+ACCOUNT DATA (live snapshot):
+${freshContext}`
 
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -254,7 +541,7 @@ ${context}`
             { role: 'system', content: systemPrompt },
             ...newMessages.map(m => ({ role: m.role, content: m.content })),
           ],
-          temperature: 0.1,
+          temperature: 0.05,
           max_tokens: 2048,
         }),
       })
@@ -294,9 +581,7 @@ ${context}`
       updated[msgIndex] = { ...msg, changesApplied: true, changesResult: result }
       setMessages(updated)
 
-      // Refresh context
-      setContextLoaded(false)
-      buildContext()
+      // Context will be refreshed on next question automatically
     } finally {
       setLoading(false)
     }
