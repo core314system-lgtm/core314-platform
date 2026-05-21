@@ -25,9 +25,19 @@ export default function Login() {
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
 
+  // If visiting with an invite token while already logged in, sign out first
+  // so the invited user can create their own account cleanly
   useEffect(() => {
     if (inviteToken) {
-      loadInviteInfo(inviteToken)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          supabase.auth.signOut().then(() => {
+            loadInviteInfo(inviteToken)
+          })
+        } else {
+          loadInviteInfo(inviteToken)
+        }
+      })
     }
   }, [inviteToken])
 
