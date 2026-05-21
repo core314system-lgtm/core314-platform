@@ -73,23 +73,37 @@ export default function Login() {
   async function acceptInvite(userId: string) {
     if (!inviteToken) return
 
-    // Look up the invitation
+    // Look up the invitation (may already be accepted by the DB trigger)
     const { data: invite } = await supabase
       .from('org_invitations')
-      .select('id, org_id, role, email')
+      .select('id, org_id, role, email, status')
       .eq('token', inviteToken)
-      .eq('status', 'pending')
       .single()
 
     if (!invite) return
 
-    // Add user to org
-    await supabase.from('organization_members').insert({
-      org_id: invite.org_id,
-      user_id: userId,
-      role: invite.role,
-      invited_by: null,
-    })
+    // If already accepted by the ensure_user_org trigger, just ensure current_org is set
+    if (invite.status === 'accepted') {
+      await supabase.from('user_profiles').update({ current_org_id: invite.org_id }).eq('id', userId)
+      return
+    }
+
+    // Check if already a member (trigger may have handled it)
+    const { data: existingMember } = await supabase
+      .from('organization_members')
+      .select('id')
+      .eq('org_id', invite.org_id)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!existingMember) {
+      await supabase.from('organization_members').insert({
+        org_id: invite.org_id,
+        user_id: userId,
+        role: invite.role,
+        invited_by: null,
+      })
+    }
 
     // Set as current org
     await supabase.from('user_profiles').update({ current_org_id: invite.org_id }).eq('id', userId)
