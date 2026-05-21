@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { TaskOrder } from '../lib/types'
 import { Link } from 'react-router-dom'
 import { Upload, MapPin, Search } from 'lucide-react'
-import { getProjectTypeLabel } from '../lib/projectTypes'
+import { getProjectTypeLabel, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 export default function TaskOrders() {
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
@@ -30,23 +30,7 @@ export default function TaskOrders() {
     to.solicitation_number?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const statusColor: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-700',
-    in_progress: 'bg-blue-100 text-blue-700',
-    under_review: 'bg-yellow-100 text-yellow-700',
-    submitted: 'bg-green-100 text-green-700',
-    awarded: 'bg-emerald-100 text-emerald-700',
-    not_awarded: 'bg-red-100 text-red-700',
-  }
 
-  const statusLabel: Record<string, string> = {
-    draft: 'New / Intake',
-    in_progress: 'Evaluating',
-    under_review: 'Bid Review',
-    submitted: 'Bid Submitted',
-    awarded: 'Awarded',
-    not_awarded: 'Not Awarded',
-  }
 
   return (
     <div className="space-y-6">
@@ -126,9 +110,15 @@ export default function TaskOrders() {
                     Due: {new Date(to.due_date).toLocaleDateString()}
                   </span>
                 )}
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[to.status]}`}>
-                  {statusLabel[to.status]}
-                </span>
+                {(() => {
+                  const stage = getWorkflowStage(to.project_type, to.status)
+                  const colors = getStageColor(stage.color)
+                  return (
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                      {stage.label}
+                    </span>
+                  )
+                })()}
               </div>
             </Link>
           ))}

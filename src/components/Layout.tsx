@@ -14,6 +14,7 @@ import {
   X,
   Radar,
   Settings,
+  Kanban,
 } from 'lucide-react'
 import { useState } from 'react'
 import GlobalChat from './GlobalChat'
@@ -22,6 +23,7 @@ import { useOrg } from '../contexts/OrgContext'
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projects', icon: ClipboardList },
+  { path: '/pipeline', label: 'Pipeline', icon: Kanban },
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },
   { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
   { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },

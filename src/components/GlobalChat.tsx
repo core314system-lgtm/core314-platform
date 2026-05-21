@@ -3,6 +3,7 @@ import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText,
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
 import { loadIntelligence, loadAllDebriefs } from '../lib/debriefStorage'
+import { getWorkflowStage } from '../lib/projectTypes'
 
 
 
@@ -86,7 +87,7 @@ export default function GlobalChat() {
           `Project: ${to.title}`,
           `  Solicitation: ${to.solicitation_number || 'N/A'} | TO#: ${to.task_order_number || 'N/A'} | Contract#: ${to.contract_number || 'N/A'}`,
           `  Site: ${to.site_name || 'N/A'} | Location: ${to.location_city ? `${to.location_city}, ${to.location_state}` : 'N/A'}`,
-          `  Status: ${to.status} | Due: ${to.due_date || to.response_deadline || 'N/A'}`,
+          `  Status: ${getWorkflowStage(to.project_type, to.status).label} (${to.status}) | Due: ${to.due_date || to.response_deadline || 'N/A'}`,
           `  Estimated Value: ${to.estimated_value || 'Not specified'}`,
           `  Contract Vehicle: ${to.contract_vehicle || 'N/A'} | NAICS: ${to.naics_code || 'N/A'} | Set-Aside: ${to.set_aside || 'N/A'}`,
           `  Period of Performance: ${to.period_of_performance_start || 'N/A'} to ${to.period_of_performance_end || 'N/A'}`,

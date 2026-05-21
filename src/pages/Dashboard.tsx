@@ -3,16 +3,10 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Download } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban } from 'lucide-react'
+import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'New / Intake',
-  in_progress: 'Evaluating',
-  under_review: 'Bid Review',
-  submitted: 'Bid Submitted',
-  awarded: 'Awarded',
-  not_awarded: 'Not Awarded',
-}
+
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -121,10 +115,10 @@ export default function Dashboard() {
           <h3 className="font-semibold text-gray-900">Compare Projects</h3>
           <p className="text-xs text-gray-500 mt-1">Identify changes between projects</p>
         </Link>
-        <Link to="/projects" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-          <Download className="mb-2 text-emerald-600" size={24} />
-          <h3 className="font-semibold text-gray-900">Export Reports</h3>
-          <p className="text-xs text-gray-500 mt-1">Download Excel, PDF, Word exports</p>
+        <Link to="/pipeline" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+          <Kanban className="mb-2 text-emerald-600" size={24} />
+          <h3 className="font-semibold text-gray-900">Pipeline</h3>
+          <p className="text-xs text-gray-500 mt-1">Track projects across workflow stages</p>
         </Link>
       </div>
 
@@ -155,16 +149,15 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                  to.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-                  to.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                  to.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' :
-                  to.status === 'submitted' ? 'bg-purple-100 text-purple-700' :
-                  to.status === 'awarded' ? 'bg-green-100 text-green-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {STATUS_LABELS[to.status] || to.status}
-                </span>
+                {(() => {
+                  const stage = getWorkflowStage(to.project_type, to.status)
+                  const colors = getStageColor(stage.color)
+                  return (
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                      {stage.label}
+                    </span>
+                  )
+                })()}
               </Link>
             ))}
           </div>

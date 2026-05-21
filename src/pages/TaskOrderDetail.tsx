@@ -9,7 +9,10 @@ import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, genera
 import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
-import { getProjectType } from '../lib/projectTypes'
+import WorkflowBar from '../components/WorkflowBar'
+import AuditTrail from '../components/AuditTrail'
+import ProjectTeam from '../components/ProjectTeam'
+import { getProjectType, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] = [
   { value: 'sow', label: 'Statement of Work' },
@@ -24,19 +27,12 @@ const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] 
   { value: 'other', label: 'Other' },
 ]
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'New / Intake',
-  in_progress: 'Evaluating',
-  under_review: 'Bid Review',
-  submitted: 'Bid Submitted',
-  awarded: 'Awarded',
-  not_awarded: 'Not Awarded',
-}
+
 
 export default function TaskOrderDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [deleting, setDeleting] = useState(false)
   const [taskOrder, setTaskOrder] = useState<TaskOrder | null>(null)
   const [documents, setDocuments] = useState<Doc[]>([])
@@ -50,6 +46,36 @@ export default function TaskOrderDetail() {
   const [aiStatus, setAiStatus] = useState<Record<string, boolean>>({})
   const [expandedSection, setExpandedSection] = useState<string | null>('documents')
   const [subMatches, setSubMatches] = useState<Array<{ subcontractor_id: string; company_name: string; matched_categories: string[]; location_match: boolean; incumbent_status: string; preferred: boolean; match_score: number }>>([])
+  const [auditKey, setAuditKey] = useState(0)
+
+  async function handleStageChange(newStageId: string, note?: string) {
+    if (!taskOrder || !id) return
+
+    // Update the status in the database
+    const { error } = await supabase
+      .from('task_orders')
+      .update({ status: newStageId, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) return
+
+    // Record in workflow_history (may fail silently if table doesn't exist yet)
+    try {
+      await supabase.from('workflow_history').insert({
+        task_order_id: id,
+        from_stage: taskOrder.status,
+        to_stage: newStageId,
+        changed_by: user?.id || '',
+        changed_by_name: profile?.full_name || profile?.email || null,
+        note: note || null,
+      })
+    } catch {
+      // workflow_history table may not exist yet — stage change still works
+    }
+
+    setTaskOrder({ ...taskOrder, status: newStageId as TaskOrder['status'] })
+    setAuditKey(k => k + 1) // refresh audit trail
+  }
 
   useEffect(() => {
     if (id) {
@@ -374,16 +400,15 @@ export default function TaskOrderDetail() {
           >
             <Trash2 size={14} /> {deleting ? 'Deleting...' : 'Delete Task Order'}
           </button>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            taskOrder.status === 'draft' ? 'bg-gray-100 text-gray-700' :
-            taskOrder.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-            taskOrder.status === 'under_review' ? 'bg-yellow-100 text-yellow-700' :
-            taskOrder.status === 'submitted' ? 'bg-purple-100 text-purple-700' :
-            taskOrder.status === 'awarded' ? 'bg-green-100 text-green-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            {STATUS_LABELS[taskOrder.status] || taskOrder.status}
-          </span>
+          {(() => {
+            const stage = getWorkflowStage(taskOrder.project_type, taskOrder.status)
+            const colors = getStageColor(stage.color)
+            return (
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}>
+                {stage.label}
+              </span>
+            )
+          })()}
           {taskOrder.due_date && (
             <span className="text-sm text-gray-500 flex items-center gap-1">
               <Clock size={14} /> Due: {new Date(taskOrder.due_date).toLocaleDateString()}
@@ -392,26 +417,20 @@ export default function TaskOrderDetail() {
         </div>
       </div>
 
-      {/* Workflow Steps */}
+      {/* Workflow Stage Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center gap-0">
-          {[
-            { step: 1, label: 'Upload Documents', done: documents.length > 0 },
-            { step: 2, label: 'AI Analysis', done: aiStatus.analysis },
-            { step: 3, label: 'Review Outputs', done: Object.values(aiStatus).filter(Boolean).length >= 4 },
-            { step: 4, label: 'Export & Submit', done: false },
-          ].map((s, i) => (
-            <div key={s.step} className="flex items-center flex-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                s.done ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
-              }`}>
-                {s.done ? <CheckCircle size={18} /> : s.step}
-              </div>
-              <div className="ml-2 text-sm font-medium text-gray-700">{s.label}</div>
-              {i < 3 && <div className="flex-1 h-0.5 bg-gray-200 mx-3" />}
-            </div>
-          ))}
-        </div>
+        <WorkflowBar
+          projectTypeId={taskOrder.project_type}
+          currentStageId={taskOrder.status}
+          onStageChange={handleStageChange}
+          canManage={true}
+        />
+      </div>
+
+      {/* Project Team + Audit Trail side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ProjectTeam taskOrderId={id!} />
+        <AuditTrail key={auditKey} taskOrderId={id!} projectTypeId={taskOrder.project_type} />
       </div>
 
       {/* Step 1: Document Upload */}
