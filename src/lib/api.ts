@@ -1,3 +1,5 @@
+import { getProjectType } from './projectTypes'
+
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
 const MODEL = 'gpt-4o-mini'
 const MAX_CHARS_PER_DOC = 8000
@@ -92,15 +94,17 @@ export async function analyzeDocuments(
   documentNames: string[],
   taskOrderTitle: string,
   siteName?: string,
+  projectTypeId?: string,
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
+  const pt = getProjectType(projectTypeId)
 
-  const systemPrompt = `You are an expert government contract analyst specializing in facility maintenance, IFSM, and task order RFQ analysis.
-Analyze the provided task order documents and extract ONLY information that is EXPLICITLY stated in the documents.
+  const systemPrompt = `${pt.aiContext}
+Analyze the provided project documents and extract ONLY information that is EXPLICITLY stated in the documents.
 
-IMPORTANT: You MUST populate the "requirements" array with individual requirements extracted DIRECTLY from the documents. Each maintenance task, inspection, service standard, staffing requirement, reporting obligation, safety protocol, or compliance item should be its own requirement entry. Use the EXACT language from the documents wherever possible.
+IMPORTANT: You MUST populate the "requirements" array with individual requirements extracted DIRECTLY from the documents. Each task, inspection, service standard, staffing requirement, reporting obligation, safety protocol, or compliance item should be its own requirement entry. Use the EXACT language from the documents wherever possible.
 
-Extract task order metadata ONLY if explicitly stated in the documents:
+Extract project metadata ONLY if explicitly stated in the documents:
 - task_order_metadata: {title, solicitation_number, task_order_number, contract_number, contract_vehicle, site_name, location_city, location_state, contracting_officer, co_email, co_phone, period_of_performance_start, period_of_performance_end, pop_total_duration, pop_base_period, pop_option_periods, pop_structure_summary, estimated_value, naics_code, set_aside, response_due_date}
 
 PERIOD OF PERFORMANCE (PoP) EXTRACTION — CRITICAL:
@@ -123,7 +127,7 @@ Return a JSON object with these keys:
 - key_dates: array of {date, description, source_document}
 - summary: string — factual overview using ONLY what the documents state. MUST include the full Period of Performance structure (base period AND option periods with dates, e.g., "6-year PoP: 2-year base period (Oct 2026 — Sep 2028) with two 2-year option periods"). Do NOT state only the base period as if it is the full PoP. Do NOT add context, industry knowledge, or assumptions.`
 
-  const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
+  const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
 }
 
@@ -132,11 +136,13 @@ export async function generateComplianceMatrix(
   documentNames: string[],
   taskOrderTitle: string,
   siteName?: string,
+  projectTypeId?: string,
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
+  const pt = getProjectType(projectTypeId)
 
-  const systemPrompt = `You are an expert government contract compliance analyst.
-Generate a detailed compliance matrix from the task order documents. Every item MUST be directly traceable to a specific document and section.
+  const systemPrompt = `${pt.aiContext}
+Generate a detailed compliance matrix from the project documents. Every item MUST be directly traceable to a specific document and section.
 
 Return a JSON object with key "items", an array of objects with:
 - requirement: the EXACT requirement text from the documents (quote or closely paraphrase the document language)
@@ -150,7 +156,7 @@ Return a JSON object with key "items", an array of objects with:
 - status: covered, unclear, missing, needs_review
 - notes: flag any missing information or ambiguity found in the documents. Do NOT fill gaps with assumptions.`
 
-  const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
+  const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
 }
 
@@ -159,11 +165,13 @@ export async function generateRfqPackages(
   documentNames: string[],
   taskOrderTitle: string,
   siteName?: string,
+  projectTypeId?: string,
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
+  const pt = getProjectType(projectTypeId)
 
-  const systemPrompt = `You are an expert subcontractor procurement specialist for government facility maintenance contracts.
-Generate subcontractor-specific RFQ packages for each service category identified in the documents.
+  const systemPrompt = `${pt.aiContext}
+Generate vendor/subcontractor-specific RFQ packages for each service category identified in the documents.
 
 IMPORTANT: Base EVERY detail on what is EXPLICITLY in the documents. For scope summaries, quote or closely paraphrase the SOW language. For frequencies, use ONLY what the documents state. If a frequency is not specified, say "Frequency not specified in SOW — requires clarification."
 
@@ -181,7 +189,7 @@ Return a JSON object with key "packages", an array of objects with:
 - sales_tax_treatment: required sales tax handling (request not-to-exceed if exact unavailable)
 - partnership_language: note about seeking long-term preferred partners for multiple task orders (no guarantee of award)`
 
-  const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
+  const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
 }
 
@@ -190,10 +198,13 @@ export async function generateClarificationQuestions(
   documentNames: string[],
   taskOrderTitle: string,
   siteName?: string,
+  projectTypeId?: string,
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
+  const pt = getProjectType(projectTypeId)
 
-  const systemPrompt = `You are an expert subcontractor procurement specialist analyzing task order SOW documents from the perspective of the subcontractors who will actually perform the work. Your job is to identify EVERY piece of missing information that a subcontractor would need to provide an accurate quote.
+  const systemPrompt = `${pt.aiContext}
+Analyze the project documents from the perspective of the vendors/subcontractors who will actually perform the work. Your job is to identify EVERY piece of missing information that a subcontractor would need to provide an accurate quote.
 
 CRITICAL: Analyze EACH Statement of Work (SOW) individually and thoroughly. For each requirement in each SOW, ask yourself: "If I were a subcontractor reading this, do I have enough information to price this work?" If the answer is no, generate a clarification question.
 
@@ -224,7 +235,7 @@ Return a JSON object with key "questions", an array of objects with:
 
 Format questions in a professional style suitable for submission to the contracting officer. Each question MUST reference specific SOW language.`
 
-  const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
+  const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
 }
 
@@ -233,11 +244,13 @@ export async function generatePricingRisks(
   documentNames: string[],
   taskOrderTitle: string,
   siteName?: string,
+  projectTypeId?: string,
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
+  const pt = getProjectType(projectTypeId)
 
-  const systemPrompt = `You are an expert pricing analyst for government facility maintenance contracts.
-Identify all pricing risks, gaps, and issues in the task order documents. Every risk you identify MUST be directly tied to something you found (or did NOT find) in a specific document.
+  const systemPrompt = `${pt.aiContext}
+Identify all pricing risks, gaps, and issues in the project documents. Every risk you identify MUST be directly tied to something you found (or did NOT find) in a specific document.
 
 Do NOT invent generic risks. Each risk must reference the specific document and section that creates the risk. If a pricing sheet has empty cells, reference those exact cells. If an SOW lacks quantities needed for pricing, cite the specific requirement.
 
@@ -250,7 +263,7 @@ Return a JSON object with key "risks", an array of objects with:
 - recommended_action: what should be done — be specific and actionable
 - financial_impact: describe the impact based ONLY on what the documents reveal. Do NOT estimate dollar amounts unless the documents provide enough data to calculate them.`
 
-  const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
+  const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
 }
 
@@ -259,22 +272,24 @@ export async function generateExecutiveSummary(
   documentNames: string[],
   taskOrderTitle: string,
   siteName?: string,
+  projectTypeId?: string,
 ) {
   const docsText = buildDocsText(documentTexts, documentNames)
+  const pt = getProjectType(projectTypeId)
 
-  const systemPrompt = `You are an expert government contract strategist preparing a management-ready executive bid summary.
+  const systemPrompt = `${pt.aiContext}
 Generate a comprehensive executive summary suitable for leadership review. EVERY statement must be directly supported by the provided documents.
 
 CRITICAL RULES FOR THIS SUMMARY:
 - The overview must describe ONLY what the documents say about the scope, site, and contract structure.
-- The overview MUST include the FULL Period of Performance (PoP) structure: base period dates AND option period dates. Do NOT state only the base period as if it is the full PoP. Example: "The Period of Performance is 6 years: a 2-year base period (October 1, 2026 — September 30, 2028) with two 2-year option periods (Option 1: October 1, 2028 — September 30, 2030; Option 2: October 1, 2030 — September 30, 2032)."
-- The staffing_requirements field must state ONLY the staffing explicitly described in the documents. In facility management task orders where all services are subcontracted, the staffing requirement is typically ONE Facility Manager who manages subcontractors — state this ONLY if that is what the documents describe. Do NOT add "additional staff" or imply there will be direct employees performing services unless the documents explicitly state this.
-- For scope_categories, list ONLY the service categories that have corresponding SOW documents provided.
+- If a Period of Performance (PoP) is specified, include the FULL structure: base period AND any option periods with dates.
+- The staffing_requirements field must state ONLY the staffing explicitly described in the documents. Do NOT add staff positions that are not in the documents.
+- For scope_categories, list ONLY the service categories that have corresponding documents provided.
 - For major_risks, identify risks based on gaps or issues found IN the documents — not generic industry risks.
 - For bid_strategy, base recommendations on the ACTUAL scope and requirements in the documents.
 
 Return a JSON object with:
-- overview: task order overview paragraph — factual, based ONLY on document content
+- overview: project overview paragraph — factual, based ONLY on document content
 - site_summary: STRING — plain text paragraph with site name, address, facility type, and key details ONLY as stated in the documents. Do NOT return an object.
 - scope_categories: array of {category, description} — ONLY categories with corresponding SOW documents
 - staffing_requirements: STRING — state ONLY what the documents say about staffing. If documents describe a Facility Manager overseeing subcontracted services, say exactly that. Do NOT add staff positions that are not in the documents.
@@ -287,7 +302,7 @@ Return a JSON object with:
 - confidence_rationale: why this confidence level — cite specific document evidence
 - action_items: array of {action, owner, deadline_note, priority}`
 
-  const userPrompt = `Task Order: ${taskOrderTitle}\nSite: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
+  const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)
 }
 
@@ -350,8 +365,8 @@ export async function compareTaskOrders(
   priorTexts: string[],
   priorTitle: string,
 ) {
-  const systemPrompt = `You are an expert government contract analyst comparing task orders.
-Compare the current task order against the prior task order and identify differences. EVERY difference you report must be directly supported by the document text. Do NOT infer or assume changes — only report what is explicitly different between the two sets of documents.
+  const systemPrompt = `You are an expert procurement analyst comparing projects.
+Compare the current project against the prior project and identify differences. EVERY difference you report must be directly supported by the document text. Do NOT infer or assume changes — only report what is explicitly different between the two sets of documents.
 
 Return a JSON object with:
 - similar_requirements: array of {requirement, current_reference, prior_reference}
@@ -368,7 +383,7 @@ Return a JSON object with:
 
   const currentText = currentTexts.map(t => truncateText(t, MAX_CHARS_PER_DOC)).join('\n\n')
   const priorText = priorTexts.map(t => truncateText(t, MAX_CHARS_PER_DOC)).join('\n\n')
-  const userPrompt = `CURRENT TASK ORDER: ${currentTitle}\n${currentText}\n\nPRIOR TASK ORDER: ${priorTitle}\n${priorText}`
+  const userPrompt = `CURRENT PROJECT: ${currentTitle}\n${currentText}\n\nPRIOR PROJECT: ${priorTitle}\n${priorText}`
 
   return callOpenAI(systemPrompt, userPrompt)
 }

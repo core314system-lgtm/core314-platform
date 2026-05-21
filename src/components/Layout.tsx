@@ -19,12 +19,12 @@ import GlobalChat from './GlobalChat'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/task-orders', label: 'Incoming RFQs', icon: ClipboardList },
+  { path: '/projects', label: 'Projects', icon: ClipboardList },
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },
   { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
   { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
   { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
-  { path: '/comparison', label: 'Compare Task Orders', icon: GitCompareArrows },
+  { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
   { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]
@@ -34,8 +34,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Hide global chat on task order detail pages (they have their own task-specific chat)
-  const isTaskOrderDetailPage = /^\/task-orders\/[^/]+$/.test(location.pathname)
+  // Hide global chat on project detail pages (they have their own project-specific chat)
+  const isTaskOrderDetailPage = /^\/projects\/[^/]+$/.test(location.pathname)
 
   return (
     <div className="min-h-screen flex bg-gray-50">

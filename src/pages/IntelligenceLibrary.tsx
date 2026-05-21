@@ -79,11 +79,11 @@ export default function IntelligenceLibrary() {
           <Brain className="mx-auto text-gray-300 mb-4" size={48} />
           <h2 className="text-lg font-semibold text-gray-700 mb-2">No Debrief Data Yet</h2>
           <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
-            Start by adding a debrief to any completed task order. Go to a task order&apos;s detail page and click &quot;Add Debrief&quot;.
+            Start by adding a debrief to any completed project. Go to a project&apos;s detail page and click &quot;Add Debrief&quot;.
             The system will learn from every outcome to provide smarter recommendations over time.
           </p>
-          <Link to="/task-orders" className="inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700">
-            <BookOpen size={16} /> View Task Orders
+          <Link to="/projects" className="inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700">
+            <BookOpen size={16} /> View Projects
           </Link>
         </div>
       )}
@@ -305,7 +305,7 @@ export default function IntelligenceLibrary() {
                           </div>
                         )}
                         <div className="text-right">
-                          <Link to={`/task-orders/${d.task_order_id}/debrief`} className="text-sm text-blue-600 hover:underline">
+                          <Link to={`/projects/${d.task_order_id}/debrief`} className="text-sm text-blue-600 hover:underline">
                             Edit Debrief →
                           </Link>
                         </div>

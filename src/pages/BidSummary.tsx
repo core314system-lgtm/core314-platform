@@ -106,7 +106,7 @@ export default function BidSummary() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <Link to={`/task-orders/${taskOrderId}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+        <Link to={`/projects/${taskOrderId}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
           <ArrowLeft size={14} /> Back to {taskOrder.title}
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -158,7 +158,7 @@ export default function BidSummary() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">SOW-by-SOW Breakdown</h2>
-          <Link to={`/task-orders/${taskOrderId}/sow-tracker`} className="text-sm text-blue-600 hover:underline">
+          <Link to={`/projects/${taskOrderId}/sow-tracker`} className="text-sm text-blue-600 hover:underline">
             Open Full Tracker →
           </Link>
         </div>
@@ -305,7 +305,7 @@ export default function BidSummary() {
                   <span className="text-xs text-gray-500 ml-2">{d.subCount} sub{d.subCount !== 1 ? 's' : ''} assigned</span>
                 </div>
                 <Link
-                  to={`/task-orders/${taskOrderId}/sow-tracker`}
+                  to={`/projects/${taskOrderId}/sow-tracker`}
                   className="text-xs text-blue-600 hover:underline"
                 >
                   Manage →
@@ -330,7 +330,7 @@ export default function BidSummary() {
                   <span className="text-xs text-gray-500 ml-2">Quote: {fmt(d.lowestQuote)} from {d.quotes[0]?.subcontractor_name}</span>
                 </div>
                 <Link
-                  to={`/task-orders/${taskOrderId}/sow-tracker`}
+                  to={`/projects/${taskOrderId}/sow-tracker`}
                   className="text-xs text-blue-600 hover:underline"
                 >
                   Add More Subs →

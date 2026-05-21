@@ -44,8 +44,8 @@ export default function PricingRisks() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to={`/task-orders/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
-          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Task Order'}
+        <Link to={`/projects/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Project'}
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <DollarSign className="text-red-600" size={24} /> Pricing Support / Risk Review
@@ -56,8 +56,8 @@ export default function PricingRisks() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <DollarSign className="mx-auto text-gray-400 mb-3" size={40} />
           <p className="text-gray-500">No pricing risks generated yet.</p>
-          <Link to={`/task-orders/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            Go to Task Order
+          <Link to={`/projects/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            Go to Project
           </Link>
         </div>
       ) : (

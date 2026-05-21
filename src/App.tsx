@@ -47,55 +47,44 @@ export default function App() {
           {/* Dashboard */}
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
-          {/* Module 1: Task Order Intake */}
-          <Route path="/task-orders" element={<ProtectedRoute><TaskOrders /></ProtectedRoute>} />
-          <Route path="/task-orders/new" element={<ProtectedRoute><NewTaskOrder /></ProtectedRoute>} />
-          <Route path="/task-orders/:id" element={<ProtectedRoute><TaskOrderDetail /></ProtectedRoute>} />
+          {/* Projects (formerly Task Orders) */}
+          <Route path="/projects" element={<ProtectedRoute><TaskOrders /></ProtectedRoute>} />
+          <Route path="/projects/new" element={<ProtectedRoute><NewTaskOrder /></ProtectedRoute>} />
+          <Route path="/projects/:id" element={<ProtectedRoute><TaskOrderDetail /></ProtectedRoute>} />
+          <Route path="/projects/:id/compliance" element={<ProtectedRoute><ComplianceMatrix /></ProtectedRoute>} />
+          <Route path="/projects/:id/rfq-packages" element={<ProtectedRoute><RfqPackages /></ProtectedRoute>} />
+          <Route path="/projects/:id/quotes" element={<ProtectedRoute><QuoteManagement /></ProtectedRoute>} />
+          <Route path="/projects/:id/pricing-risks" element={<ProtectedRoute><PricingRisks /></ProtectedRoute>} />
+          <Route path="/projects/:id/clarifications" element={<ProtectedRoute><ClarificationQuestions /></ProtectedRoute>} />
+          <Route path="/projects/:id/executive-summary" element={<ProtectedRoute><ExecutiveSummaryPage /></ProtectedRoute>} />
+          <Route path="/projects/:id/sow-tracker" element={<ProtectedRoute><SowTracker /></ProtectedRoute>} />
+          <Route path="/projects/:id/bid-summary" element={<ProtectedRoute><BidSummary /></ProtectedRoute>} />
+          <Route path="/projects/:id/pricing-matrix" element={<ProtectedRoute><PricingMatrix /></ProtectedRoute>} />
+          <Route path="/projects/:id/form-builder" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
+          <Route path="/projects/:id/form-builder/:sowId" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
+          <Route path="/projects/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
+          <Route path="/projects/:id/debrief" element={<ProtectedRoute><DebriefPage /></ProtectedRoute>} />
 
-          {/* Module 3: Compliance Matrix */}
+          {/* Backward-compatible redirects for old /task-orders URLs */}
+          <Route path="/task-orders" element={<Navigate to="/projects" replace />} />
+          <Route path="/task-orders/new" element={<Navigate to="/projects/new" replace />} />
+          <Route path="/task-orders/*" element={<Navigate to="/projects" replace />} />
+
+          {/* Compliance Matrices (cross-project view) */}
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />
-          <Route path="/task-orders/:id/compliance" element={<ProtectedRoute><ComplianceMatrix /></ProtectedRoute>} />
 
-          {/* Module 4: Subcontractor RFQ Packages */}
-          <Route path="/task-orders/:id/rfq-packages" element={<ProtectedRoute><RfqPackages /></ProtectedRoute>} />
-
-          {/* Module 5: Quote Management */}
-          <Route path="/task-orders/:id/quotes" element={<ProtectedRoute><QuoteManagement /></ProtectedRoute>} />
-
-          {/* Module 6: Vendor Intelligence */}
+          {/* Vendor Intelligence */}
           <Route path="/vendor-tracker" element={<ProtectedRoute><VendorTracker /></ProtectedRoute>} />
 
-          {/* Module 7: Pricing Risks */}
-          <Route path="/task-orders/:id/pricing-risks" element={<ProtectedRoute><PricingRisks /></ProtectedRoute>} />
-
-          {/* Module 8: Task Order Comparison */}
+          {/* Project Comparison */}
           <Route path="/comparison" element={<ProtectedRoute><TaskOrderComparisonPage /></ProtectedRoute>} />
 
-          {/* Module 9: Clarification Questions */}
-          <Route path="/task-orders/:id/clarifications" element={<ProtectedRoute><ClarificationQuestions /></ProtectedRoute>} />
-
-          {/* Module 10: Executive Summary */}
-          <Route path="/task-orders/:id/executive-summary" element={<ProtectedRoute><ExecutiveSummaryPage /></ProtectedRoute>} />
-
-          {/* SOW Bid Management */}
-          <Route path="/task-orders/:id/sow-tracker" element={<ProtectedRoute><SowTracker /></ProtectedRoute>} />
-          <Route path="/task-orders/:id/bid-summary" element={<ProtectedRoute><BidSummary /></ProtectedRoute>} />
-          <Route path="/task-orders/:id/pricing-matrix" element={<ProtectedRoute><PricingMatrix /></ProtectedRoute>} />
-          <Route path="/task-orders/:id/form-builder" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
-          <Route path="/task-orders/:id/form-builder/:sowId" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
-
-          {/* Module 11: Export Center */}
-          <Route path="/task-orders/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
-
-          {/* Module 1: Subcontractor Database */}
+          {/* Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
 
-          {/* Debrief & Intelligence */}
-          <Route path="/task-orders/:id/debrief" element={<ProtectedRoute><DebriefPage /></ProtectedRoute>} />
+          {/* Intelligence & Help */}
           <Route path="/intelligence" element={<ProtectedRoute><IntelligenceLibrary /></ProtectedRoute>} />
-
-          {/* Help Center */}
           <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
 
           {/* Catch-all */}

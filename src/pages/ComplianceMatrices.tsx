@@ -42,15 +42,15 @@ export default function ComplianceMatrices() {
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Shield className="text-blue-600" size={24} /> Compliance Matrices
         </h1>
-        <p className="text-sm text-gray-500 mt-1">View compliance matrices for all task orders</p>
+        <p className="text-sm text-gray-500 mt-1">View compliance matrices for all projects</p>
       </div>
 
       {items.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Shield className="mx-auto text-gray-400 mb-3" size={40} />
-          <p className="text-gray-500">No task orders registered yet.</p>
-          <Link to="/task-orders/new" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            Register Incoming RFQ
+          <p className="text-gray-500">No projects registered yet.</p>
+          <Link to="/projects/new" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            New Project
           </Link>
         </div>
       ) : (
@@ -58,7 +58,7 @@ export default function ComplianceMatrices() {
           {items.map(({ taskOrder: to, hasMatrix, itemCount }) => (
             <Link
               key={to.id}
-              to={hasMatrix ? `/task-orders/${to.id}/compliance` : `/task-orders/${to.id}`}
+              to={hasMatrix ? `/projects/${to.id}/compliance` : `/projects/${to.id}`}
               className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center justify-between hover:shadow-md transition-shadow block"
             >
               <div className="flex items-center gap-4">

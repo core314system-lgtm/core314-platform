@@ -26,6 +26,7 @@ export interface TaskOrder {
   updated_at: string
   created_by: string
   notes: string | null
+  project_type?: string | null
 }
 
 export interface Document {

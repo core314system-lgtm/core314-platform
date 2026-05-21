@@ -15,11 +15,11 @@ interface ChatMessage {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'How many active task orders do we have?',
-  'Which task orders are missing subcontractor quotes?',
+  'How many active projects do we have?',
+  'Which projects are missing subcontractor quotes?',
   'How many subcontractors are in our database?',
-  'What is the total estimated value across all task orders?',
-  'Which SOWs across all task orders have no quotes?',
+  'What is the total estimated value across all projects?',
+  'Which SOWs across all projects have no quotes?',
   'Summarize our subcontractor coverage by service category.',
 ]
 
@@ -83,7 +83,7 @@ export default function GlobalChat() {
       parts.push(`=== TASK ORDERS (${taskOrders.length}) ===`)
       for (const to of taskOrders) {
         const lines = [
-          `Task Order: ${to.title}`,
+          `Project: ${to.title}`,
           `  Solicitation: ${to.solicitation_number || 'N/A'} | TO#: ${to.task_order_number || 'N/A'} | Contract#: ${to.contract_number || 'N/A'}`,
           `  Site: ${to.site_name || 'N/A'} | Location: ${to.location_city ? `${to.location_city}, ${to.location_state}` : 'N/A'}`,
           `  Status: ${to.status} | Due: ${to.due_date || to.response_deadline || 'N/A'}`,
@@ -98,7 +98,7 @@ export default function GlobalChat() {
       }
     } else {
       parts.push('=== TASK ORDERS (0) ===')
-      parts.push('No task orders have been registered yet.')
+      parts.push('No projects have been registered yet.')
     }
 
     // ========== 2. SOW ITEMS (full detail with financials) ==========
@@ -178,7 +178,7 @@ export default function GlobalChat() {
 
       parts.push(`\n=== SOW BREAKDOWN BY TASK ORDER ===`)
       for (const [toTitle, { to, sows }] of Object.entries(byTaskOrder)) {
-        // Calculate task order totals
+        // Calculate project totals
         const totalEstimated = sows.reduce((sum, s) => {
           const est = s.notes?.match(/Estimated value: \$([\d,]+)/)?.[1]
           return sum + (est ? parseInt(est.replace(/,/g, '')) : 0)
@@ -453,7 +453,7 @@ export default function GlobalChat() {
     // SOW assignments today/this week (subcontractors aligned to specific SOWs)
     const assignmentsToday = (sowSubs || []).filter(s => isToday(s.created_at))
     const assignmentsThisWeek = (sowSubs || []).filter(s => isThisWeek(s.created_at))
-    parts.push(`SOW subcontractor assignments made TODAY: ${assignmentsToday.length}${assignmentsToday.length > 0 ? ` (subcontractors were aligned/assigned to task order SOWs)` : ''}`)
+    parts.push(`SOW subcontractor assignments made TODAY: ${assignmentsToday.length}${assignmentsToday.length > 0 ? ` (subcontractors were aligned/assigned to project SOWs)` : ''}`)
     parts.push(`SOW subcontractor assignments made THIS WEEK: ${assignmentsThisWeek.length}`)
     parts.push(`Total SOW assignments: ${(sowSubs || []).length}`)
 
@@ -509,16 +509,16 @@ export default function GlobalChat() {
 
       const systemPrompt = `You are Procuvex Intelligence, the AI assistant for the Procuvex procurement intelligence platform by Core314 Technologies LLC.
 
-You have access to a LIVE DATABASE SNAPSHOT taken at the exact moment the user asked this question. The data below is comprehensive and current — it includes every task order, SOW, subcontractor, quote, RFQ, communication, document, and metric in the system.
+You have access to a LIVE DATABASE SNAPSHOT taken at the exact moment the user asked this question. The data below is comprehensive and current — it includes every project, SOW, subcontractor, quote, RFQ, communication, document, and metric in the system.
 
 CRITICAL RULES — FOLLOW EXACTLY:
 1. ONLY answer from the ACCOUNT DATA below. This is your single source of truth. Every number, name, date, and status you cite MUST come from this data.
 2. NEVER fabricate, estimate, or assume information not present in the data. If the data does not contain what is asked, say: "That specific data is not currently tracked in the system. Here is what IS available: [list relevant data]."
 3. ALWAYS provide specific numbers. Never say "various" or "several" — count them. Never say "some amount" — state the dollar figure. Never say "recently" — state the date.
-4. For FINANCIAL questions: Use estimated_value, awarded_amount, total_amount fields. Calculate sums, averages, and ranges. Distinguish between estimates (subject to change) and awarded amounts (finalized). State which task orders are "awarded" vs "evaluating" when relevant.
+4. For FINANCIAL questions: Use estimated_value, awarded_amount, total_amount fields. Calculate sums, averages, and ranges. Distinguish between estimates (subject to change) and awarded amounts (finalized). State which projects are "awarded" vs "evaluating" when relevant.
 5. For TIME-BASED questions ("today", "this week", "when"): The RECENT ACTIVITY section has pre-calculated counts for today and this week with names listed. Use these counts DIRECTLY — they are pre-calculated from the database at query time and are authoritative. Do NOT try to recount from the individual records. Every record also has its Added/Created date for manual verification.
 6. For STATUS questions: Use exact status values from the data and explain their meaning.
-7. For SUBCONTRACTOR questions: Include company name, contact info, service categories, coverage area, and any assignment/outreach status. IMPORTANT: The platform tracks subcontractors in TWO ways: (a) the Master Subcontractor Database (new companies added), and (b) SOW Assignments (existing subcontractors assigned/aligned to specific task order SOWs). When the user asks about "adding" subcontractors, report BOTH: new companies added to the master database AND new SOW assignments made. These are distinct actions.
+7. For SUBCONTRACTOR questions: Include company name, contact info, service categories, coverage area, and any assignment/outreach status. IMPORTANT: The platform tracks subcontractors in TWO ways: (a) the Master Subcontractor Database (new companies added), and (b) SOW Assignments (existing subcontractors assigned/aligned to specific project SOWs). When the user asks about "adding" subcontractors, report BOTH: new companies added to the master database AND new SOW assignments made. These are distinct actions.
 8. For RFQ/OUTREACH questions: Include outreach_status, email engagement (sent/opened/clicked), portal views, and question counts.
 9. Format: Be concise but thorough. Use bullet points. Format dollars as currency ($X,XXX). Format dates clearly. Bold key figures. Always provide context — don't just say a number, explain what it means.
 10. When the factual answer is "zero" or "none", state that confidently. Then ALWAYS provide helpful context: what the total count is, when the most recent activity was, and any related activity. For example, if zero subcontractors were added today, also mention the total count, when the last ones were added, and any SOW assignments made today.

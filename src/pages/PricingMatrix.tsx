@@ -233,8 +233,8 @@ export default function PricingMatrix() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <Link to={`/task-orders/${taskOrderId}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
-            <ArrowLeft size={14} /> Back to Task Order
+          <Link to={`/projects/${taskOrderId}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+            <ArrowLeft size={14} /> Back to Project
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Pricing Decision Matrix</h1>
           <p className="text-sm text-gray-500">{taskOrder.title} — {taskOrder.site_name}</p>

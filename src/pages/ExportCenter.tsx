@@ -228,11 +228,11 @@ export default function ExportCenter() {
       const PptxGenJS = (await import('pptxgenjs')).default
       const pptx = new PptxGenJS()
       pptx.author = 'Procuvex — Core314 Technologies LLC'
-      pptx.title = `Task Order Analysis - ${taskOrder?.title || ''}`
+      pptx.title = `Project Analysis - ${taskOrder?.title || ''}`
 
       // Title slide
       const slide1 = pptx.addSlide()
-      slide1.addText('Task Order Analysis', { x: 0.5, y: 1, w: 9, h: 1.5, fontSize: 32, bold: true, color: '1e3a5f', align: 'center' })
+      slide1.addText('Project Analysis', { x: 0.5, y: 1, w: 9, h: 1.5, fontSize: 32, bold: true, color: '1e3a5f', align: 'center' })
       slide1.addText(taskOrder?.title || '', { x: 0.5, y: 2.5, w: 9, h: 0.8, fontSize: 20, color: '4a5568', align: 'center' })
       slide1.addText(`Site: ${taskOrder?.site_name || 'N/A'} | ${taskOrder?.location_city || ''}, ${taskOrder?.location_state || ''}`, { x: 0.5, y: 3.3, w: 9, h: 0.5, fontSize: 14, color: '718096', align: 'center' })
       slide1.addText('Core314 Technologies LLC', { x: 0.5, y: 4.5, w: 9, h: 0.5, fontSize: 12, color: 'a0aec0', align: 'center' })
@@ -400,8 +400,8 @@ export default function ExportCenter() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to={`/task-orders/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
-          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Task Order'}
+        <Link to={`/projects/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Project'}
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Download className="text-emerald-600" size={24} /> Export Center

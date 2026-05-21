@@ -26,8 +26,8 @@ export default function ExecutiveSummaryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to={`/task-orders/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
-          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Task Order'}
+        <Link to={`/projects/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Project'}
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <BarChart3 className="text-indigo-600" size={24} /> Executive Bid Summary
@@ -38,8 +38,8 @@ export default function ExecutiveSummaryPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <BarChart3 className="mx-auto text-gray-400 mb-3" size={40} />
           <p className="text-gray-500">No executive summary generated yet.</p>
-          <Link to={`/task-orders/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            Go to Task Order
+          <Link to={`/projects/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            Go to Project
           </Link>
         </div>
       ) : (
@@ -67,7 +67,7 @@ export default function ExecutiveSummaryPage() {
 
           {/* Overview */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Task Order Overview</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">Project Overview</h3>
             <p className="text-gray-700">{summary.overview}</p>
           </div>
 

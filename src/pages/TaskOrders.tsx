@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { TaskOrder } from '../lib/types'
 import { Link } from 'react-router-dom'
 import { Upload, MapPin, Search } from 'lucide-react'
+import { getProjectTypeLabel } from '../lib/projectTypes'
 
 export default function TaskOrders() {
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
@@ -51,14 +52,14 @@ export default function TaskOrders() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Incoming Task Orders</h1>
-          <p className="text-sm text-gray-500">RFQs received for bid evaluation</p>
+          <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+          <p className="text-sm text-gray-500">Procurement projects and bid evaluations</p>
         </div>
         <Link
-          to="/task-orders/new"
+          to="/projects/new"
           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <Upload size={18} /> Register New RFQ
+          <Upload size={18} /> New Project
         </Link>
       </div>
 
@@ -79,19 +80,19 @@ export default function TaskOrders() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Upload className="mx-auto text-gray-300 mb-4" size={48} />
           <p className="text-gray-700 font-medium mb-2">
-            {search ? 'No task orders match your search.' : 'No incoming task orders registered yet'}
+            {search ? 'No projects match your search.' : 'No projects registered yet'}
           </p>
           {!search && (
             <>
               <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                When you receive an RFQ or task order package, register it here to begin
-                the document upload and AI-powered analysis workflow.
+                Create a project to begin the document upload and AI-powered analysis workflow.
+                Supports government task orders, RFPs, construction bids, IT services, and more.
               </p>
               <Link
-                to="/task-orders/new"
+                to="/projects/new"
                 className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700"
               >
-                <Upload size={18} /> Register Your First Task Order
+                <Upload size={18} /> Create Your First Project
               </Link>
             </>
           )}
@@ -101,12 +102,13 @@ export default function TaskOrders() {
           {filtered.map(to => (
             <Link
               key={to.id}
-              to={`/task-orders/${to.id}`}
+              to={`/projects/${to.id}`}
               className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
             >
               <div>
                 <p className="font-medium text-gray-900">{to.title}</p>
                 <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                  <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{getProjectTypeLabel(to.project_type)}</span>
                   {to.solicitation_number && <span>Sol: {to.solicitation_number}</span>}
                   {to.site_name && (
                     <span className="flex items-center gap-1">

@@ -43,8 +43,8 @@ export default function ComplianceMatrix() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link to={`/task-orders/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
-            <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Task Order'}
+          <Link to={`/projects/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+            <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Project'}
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Shield className="text-blue-600" size={24} /> Compliance Matrix
@@ -56,9 +56,9 @@ export default function ComplianceMatrix() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Shield className="mx-auto text-gray-400 mb-3" size={40} />
           <p className="text-gray-500">No compliance matrix generated yet.</p>
-          <p className="text-sm text-gray-400 mt-1">Upload documents and run AI analysis from the task order page.</p>
-          <Link to={`/task-orders/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            Go to Task Order
+          <p className="text-sm text-gray-400 mt-1">Upload documents and run AI analysis from the project page.</p>
+          <Link to={`/projects/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            Go to Project
           </Link>
         </div>
       ) : (

@@ -9,8 +9,9 @@ import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, genera
 import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
+import { getProjectType } from '../lib/projectTypes'
 
-const CATEGORIES: { value: DocumentCategory; label: string }[] = [
+const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] = [
   { value: 'sow', label: 'Statement of Work' },
   { value: 'pricing_sheet', label: 'Pricing Sheet' },
   { value: 'exhibit', label: 'Exhibit / Attachment' },
@@ -194,7 +195,7 @@ export default function TaskOrderDetail() {
         }
       }
 
-      const result = await analyzeDocuments(texts, names, taskOrder.title, taskOrder.site_name) as unknown as AnalysisResult
+      const result = await analyzeDocuments(texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined) as unknown as AnalysisResult
       await saveAiOutput(id, 'analysis', result)
       setAnalysisResult(result)
       setAiStatus(prev => ({ ...prev, analysis: true }))
@@ -251,7 +252,7 @@ export default function TaskOrderDetail() {
         }
       }
 
-      const args = [texts, names, taskOrder.title, taskOrder.site_name] as const
+      const args = [texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined] as const
       const pause = () => new Promise(r => setTimeout(r, 3000))
 
       // Always regenerate all outputs (overwrites existing)
@@ -300,7 +301,10 @@ export default function TaskOrderDetail() {
   }
 
   if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>
-  if (!taskOrder) return <div className="text-center py-12 text-red-500">Task order not found</div>
+  if (!taskOrder) return <div className="text-center py-12 text-red-500">Project not found</div>
+
+  const projectType = getProjectType(taskOrder.project_type)
+  const CATEGORIES = projectType.documentCategories.length > 0 ? projectType.documentCategories : DEFAULT_CATEGORIES
 
   const groupedDocs = CATEGORIES.map(cat => ({
     ...cat,
@@ -312,7 +316,7 @@ export default function TaskOrderDetail() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <Link to="/task-orders" className="text-sm text-blue-600 hover:underline mb-1 inline-block">&larr; Back to Task Orders</Link>
+          <Link to="/projects" className="text-sm text-blue-600 hover:underline mb-1 inline-block">&larr; Back to Projects</Link>
           <h1 className="text-2xl font-bold text-gray-900">{taskOrder.title}</h1>
           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
             {taskOrder.solicitation_number && <span>Solicitation: {taskOrder.solicitation_number}</span>}
@@ -358,7 +362,7 @@ export default function TaskOrderDetail() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            to={`/task-orders/${id}/debrief`}
+            to={`/projects/${id}/debrief`}
             className="text-sm bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-100 border border-purple-200 flex items-center gap-1.5"
           >
             <BookOpen size={14} /> Add Debrief
@@ -545,11 +549,11 @@ export default function TaskOrderDetail() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {[
                     { key: 'analysis', label: 'Document Analysis', link: '' },
-                    { key: 'compliance_matrix', label: 'Compliance Matrix', link: `/task-orders/${id}/compliance` },
-                    { key: 'rfq_packages', label: 'Subcontractor RFQs', link: `/task-orders/${id}/rfq-packages` },
-                    { key: 'clarification_questions', label: 'Clarification Questions', link: `/task-orders/${id}/clarifications` },
-                    { key: 'pricing_risks', label: 'Pricing Risks', link: `/task-orders/${id}/pricing-risks` },
-                    { key: 'executive_summary', label: 'Executive Summary', link: `/task-orders/${id}/executive-summary` },
+                    { key: 'compliance_matrix', label: 'Compliance Matrix', link: `/projects/${id}/compliance` },
+                    { key: 'rfq_packages', label: 'Subcontractor RFQs', link: `/projects/${id}/rfq-packages` },
+                    { key: 'clarification_questions', label: 'Clarification Questions', link: `/projects/${id}/clarifications` },
+                    { key: 'pricing_risks', label: 'Pricing Risks', link: `/projects/${id}/pricing-risks` },
+                    { key: 'executive_summary', label: 'Executive Summary', link: `/projects/${id}/executive-summary` },
                   ].map(item => (
                     <div key={item.key} className={`rounded-lg border p-3 ${aiStatus[item.key] ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-2">
@@ -668,15 +672,15 @@ export default function TaskOrderDetail() {
           <div className="px-6 pb-6 border-t border-gray-100 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
-                { label: 'SOW Bid Management', link: `/task-orders/${id}/sow-tracker`, key: '', desc: 'Match subs to SOWs, track RFQs, quotes & communications', highlight: true },
-                { label: 'Bid Summary Dashboard', link: `/task-orders/${id}/bid-summary`, key: '', desc: 'Aggregated pricing, quote coverage, and recommendations', highlight: true },
-                { label: 'Pricing Decision Matrix', link: `/task-orders/${id}/pricing-matrix`, key: '', desc: 'Select subs, set markup, calculate supplier totals & option year pricing', highlight: true },
-                { label: 'Compliance Matrix', link: `/task-orders/${id}/compliance`, key: 'compliance_matrix', desc: 'Requirements mapped to source documents with risk levels' },
-                { label: 'Subcontractor RFQ Packages', link: `/task-orders/${id}/rfq-packages`, key: 'rfq_packages', desc: 'Scope packages ready to send to subcontractors' },
-                { label: 'Clarification Questions', link: `/task-orders/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
-                { label: 'Pricing Risk Review', link: `/task-orders/${id}/pricing-risks`, key: 'pricing_risks', desc: 'Pricing gaps, risks, and action items' },
-                { label: 'Executive Bid Summary', link: `/task-orders/${id}/executive-summary`, key: 'executive_summary', desc: 'Management-ready bid overview' },
-                { label: 'Export Center', link: `/task-orders/${id}/exports`, key: '', desc: 'Download reports in Word, PDF, Excel' },
+                { label: 'SOW Bid Management', link: `/projects/${id}/sow-tracker`, key: '', desc: 'Match subs to SOWs, track RFQs, quotes & communications', highlight: true },
+                { label: 'Bid Summary Dashboard', link: `/projects/${id}/bid-summary`, key: '', desc: 'Aggregated pricing, quote coverage, and recommendations', highlight: true },
+                { label: 'Pricing Decision Matrix', link: `/projects/${id}/pricing-matrix`, key: '', desc: 'Select subs, set markup, calculate supplier totals & option year pricing', highlight: true },
+                { label: 'Compliance Matrix', link: `/projects/${id}/compliance`, key: 'compliance_matrix', desc: 'Requirements mapped to source documents with risk levels' },
+                { label: 'Subcontractor RFQ Packages', link: `/projects/${id}/rfq-packages`, key: 'rfq_packages', desc: 'Scope packages ready to send to subcontractors' },
+                { label: 'Clarification Questions', link: `/projects/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
+                { label: 'Pricing Risk Review', link: `/projects/${id}/pricing-risks`, key: 'pricing_risks', desc: 'Pricing gaps, risks, and action items' },
+                { label: 'Executive Bid Summary', link: `/projects/${id}/executive-summary`, key: 'executive_summary', desc: 'Management-ready bid overview' },
+                { label: 'Export Center', link: `/projects/${id}/exports`, key: '', desc: 'Download reports in Word, PDF, Excel' },
               ].map(item => (
                 <Link
                   key={item.label}

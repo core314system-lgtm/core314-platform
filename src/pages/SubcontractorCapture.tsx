@@ -692,7 +692,7 @@ export default function SubcontractorCapture() {
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-blue-600">4.</span>
-              Imported subcontractors are tagged as "Procuvex Capture" source and automatically aligned to matching task order SOWs
+              Imported subcontractors are tagged as "Procuvex Capture" source and automatically aligned to matching project SOWs
             </li>
           </ul>
           <div className="mt-4 p-3 bg-white/60 rounded-lg">

@@ -24,8 +24,8 @@ const helpSections: HelpSection[] = [
     steps: [
       'Log in with your credentials at the login page.',
       'Set up your Subcontractor Database first — go to "Subcontractors" in the sidebar and add your vendors manually or import from an Excel/CSV file.',
-      'Register an incoming task order — go to "Incoming RFQs" and click "Register New RFQ".',
-      'Upload all task order documents (SOWs, pricing sheets, exhibits, amendments, etc.).',
+      'Create a new project — go to "Projects" and click "New Project".',
+      'Upload all project documents (SOWs, pricing sheets, exhibits, amendments, etc.).',
       'Run AI Analysis to extract requirements, identify service categories, and generate outputs.',
       'Review the generated outputs: Compliance Matrix, RFQ Packages, Clarification Questions, Pricing Risks, Executive Summary.',
       'Use the SOW Bid Management system to track subcontractor quotes and bids.',
@@ -34,15 +34,15 @@ const helpSections: HelpSection[] = [
     faqs: [
       {
         question: 'What is the overall workflow?',
-        answer: 'The platform follows this workflow: (1) Build your subcontractor database, (2) Register incoming task orders/RFQs, (3) Upload all associated documents, (4) Run AI analysis to extract requirements and generate outputs, (5) Match subcontractors to SOWs, (6) Track quotes and bids, (7) Export reports. Each step builds on the previous one.',
+        answer: 'The platform follows this workflow: (1) Build your subcontractor database, (2) Create procurement projects, (3) Upload all associated documents, (4) Run AI analysis to extract requirements and generate outputs, (5) Match subcontractors to SOWs, (6) Track quotes and bids, (7) Export reports. Each step builds on the previous one.',
       },
       {
-        question: 'Do I need to set up anything before uploading task orders?',
-        answer: 'Yes — we recommend building your Subcontractor Database first. Go to "Subcontractors" in the sidebar and either add vendors manually or bulk import from an Excel/CSV file. This allows the system to automatically match subcontractors to task order requirements after AI analysis.',
+        question: 'Do I need to set up anything before uploading projects?',
+        answer: 'Yes — we recommend building your Subcontractor Database first. Go to "Subcontractors" in the sidebar and either add vendors manually or bulk import from an Excel/CSV file. This allows the system to automatically match subcontractors to project requirements after AI analysis.',
       },
       {
         question: 'Who is this platform designed for?',
-        answer: 'Business Development Managers, Capture Managers, and Proposal Managers who evaluate incoming task orders, coordinate subcontractor bids, and assemble proposals. The platform streamlines document analysis, compliance tracking, subcontractor management, and report generation.',
+        answer: 'Business Development Managers, Capture Managers, and Proposal Managers who evaluate incoming projects, coordinate subcontractor bids, and assemble proposals. The platform streamlines document analysis, compliance tracking, subcontractor management, and report generation.',
       },
     ],
   },
@@ -84,28 +84,28 @@ const helpSections: HelpSection[] = [
   },
   {
     id: 'task-orders',
-    title: 'Registering Task Orders',
+    title: 'Creating Projects',
     icon: ClipboardList,
-    description: 'How to register incoming RFQs and task orders in the system.',
+    description: 'How to create new procurement projects in the system.',
     steps: [
-      'Go to "Incoming RFQs" in the sidebar.',
-      'Click "Register New RFQ" in the top right.',
-      'Enter the task order details: title, solicitation number, site name, location, due date, etc.',
-      'Click "Create Task Order" to register it.',
-      'You\'ll be taken to the task order detail page where you can upload documents.',
+      'Go to "Projects" in the sidebar.',
+      'Click "New Project" in the top right.',
+      'Enter the project details: title, solicitation number, site name, location, due date, etc.',
+      'Click "Create project" to save it.',
+      'You\'ll be taken to the project detail page where you can upload documents.',
     ],
     faqs: [
       {
-        question: 'What does "Register" mean? Am I creating a task order?',
-        answer: 'No — you\'re registering an incoming task order that was sent to you for bid evaluation. Think of it as logging the RFQ into the system so you can upload documents, run analysis, and track your bid process. The task order itself comes from the government or prime contractor.',
+        question: 'How do I create a new project?',
+        answer: 'No — you\'re creating a project record that was sent to you for bid evaluation. Think of it as logging the RFQ into the system so you can upload documents, run analysis, and track your bid process. The project itself comes from the government or prime contractor.',
       },
       {
-        question: 'Can I delete a task order?',
-        answer: 'Yes — open the task order and click the red "Delete Task Order" button in the top right. This permanently removes the task order and all associated data (documents, AI outputs, SOW items, quotes, communications). It requires double confirmation.',
+        question: 'Can I delete a project?',
+        answer: 'Yes — open the project and click the red "Delete project" button in the top right. This permanently removes the project and all associated data (documents, AI outputs, SOW items, quotes, communications). It requires double confirmation.',
       },
       {
-        question: 'What information should I enter when registering?',
-        answer: 'At minimum, enter a title (e.g., "N. Texas P&DX"). Optionally add: solicitation number, task order number, site name, city/state, due date, and notes. The AI analysis will extract additional details (contract number, period of performance, contracting officer info) from your uploaded documents.',
+        question: 'What information should I enter when creating a project?',
+        answer: 'At minimum, enter a title (e.g., "N. Texas P&DX"). Optionally add: solicitation number, project number, site name, city/state, due date, and notes. The AI analysis will extract additional details (contract number, period of performance, contracting officer info) from your uploaded documents.',
       },
     ],
   },
@@ -113,9 +113,9 @@ const helpSections: HelpSection[] = [
     id: 'documents',
     title: 'Uploading Documents',
     icon: Upload,
-    description: 'Upload task order documents for AI analysis — SOWs, pricing sheets, exhibits, amendments, and more.',
+    description: 'Upload project documents for AI analysis — SOWs, pricing sheets, exhibits, amendments, and more.',
     steps: [
-      'Open a task order from the "Incoming RFQs" list.',
+      'Open a project from the "Projects" list.',
       'In Step 1 (Upload Documents), select a document category from the dropdown.',
       'Drag and drop files onto the upload area, or click "Select Files" to browse.',
       'Supported formats: PDF, Word (.doc/.docx), Excel (.xlsx/.xls), text files.',
@@ -147,16 +147,16 @@ const helpSections: HelpSection[] = [
     icon: Brain,
     description: 'How the AI analyzes your documents and generates outputs.',
     steps: [
-      'After uploading documents, expand Step 2 (AI Document Analysis) on the task order page.',
+      'After uploading documents, expand Step 2 (AI Document Analysis) on the project page.',
       'Click "Run Document Analysis" to start the AI extraction.',
-      'The AI reads all uploaded documents and extracts: requirements, service categories, unclear items, pricing issues, and task order metadata.',
+      'The AI reads all uploaded documents and extracts: requirements, service categories, unclear items, pricing issues, and project metadata.',
       'After analysis completes, click "Generate All AI Outputs" to create all 6 output types at once.',
       'Review each output in Step 3 (Review Generated Outputs).',
     ],
     faqs: [
       {
         question: 'What does the AI extract from documents?',
-        answer: 'The AI identifies: (1) Requirements and their sources, (2) Service categories (HVAC, FLS, Janitorial, etc.), (3) Unclear items needing clarification, (4) Pricing alignment issues, (5) Task order metadata (contract number, period of performance, contracting officer info, NAICS code).',
+        answer: 'The AI identifies: (1) Requirements and their sources, (2) Service categories (HVAC, FLS, Janitorial, etc.), (3) Unclear items needing clarification, (4) Pricing alignment issues, (5) project metadata (contract number, period of performance, contracting officer info, NAICS code).',
       },
       {
         question: 'What are the 6 AI output types?',
@@ -180,7 +180,7 @@ const helpSections: HelpSection[] = [
     faqs: [
       {
         question: 'What is the Compliance Matrix?',
-        answer: 'It lists every requirement identified from the task order documents, showing: the requirement text, its source document, category, responsible party, risk level (High/Medium/Low), and compliance status (Covered, Missing, Needs Review).',
+        answer: 'It lists every requirement identified from the project documents, showing: the requirement text, its source document, category, responsible party, risk level (High/Medium/Low), and compliance status (Covered, Missing, Needs Review).',
       },
       {
         question: 'How do I use it?',
@@ -194,7 +194,7 @@ const helpSections: HelpSection[] = [
     icon: BarChart3,
     description: 'Track subcontractor bids for each Statement of Work.',
     steps: [
-      'Open a task order and go to Step 3 → SOW Bid Management.',
+      'Open a project and go to Step 3 → SOW Bid Management.',
       'Click "Sync from AI Analysis" to auto-create SOW items from the AI analysis.',
       'The system auto-matches subcontractors from your database to each SOW by service category, location, and qualifications.',
       'Expand any SOW to see matched subcontractors. You can also manually add subcontractors.',
@@ -228,7 +228,7 @@ const helpSections: HelpSection[] = [
     icon: Download,
     description: 'Download reports in Excel, PDF, and PowerPoint formats.',
     steps: [
-      'Open a task order and expand Step 4 (Export & Submit).',
+      'Open a project and expand Step 4 (Export & Submit).',
       'Choose from 8 export options: Compliance Matrix (Excel), Executive Summary (PDF), RFQ Packages (PDF), Clarification Questions (Excel), Pricing Risks (Excel), Quote Comparison (Excel), Presentation Deck (PowerPoint), Complete Analysis Workbook (Excel).',
       'Click the download button for each report type.',
     ],
@@ -251,7 +251,7 @@ const helpSections: HelpSection[] = [
     faqs: [
       {
         question: 'What\'s the recommended order for setting up a new bid?',
-        answer: '(1) Make sure your subcontractor database is up to date. (2) Register the task order. (3) Upload ALL documents at once — the more complete the document set, the better the AI analysis. (4) Run AI analysis and generate all outputs. (5) Review the compliance matrix and clarification questions first. (6) Use SOW Bid Management to track quotes. (7) Export reports when ready.',
+        answer: '(1) Make sure your subcontractor database is up to date. (2) Create the project. (3) Upload ALL documents at once — the more complete the document set, the better the AI analysis. (4) Run AI analysis and generate all outputs. (5) Review the compliance matrix and clarification questions first. (6) Use SOW Bid Management to track quotes. (7) Export reports when ready.',
       },
       {
         question: 'How should I organize my documents?',
@@ -263,7 +263,7 @@ const helpSections: HelpSection[] = [
       },
       {
         question: 'How do I clean up test data before a demo?',
-        answer: 'Use the delete features: (1) "Delete Task Order" on the task order detail page removes the task order and all associated data. (2) "Clear All" on the Subcontractors page removes all subcontractors. Both require double confirmation.',
+        answer: 'Use the delete features: (1) "Delete project" on the project detail page removes the project and all associated data. (2) "Clear All" on the Subcontractors page removes all subcontractors. Both require double confirmation.',
       },
     ],
   },
@@ -318,7 +318,7 @@ export default function HelpCenter() {
               <p className="text-blue-100 text-xs">Import your subcontractor list via Excel/CSV or add manually.</p>
             </div>
             <div className="bg-white/10 rounded-lg p-3">
-              <div className="font-semibold mb-1">2. Register Task Orders</div>
+              <div className="font-semibold mb-1">2. Create Projects</div>
               <p className="text-blue-100 text-xs">Log incoming RFQs and upload all associated documents.</p>
             </div>
             <div className="bg-white/10 rounded-lg p-3">

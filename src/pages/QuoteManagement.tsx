@@ -80,8 +80,8 @@ export default function QuoteManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to={`/task-orders/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
-          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Task Order'}
+        <Link to={`/projects/${id}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+          <ArrowLeft size={14} /> Back to {taskOrder?.title || 'Project'}
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <BarChart2 className="text-teal-600" size={24} /> Subcontractor Quote Management

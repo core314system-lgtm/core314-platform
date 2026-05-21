@@ -65,17 +65,17 @@ export default function TaskOrderComparisonPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <GitCompareArrows className="text-cyan-600" size={24} /> Task Order Comparison
+          <GitCompareArrows className="text-cyan-600" size={24} /> Project Comparison
         </h1>
-        <p className="text-sm text-gray-500 mt-1">Compare a new task order against a prior task order to identify changes</p>
+        <p className="text-sm text-gray-500 mt-1">Compare a new project against a prior project to identify changes</p>
       </div>
 
       {taskOrders.length < 2 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <GitCompareArrows className="mx-auto text-gray-400 mb-3" size={40} />
-          <p className="text-gray-500">You need at least 2 task orders to compare.</p>
-          <Link to="/task-orders/new" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            Register Task Order
+          <p className="text-gray-500">You need at least 2 projects to compare.</p>
+          <Link to="/projects/new" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            New Project
           </Link>
         </div>
       ) : (
@@ -83,9 +83,9 @@ export default function TaskOrderComparisonPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Task Order</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Project</label>
                 <select value={currentId} onChange={e => setCurrentId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option value="">Select task order...</option>
+                  <option value="">Select project...</option>
                   {taskOrders.map(to => (
                     <option key={to.id} value={to.id}>{to.title} ({to.site_name})</option>
                   ))}
@@ -93,9 +93,9 @@ export default function TaskOrderComparisonPage() {
               </div>
               <ArrowRight size={20} className="text-gray-400 mt-6" />
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prior Task Order</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prior Project</label>
                 <select value={priorId} onChange={e => setPriorId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option value="">Select task order...</option>
+                  <option value="">Select project...</option>
                   {taskOrders.filter(t => t.id !== currentId).map(to => (
                     <option key={to.id} value={to.id}>{to.title} ({to.site_name})</option>
                   ))}

@@ -56,7 +56,7 @@ export default function Dashboard() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link to="/task-orders" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+        <Link to="/projects" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3">
             <div className="bg-blue-100 rounded-lg p-2"><ClipboardList className="text-blue-600" size={20} /></div>
             <div>
@@ -96,10 +96,10 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Link to="/task-orders/new" className="bg-blue-600 text-white rounded-xl p-5 hover:bg-blue-700 transition-colors">
+        <Link to="/projects/new" className="bg-blue-600 text-white rounded-xl p-5 hover:bg-blue-700 transition-colors">
           <Plus className="mb-2" size={24} />
-          <h3 className="font-semibold">Register Incoming RFQ</h3>
-          <p className="text-xs text-blue-200 mt-1">Add a new task order for evaluation</p>
+          <h3 className="font-semibold">New Project</h3>
+          <p className="text-xs text-blue-200 mt-1">Start a new procurement project</p>
         </Link>
         <Link to="/subcontractors" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
           <Upload className="mb-2 text-green-600" size={24} />
@@ -118,10 +118,10 @@ export default function Dashboard() {
         </Link>
         <Link to="/comparison" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
           <GitCompareArrows className="mb-2 text-cyan-600" size={24} />
-          <h3 className="font-semibold text-gray-900">Compare Task Orders</h3>
-          <p className="text-xs text-gray-500 mt-1">Identify changes between task orders</p>
+          <h3 className="font-semibold text-gray-900">Compare Projects</h3>
+          <p className="text-xs text-gray-500 mt-1">Identify changes between projects</p>
         </Link>
-        <Link to="/task-orders" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+        <Link to="/projects" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
           <Download className="mb-2 text-emerald-600" size={24} />
           <h3 className="font-semibold text-gray-900">Export Reports</h3>
           <p className="text-xs text-gray-500 mt-1">Download Excel, PDF, Word exports</p>
@@ -131,18 +131,18 @@ export default function Dashboard() {
       {/* Recent Task Orders */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Recent Task Orders</h2>
-          <Link to="/task-orders" className="text-sm text-blue-600 hover:underline">View All &rarr;</Link>
+          <h2 className="font-semibold text-gray-900">Recent Projects</h2>
+          <Link to="/projects" className="text-sm text-blue-600 hover:underline">View All &rarr;</Link>
         </div>
         {taskOrders.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
-            <p>No task orders registered yet.</p>
-            <Link to="/task-orders/new" className="text-blue-600 hover:underline text-sm mt-2 inline-block">Register your first incoming RFQ</Link>
+            <p>No projects registered yet.</p>
+            <Link to="/projects/new" className="text-blue-600 hover:underline text-sm mt-2 inline-block">Create your first project</Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
             {taskOrders.slice(0, 5).map(to => (
-              <Link key={to.id} to={`/task-orders/${to.id}`} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <Link key={to.id} to={`/projects/${to.id}`} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                 <div>
                   <h3 className="font-medium text-gray-900">{to.title}</h3>
                   <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">

@@ -159,7 +159,7 @@ export default function SowTracker() {
     try {
       const analysis = await loadAiOutput<AnalysisResult>(taskOrderId, 'analysis')
       if (!analysis?.service_categories?.length) {
-        alert('No AI analysis found. Run "Generate All AI Outputs" on the task order first.')
+        alert('No AI analysis found. Run "Generate All AI Outputs" on the project first.')
         setSyncing(false)
         return
       }
@@ -532,7 +532,7 @@ export default function SowTracker() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <Link to={`/task-orders/${taskOrderId}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
+        <Link to={`/projects/${taskOrderId}`} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-1">
           <ArrowLeft size={14} /> Back to {taskOrder.title}
         </Link>
         <div className="flex items-center justify-between">
@@ -545,7 +545,7 @@ export default function SowTracker() {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/task-orders/${taskOrderId}/form-builder`}
+              to={`/projects/${taskOrderId}/form-builder`}
               className="bg-purple-50 text-purple-700 px-4 py-2 rounded-lg font-medium hover:bg-purple-100 flex items-center gap-2 text-sm border border-purple-200"
             >
               <Settings size={16} />
@@ -727,7 +727,7 @@ export default function SowTracker() {
                       {sendingRfqs === sow.id ? 'Sending...' : 'Send RFQs to All Identified'}
                     </button>
                     <Link
-                      to={`/task-orders/${taskOrderId}/form-builder/${sow.id}`}
+                      to={`/projects/${taskOrderId}/form-builder/${sow.id}`}
                       className="text-sm bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg hover:bg-purple-100 flex items-center gap-1"
                     >
                       <Settings size={14} /> Configure Quote Form

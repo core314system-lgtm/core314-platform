@@ -174,7 +174,7 @@ export default function DebriefPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Link to={`/task-orders/${id}`} className="text-blue-600 hover:text-blue-800">
+        <Link to={`/projects/${id}`} className="text-blue-600 hover:text-blue-800">
           <ArrowLeft size={20} />
         </Link>
         <div>

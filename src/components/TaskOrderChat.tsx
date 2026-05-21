@@ -23,7 +23,7 @@ const SUGGESTED_QUESTIONS = [
   'How many subcontractors have responded with quotes?',
   'Which SOWs are missing quotes?',
   'What is the total estimated cost so far?',
-  'Summarize the key risks for this task order.',
+  'Summarize the key risks for this project.',
   'Which subcontractors haven\'t responded yet?',
   'What is the PoP structure?',
 ]
@@ -56,8 +56,8 @@ export default function TaskOrderChat({ taskOrderId, taskOrderTitle, analysisRes
   async function buildContext() {
     const parts: string[] = []
 
-    parts.push(`Task Order: ${taskOrderTitle}`)
-    parts.push(`Task Order ID: ${taskOrderId}`)
+    parts.push(`Project: ${taskOrderTitle}`)
+    parts.push(`Project ID: ${taskOrderId}`)
 
     // Add analysis result summary
     if (analysisResult) {
@@ -140,7 +140,7 @@ export default function TaskOrderChat({ taskOrderId, taskOrderTitle, analysisRes
         }
       }
 
-      // Fetch ALL quotes for this task order's SOWs (independent of sow_subcontractors)
+      // Fetch ALL quotes for this project's SOWs (independent of sow_subcontractors)
       const { data: quotes } = await supabase
         .from('sow_quotes')
         .select('*')
@@ -203,7 +203,7 @@ export default function TaskOrderChat({ taskOrderId, taskOrderTitle, analysisRes
     setLoading(true)
 
     try {
-      const systemPrompt = `You are Procuvex Intelligence, the AI assistant for the Procuvex procurement intelligence platform by Core314 Technologies LLC. You have access to real-time data about this specific task order.
+      const systemPrompt = `You are Procuvex Intelligence, the AI assistant for the Procuvex procurement intelligence platform by Core314 Technologies LLC. You have access to real-time data about this specific project.
 
 RULES:
 - Answer based on the TASK ORDER DATA below. Reference specific SOW names, subcontractor names, and dollar amounts from the data.
@@ -326,7 +326,7 @@ ${context}`
                 <Bot size={14} className="text-blue-600" />
               </div>
               <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
-                Hi! I can answer questions about the <strong>{taskOrderTitle}</strong> task order, or <strong>share your site visit notes</strong> and I'll extract the key information and update the system.
+                Hi! I can answer questions about the <strong>{taskOrderTitle}</strong> project, or <strong>share your site visit notes</strong> and I'll extract the key information and update the system.
               </div>
             </div>
             <div className="space-y-1.5">
