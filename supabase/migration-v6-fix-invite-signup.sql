@@ -1,8 +1,9 @@
 -- ============================================================
--- Migration V6: Fix invite signup flow
+-- Migration V6: Fix invite signup flow + invite management
 -- - Update ensure_user_org to handle pending invitations
 -- - Add missing INSERT policy on organizations
--- - Add UPDATE policy on org_invitations for the trigger
+-- - Fix UNIQUE constraint on org_invitations
+-- - Add broader RLS policies for invite management
 -- ============================================================
 
 -- 1. Add missing INSERT policy on organizations (needed by trigger)
@@ -13,9 +14,17 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- 2. Allow the trigger to update org_invitations (mark as accepted)
+-- 2. Replace restrictive UNIQUE constraint with partial unique index
+-- (old constraint prevented cancelling invites if a cancelled record already existed)
+ALTER TABLE org_invitations DROP CONSTRAINT IF EXISTS org_invitations_org_id_email_status_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_org_invitations_unique_pending
+  ON org_invitations (org_id, email)
+  WHERE status = 'pending';
+
+-- 3. Replace UPDATE policy to allow owners/admins (and system trigger) to update
+DROP POLICY IF EXISTS "Org owners/admins can update invitations" ON org_invitations;
 DO $$ BEGIN
-  CREATE POLICY "System can update invitations on accept"
+  CREATE POLICY "Allow update invitations"
     ON org_invitations FOR UPDATE
     USING (true);
 EXCEPTION WHEN duplicate_object THEN NULL;

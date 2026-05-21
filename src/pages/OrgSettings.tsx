@@ -145,12 +145,27 @@ export default function OrgSettings() {
   async function handleCancelInvite(invite: PendingInvite) {
     if (!confirm(`Cancel invitation for ${invite.email}?`)) return
 
-    await supabase
+    // Delete the invite rather than soft-update (avoids UNIQUE constraint issues)
+    const { error } = await supabase
       .from('org_invitations')
-      .update({ status: 'cancelled' })
+      .delete()
       .eq('id', invite.id)
 
-    await loadInvites()
+    if (error) {
+      // Fallback: try update if delete policy isn't set
+      const { error: updateErr } = await supabase
+        .from('org_invitations')
+        .update({ status: 'cancelled' })
+        .eq('id', invite.id)
+
+      if (updateErr) {
+        setMessage({ type: 'error', text: `Failed to cancel: ${updateErr.message}` })
+        return
+      }
+    }
+
+    // Remove from local state immediately
+    setPendingInvites(prev => prev.filter(i => i.id !== invite.id))
     setMessage({ type: 'success', text: `Invitation for ${invite.email} cancelled` })
   }
 
@@ -158,10 +173,10 @@ export default function OrgSettings() {
     if (!currentOrg || !user) return
     setMessage(null)
 
-    // Cancel old invite
+    // Delete old invite
     await supabase
       .from('org_invitations')
-      .update({ status: 'cancelled' })
+      .delete()
       .eq('id', invite.id)
 
     // Send a new one
