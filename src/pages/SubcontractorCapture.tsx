@@ -239,33 +239,69 @@ export default function SubcontractorCapture() {
     setImporting(true)
     setImportCount(0)
 
-    const records = selected.map(s => ({
-      company_name: s.company_name,
-      contact_name: null,
-      contact_email: null,
-      contact_phone: s.phone,
-      website: s.website ? (s.website.startsWith('http') ? s.website : `https://${s.website}`) : null,
-      address: s.address || (s.hq_city && s.hq_state ? `${s.hq_city}, ${s.hq_state}` : null),
-      service_categories: s.categories.length > 0 ? s.categories : [effectiveCategory],
-      geographic_coverage: s.coverage === 'national'
-        ? ['National']
-        : s.coverage === 'regional'
-        ? (s.regions_served || [s.hq_state])
-        : [s.hq_state || 'Local'],
-      nationwide: s.coverage === 'national',
-      regions: s.coverage === 'regional' ? (s.regions_served || []) : [],
-      preferred: false,
-      performance_notes: s.data_source === 'google_places'
-        ? `${s.description}${s.rating ? '. Google Rating: ' + s.rating + '/5' + (s.review_count ? ' (' + s.review_count + ' reviews)' : '') : ''}`
-        : `${s.description}. HQ: ${s.hq_city}, ${s.hq_state}. Coverage: ${
-            s.coverage === 'national' ? 'National' : s.coverage === 'regional' ? `Regional (${(s.regions_served || []).join(', ')})` : `Local (${s.hq_state})`
-          }`,
-    }))
+    function buildFullRecords(subs: DiscoveredSub[]) {
+      return subs.map(s => ({
+        company_name: s.company_name,
+        contact_name: null,
+        contact_email: null,
+        contact_phone: s.phone,
+        website: s.website ? (s.website.startsWith('http') ? s.website : `https://${s.website}`) : null,
+        address: s.address || (s.hq_city && s.hq_state ? `${s.hq_city}, ${s.hq_state}` : null),
+        service_categories: s.categories.length > 0 ? s.categories : [effectiveCategory],
+        geographic_coverage: s.coverage === 'national'
+          ? ['National']
+          : s.coverage === 'regional'
+          ? (s.regions_served || [s.hq_state])
+          : [s.hq_state || 'Local'],
+        nationwide: s.coverage === 'national',
+        regions: s.coverage === 'regional' ? (s.regions_served || []) : [],
+        preferred: false,
+        performance_notes: s.data_source === 'google_places'
+          ? `${s.description}${s.rating ? '. Google Rating: ' + s.rating + '/5' + (s.review_count ? ' (' + s.review_count + ' reviews)' : '') : ''}`
+          : `${s.description}. HQ: ${s.hq_city}, ${s.hq_state}. Coverage: ${
+              s.coverage === 'national' ? 'National' : s.coverage === 'regional' ? `Regional (${(s.regions_served || []).join(', ')})` : `Local (${s.hq_state})`
+            }`,
+      }))
+    }
 
-    const { data: inserted, error: insertErr } = await supabase
+    function buildBasicRecords(subs: DiscoveredSub[]) {
+      return subs.map(s => ({
+        company_name: s.company_name,
+        contact_name: null,
+        contact_email: null,
+        contact_phone: s.phone,
+        service_categories: s.categories.length > 0 ? s.categories : [effectiveCategory],
+        geographic_coverage: s.coverage === 'national'
+          ? ['National']
+          : s.coverage === 'regional'
+          ? (s.regions_served || [s.hq_state])
+          : [s.hq_state || 'Local'],
+        preferred: false,
+        performance_notes: s.data_source === 'google_places'
+          ? `${s.description}${s.rating ? '. Google Rating: ' + s.rating + '/5' + (s.review_count ? ' (' + s.review_count + ' reviews)' : '') : ''}${s.website ? '. Website: ' + s.website : ''}`
+          : `${s.description}. HQ: ${s.hq_city}, ${s.hq_state}. Coverage: ${
+              s.coverage === 'national' ? 'National' : s.coverage === 'regional' ? `Regional (${(s.regions_served || []).join(', ')})` : `Local (${s.hq_state})`
+            }${s.website ? '. Website: ' + s.website : ''}`,
+      }))
+    }
+
+    // Try full insert with all detail columns first; fall back to basic columns if schema doesn't support them yet
+    let records = buildFullRecords(selected)
+    let { data: inserted, error: insertErr } = await supabase
       .from('subcontractors')
       .insert(records)
       .select()
+
+    if (insertErr && insertErr.message.includes('schema cache')) {
+      console.warn('Full schema not available, falling back to basic columns:', insertErr.message)
+      records = buildBasicRecords(selected) as typeof records
+      const fallback = await supabase
+        .from('subcontractors')
+        .insert(records)
+        .select()
+      inserted = fallback.data
+      insertErr = fallback.error
+    }
 
     if (insertErr) {
       setError('Import failed: ' + insertErr.message)
