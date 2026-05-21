@@ -1,11 +1,8 @@
 import { getProjectType } from './projectTypes'
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
 const MODEL = 'gpt-4o-mini'
 const MAX_CHARS_PER_DOC = 8000
 const MAX_TOTAL_CHARS = 120000
-const MAX_RETRIES = 3
-const RETRY_BASE_DELAY = 5000
 
 // Global directive prepended to every AI prompt to enforce factual accuracy
 const TRUTH_DIRECTIVE = `ABSOLUTE RULES — VIOLATIONS ARE UNACCEPTABLE:
@@ -35,49 +32,29 @@ function truncateText(text: string, maxChars: number): string {
 }
 
 async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<Record<string, unknown>> {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured. Contact your administrator.')
+  const res = await fetch('/.netlify/functions/ai-proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.1,
+      max_tokens: 16384,
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `AI analysis error: ${res.status}` }))
+    throw new Error(err.error || `AI analysis error: ${res.status}`)
   }
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-        max_tokens: 16384,
-      }),
-    })
-
-    if (res.status === 429) {
-      if (attempt < MAX_RETRIES) {
-        const delay = RETRY_BASE_DELAY * Math.pow(2, attempt)
-        await new Promise(resolve => setTimeout(resolve, delay))
-        continue
-      }
-      throw new Error('Rate limit exceeded. Please wait a minute and try again.')
-    }
-
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`AI analysis error: ${err}`)
-    }
-
-    const data = await res.json()
-    const content = data.choices?.[0]?.message?.content || '{}'
-    return JSON.parse(content)
-  }
-
-  throw new Error('Failed after maximum retries')
+  const data = await res.json()
+  const content = data.choices?.[0]?.message?.content || '{}'
+  return JSON.parse(content)
 }
 
 function buildDocsText(documentTexts: string[], documentNames: string[]): string {

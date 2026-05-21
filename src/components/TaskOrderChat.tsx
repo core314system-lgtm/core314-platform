@@ -3,7 +3,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCi
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
+
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -216,12 +216,9 @@ ${SMART_NOTES_PROMPT}
 TASK ORDER DATA:
 ${context}`
 
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('/.netlify/functions/ai-proxy', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
@@ -234,7 +231,8 @@ ${context}`
       })
 
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`)
+        const err = await res.json().catch(() => ({ error: `API error: ${res.status}` }))
+        throw new Error(err.error || `API error: ${res.status}`)
       }
 
       const data = await res.json()
