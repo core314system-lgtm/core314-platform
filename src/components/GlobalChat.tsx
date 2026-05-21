@@ -433,6 +433,59 @@ export default function GlobalChat() {
       parts.push(`Events: ${Object.entries(byEvent).map(([k, v]) => `${k}: ${v}`).join(', ')}`)
     }
 
+    // ========== ORGANIZATION & TEAM ==========
+    try {
+      const { data: orgMembers } = await supabase
+        .from('organization_members')
+        .select('id, org_id, user_id, role, joined_at')
+
+      if (orgMembers && orgMembers.length > 0) {
+        const userIds = orgMembers.map(m => m.user_id)
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name')
+          .in('id', userIds)
+
+        const profileMap = new Map((profiles || []).map(p => [p.id, p]))
+
+        const { data: orgs } = await supabase
+          .from('organizations')
+          .select('id, name')
+
+        const orgMap = new Map((orgs || []).map(o => [o.id, o.name]))
+
+        parts.push(`\n=== ORGANIZATION & TEAM ===`)
+        const orgGroups: Record<string, typeof orgMembers> = {}
+        for (const m of orgMembers) {
+          const orgName = orgMap.get(m.org_id) || m.org_id
+          if (!orgGroups[orgName]) orgGroups[orgName] = []
+          orgGroups[orgName].push(m)
+        }
+        for (const [orgName, members] of Object.entries(orgGroups)) {
+          parts.push(`Organization: ${orgName} | Members: ${members.length}`)
+          for (const m of members) {
+            const profile = profileMap.get(m.user_id)
+            parts.push(`  ${profile?.full_name || profile?.email || 'Unknown'} | Role: ${m.role} | Joined: ${fmtDate(m.joined_at)}`)
+          }
+        }
+
+        // Pending invitations
+        const { data: invites } = await supabase
+          .from('org_invitations')
+          .select('*')
+          .eq('status', 'pending')
+
+        if (invites && invites.length > 0) {
+          parts.push(`Pending invitations: ${invites.length}`)
+          for (const inv of invites) {
+            parts.push(`  ${inv.email} | Role: ${inv.role} | Invited: ${fmtDate(inv.created_at)} | Expires: ${fmtDate(inv.expires_at)}`)
+          }
+        }
+      }
+    } catch {
+      // org tables may not exist yet — skip silently
+    }
+
     // ========== RECENT ACTIVITY (pre-calculated for temporal questions) ==========
     parts.push(`\n=== RECENT ACTIVITY (as of ${todayStr}) ===`)
     parts.push(`NOTE: "Today" means ${todayStr}. All timestamps are compared using date components (year, month, day) after parsing into Date objects, so timezone variations in the database are handled correctly.`)
