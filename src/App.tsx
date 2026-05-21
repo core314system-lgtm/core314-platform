@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { OrgProvider } from './contexts/OrgContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -26,12 +27,13 @@ import IntelligenceLibrary from './pages/IntelligenceLibrary'
 import SubcontractorCapture from './pages/SubcontractorCapture'
 import SubcontractorPortal from './pages/SubcontractorPortal'
 import QuoteFormBuilder from './pages/QuoteFormBuilder'
+import OrgSettings from './pages/OrgSettings'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
-  return <Layout>{children}</Layout>
+  return <OrgProvider><Layout>{children}</Layout></OrgProvider>
 }
 
 export default function App() {
@@ -86,6 +88,9 @@ export default function App() {
           {/* Intelligence & Help */}
           <Route path="/intelligence" element={<ProtectedRoute><IntelligenceLibrary /></ProtectedRoute>} />
           <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
+
+          {/* Organization Settings */}
+          <Route path="/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

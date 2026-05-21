@@ -13,9 +13,11 @@ import {
   Menu,
   X,
   Radar,
+  Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 import GlobalChat from './GlobalChat'
+import { useOrg } from '../contexts/OrgContext'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,11 +28,13 @@ const navItems = [
   { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
   { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
   { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
+  { path: '/settings', label: 'Organization', icon: Settings },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { signOut, profile } = useAuth()
+  const { currentOrg, isMultiTenantEnabled } = useOrg()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -78,6 +82,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+          {isMultiTenantEnabled && currentOrg && (
+            <Link to="/settings" className="block mb-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
+              <p className="text-xs font-medium text-gray-700 truncate">{currentOrg.name}</p>
+              <p className="text-[10px] text-gray-400">Organization</p>
+            </Link>
+          )}
           <div className="flex items-center justify-between">
             <div className="text-xs text-gray-500 truncate max-w-[160px]">
               {profile?.full_name || profile?.email || 'User'}

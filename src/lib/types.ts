@@ -27,6 +27,7 @@ export interface TaskOrder {
   created_by: string
   notes: string | null
   project_type?: string | null
+  org_id?: string | null
 }
 
 export interface Document {
@@ -75,6 +76,7 @@ export interface UserProfile {
   full_name: string | null
   role: UserRole
   created_at: string
+  current_org_id?: string | null
 }
 
 // AI Analysis types

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useOrg } from '../contexts/OrgContext'
 import { ArrowLeft, Upload, FileText, Info, Building2, Landmark, HardHat, Server, Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PROJECT_TYPES, getProjectType } from '../lib/projectTypes'
@@ -23,6 +24,7 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 export default function NewTaskOrder() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { currentOrg, isMultiTenantEnabled } = useOrg()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -59,10 +61,15 @@ export default function NewTaskOrder() {
       created_by: user?.id,
     }
 
-    // Try to include project_type column — graceful fallback if column doesn't exist yet
+    // Include project_type and org_id if available
+    const extraFields: Record<string, unknown> = { project_type: form.project_type }
+    if (isMultiTenantEnabled && currentOrg) {
+      extraFields.org_id = currentOrg.id
+    }
+
     const { data, error } = await supabase
       .from('task_orders')
-      .insert({ ...insertData, project_type: form.project_type })
+      .insert({ ...insertData, ...extraFields })
       .select()
       .single()
 
