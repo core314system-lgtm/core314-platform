@@ -29,6 +29,7 @@ import SubcontractorPortal from './pages/SubcontractorPortal'
 import QuoteFormBuilder from './pages/QuoteFormBuilder'
 import OrgSettings from './pages/OrgSettings'
 import PipelineView from './pages/PipelineView'
+import Integrations from './pages/Integrations'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -84,6 +85,9 @@ export default function App() {
 
           {/* Pipeline View */}
           <Route path="/pipeline" element={<ProtectedRoute><PipelineView /></ProtectedRoute>} />
+
+          {/* Integrations */}
+          <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
 
           {/* Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />

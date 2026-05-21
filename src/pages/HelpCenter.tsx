@@ -244,6 +244,30 @@ const helpSections: HelpSection[] = [
     ],
   },
   {
+    id: 'integrations',
+    title: 'Integrations & API',
+    icon: MessageCircle,
+    description: 'Connect external data sources and automate project creation.',
+    faqs: [
+      {
+        question: 'How do I search for federal opportunities on SAM.gov?',
+        answer: 'Go to Integrations → SAM.gov Search tab. Enter keywords like "facility maintenance" or "HVAC" and click Search. Filter by opportunity type, NAICS code, or set-aside. Click "Import" next to any opportunity to create a project from it — the solicitation number, location, deadline, and description are automatically populated.',
+      },
+      {
+        question: 'Can I import projects from a spreadsheet?',
+        answer: 'Yes — go to Integrations → Bulk Import tab. Upload a CSV file with columns like Title, Solicitation Number, Site Name, City, State, Due Date, Notes, and Project Type. The system auto-detects column names. You\'ll see a preview before importing. Each row becomes a new project in draft status.',
+      },
+      {
+        question: 'How do I use the Procuvex API?',
+        answer: 'Go to Integrations → API Access tab and generate an API key. Use this key to create projects programmatically: POST to https://procuvex.com/api/projects with an X-API-Key header and a JSON body containing at minimum a "title" field. You can also GET /api/projects to list all projects. This enables integration with CRMs, ERPs, or custom scripts.',
+      },
+      {
+        question: 'What project types can I specify in the API?',
+        answer: 'Supported project_type values: government_task_order, government_rfp, construction, it_services, commercial. If omitted, defaults to government_task_order.',
+      },
+    ],
+  },
+  {
     id: 'tips',
     title: 'Tips & Best Practices',
     icon: MessageCircle,

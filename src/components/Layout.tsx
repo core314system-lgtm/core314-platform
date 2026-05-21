@@ -15,6 +15,7 @@ import {
   Radar,
   Settings,
   Kanban,
+  Plug,
 } from 'lucide-react'
 import { useState } from 'react'
 import GlobalChat from './GlobalChat'
@@ -29,6 +30,7 @@ const navItems = [
   { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
   { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
   { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
+  { path: '/integrations', label: 'Integrations', icon: Plug },
   { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
   { path: '/settings', label: 'Organization', icon: Settings },
   { path: '/help', label: 'Help Center', icon: HelpCircle },

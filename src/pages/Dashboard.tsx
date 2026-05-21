@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 
@@ -119,6 +119,11 @@ export default function Dashboard() {
           <Kanban className="mb-2 text-emerald-600" size={24} />
           <h3 className="font-semibold text-gray-900">Pipeline</h3>
           <p className="text-xs text-gray-500 mt-1">Track projects across workflow stages</p>
+        </Link>
+        <Link to="/integrations" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+          <Plug className="mb-2 text-orange-600" size={24} />
+          <h3 className="font-semibold text-gray-900">Integrations</h3>
+          <p className="text-xs text-gray-500 mt-1">SAM.gov search, bulk import, API</p>
         </Link>
       </div>
 

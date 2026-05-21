@@ -542,6 +542,13 @@ export default function GlobalChat() {
     parts.push(`RFQ emails sent TODAY: ${rfqsSentToday.length}`)
     parts.push(`RFQ emails sent THIS WEEK: ${rfqsSentThisWeek.length}`)
 
+    // ========== INTEGRATIONS ==========
+    parts.push(`\n=== INTEGRATIONS ===`)
+    parts.push(`Available integrations: SAM.gov Opportunity Search, CSV/Excel Bulk Import, REST API`)
+    parts.push(`SAM.gov: Users can search federal opportunities and import them directly as projects (via Integrations page)`)
+    parts.push(`Bulk Import: Upload CSV files to create multiple projects at once`)
+    parts.push(`API: External systems can create/list projects via POST/GET /api/projects with X-API-Key authentication`)
+
     return parts.join('\n')
   }
 
