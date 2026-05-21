@@ -268,6 +268,30 @@ const helpSections: HelpSection[] = [
     ],
   },
   {
+    id: 'analytics',
+    title: 'Analytics & Intelligence',
+    icon: MessageCircle,
+    description: 'Track performance metrics and get AI-powered insights.',
+    faqs: [
+      {
+        question: 'What does the Analytics page show?',
+        answer: 'The Analytics page provides cross-project metrics: total projects, active bids, pipeline value, win rate, project distribution by type/stage/state, monthly creation trends, upcoming deadlines, and competitor landscape (from debrief data).',
+      },
+      {
+        question: 'What is the Bid Readiness checklist?',
+        answer: 'Each active project shows a Bid Readiness panel tracking preparation steps: documents uploaded, AI analysis completed, compliance matrix generated, RFQ packages created, executive summary prepared, team assigned, and subcontractors aligned. This is a factual status tracker — not a prediction.',
+      },
+      {
+        question: 'How do Smart Recommendations work?',
+        answer: 'The AI reviews your project\'s current state (documents, analysis status, team, timeline) and suggests specific next actions to improve bid quality. Recommendations are prioritized by impact and can be dismissed as you complete them.',
+      },
+      {
+        question: 'How does the Intelligence Library work?',
+        answer: 'After a project is awarded or not awarded, complete a Debrief (available on the project detail page). The Intelligence Library aggregates all debriefs to show win/loss rates, top loss reasons, competitor profiles, pricing insights, and lessons learned by service category.',
+      },
+    ],
+  },
+  {
     id: 'tips',
     title: 'Tips & Best Practices',
     icon: MessageCircle,

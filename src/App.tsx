@@ -30,6 +30,7 @@ import QuoteFormBuilder from './pages/QuoteFormBuilder'
 import OrgSettings from './pages/OrgSettings'
 import PipelineView from './pages/PipelineView'
 import Integrations from './pages/Integrations'
+import Analytics from './pages/Analytics'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -88,6 +89,9 @@ export default function App() {
 
           {/* Integrations */}
           <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
+
+          {/* Analytics */}
+          <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
 
           {/* Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />

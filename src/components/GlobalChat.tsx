@@ -549,6 +549,13 @@ export default function GlobalChat() {
     parts.push(`Bulk Import: Upload CSV files to create multiple projects at once`)
     parts.push(`API: External systems can create/list projects via POST/GET /api/projects with X-API-Key authentication`)
 
+    // ========== ANALYTICS & INTELLIGENCE ==========
+    parts.push(`\n=== ANALYTICS & INTELLIGENCE ===`)
+    parts.push(`Analytics page: Cross-project metrics including project type distribution, stage distribution, geographic breakdown, monthly trends, pipeline value, and win/loss analysis`)
+    parts.push(`Bid Readiness: Each active project shows a checklist of preparation steps (documents, analysis, compliance, team, subcontractors)`)
+    parts.push(`Smart Recommendations: AI-generated suggestions for improving bid quality on each project`)
+    parts.push(`Intelligence Library: Detailed win/loss debriefs, competitor profiles, pricing insights, and lessons learned`)
+
     return parts.join('\n')
   }
 

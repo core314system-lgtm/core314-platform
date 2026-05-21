@@ -12,6 +12,8 @@ import TaskOrderChat from '../components/TaskOrderChat'
 import WorkflowBar from '../components/WorkflowBar'
 import AuditTrail from '../components/AuditTrail'
 import ProjectTeam from '../components/ProjectTeam'
+import BidReadiness from '../components/BidReadiness'
+import SmartRecommendations from '../components/SmartRecommendations'
 import { getProjectType, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] = [
@@ -424,6 +426,23 @@ export default function TaskOrderDetail() {
           currentStageId={taskOrder.status}
           onStageChange={handleStageChange}
           canManage={true}
+        />
+      </div>
+
+      {/* Bid Readiness + Smart Recommendations */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <BidReadiness
+          taskOrderId={id!}
+          projectStatus={taskOrder.status}
+          documentCount={documents.length}
+          analysisComplete={!!analysisResult}
+          dueDate={taskOrder.due_date}
+        />
+        <SmartRecommendations
+          project={taskOrder as unknown as Record<string, unknown>}
+          documentCount={documents.length}
+          analysisComplete={!!analysisResult}
+          subAssignments={0}
         />
       </div>
 
