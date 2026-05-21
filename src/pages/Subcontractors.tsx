@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import type { Subcontractor } from '../lib/types'
 import { parseExcelForSubcontractors } from '../lib/documentParser'
 import { loadSourceRegistry, type SubSource } from '../lib/subcontractorSources'
-import { Plus, Search, MapPin, Star, Upload, X, FileSpreadsheet, Edit2, Trash2, Globe, Building, ChevronDown, ChevronUp, Download, Radar } from 'lucide-react'
+import { Plus, Search, MapPin, Star, Upload, X, FileSpreadsheet, Edit2, Trash2, Globe, Building, ChevronDown, ChevronUp, Download, Radar, Phone } from 'lucide-react'
 
 const US_REGIONS: Record<string, string[]> = {
   'Northeast': ['CT', 'ME', 'MA', 'NH', 'NJ', 'NY', 'PA', 'RI', 'VT'],
@@ -632,10 +632,17 @@ export default function Subcontractors() {
                       {getSubSource(sub.id) === 'core314_capture' ? 'Core314 Capture' : 'User Database'}
                     </span>
                   </div>
+                  {sub.address && (
+                    <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+                      <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                      {sub.address}
+                    </p>
+                  )}
                   <div className="flex items-center gap-4 mt-1">
                     {sub.contact_name && <p className="text-sm text-gray-600">{sub.contact_name}</p>}
                     {sub.contact_email && <p className="text-sm text-gray-500">{sub.contact_email}</p>}
-                    {sub.contact_phone && <p className="text-sm text-gray-500">{sub.contact_phone}</p>}
+                    {sub.contact_phone && <p className="text-sm text-gray-500 flex items-center gap-1"><Phone size={12} /> {sub.contact_phone}</p>}
+                    {sub.website && <a href={sub.website.startsWith('http') ? sub.website : `https://${sub.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline flex items-center gap-1"><Globe size={12} /> {sub.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

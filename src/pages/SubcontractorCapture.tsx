@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { markMultipleSources } from '../lib/subcontractorSources'
 import { searchCuratedCompanies, REGION_STATES, type CoverageLevel } from '../lib/curatedSubcontractors'
-import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2, ShieldCheck } from 'lucide-react'
+import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2, ShieldCheck, Star } from 'lucide-react'
 
 const CUSTOM_CATEGORIES_KEY = 'core314_custom_service_categories'
 
@@ -33,11 +33,14 @@ function saveCustomCategory(cat: string) {
   localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(existing))
 }
 
+type DataSource = 'curated' | 'google_places'
+
 interface DiscoveredSub {
   id: string
   company_name: string
   hq_city: string
   hq_state: string
+  address: string | null
   phone: string | null
   website: string | null
   categories: string[]
@@ -45,6 +48,9 @@ interface DiscoveredSub {
   regions_served?: string[]
   states_served?: string[]
   description: string
+  rating?: number | null
+  review_count?: number | null
+  data_source: DataSource
   selected: boolean
   imported: boolean
 }
@@ -111,33 +117,103 @@ export default function SubcontractorCapture() {
         searchState = parts[1]?.replace(/\s/g, '').toUpperCase()
       }
 
-      // Search curated database
-      const curated = searchCuratedCompanies(effectiveCategory, searchScope, {
-        state: searchState,
-        region: searchScope === 'regional' ? selectedRegion : undefined,
-      })
-
       // Check against existing database to avoid showing duplicates
       const { data: existing } = await supabase.from('subcontractors').select('company_name')
       const existingNames = new Set((existing || []).map(s => s.company_name.toLowerCase()))
 
-      const discovered: DiscoveredSub[] = curated
-        .filter(c => !existingNames.has(c.company_name.toLowerCase()))
-        .map((c, i) => ({
-          id: `curated-${Date.now()}-${i}`,
-          company_name: c.company_name,
-          hq_city: c.hq_city,
-          hq_state: c.hq_state,
-          phone: c.phone,
-          website: c.website,
-          categories: c.categories,
-          coverage: c.coverage,
-          regions_served: c.regions_served,
-          states_served: c.states_served,
-          description: c.description,
-          selected: false,
-          imported: false,
-        }))
+      let discovered: DiscoveredSub[] = []
+
+      if (searchScope === 'local' || searchScope === 'regional') {
+        // Use Google Places API for local and regional searches
+        try {
+          const apiResponse = await fetch('/.netlify/functions/discover-subs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category: effectiveCategory,
+              scope: searchScope,
+              location: location,
+              radius: radius,
+              region: searchScope === 'regional' ? selectedRegion : undefined,
+            }),
+          })
+          const apiData = await apiResponse.json()
+
+          if (apiData.results && apiData.results.length > 0) {
+            const apiResults: DiscoveredSub[] = apiData.results
+              .filter((r: { company_name: string }) => !existingNames.has(r.company_name.toLowerCase()))
+              .map((r: { company_name: string; city?: string; state?: string; phone?: string; website?: string; categories?: string[]; rating?: number; review_count?: number; address?: string }, i: number) => ({
+                id: `places-${Date.now()}-${i}`,
+                company_name: r.company_name,
+                hq_city: r.city || '',
+                hq_state: r.state || '',
+                address: r.address || null,
+                phone: r.phone || null,
+                website: r.website || null,
+                categories: r.categories || [effectiveCategory],
+                coverage: 'local' as CoverageLevel,
+                description: r.address || `${r.city || ''}, ${r.state || ''}`,
+                rating: r.rating,
+                review_count: r.review_count,
+                data_source: 'google_places' as DataSource,
+                selected: false,
+                imported: false,
+              }))
+            discovered.push(...apiResults)
+          }
+        } catch (apiErr) {
+          console.warn('Google Places API not available, using curated data:', apiErr)
+        }
+
+        // Also add curated companies that serve this area
+        const curated = searchCuratedCompanies(effectiveCategory, searchScope, {
+          state: searchState,
+          region: searchScope === 'regional' ? selectedRegion : undefined,
+        })
+        const curatedResults: DiscoveredSub[] = curated
+          .filter(c => !existingNames.has(c.company_name.toLowerCase()))
+          .filter(c => !discovered.some(d => d.company_name.toLowerCase() === c.company_name.toLowerCase()))
+          .map((c, i) => ({
+            id: `curated-${Date.now()}-${i}`,
+            company_name: c.company_name,
+            hq_city: c.hq_city,
+            hq_state: c.hq_state,
+            address: `${c.hq_city}, ${c.hq_state}`,
+            phone: c.phone,
+            website: c.website,
+            categories: c.categories,
+            coverage: c.coverage,
+            regions_served: c.regions_served,
+            states_served: c.states_served,
+            description: c.description,
+            data_source: 'curated' as DataSource,
+            selected: false,
+            imported: false,
+          }))
+        discovered.push(...curatedResults)
+      } else {
+        // National scope: use curated database
+        const curated = searchCuratedCompanies(effectiveCategory, 'national', {})
+        discovered = curated
+          .filter(c => !existingNames.has(c.company_name.toLowerCase()))
+          .map((c, i) => ({
+            id: `curated-${Date.now()}-${i}`,
+            company_name: c.company_name,
+            hq_city: c.hq_city,
+            hq_state: c.hq_state,
+            address: `${c.hq_city}, ${c.hq_state}`,
+            phone: c.phone,
+            website: c.website,
+            categories: c.categories,
+            coverage: c.coverage,
+            regions_served: c.regions_served,
+            states_served: c.states_served,
+            description: c.description,
+            data_source: 'curated' as DataSource,
+            selected: false,
+            imported: false,
+          }))
+      }
 
       setResults(discovered)
     } catch {
@@ -168,16 +244,22 @@ export default function SubcontractorCapture() {
       contact_name: null,
       contact_email: null,
       contact_phone: s.phone,
-      service_categories: s.categories,
+      website: s.website ? (s.website.startsWith('http') ? s.website : `https://${s.website}`) : null,
+      address: s.address || (s.hq_city && s.hq_state ? `${s.hq_city}, ${s.hq_state}` : null),
+      service_categories: s.categories.length > 0 ? s.categories : [effectiveCategory],
       geographic_coverage: s.coverage === 'national'
         ? ['National']
         : s.coverage === 'regional'
         ? (s.regions_served || [s.hq_state])
-        : [s.hq_state],
+        : [s.hq_state || 'Local'],
+      nationwide: s.coverage === 'national',
+      regions: s.coverage === 'regional' ? (s.regions_served || []) : [],
       preferred: false,
-      performance_notes: `${s.description}. HQ: ${s.hq_city}, ${s.hq_state}. Coverage: ${
-        s.coverage === 'national' ? 'National' : s.coverage === 'regional' ? `Regional (${(s.regions_served || []).join(', ')})` : `Local (${s.hq_state})`
-      }${s.website ? '. Website: ' + s.website : ''}`,
+      performance_notes: s.data_source === 'google_places'
+        ? `${s.description}${s.rating ? '. Google Rating: ' + s.rating + '/5' + (s.review_count ? ' (' + s.review_count + ' reviews)' : '') : ''}`
+        : `${s.description}. HQ: ${s.hq_city}, ${s.hq_state}. Coverage: ${
+            s.coverage === 'national' ? 'National' : s.coverage === 'regional' ? `Regional (${(s.regions_served || []).join(', ')})` : `Local (${s.hq_state})`
+          }`,
     }))
 
     const { data: inserted, error: insertErr } = await supabase
@@ -447,7 +529,10 @@ export default function SubcontractorCapture() {
           {/* Data source notice */}
           <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-2 text-xs text-gray-600">
             <ShieldCheck size={14} className="text-green-600 flex-shrink-0" />
-            Companies shown are verified industry participants sourced from public business registrations, industry associations, and company filings. Coverage levels reflect each company's verified service footprint.
+            {searchScope === 'national'
+              ? 'Companies shown are verified industry participants sourced from public business registrations, industry associations, and company filings. Coverage levels reflect each company\'s verified service footprint.'
+              : `Local businesses sourced from Google Maps for ${searchScope === 'local' ? location : selectedRegion + ' region'}. National/regional companies from Core314 curated industry database.`
+            }
           </div>
 
           <div className="space-y-3">
@@ -478,14 +563,26 @@ export default function SubcontractorCapture() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-gray-900">{sub.company_name}</h3>
-                        {coverageBadge(sub.coverage, sub.regions_served, sub.states_served)}
+                        {sub.data_source === 'curated' && coverageBadge(sub.coverage, sub.regions_served, sub.states_served)}
+                        {sub.data_source === 'google_places' && (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">
+                            <MapPin size={11} />
+                            Local Business
+                          </span>
+                        )}
                       </div>
+                      {sub.rating && (
+                        <span className="flex items-center gap-1 text-sm text-gray-500">
+                          <Star size={13} className="text-amber-400 fill-amber-400" />
+                          {sub.rating}/5{sub.review_count ? ` (${sub.review_count})` : ''}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">{sub.description}</p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm text-gray-600">
                       <span className="flex items-center gap-1">
                         <MapPin size={13} className="text-gray-400" />
-                        {sub.hq_city}, {sub.hq_state} (HQ)
+                        {sub.data_source === 'google_places' ? `${sub.hq_city}${sub.hq_state ? ', ' + sub.hq_state : ''}` : `${sub.hq_city}, ${sub.hq_state} (HQ)`}
                       </span>
                       {sub.phone && (
                         <span className="flex items-center gap-1">
