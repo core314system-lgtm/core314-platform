@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { loadAiOutput } from '../lib/aiStorage'
 import type { PricingRisk, TaskOrder } from '../lib/types'
 import { DollarSign, ArrowLeft, AlertTriangle, Filter } from 'lucide-react'
+import CitationBadge from '../components/CitationBadge'
 
 export default function PricingRisks() {
   const { id } = useParams<{ id: string }>()
@@ -117,7 +118,7 @@ export default function PricingRisks() {
                         'bg-green-100 text-green-700'
                       }`}>{risk.severity}</span>
                       <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{risk.category.replace(/_/g, ' ')}</span>
-                      <span>{risk.source_document}</span>
+                      <CitationBadge sourceDocument={risk.source_document} pageSection={risk.section_reference} compact />
                     </div>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors } from '../lib/api'
 import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen } from 'lucide-react'
+import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
 
 const CATEGORIES: { value: DocumentCategory; label: string }[] = [
@@ -604,6 +605,40 @@ export default function TaskOrderDetail() {
                           <p className="text-sm text-gray-600 mt-1">{cat.description}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {analysisResult.requirements?.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-2">Extracted Requirements ({analysisResult.requirements.length})</h4>
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600 text-xs">#</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600 text-xs">Requirement</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600 text-xs">Source</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600 text-xs">Category</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600 text-xs">Frequency</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {analysisResult.requirements.map((req, i) => (
+                              <tr key={i} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 text-gray-400 text-xs">{i + 1}</td>
+                                <td className="px-3 py-2 text-gray-800 max-w-sm">{req.requirement}</td>
+                                <td className="px-3 py-2">
+                                  <CitationBadge sourceDocument={req.source_document} pageSection={req.page_section} />
+                                </td>
+                                <td className="px-3 py-2 text-gray-600 text-xs">{req.service_category}</td>
+                                <td className="px-3 py-2 text-gray-600 text-xs">{req.frequency}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { loadAiOutput } from '../lib/aiStorage'
 import type { RfqPackage, TaskOrder } from '../lib/types'
 import { Package, ArrowLeft, ChevronDown, ChevronUp, Copy } from 'lucide-react'
+import CitationBadge from '../components/CitationBadge'
 
 export default function RfqPackages() {
   const { id } = useParams<{ id: string }>()
@@ -108,6 +109,14 @@ ${pkg.partnership_language}
               {expandedPkg === i && (
                 <div className="px-6 pb-6 border-t border-gray-100 pt-4 space-y-4">
                   <Section title="Scope Summary" content={pkg.scope_summary} />
+                  {pkg.source_references && pkg.source_references.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium text-gray-500">Source:</span>
+                      {pkg.source_references.map((ref, ri) => (
+                        <CitationBadge key={ri} sourceDocument={ref.document} pageSection={ref.page_section} compact />
+                      ))}
+                    </div>
+                  )}
                   <Section title="Required Frequency" content={pkg.required_frequency} />
                   <Section title="Site Assumptions" content={pkg.site_assumptions} />
                   <Section title="Equipment / Area Details" content={pkg.equipment_details} />

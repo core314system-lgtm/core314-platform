@@ -14,7 +14,15 @@ const TRUTH_DIRECTIVE = `ABSOLUTE RULES — VIOLATIONS ARE UNACCEPTABLE:
 5. If information is missing from the documents (e.g., quantities not listed, frequencies not specified), flag it as "Not specified in documents" — do NOT fill the gap with your own guess.
 6. Quantities, counts, measurements, and frequencies must come EXACTLY from the documents. Never estimate or round.
 7. Each SOW document covers a specific trade — analyze them individually. Extract the specific requirements, tasks, and frequencies from each SOW.
-8. Cite the source document name for every extracted fact.
+8. DOCUMENT SOURCE CITATIONS — MANDATORY FOR EVERY EXTRACTED FACT:
+   - The document text includes [Page N] markers showing where each page starts. USE THESE to determine page numbers.
+   - For EVERY fact, requirement, or data point you extract, you MUST provide:
+     a) source_document: the exact filename of the document
+     b) page_section: a precise citation in the format "Page X, Section Y.Z" or "Page X, Paragraph N" or "Page X" at minimum
+   - If a section heading is visible in the text (e.g., "3.2 HVAC Maintenance"), include it: "Page 5, Section 3.2 — HVAC Maintenance"
+   - If you can identify a paragraph or list item number, include it: "Page 5, Section 3.2, Item (c)"
+   - NEVER leave page_section as empty, generic ("Various"), or vague ("Throughout document"). Every citation must reference at least a specific page number.
+   - For Excel/pricing sheet documents, cite the sheet name and cell range: "Sheet: Pricing, Row 15-20" or "Sheet: Labor Rates, Column B"
 
 `
 
@@ -106,7 +114,7 @@ PERIOD OF PERFORMANCE (PoP) EXTRACTION — CRITICAL:
 
 Return a JSON object with these keys:
 - task_order_metadata: object with the fields above (use null for any field NOT EXPLICITLY found in documents — do NOT guess)
-- requirements: array of {requirement, source_document, page_section, service_category, frequency, equipment_needed, staffing_needed, compliance_type, risk_level} — every field must come from the documents or be marked "Not specified"
+- requirements: array of {requirement, source_document, page_section, service_category, frequency, equipment_needed, staffing_needed, compliance_type, risk_level} — every field must come from the documents or be marked "Not specified". The page_section field MUST reference a specific page number from the [Page N] markers in the document text (e.g., "Page 3, Section 2.1 — Elevator Maintenance"). Never use vague references like "Various" or "General".
 - service_categories: array of {category, description, subcontractor_heavy, estimated_scope} — categories must match what the documents describe, not what you think should exist
 - staffing_requirements: array of {role, count, qualifications, certifications_needed, source_document} — ONLY roles explicitly mentioned in the documents. If documents say "Facility Manager" and no other positions, that is the ONLY entry. Do NOT add roles that are not in the documents.
 - compliance_items: array of {requirement, source_document, section, responsible_party, status, risk_level, notes}
@@ -133,7 +141,7 @@ Generate a detailed compliance matrix from the task order documents. Every item 
 Return a JSON object with key "items", an array of objects with:
 - requirement: the EXACT requirement text from the documents (quote or closely paraphrase the document language)
 - source_document: which document it came from (use the exact document filename)
-- page_section: page/section/paragraph reference as specifically as possible
+- page_section: MANDATORY page-level citation using the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". Must include a specific page number — never "Various" or "General".
 - service_category: which service category this falls under (as described in the documents)
 - responsible_party: who is responsible — use ONLY what the documents state. In a subcontracted model, services are performed by subcontractors managed by the Facility Manager. Do NOT assume the prime contractor has direct employees performing the work unless the documents explicitly say so.
 - proposal_response_needed: boolean
@@ -162,6 +170,7 @@ IMPORTANT: Base EVERY detail on what is EXPLICITLY in the documents. For scope s
 Return a JSON object with key "packages", an array of objects with:
 - service_category: the service category name (as described in the documents)
 - scope_summary: clear summary using the ACTUAL scope described in the specific SOW document — do NOT generalize or add scope items not in the document
+- source_references: array of {document, page_section} citing the EXACT document and page/section where this scope is defined. Use [Page N] markers from the text to provide page numbers. Example: [{document: "SOW-HVAC.pdf", page_section: "Page 2, Section 3.1 — Preventive Maintenance"}]
 - required_frequency: ONLY what the documents explicitly state. If not specified, say "Not specified in documents"
 - site_assumptions: site-specific details ONLY from the documents. If not provided, say "Site details not specified — site visit recommended"
 - equipment_details: equipment or area details ONLY as stated in the documents. Include quantities and types ONLY if provided.
@@ -208,7 +217,7 @@ Return a JSON object with key "questions", an array of objects with:
 - question: the proposed clarification question (written from the perspective of what a subcontractor performing the work would need to know)
 - category: missing_quantities, unclear_frequencies, missing_equipment, access_restrictions, shutdown_requirements, missing_dimensions, missing_specifications, missing_site_conditions, labor_requirements, scope_boundaries, response_times, reporting_requirements, pricing_inconsistencies, conflicting_documents, vague_staffing, materials_responsibility, existing_conditions, other
 - source_document: which SPECIFIC SOW document triggered this question (use exact filename)
-- section_reference: the relevant section or requirement text from the document
+- section_reference: MANDATORY page-level citation. Use the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". Must include a specific page number. Also quote the relevant requirement text that triggered the question.
 - priority: low, medium, high, critical (critical = cannot price without this info, high = significant pricing impact, medium = could affect accuracy, low = nice to know)
 - impact: specific explanation of what happens if this isn't clarified — be concrete about pricing impact (e.g., "Without knowing the number and type of fire extinguishers, the subcontractor cannot determine if this is a $5,000 or $50,000 annual service")
 - subcontractor_trade: which trade/service category this affects (e.g., "Fire Life Safety", "HVAC", "Janitorial", "Snow Removal")
@@ -236,7 +245,7 @@ Return a JSON object with key "risks", an array of objects with:
 - risk: description of the pricing risk — be specific about what is missing or problematic, referencing exact document language
 - category: missing_quotes, unpriced_scope, duplicate_scope, underpriced, labor_assumptions, salary_assumptions, sales_tax, markup_issues, reimbursable_vs_fixed, high_risk_category, leadership_review_needed
 - source_document: the EXACT document filename where the risk originates
-- section_reference: the specific section, cell, or requirement
+- section_reference: MANDATORY page-level citation. Use the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". For pricing sheets, use "Sheet: Name, Row/Cell". Must include a specific page number or cell reference — never vague.
 - severity: low, medium, high, critical
 - recommended_action: what should be done — be specific and actionable
 - financial_impact: describe the impact based ONLY on what the documents reveal. Do NOT estimate dollar amounts unless the documents provide enough data to calculate them.`

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { loadAiOutput } from '../lib/aiStorage'
 import type { ClarificationQuestion, TaskOrder } from '../lib/types'
 import { HelpCircle, ArrowLeft, Filter, Copy, Wrench } from 'lucide-react'
+import CitationBadge from '../components/CitationBadge'
 
 export default function ClarificationQuestions() {
   const { id } = useParams<{ id: string }>()
@@ -125,7 +126,7 @@ export default function ClarificationQuestions() {
                           <Wrench size={10} /> {q.subcontractor_trade}
                         </span>
                       )}
-                      <span>{q.source_document} - {q.section_reference}</span>
+                      <CitationBadge sourceDocument={q.source_document} pageSection={q.section_reference} compact />
                     </div>
                     {q.impact && (
                       <p className="text-xs text-gray-500 mt-2 bg-amber-50 rounded px-3 py-1.5 border border-amber-100">

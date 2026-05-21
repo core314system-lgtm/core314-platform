@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { loadAiOutput } from '../lib/aiStorage'
 import type { ComplianceItem, TaskOrder } from '../lib/types'
 import { Shield, ArrowLeft, Filter } from 'lucide-react'
+import CitationBadge from '../components/CitationBadge'
 
 export default function ComplianceMatrix() {
   const { id } = useParams<{ id: string }>()
@@ -121,9 +122,8 @@ export default function ComplianceMatrix() {
                   {filtered.map((item, i) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-800 max-w-xs">{item.requirement}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">
-                        {item.source_document}<br />
-                        <span className="text-gray-400">{item.page_section}</span>
+                      <td className="px-4 py-3">
+                        <CitationBadge sourceDocument={item.source_document} pageSection={item.page_section} />
                       </td>
                       <td className="px-4 py-3 text-gray-600">{item.service_category}</td>
                       <td className="px-4 py-3 text-gray-600">{item.responsible_party}</td>

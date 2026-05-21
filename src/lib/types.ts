@@ -176,6 +176,7 @@ export interface KeyDate {
 export interface RfqPackage {
   service_category: string
   scope_summary: string
+  source_references?: Array<{ document: string; page_section: string }>
   required_frequency: string
   site_assumptions: string
   equipment_details: string
