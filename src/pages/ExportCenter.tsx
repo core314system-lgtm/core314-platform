@@ -227,7 +227,7 @@ export default function ExportCenter() {
 
       const PptxGenJS = (await import('pptxgenjs')).default
       const pptx = new PptxGenJS()
-      pptx.author = 'Core314 Technologies LLC'
+      pptx.author = 'Procuvex — Core314 Technologies LLC'
       pptx.title = `Task Order Analysis - ${taskOrder?.title || ''}`
 
       // Title slide

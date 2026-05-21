@@ -342,7 +342,7 @@ export default function Subcontractors() {
         </div>
         <div className="flex gap-2">
           <Link to="/subcontractor-capture" className="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
-            <Radar size={18} /> Core314 Capture
+            <Radar size={18} /> Procuvex Capture
           </Link>
           {subcontractors.length > 0 && (
             <button onClick={handleClearAll} className="bg-red-50 text-red-600 px-3 py-2 rounded-lg font-medium hover:bg-red-100 border border-red-200 transition-colors flex items-center gap-2 text-sm">
@@ -598,7 +598,7 @@ export default function Subcontractors() {
           className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
           <option value="">All Sources</option>
           <option value="user_database">User Database</option>
-          <option value="core314_capture">Core314 Capture</option>
+          <option value="core314_capture">Procuvex Capture</option>
         </select>
       </div>
 
@@ -629,7 +629,7 @@ export default function Subcontractors() {
                         ? 'bg-purple-50 text-purple-700 border border-purple-200'
                         : 'bg-gray-50 text-gray-500 border border-gray-200'
                     }`}>
-                      {getSubSource(sub.id) === 'core314_capture' ? 'Core314 Capture' : 'User Database'}
+                      {getSubSource(sub.id) === 'core314_capture' ? 'Procuvex Capture' : 'User Database'}
                     </span>
                   </div>
                   {sub.address && (

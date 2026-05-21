@@ -501,13 +501,13 @@ export default function GlobalChat() {
 
     try {
       // Re-fetch ALL data fresh from the database for EVERY question
-      console.log('[Core314 Intelligence] Building fresh context for question:', userMessage.substring(0, 100))
+      console.log('[Procuvex Intelligence] Building fresh context for question:', userMessage.substring(0, 100))
       const contextStart = performance.now()
       const freshContext = await buildContext()
       const contextMs = Math.round(performance.now() - contextStart)
-      console.log(`[Core314 Intelligence] Context built in ${contextMs}ms, size: ${freshContext.length} chars`)
+      console.log(`[Procuvex Intelligence] Context built in ${contextMs}ms, size: ${freshContext.length} chars`)
 
-      const systemPrompt = `You are Core314 Intelligence, the AI assistant for the Task Order Intelligence platform by Core314 Technologies LLC.
+      const systemPrompt = `You are Procuvex Intelligence, the AI assistant for the Procuvex procurement intelligence platform by Core314 Technologies LLC.
 
 You have access to a LIVE DATABASE SNAPSHOT taken at the exact moment the user asked this question. The data below is comprehensive and current — it includes every task order, SOW, subcontractor, quote, RFQ, communication, document, and metric in the system.
 
@@ -604,10 +604,10 @@ ${freshContext}`
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full p-4 shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:scale-105 z-50 flex items-center gap-2"
-        title="Ask Core314 Intelligence"
+        title="Ask Procuvex Intelligence"
       >
         <Sparkles size={24} />
-        <span className="text-sm font-medium hidden md:inline">Ask Core314 Intelligence</span>
+        <span className="text-sm font-medium hidden md:inline">Ask Procuvex Intelligence</span>
       </button>
     )
   }
@@ -619,7 +619,7 @@ ${freshContext}`
         <div className="flex items-center gap-2">
           <Sparkles size={18} />
           <div>
-            <h3 className="font-semibold text-sm">Core314 Intelligence</h3>
+            <h3 className="font-semibold text-sm">Procuvex Intelligence</h3>
             <p className="text-xs text-blue-100">Account-wide assistant</p>
           </div>
         </div>
@@ -637,7 +637,7 @@ ${freshContext}`
                 <Bot size={14} className="text-indigo-600" />
               </div>
               <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
-                Hi! I'm <strong>Core314 Intelligence</strong>. I can answer questions about your entire account, or <strong>share notes and intel</strong> — I'll extract the key information and update the system.
+                Hi! I'm <strong>Procuvex Intelligence</strong>. I can answer questions about your entire account, or <strong>share notes and intel</strong> — I'll extract the key information and update the system.
               </div>
             </div>
             <div className="space-y-1.5">

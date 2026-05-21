@@ -248,7 +248,7 @@ export default function SubcontractorPortal() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center gap-3 mb-2">
             <Building className="w-6 h-6" />
-            <span className="text-sm font-medium opacity-80">Core314 Technologies LLC</span>
+            <span className="text-sm font-medium opacity-80">Procuvex — A Core314 Technologies LLC Product</span>
           </div>
           <h1 className="text-2xl font-bold mb-1">Request for Quote</h1>
           <p className="text-blue-200">{data.task_order.title}</p>
@@ -560,7 +560,7 @@ export default function SubcontractorPortal() {
 
       {/* Footer */}
       <div className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
-        <p>Core314 Technologies LLC — Task Order Intelligence Platform</p>
+        <p>Procuvex — AI-Powered Procurement Intelligence | A product of Core314 Technologies LLC</p>
         <p className="mt-1">This portal is unique to your organization. Please do not share this link.</p>
       </div>
     </div>

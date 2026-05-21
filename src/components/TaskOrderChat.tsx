@@ -203,7 +203,7 @@ export default function TaskOrderChat({ taskOrderId, taskOrderTitle, analysisRes
     setLoading(true)
 
     try {
-      const systemPrompt = `You are Core314 Intelligence, the AI assistant for the Task Order Intelligence platform by Core314 Technologies LLC. You have access to real-time data about this specific task order.
+      const systemPrompt = `You are Procuvex Intelligence, the AI assistant for the Procuvex procurement intelligence platform by Core314 Technologies LLC. You have access to real-time data about this specific task order.
 
 RULES:
 - Answer based on the TASK ORDER DATA below. Reference specific SOW names, subcontractor names, and dollar amounts from the data.
@@ -293,10 +293,10 @@ ${context}`
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 transition-all hover:scale-105 z-50 flex items-center gap-2"
-        title="Core314 Intelligence"
+        title="Procuvex Intelligence"
       >
         <MessageCircle size={24} />
-        <span className="text-sm font-medium hidden md:inline">Ask Core314 Intelligence</span>
+        <span className="text-sm font-medium hidden md:inline">Ask Procuvex Intelligence</span>
       </button>
     )
   }
@@ -308,7 +308,7 @@ ${context}`
         <div className="flex items-center gap-2">
           <Sparkles size={18} />
           <div>
-            <h3 className="font-semibold text-sm">Core314 Intelligence</h3>
+            <h3 className="font-semibold text-sm">Procuvex Intelligence</h3>
             <p className="text-xs text-blue-100 truncate max-w-[250px]">{taskOrderTitle}</p>
           </div>
         </div>

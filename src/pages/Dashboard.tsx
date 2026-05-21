@@ -47,7 +47,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Task Order Intelligence
+          Procurement Dashboard
         </h1>
         <p className="text-sm text-gray-500">
           Welcome back{profile?.full_name ? `, ${profile.full_name}` : ''}. Here&#39;s your bid pipeline overview.

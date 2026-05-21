@@ -42,8 +42,9 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Task Order Intelligence</h1>
-            <p className="text-gray-500 mt-1">Core314 Technologies LLC</p>
+            <h1 className="text-2xl font-bold text-gray-900">Procuvex</h1>
+            <p className="text-gray-500 mt-1">AI-Powered Procurement Intelligence</p>
+            <p className="text-xs text-gray-400 mt-1">A product of Core314 Technologies LLC</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

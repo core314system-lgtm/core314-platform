@@ -21,7 +21,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/task-orders', label: 'Incoming RFQs', icon: ClipboardList },
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },
-  { path: '/subcontractor-capture', label: 'Core314 Capture', icon: Radar },
+  { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
   { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
   { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
   { path: '/comparison', label: 'Compare Task Orders', icon: GitCompareArrows },
@@ -45,10 +45,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <Link to="/" className="flex items-center gap-2">
-            <div className="bg-blue-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm">TI</div>
+            <div className="bg-blue-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm">Px</div>
             <div>
-              <h1 className="font-bold text-gray-900 text-sm leading-tight">Task Order Intelligence</h1>
-              <p className="text-xs text-gray-400">Core314 Technologies LLC</p>
+              <h1 className="font-bold text-gray-900 text-sm leading-tight">Procuvex</h1>
+              <p className="text-xs text-gray-400">A product of Core314 Technologies LLC</p>
             </div>
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-400">
@@ -102,14 +102,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setSidebarOpen(true)} className="text-gray-600">
             <Menu size={20} />
           </button>
-          <span className="font-semibold text-gray-900 text-sm">Task Order Intelligence</span>
+          <span className="font-semibold text-gray-900 text-sm">Procuvex</span>
         </div>
         <div className="p-6 max-w-7xl mx-auto">
           {children}
         </div>
       </main>
 
-      {/* Global Core314 Intelligence chat — hidden on task order detail pages which have their own chat */}
+      {/* Global Procuvex Intelligence chat — hidden on task order detail pages which have their own chat */}
       {!isTaskOrderDetailPage && <GlobalChat />}
     </div>
   )

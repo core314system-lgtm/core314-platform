@@ -357,7 +357,7 @@ export default function SubcontractorCapture() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
           <Radar className="text-blue-600" size={28} />
-          Core314 Subcontractor Capture
+          Procuvex Capture
         </h1>
         <p className="text-gray-500 mt-1">
           Discover verified commercial subcontractors by service category and coverage area. Import them into your master database for RFQ outreach.
@@ -558,7 +558,7 @@ export default function SubcontractorCapture() {
           {importCount > 0 && (
             <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2 text-sm text-green-700">
               <CheckCircle size={16} />
-              {importCount} subcontractor{importCount !== 1 ? 's' : ''} imported to your master database and tagged as "Core314 Capture" source.
+              {importCount} subcontractor{importCount !== 1 ? 's' : ''} imported to your master database and tagged as "Procuvex Capture" source.
             </div>
           )}
 
@@ -567,7 +567,7 @@ export default function SubcontractorCapture() {
             <ShieldCheck size={14} className="text-green-600 flex-shrink-0" />
             {searchScope === 'national'
               ? 'Companies shown are verified industry participants sourced from public business registrations, industry associations, and company filings. Coverage levels reflect each company\'s verified service footprint.'
-              : `Local businesses sourced from Google Maps for ${searchScope === 'local' ? location : selectedRegion + ' region'}. National/regional companies from Core314 curated industry database.`
+              : `Local businesses sourced from Google Maps for ${searchScope === 'local' ? location : selectedRegion + ' region'}. National/regional companies from Procuvex curated industry database.`
             }
           </div>
 
@@ -675,7 +675,7 @@ export default function SubcontractorCapture() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
           <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
             <Radar size={18} className="text-blue-600" />
-            How Core314 Subcontractor Capture Works
+            How Procuvex Capture Works
           </h3>
           <ul className="space-y-2 text-sm text-blue-800">
             <li className="flex items-start gap-2">
@@ -692,7 +692,7 @@ export default function SubcontractorCapture() {
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-blue-600">4.</span>
-              Imported subcontractors are tagged as "Core314 Capture" source and automatically aligned to matching task order SOWs
+              Imported subcontractors are tagged as "Procuvex Capture" source and automatically aligned to matching task order SOWs
             </li>
           </ul>
           <div className="mt-4 p-3 bg-white/60 rounded-lg">

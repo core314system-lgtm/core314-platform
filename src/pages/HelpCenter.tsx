@@ -20,7 +20,7 @@ const helpSections: HelpSection[] = [
     id: 'getting-started',
     title: 'Getting Started',
     icon: BookOpen,
-    description: 'Learn the basics of the Task Order Intelligence platform and how to navigate the system.',
+    description: 'Learn the basics of the Procuvex platform and how to navigate the system.',
     steps: [
       'Log in with your credentials at the login page.',
       'Set up your Subcontractor Database first — go to "Subcontractors" in the sidebar and add your vendors manually or import from an Excel/CSV file.',
@@ -292,7 +292,7 @@ export default function HelpCenter() {
             <HelpCircle className="text-blue-600" size={28} />
             Help Center
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Learn how to use the Task Order Intelligence platform</p>
+          <p className="text-sm text-gray-500 mt-1">Learn how to use the Procuvex platform</p>
         </div>
       </div>
 
@@ -421,7 +421,7 @@ export default function HelpCenter() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
         <MessageCircle className="mx-auto text-gray-300 mb-3" size={32} />
         <h3 className="font-semibold text-gray-900 mb-1">Still need help?</h3>
-        <p className="text-sm text-gray-500">Contact your system administrator or reach out to Core314 Technologies support.</p>
+        <p className="text-sm text-gray-500">Contact your system administrator or reach out to Procuvex support at Core314 Technologies.</p>
       </div>
     </div>
   )
