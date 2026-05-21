@@ -53,13 +53,13 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Check if organizations table exists by trying to query it
-      const { data: orgMembers, error } = await supabase
-        .from('organization_members')
-        .select('org_id, role, organizations(*)')
-        .eq('user_id', user.id)
+      // Step 1: Check if organizations table exists with a simple query
+      const { error: tableCheck } = await supabase
+        .from('organizations')
+        .select('id')
+        .limit(1)
 
-      if (error) {
+      if (tableCheck) {
         // Table doesn't exist yet — multi-tenant not enabled
         setIsMultiTenantEnabled(false)
         setLoading(false)
@@ -68,15 +68,25 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
       setIsMultiTenantEnabled(true)
 
-      if (!orgMembers || orgMembers.length === 0) {
+      // Step 2: Get user's memberships (simple query, no join)
+      const { data: memberships } = await supabase
+        .from('organization_members')
+        .select('org_id, role')
+        .eq('user_id', user.id)
+
+      if (!memberships || memberships.length === 0) {
         setLoading(false)
         return
       }
 
-      const userOrgs = orgMembers
-        .map(m => m.organizations as unknown as Organization)
-        .filter(Boolean)
+      // Step 3: Fetch the org details separately (avoids PostgREST join issues)
+      const orgIds = memberships.map(m => m.org_id)
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('*')
+        .in('id', orgIds)
 
+      const userOrgs = (orgData || []) as Organization[]
       setOrgs(userOrgs)
 
       // Determine current org
@@ -87,7 +97,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
       if (activeOrg) {
         setCurrentOrg(activeOrg)
-        const membership = orgMembers.find(m => m.org_id === activeOrg.id)
+        const membership = memberships.find(m => m.org_id === activeOrg.id)
         setOrgRole(membership?.role || null)
         await loadMembers(activeOrg.id)
       }
