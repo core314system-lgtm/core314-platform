@@ -110,13 +110,34 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   }, [user, profile])
 
   async function loadMembers(orgId: string) {
-    const { data } = await supabase
+    // Step 1: Get memberships (no join — avoids PostgREST relationship issues)
+    const { data: rawMembers } = await supabase
       .from('organization_members')
-      .select('*, user_profile:user_profiles(email, full_name)')
+      .select('id, org_id, user_id, role, joined_at')
       .eq('org_id', orgId)
       .order('joined_at')
 
-    setMembers((data || []) as unknown as OrgMember[])
+    if (!rawMembers || rawMembers.length === 0) {
+      setMembers([])
+      return
+    }
+
+    // Step 2: Get profiles for those users
+    const userIds = rawMembers.map(m => m.user_id)
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id, email, full_name')
+      .in('id', userIds)
+
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]))
+
+    // Step 3: Merge
+    const merged = rawMembers.map(m => ({
+      ...m,
+      user_profile: profileMap.get(m.user_id) || undefined,
+    }))
+
+    setMembers(merged as OrgMember[])
   }
 
   async function switchOrg(orgId: string) {

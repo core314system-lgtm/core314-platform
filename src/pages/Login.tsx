@@ -1,17 +1,105 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import { LogIn, UserPlus } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { LogIn, UserPlus, Mail } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+
+interface InviteInfo {
+  org_name: string
+  email: string
+  role: string
+  token: string
+}
 
 export default function Login() {
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [searchParams] = useSearchParams()
+  const inviteToken = searchParams.get('invite')
+
+  const [isSignUp, setIsSignUp] = useState(!!inviteToken)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (inviteToken) {
+      loadInviteInfo(inviteToken)
+    }
+  }, [inviteToken])
+
+  async function loadInviteInfo(token: string) {
+    const { data } = await supabase
+      .from('org_invitations')
+      .select('email, role, token, organizations(name)')
+      .eq('token', token)
+      .eq('status', 'pending')
+      .single()
+
+    if (data) {
+      const orgName = (data.organizations as unknown as { name: string })?.name || 'an organization'
+      setInviteInfo({ org_name: orgName, email: data.email, role: data.role, token })
+      setEmail(data.email)
+    } else {
+      // Try without join if PostgREST relationship not detected
+      const { data: rawInvite } = await supabase
+        .from('org_invitations')
+        .select('email, role, token, org_id')
+        .eq('token', token)
+        .eq('status', 'pending')
+        .single()
+
+      if (rawInvite) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', rawInvite.org_id)
+          .single()
+
+        setInviteInfo({
+          org_name: org?.name || 'an organization',
+          email: rawInvite.email,
+          role: rawInvite.role,
+          token,
+        })
+        setEmail(rawInvite.email)
+      }
+    }
+  }
+
+  async function acceptInvite(userId: string) {
+    if (!inviteToken) return
+
+    // Look up the invitation
+    const { data: invite } = await supabase
+      .from('org_invitations')
+      .select('id, org_id, role, email')
+      .eq('token', inviteToken)
+      .eq('status', 'pending')
+      .single()
+
+    if (!invite) return
+
+    // Add user to org
+    await supabase.from('organization_members').insert({
+      org_id: invite.org_id,
+      user_id: userId,
+      role: invite.role,
+      invited_by: null,
+    })
+
+    // Set as current org
+    await supabase.from('user_profiles').update({ current_org_id: invite.org_id }).eq('id', userId)
+
+    // Mark invitation as accepted
+    await supabase
+      .from('org_invitations')
+      .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+      .eq('id', invite.id)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -19,18 +107,33 @@ export default function Login() {
     setLoading(true)
 
     if (isSignUp) {
-      const { error } = await signUp(email, password, fullName)
-      if (error) {
-        setError(error.message)
+      const { error: signUpError } = await signUp(email, password, fullName)
+      if (signUpError) {
+        setError(signUpError.message)
       } else {
+        // If invite token present, accept the invite
+        if (inviteToken) {
+          // Get the newly created user
+          const { data: { user: newUser } } = await supabase.auth.getUser()
+          if (newUser) {
+            await acceptInvite(newUser.id)
+          }
+        }
         setError('')
         navigate('/')
       }
     } else {
-      const { error } = await signIn(email, password)
-      if (error) {
-        setError(error.message)
+      const { error: signInError } = await signIn(email, password)
+      if (signInError) {
+        setError(signInError.message)
       } else {
+        // If existing user signs in via invite link, accept the invite
+        if (inviteToken) {
+          const { data: { user: existingUser } } = await supabase.auth.getUser()
+          if (existingUser) {
+            await acceptInvite(existingUser.id)
+          }
+        }
         navigate('/')
       }
     }
@@ -46,6 +149,18 @@ export default function Login() {
             <p className="text-gray-500 mt-1">AI-Powered Procurement Intelligence</p>
             <p className="text-xs text-gray-400 mt-1">A product of Core314 Technologies LLC</p>
           </div>
+
+          {inviteInfo && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-center">
+              <Mail className="mx-auto text-blue-500 mb-2" size={24} />
+              <p className="text-sm text-blue-900 font-medium">
+                You've been invited to join <strong>{inviteInfo.org_name}</strong>
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                {isSignUp ? 'Create an account to accept the invitation.' : 'Sign in to accept the invitation.'}
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
@@ -69,6 +184,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
+                readOnly={!!inviteInfo}
               />
             </div>
 
@@ -96,9 +212,9 @@ export default function Login() {
               {loading ? (
                 'Please wait...'
               ) : isSignUp ? (
-                <><UserPlus size={18} /> Create Account</>
+                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : 'Create Account'}</>
               ) : (
-                <><LogIn size={18} /> Sign In</>
+                <><LogIn size={18} /> {inviteInfo ? 'Sign In & Join' : 'Sign In'}</>
               )}
             </button>
           </form>
