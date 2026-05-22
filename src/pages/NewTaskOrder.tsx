@@ -171,28 +171,37 @@ export default function NewTaskOrder() {
         </div>
 
         {/* Parent Contract (optional) */}
-        {contracts.length > 0 && (
-          <div className="border-t border-gray-100 pt-5">
-            <div className="flex items-center gap-2 text-gray-700 mb-3">
-              <FileStack size={18} className="text-indigo-600" />
-              <span className="font-medium">Parent Contract</span>
-              <span className="text-xs text-gray-400">(optional)</span>
-            </div>
-            <select
-              value={selectedContractId}
-              onChange={e => setSelectedContractId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            >
-              <option value="">— No parent contract —</option>
-              {contracts.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.title} {c.contract_number ? `(${c.contract_number})` : ''}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-400 mt-1">Link this project to an existing parent contract (IDIQ, BPA, etc.)</p>
+        <div className="border-t border-gray-100 pt-5">
+          <div className="flex items-center gap-2 text-gray-700 mb-3">
+            <FileStack size={18} className="text-indigo-600" />
+            <span className="font-medium">Parent Contract</span>
+            <span className="text-xs text-gray-400">(optional)</span>
           </div>
-        )}
+          {contracts.length > 0 ? (
+            <>
+              <select
+                value={selectedContractId}
+                onChange={e => setSelectedContractId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="">— No parent contract —</option>
+                {contracts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.title} {c.contract_number ? `(${c.contract_number})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Link this project to an existing parent contract (IDIQ, BPA, etc.)</p>
+            </>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 flex items-center justify-between">
+              <p className="text-sm text-gray-500">No active contracts yet</p>
+              <Link to="/contracts/new" className="text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                + Create Contract
+              </Link>
+            </div>
+          )}
+        </div>
 
         <div className="border-t border-gray-100 pt-5">
           <div className="flex items-center gap-2 text-gray-700 mb-4">
