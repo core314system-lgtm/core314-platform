@@ -74,6 +74,19 @@ export default function GlobalChat() {
 
     parts.push(`=== CURRENT DATE/TIME: ${now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })} (${todayStr}) ===`)
 
+    // ========== 0. CONTRACTS ==========
+    const { data: contracts } = await supabase
+      .from('contracts')
+      .select('*')
+      .order('title')
+
+    if (contracts && contracts.length > 0) {
+      parts.push(`=== CONTRACTS (${contracts.length}) ===`)
+      for (const c of contracts) {
+        parts.push(`Contract: ${c.title} (${c.contract_number || 'No number'}) | Type: ${c.contract_type} | Status: ${c.status}${c.agency ? ` | Agency: ${c.agency}` : ''}${c.ceiling_value ? ` | Ceiling: $${Number(c.ceiling_value).toLocaleString()}` : ''}`)
+      }
+    }
+
     // ========== 1. TASK ORDERS (full detail) ==========
     const { data: taskOrders } = await supabase
       .from('task_orders')
@@ -85,7 +98,7 @@ export default function GlobalChat() {
       for (const to of taskOrders) {
         const lines = [
           `Project: ${to.title}`,
-          `  Solicitation: ${to.solicitation_number || 'N/A'} | TO#: ${to.task_order_number || 'N/A'} | Contract#: ${to.contract_number || 'N/A'}`,
+          `  Solicitation: ${to.solicitation_number || 'N/A'} | TO#: ${to.task_order_number || 'N/A'} | Contract#: ${to.contract_number || 'N/A'}${to.contract_id && contracts ? ` | Parent Contract: ${contracts.find((c: { id: string; title: string }) => c.id === to.contract_id)?.title || 'Unknown'}` : ''}`,
           `  Site: ${to.site_name || 'N/A'} | Location: ${to.location_city ? `${to.location_city}, ${to.location_state}` : 'N/A'}`,
           `  Status: ${getWorkflowStage(to.project_type, to.status).label} (${to.status}) | Due: ${to.due_date || to.response_deadline || 'N/A'}`,
           `  Estimated Value: ${to.estimated_value || 'Not specified'}`,

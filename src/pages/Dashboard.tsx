@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3 } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 
@@ -129,6 +129,11 @@ export default function Dashboard() {
           <BarChart3 className="mb-2 text-blue-600" size={24} />
           <h3 className="font-semibold text-gray-900">Analytics</h3>
           <p className="text-xs text-gray-500 mt-1">Cross-project metrics and trends</p>
+        </Link>
+        <Link to="/contracts" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+          <FileStack className="mb-2 text-indigo-600" size={24} />
+          <h3 className="font-semibold text-gray-900">Contracts</h3>
+          <p className="text-xs text-gray-500 mt-1">Manage parent contracts and task orders</p>
         </Link>
       </div>
 

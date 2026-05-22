@@ -70,6 +70,33 @@ export interface Subcontractor {
   updated_at: string
 }
 
+export type ContractType = 'idiq' | 'bpa' | 'gwac' | 'gsa_schedule' | 'prime' | 'subcontract' | 'msa' | 'other'
+export type ContractStatus = 'active' | 'pending' | 'expired' | 'closed'
+
+export interface Contract {
+  id: string
+  title: string
+  contract_number: string
+  contract_type: ContractType
+  status: ContractStatus
+  vehicle: string | null
+  agency: string | null
+  contracting_officer: string | null
+  co_email: string | null
+  co_phone: string | null
+  period_of_performance_start: string | null
+  period_of_performance_end: string | null
+  ceiling_value: string | null
+  funded_value: string | null
+  naics_code: string | null
+  set_aside: string | null
+  description: string | null
+  org_id: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
 export interface UserProfile {
   id: string
   email: string

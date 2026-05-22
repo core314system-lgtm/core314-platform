@@ -17,6 +17,7 @@ import {
   Kanban,
   Plug,
   BarChart3,
+  FileStack,
 } from 'lucide-react'
 import { useState } from 'react'
 import GlobalChat from './GlobalChat'
@@ -24,6 +25,7 @@ import { useOrg } from '../contexts/OrgContext'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/contracts', label: 'Contracts', icon: FileStack },
   { path: '/projects', label: 'Projects', icon: ClipboardList },
   { path: '/pipeline', label: 'Pipeline', icon: Kanban },
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },

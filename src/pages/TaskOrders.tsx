@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TaskOrder } from '../lib/types'
 import { Link } from 'react-router-dom'
-import { Upload, MapPin, Search } from 'lucide-react'
+import { Upload, MapPin, Search, FileStack } from 'lucide-react'
 import { getProjectTypeLabel, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 export default function TaskOrders() {
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
+  const [contractMap, setContractMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -15,12 +16,15 @@ export default function TaskOrders() {
   }, [])
 
   async function fetchTaskOrders() {
-    const { data } = await supabase
-      .from('task_orders')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const [toRes, contractRes] = await Promise.all([
+      supabase.from('task_orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('contracts').select('id, title').then(r => r),
+    ])
 
-    setTaskOrders(data || [])
+    setTaskOrders(toRes.data || [])
+    const cMap: Record<string, string> = {}
+    for (const c of (contractRes.data || [])) { cMap[c.id] = c.title }
+    setContractMap(cMap)
     setLoading(false)
   }
 
@@ -93,6 +97,11 @@ export default function TaskOrders() {
                 <p className="font-medium text-gray-900">{to.title}</p>
                 <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                   <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{getProjectTypeLabel(to.project_type)}</span>
+                  {(to as TaskOrder & { contract_id?: string }).contract_id && contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!] && (
+                    <span className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                      <FileStack size={10} /> {contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!]}
+                    </span>
+                  )}
                   {to.solicitation_number && <span>Sol: {to.solicitation_number}</span>}
                   {to.site_name && (
                     <span className="flex items-center gap-1">

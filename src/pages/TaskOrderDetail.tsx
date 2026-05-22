@@ -6,7 +6,7 @@ import type { TaskOrder, Document as Doc, DocumentCategory, AnalysisResult } fro
 import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors } from '../lib/api'
-import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen } from 'lucide-react'
+import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
 import WorkflowBar from '../components/WorkflowBar'
@@ -49,6 +49,7 @@ export default function TaskOrderDetail() {
   const [expandedSection, setExpandedSection] = useState<string | null>('documents')
   const [subMatches, setSubMatches] = useState<Array<{ subcontractor_id: string; company_name: string; matched_categories: string[]; location_match: boolean; incumbent_status: string; preferred: boolean; match_score: number }>>([])
   const [auditKey, setAuditKey] = useState(0)
+  const [contractName, setContractName] = useState<string | null>(null)
 
   async function handleStageChange(newStageId: string, note?: string) {
     if (!taskOrder || !id) return
@@ -90,6 +91,10 @@ export default function TaskOrderDetail() {
   async function fetchTaskOrder() {
     const { data } = await supabase.from('task_orders').select('*').eq('id', id).single()
     setTaskOrder(data)
+    if (data?.contract_id) {
+      supabase.from('contracts').select('title').eq('id', data.contract_id).single()
+        .then(({ data: c }) => { if (c) setContractName(c.title) })
+    }
     setLoading(false)
   }
 
@@ -347,6 +352,11 @@ export default function TaskOrderDetail() {
           <Link to="/projects" className="text-sm text-blue-600 hover:underline mb-1 inline-block">&larr; Back to Projects</Link>
           <h1 className="text-2xl font-bold text-gray-900">{taskOrder.title}</h1>
           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
+            {contractName && (taskOrder as TaskOrder & { contract_id?: string }).contract_id && (
+              <Link to={`/contracts/${(taskOrder as TaskOrder & { contract_id?: string }).contract_id}`} className="flex items-center gap-1 text-indigo-600 hover:underline">
+                <FileStack size={14} /> {contractName}
+              </Link>
+            )}
             {taskOrder.solicitation_number && <span>Solicitation: {taskOrder.solicitation_number}</span>}
             {taskOrder.task_order_number && <span>TO#: {taskOrder.task_order_number}</span>}
             {taskOrder.site_name && <span>Site: {taskOrder.site_name}</span>}

@@ -31,6 +31,9 @@ import OrgSettings from './pages/OrgSettings'
 import PipelineView from './pages/PipelineView'
 import Integrations from './pages/Integrations'
 import Analytics from './pages/Analytics'
+import Contracts from './pages/Contracts'
+import NewContract from './pages/NewContract'
+import ContractDetail from './pages/ContractDetail'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -109,6 +112,11 @@ export default function App() {
           <Route path="/task-orders" element={<Navigate to="/projects" replace />} />
           <Route path="/task-orders/new" element={<Navigate to="/projects/new" replace />} />
           <Route path="/task-orders/*" element={<Navigate to="/projects" replace />} />
+
+          {/* Contracts */}
+          <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />
+          <Route path="/contracts/new" element={<ProtectedRoute><NewContract /></ProtectedRoute>} />
+          <Route path="/contracts/:id" element={<ProtectedRoute><ContractDetail /></ProtectedRoute>} />
 
           {/* Compliance Matrices (cross-project view) */}
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />

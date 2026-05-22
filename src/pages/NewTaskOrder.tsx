@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useOrg } from '../contexts/OrgContext'
-import { ArrowLeft, Upload, FileText, Info, Building2, Landmark, HardHat, Server, Briefcase } from 'lucide-react'
+import type { Contract } from '../lib/types'
+import { ArrowLeft, Upload, FileText, Info, Building2, Landmark, HardHat, Server, Briefcase, FileStack } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PROJECT_TYPES, getProjectType } from '../lib/projectTypes'
 
@@ -23,9 +24,12 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 
 export default function NewTaskOrder() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const { currentOrg, isMultiTenantEnabled } = useOrg()
   const [loading, setLoading] = useState(false)
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [selectedContractId, setSelectedContractId] = useState(searchParams.get('contract_id') || '')
   const [form, setForm] = useState({
     title: '',
     solicitation_number: '',
@@ -39,6 +43,14 @@ export default function NewTaskOrder() {
   })
 
   const projectType = getProjectType(form.project_type)
+
+  useEffect(() => {
+    if (currentOrg?.id) {
+      supabase.from('contracts').select('id, title, contract_number, contract_type')
+        .eq('org_id', currentOrg.id).eq('status', 'active').order('title')
+        .then(({ data }) => setContracts(data as Contract[] || []))
+    }
+  }, [currentOrg?.id])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -61,10 +73,13 @@ export default function NewTaskOrder() {
       created_by: user?.id,
     }
 
-    // Include project_type and org_id if available
+    // Include project_type, org_id, and contract_id if available
     const extraFields: Record<string, unknown> = { project_type: form.project_type }
     if (isMultiTenantEnabled && currentOrg) {
       extraFields.org_id = currentOrg.id
+    }
+    if (selectedContractId) {
+      extraFields.contract_id = selectedContractId
     }
 
     const { data, error } = await supabase
@@ -154,6 +169,30 @@ export default function NewTaskOrder() {
             })}
           </div>
         </div>
+
+        {/* Parent Contract (optional) */}
+        {contracts.length > 0 && (
+          <div className="border-t border-gray-100 pt-5">
+            <div className="flex items-center gap-2 text-gray-700 mb-3">
+              <FileStack size={18} className="text-indigo-600" />
+              <span className="font-medium">Parent Contract</span>
+              <span className="text-xs text-gray-400">(optional)</span>
+            </div>
+            <select
+              value={selectedContractId}
+              onChange={e => setSelectedContractId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option value="">— No parent contract —</option>
+              {contracts.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.title} {c.contract_number ? `(${c.contract_number})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Link this project to an existing parent contract (IDIQ, BPA, etc.)</p>
+          </div>
+        )}
 
         <div className="border-t border-gray-100 pt-5">
           <div className="flex items-center gap-2 text-gray-700 mb-4">
