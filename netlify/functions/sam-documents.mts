@@ -18,6 +18,8 @@ interface SamAttachment {
   size: number
   accessLevel: string
   postedDate: string
+  uri?: string
+  description?: string
 }
 
 export default async (req: Request, _context: Context) => {
@@ -92,17 +94,33 @@ export default async (req: Request, _context: Context) => {
         mimeType: string
         size: number
         postedDate: string
+        type: "file" | "link"
+        uri?: string
+        description?: string
       }> = []
 
       for (const list of attachmentLists) {
         for (const att of (list.attachments || []) as SamAttachment[]) {
-          if (att.accessLevel === "public" && att.type === "file") {
+          if (att.accessLevel !== "public") continue
+          if (att.type === "file") {
             attachments.push({
               resourceId: att.resourceId,
               name: att.name,
               mimeType: att.mimeType,
               size: att.size,
               postedDate: att.postedDate,
+              type: "file",
+            })
+          } else if (att.type === "link" && att.uri) {
+            attachments.push({
+              resourceId: att.resourceId,
+              name: att.description || att.uri,
+              mimeType: "",
+              size: 0,
+              postedDate: att.postedDate,
+              type: "link",
+              uri: att.uri,
+              description: att.description || "",
             })
           }
         }

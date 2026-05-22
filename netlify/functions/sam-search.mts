@@ -119,25 +119,50 @@ export default async (req: Request, _context: Context) => {
     const results: SearchResult[] = searchData?._embedded?.results || []
     const totalRecords = searchData?.page?.totalElements || 0
 
-    // Fetch details for each result (in parallel, max 10 at a time)
-    const detailPromises = results.slice(0, 10).map(async (r) => {
-      try {
-        const detailRes = await fetch(
+    // Fetch details and attachment counts for each result (in parallel)
+    const enrichPromises = results.slice(0, 10).map(async (r) => {
+      const [detailRes, resourceRes] = await Promise.all([
+        fetch(
           `https://sam.gov/api/prod/opps/v2/opportunities/${r._id}?responseType=json`,
           { headers: { Accept: "application/hal+json, application/json" } }
-        )
-        if (!detailRes.ok) return null
-        const detailJson = await detailRes.json()
-        return detailJson?.data2 as DetailData | null
-      } catch {
-        return null
+        ).catch(() => null),
+        fetch(
+          `https://sam.gov/api/prod/opps/v3/opportunities/${r._id}/resources?responseType=json`,
+          { headers: { Accept: "application/hal+json, application/json" } }
+        ).catch(() => null),
+      ])
+
+      let detail: DetailData | null = null
+      if (detailRes && detailRes.ok) {
+        try {
+          const dj = await detailRes.json()
+          detail = dj?.data2 as DetailData | null
+        } catch { /* ignore */ }
       }
+
+      let fileCount = 0
+      let linkCount = 0
+      if (resourceRes && resourceRes.ok) {
+        try {
+          const rj = await resourceRes.json()
+          const lists = rj?._embedded?.opportunityAttachmentList || []
+          for (const list of lists) {
+            for (const att of list.attachments || []) {
+              if (att.accessLevel !== "public") continue
+              if (att.type === "file") fileCount++
+              else if (att.type === "link") linkCount++
+            }
+          }
+        } catch { /* ignore */ }
+      }
+
+      return { detail, fileCount, linkCount }
     })
-    const details = await Promise.all(detailPromises)
+    const enriched = await Promise.all(enrichPromises)
 
     // Normalize response
     const opportunities = results.map((r, i) => {
-      const detail = details[i]
+      const { detail, fileCount, linkCount } = enriched[i] || {}
       const agency = (r.organizationHierarchy || [])
         .sort((a, b) => a.level - b.level)
         .map((o) => o.name)
@@ -179,6 +204,10 @@ export default async (req: Request, _context: Context) => {
           email: poc.email || "",
           phone: poc.phone || "",
         })),
+        attachmentCounts: {
+          files: fileCount || 0,
+          links: linkCount || 0,
+        },
       }
     })
 

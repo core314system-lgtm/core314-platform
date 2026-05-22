@@ -5,7 +5,8 @@ import { useOrg } from '../contexts/OrgContext'
 import {
   Search, ExternalLink, Upload, FileSpreadsheet,
   Building2, Globe, Key, Copy, CheckCircle, AlertCircle,
-  MapPin, Clock, Filter, ChevronDown, ChevronUp, Plus
+  MapPin, Clock, Filter, ChevronDown, ChevronUp, Plus,
+  Paperclip, Link2
 } from 'lucide-react'
 
 // ========== SAM.gov Types ==========
@@ -24,6 +25,7 @@ interface SamOpportunity {
   uiLink: string
   placeOfPerformance: { city: string | null; state: string | null } | null
   pointOfContact: Array<{ name: string; email: string; phone: string }>
+  attachmentCounts?: { files: number; links: number }
 }
 
 // ========== Opportunity Types ==========
@@ -179,17 +181,22 @@ export default function Integrations() {
       } catch { /* workflow_history may not exist */ }
     }
 
-    // Download SAM.gov solicitation documents
+    // Download SAM.gov solicitation documents and capture links
     if (projectId && user) {
       try {
         const attRes = await fetch(`/api/sam-documents?opportunityId=${opp.noticeId}`)
         if (attRes.ok) {
           const attData = await attRes.json()
           const attachments = (attData.attachments || []) as Array<{
-            resourceId: string; name: string; mimeType: string; size: number
+            resourceId: string; name: string; mimeType: string; size: number;
+            type: 'file' | 'link'; uri?: string; description?: string
           }>
 
-          for (const att of attachments) {
+          const fileAtts = attachments.filter(a => a.type === 'file')
+          const linkAtts = attachments.filter(a => a.type === 'link')
+
+          // Download file attachments
+          for (const att of fileAtts) {
             try {
               const dlRes = await fetch(`/api/sam-documents?resourceId=${att.resourceId}&download=1`)
               if (!dlRes.ok) continue
@@ -214,6 +221,16 @@ export default function Integrations() {
                 uploaded_by: user.id,
               })
             } catch { /* skip individual file failures */ }
+          }
+
+          // Append external document links to project notes
+          if (linkAtts.length > 0) {
+            const linkNotes = '\n\n--- SAM.gov Document Links ---\n' +
+              linkAtts.map(l => `• ${l.description || l.name}: ${l.uri}`).join('\n')
+
+            await supabase.from('task_orders')
+              .update({ notes: (insertData.notes as string || '') + linkNotes })
+              .eq('id', projectId)
           }
         }
       } catch { /* documents download is best-effort */ }
@@ -476,6 +493,20 @@ export default function Integrations() {
                       {opp.responseDeadline && (
                         <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
                           <Clock size={10} /> Response deadline: {new Date(opp.responseDeadline).toLocaleDateString()}
+                        </div>
+                      )}
+                      {opp.attachmentCounts && (opp.attachmentCounts.files > 0 || opp.attachmentCounts.links > 0) && (
+                        <div className="flex items-center gap-3 mt-1 text-xs">
+                          {opp.attachmentCounts.files > 0 && (
+                            <span className="flex items-center gap-1 text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                              <Paperclip size={10} /> {opp.attachmentCounts.files} document{opp.attachmentCounts.files !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {opp.attachmentCounts.links > 0 && (
+                            <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                              <Link2 size={10} /> {opp.attachmentCounts.links} external link{opp.attachmentCounts.links !== 1 ? 's' : ''}
+                            </span>
+                          )}
                         </div>
                       )}
                       {opp.description && (
