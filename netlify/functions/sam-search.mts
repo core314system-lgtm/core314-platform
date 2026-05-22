@@ -86,8 +86,15 @@ export default async (req: Request, _context: Context) => {
 
     const params = new URLSearchParams()
     if (keyword) params.set("keyword", keyword)
-    if (postedFrom) params.set("postedFrom", postedFrom)
-    if (postedTo) params.set("postedTo", postedTo)
+
+    // SAM.gov requires postedFrom and postedTo date range (MM/dd/yyyy)
+    const now = new Date()
+    const sixMonthsAgo = new Date(now)
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const formatDate = (d: Date) =>
+      `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`
+    params.set("postedFrom", postedFrom || formatDate(sixMonthsAgo))
+    params.set("postedTo", postedTo || formatDate(now))
     if (solicitationType) params.set("ptype", solicitationType)
     if (naicsCode) params.set("ncode", naicsCode)
     if (setAside) params.set("typeOfSetAside", setAside)
@@ -106,8 +113,14 @@ export default async (req: Request, _context: Context) => {
 
     if (!samRes.ok) {
       const errText = await samRes.text()
+      const errorMsg =
+        samRes.status === 404
+          ? "SAM.gov Opportunities API is currently unavailable (404). This may be a temporary outage — please try again later."
+          : samRes.status === 429
+            ? "SAM.gov rate limit exceeded. Please wait a few minutes and try again."
+            : `SAM.gov API error (${samRes.status}): ${errText || "Unknown error"}`
       return new Response(
-        JSON.stringify({ error: `SAM.gov API error: ${samRes.status}`, details: errText }),
+        JSON.stringify({ error: errorMsg }),
         { status: 502, headers: { "Content-Type": "application/json" } }
       )
     }

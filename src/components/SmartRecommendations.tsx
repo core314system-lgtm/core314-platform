@@ -40,7 +40,7 @@ export default function SmartRecommendations({ project, documentCount, analysisC
     setLoading(true)
     setDismissed(new Set())
     try {
-      const res = await fetch('/.netlify/functions/smart-recommendations', {
+      const res = await fetch('/api/smart-recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ project, documentCount, analysisComplete, subAssignments }),

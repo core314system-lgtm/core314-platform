@@ -95,7 +95,7 @@ export default function Integrations() {
     setSamResults([])
 
     try {
-      const res = await fetch('/.netlify/functions/sam-search', {
+      const res = await fetch('/api/sam-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,7 +118,7 @@ export default function Integrations() {
       setSamResults(data.opportunities || [])
       setSamTotal(data.totalRecords || 0)
     } catch (err) {
-      setSamError('Network error — could not reach SAM.gov')
+      setSamError('Network error — could not reach SAM.gov. The SAM.gov API may be temporarily unavailable.')
     }
     setSamSearching(false)
   }
