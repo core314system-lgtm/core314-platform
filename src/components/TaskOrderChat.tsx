@@ -59,6 +59,21 @@ export default function TaskOrderChat({ taskOrderId, taskOrderTitle, analysisRes
     parts.push(`Project: ${taskOrderTitle}`)
     parts.push(`Project ID: ${taskOrderId}`)
 
+    // Add parent contract info if linked
+    try {
+      const { data: toData } = await supabase.from('task_orders').select('contract_id').eq('id', taskOrderId).single()
+      if (toData?.contract_id) {
+        const { data: contract } = await supabase.from('contracts').select('title, contract_number, contract_type, agency, ceiling_value, period_of_performance_start, period_of_performance_end').eq('id', toData.contract_id).single()
+        if (contract) {
+          parts.push(`\n--- PARENT CONTRACT ---`)
+          parts.push(`Contract: ${contract.title}${contract.contract_number ? ` (${contract.contract_number})` : ''}`)
+          parts.push(`Type: ${contract.contract_type} | Agency: ${contract.agency || 'N/A'}`)
+          if (contract.ceiling_value) parts.push(`Ceiling: $${Number(contract.ceiling_value).toLocaleString()}`)
+          if (contract.period_of_performance_start) parts.push(`PoP: ${contract.period_of_performance_start} to ${contract.period_of_performance_end || 'TBD'}`)
+        }
+      }
+    } catch { /* contracts table may not exist yet */ }
+
     // Add analysis result summary
     if (analysisResult) {
       const meta = analysisResult.task_order_metadata as Record<string, unknown> | undefined

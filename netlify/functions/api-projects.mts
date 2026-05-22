@@ -119,6 +119,7 @@ export default async (req: Request, _context: Context) => {
         status = "draft",
         source,
         source_id,
+        contract_id,
       } = body
 
       if (!title) {
@@ -139,6 +140,7 @@ export default async (req: Request, _context: Context) => {
         created_by: userId,
         source: source || null,
         source_id: source_id || null,
+        contract_id: contract_id || null,
       }
 
       if (orgId) {

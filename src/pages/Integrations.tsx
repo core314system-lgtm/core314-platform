@@ -226,6 +226,7 @@ export default function Integrations() {
       'due date': 'due_date', 'deadline': 'due_date', 'response date': 'due_date',
       'notes': 'notes', 'description': 'notes',
       'type': 'project_type', 'project type': 'project_type',
+      'contract': 'contract_title', 'contract name': 'contract_title', 'parent contract': 'contract_title',
     }
 
     const columnMap: Record<number, string> = {}
@@ -265,6 +266,14 @@ export default function Integrations() {
 
       if (isMultiTenantEnabled && currentOrg) {
         insertData.org_id = currentOrg.id
+      }
+
+      // Try to match contract by title
+      if (row.contract_title && currentOrg) {
+        const { data: matchedContract } = await supabase.from('contracts')
+          .select('id').eq('org_id', currentOrg.id)
+          .ilike('title', row.contract_title.trim()).limit(1).single()
+        if (matchedContract) insertData.contract_id = matchedContract.id
       }
 
       const { error } = await supabase.from('task_orders').insert(insertData)
@@ -473,7 +482,7 @@ export default function Integrations() {
 
           <div className="bg-gray-50 rounded-lg p-4 text-xs text-gray-600 space-y-1">
             <p className="font-medium text-gray-700">Supported column headers:</p>
-            <p>Title, Solicitation Number, Task Order Number, Site Name, City, State, Due Date, Notes, Project Type</p>
+            <p>Title, Solicitation Number, Task Order Number, Site Name, City, State, Due Date, Notes, Project Type, Contract (parent contract name)</p>
             <p className="text-gray-400 mt-1">Minimum required: Title</p>
           </div>
 
@@ -595,7 +604,8 @@ Body:
   "location_state": "GA",
   "due_date": "2026-06-15",
   "project_type": "government_task_order",
-  "notes": "Optional notes"
+  "notes": "Optional notes",
+  "contract_id": "optional-parent-contract-uuid"
 }`}
                 </code>
               </div>

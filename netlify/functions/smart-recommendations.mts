@@ -51,7 +51,7 @@ Each recommendation should be:
 - Prioritized by impact on win probability
 - Short (title: 5-10 words, description: 1-2 sentences)
 
-Consider: project stage, document completeness, analysis status, team composition, deadline pressure, historical win/loss patterns, and the project type.`
+Consider: project stage, document completeness, analysis status, team composition, deadline pressure, historical win/loss patterns, project type, and parent contract context (if contract_id is present, the project belongs to a larger contract vehicle).`
 
     const userPrompt = `Project: ${JSON.stringify(project)}
 Documents: ${documentCount || 0}

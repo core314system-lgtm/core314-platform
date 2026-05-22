@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, ChevronDown, ChevronUp, BookOpen, Upload, Brain, Users, BarChart3, Download, MessageCircle, HelpCircle, ClipboardList, Shield } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, BookOpen, Upload, Brain, Users, BarChart3, Download, MessageCircle, HelpCircle, ClipboardList, Shield, FileStack } from 'lucide-react'
 
 interface FaqItem {
   question: string
@@ -24,7 +24,8 @@ const helpSections: HelpSection[] = [
     steps: [
       'Log in with your credentials at the login page.',
       'Set up your Subcontractor Database first — go to "Subcontractors" in the sidebar and add your vendors manually or import from an Excel/CSV file.',
-      'Create a new project — go to "Projects" and click "New Project".',
+      '(Optional) Set up parent Contracts — go to "Contracts" to create IDIQ, BPA, or other contract vehicles that your projects will fall under.',
+      'Create a new project — go to "Projects" and click "New Project". Optionally link it to a parent contract.',
       'Upload all project documents (SOWs, pricing sheets, exhibits, amendments, etc.).',
       'Run AI Analysis to extract requirements, identify service categories, and generate outputs.',
       'Review the generated outputs: Compliance Matrix, RFQ Packages, Clarification Questions, Pricing Risks, Executive Summary.',
@@ -288,6 +289,34 @@ const helpSections: HelpSection[] = [
       {
         question: 'How does the Intelligence Library work?',
         answer: 'After a project is awarded or not awarded, complete a Debrief (available on the project detail page). The Intelligence Library aggregates all debriefs to show win/loss rates, top loss reasons, competitor profiles, pricing insights, and lessons learned by service category.',
+      },
+    ],
+  },
+  {
+    id: 'contracts',
+    title: 'Contracts & Hierarchy',
+    icon: FileStack,
+    description: 'Group related task orders and projects under parent contracts.',
+    faqs: [
+      {
+        question: 'What is a contract in Procuvex?',
+        answer: 'A contract is a parent entity (IDIQ, BPA, GWAC, GSA Schedule, Prime Contract, MSA, etc.) that groups related task orders and projects together. This allows you to see all work under a single contract, track aggregate value against the ceiling, and monitor period of performance.',
+      },
+      {
+        question: 'How do I create a contract?',
+        answer: 'Go to Contracts in the sidebar and click "New Contract". Fill in the contract details (title, number, type, agency, PoP dates, ceiling/funded value, etc.) and click Create. Then link existing projects or create new task orders directly under the contract.',
+      },
+      {
+        question: 'How do I link a project to a contract?',
+        answer: 'There are three ways: (1) On the Contract Detail page, click "Link Existing Project" and select from unlinked projects. (2) On the Contract Detail page, click "New Task Order" to create a project pre-linked to the contract. (3) When creating any new project, use the "Parent Contract" dropdown to select a contract.',
+      },
+      {
+        question: 'Can a project belong to multiple contracts?',
+        answer: 'No — each project can be linked to at most one parent contract. However, standalone projects (not linked to any contract) are fully supported. The parent contract is optional.',
+      },
+      {
+        question: 'What happens if I delete a contract?',
+        answer: 'Deleting a contract unlinks all associated projects but does NOT delete the projects themselves. They become standalone projects again.',
       },
     ],
   },

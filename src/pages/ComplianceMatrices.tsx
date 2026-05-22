@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { loadAiOutput } from '../lib/aiStorage'
 import type { TaskOrder, ComplianceItem } from '../lib/types'
-import { Shield, ArrowRight, CheckCircle, Clock } from 'lucide-react'
+import { Shield, ArrowRight, CheckCircle, Clock, FileStack } from 'lucide-react'
 
 interface TOWithMatrix {
   taskOrder: TaskOrder
@@ -13,11 +13,19 @@ interface TOWithMatrix {
 
 export default function ComplianceMatrices() {
   const [items, setItems] = useState<TOWithMatrix[]>([])
+  const [contractMap, setContractMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      const { data: taskOrders } = await supabase.from('task_orders').select('*').order('created_at', { ascending: false })
+      const [toRes, contractRes] = await Promise.all([
+        supabase.from('task_orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('contracts').select('id, title'),
+      ])
+      const taskOrders = toRes.data
+      const cMap: Record<string, string> = {}
+      for (const c of (contractRes.data || [])) { cMap[c.id] = c.title }
+      setContractMap(cMap)
 
       const results: TOWithMatrix[] = []
       for (const to of taskOrders || []) {
@@ -69,6 +77,9 @@ export default function ComplianceMatrices() {
                 )}
                 <div>
                   <h3 className="font-semibold text-gray-900">{to.title}</h3>
+                  {(to as TaskOrder & { contract_id?: string }).contract_id && contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!] && (
+                    <p className="flex items-center gap-1 text-xs text-indigo-600 mt-0.5"><FileStack size={10} /> {contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!]}</p>
+                  )}
                   <p className="text-sm text-gray-500">
                     {to.site_name && `${to.site_name} | `}
                     {hasMatrix ? `${itemCount} compliance items` : 'No matrix generated - run AI analysis'}

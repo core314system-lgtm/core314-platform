@@ -8,13 +8,20 @@ import { Download, ArrowLeft, FileSpreadsheet, FileText, Presentation } from 'lu
 export default function ExportCenter() {
   const { id } = useParams<{ id: string }>()
   const [taskOrder, setTaskOrder] = useState<TaskOrder | null>(null)
+  const [contractName, setContractName] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState('')
 
   useEffect(() => {
     if (id) {
-      supabase.from('task_orders').select('*').eq('id', id).single().then(({ data }) => setTaskOrder(data))
+      supabase.from('task_orders').select('*').eq('id', id).single().then(({ data }) => {
+        setTaskOrder(data)
+        if (data?.contract_id) {
+          supabase.from('contracts').select('title, contract_number').eq('id', data.contract_id).single()
+            .then(({ data: c }) => { if (c) setContractName(`${c.title}${c.contract_number ? ` (${c.contract_number})` : ''}`) })
+        }
+      })
       checkOutputs()
     }
   }, [id])
@@ -105,6 +112,7 @@ export default function ExportCenter() {
       doc.text('Executive Bid Summary', 20, y); y += 10
       doc.setFontSize(10)
       doc.text(`Task Order: ${taskOrder?.title || ''}`, 20, y); y += 6
+      if (contractName) { doc.text(`Contract: ${contractName}`, 20, y); y += 6 }
       doc.text(`Site: ${taskOrder?.site_name || ''}`, 20, y); y += 6
       doc.text(`Confidence: ${data.confidence_rating?.toUpperCase()}`, 20, y); y += 10
 
@@ -234,7 +242,8 @@ export default function ExportCenter() {
       const slide1 = pptx.addSlide()
       slide1.addText('Project Analysis', { x: 0.5, y: 1, w: 9, h: 1.5, fontSize: 32, bold: true, color: '1e3a5f', align: 'center' })
       slide1.addText(taskOrder?.title || '', { x: 0.5, y: 2.5, w: 9, h: 0.8, fontSize: 20, color: '4a5568', align: 'center' })
-      slide1.addText(`Site: ${taskOrder?.site_name || 'N/A'} | ${taskOrder?.location_city || ''}, ${taskOrder?.location_state || ''}`, { x: 0.5, y: 3.3, w: 9, h: 0.5, fontSize: 14, color: '718096', align: 'center' })
+      if (contractName) { slide1.addText(`Contract: ${contractName}`, { x: 0.5, y: 3.1, w: 9, h: 0.4, fontSize: 13, color: '5a67d8', align: 'center' }) }
+      slide1.addText(`Site: ${taskOrder?.site_name || 'N/A'} | ${taskOrder?.location_city || ''}, ${taskOrder?.location_state || ''}`, { x: 0.5, y: contractName ? 3.5 : 3.3, w: 9, h: 0.5, fontSize: 14, color: '718096', align: 'center' })
       slide1.addText('Core314 Technologies LLC', { x: 0.5, y: 4.5, w: 9, h: 0.5, fontSize: 12, color: 'a0aec0', align: 'center' })
       slide1.addText(`Confidence: ${execData.confidence_rating?.toUpperCase() || 'N/A'}`, { x: 0.5, y: 5, w: 9, h: 0.5, fontSize: 14, bold: true, color: execData.confidence_rating === 'high' ? '38a169' : execData.confidence_rating === 'medium' ? 'dd6b20' : 'e53e3e', align: 'center' })
 

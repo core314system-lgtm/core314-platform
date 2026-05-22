@@ -8,6 +8,7 @@ import { GitCompareArrows, ArrowRight } from 'lucide-react'
 
 export default function TaskOrderComparisonPage() {
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
+  const [contractMap, setContractMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [currentId, setCurrentId] = useState('')
   const [priorId, setPriorId] = useState('')
@@ -15,8 +16,14 @@ export default function TaskOrderComparisonPage() {
   const [result, setResult] = useState<ComparisonType | null>(null)
 
   useEffect(() => {
-    supabase.from('task_orders').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-      setTaskOrders(data || [])
+    Promise.all([
+      supabase.from('task_orders').select('*').order('created_at', { ascending: false }),
+      supabase.from('contracts').select('id, title'),
+    ]).then(([toRes, contractRes]) => {
+      setTaskOrders(toRes.data || [])
+      const cMap: Record<string, string> = {}
+      for (const c of (contractRes.data || [])) { cMap[c.id] = c.title }
+      setContractMap(cMap)
       setLoading(false)
     })
   }, [])
@@ -86,9 +93,11 @@ export default function TaskOrderComparisonPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Project</label>
                 <select value={currentId} onChange={e => setCurrentId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                   <option value="">Select project...</option>
-                  {taskOrders.map(to => (
-                    <option key={to.id} value={to.id}>{to.title} ({to.site_name})</option>
-                  ))}
+                  {taskOrders.map(to => {
+                    const cId = (to as TaskOrder & { contract_id?: string }).contract_id
+                    const cLabel = cId && contractMap[cId] ? ` [${contractMap[cId]}]` : ''
+                    return <option key={to.id} value={to.id}>{to.title} ({to.site_name}){cLabel}</option>
+                  })}
                 </select>
               </div>
               <ArrowRight size={20} className="text-gray-400 mt-6" />
@@ -96,9 +105,11 @@ export default function TaskOrderComparisonPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Prior Project</label>
                 <select value={priorId} onChange={e => setPriorId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
                   <option value="">Select project...</option>
-                  {taskOrders.filter(t => t.id !== currentId).map(to => (
-                    <option key={to.id} value={to.id}>{to.title} ({to.site_name})</option>
-                  ))}
+                  {taskOrders.filter(t => t.id !== currentId).map(to => {
+                    const cId = (to as TaskOrder & { contract_id?: string }).contract_id
+                    const cLabel = cId && contractMap[cId] ? ` [${contractMap[cId]}]` : ''
+                    return <option key={to.id} value={to.id}>{to.title} ({to.site_name}){cLabel}</option>
+                  })}
                 </select>
               </div>
               <button

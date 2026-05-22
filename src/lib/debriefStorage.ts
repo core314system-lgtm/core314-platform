@@ -24,6 +24,7 @@ export interface Debrief {
   evaluator_feedback: string
   service_categories: string[]
   region: string
+  contract_vehicle?: string
   contract_value_range: string
   created_at: string
   updated_at: string

@@ -7,7 +7,7 @@ import { getProjectTypeLabel, getWorkflowStage } from '../lib/projectTypes'
 import {
   BarChart3, TrendingUp, Target, DollarSign, Clock,
   Award, XCircle, Activity, PieChart, ArrowRight,
-  Building2, MapPin, Percent
+  Building2, MapPin, Percent, FileStack
 } from 'lucide-react'
 
 interface ProjectStats {
@@ -36,6 +36,7 @@ export default function Analytics() {
   const [projects, setProjects] = useState<TaskOrder[]>([])
   const [debriefs, setDebriefs] = useState<Debrief[]>([])
   const [intelligence, setIntelligence] = useState<IntelligenceSummary | null>(null)
+  const [contractMap, setContractMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -43,10 +44,14 @@ export default function Analytics() {
       supabase.from('task_orders').select('*').order('created_at', { ascending: false }),
       loadAllDebriefs(),
       loadIntelligence(),
-    ]).then(([toRes, allDebriefs, intel]) => {
+      supabase.from('contracts').select('id, title'),
+    ]).then(([toRes, allDebriefs, intel, contractRes]) => {
       setProjects(toRes.data || [])
       setDebriefs(allDebriefs)
       setIntelligence(intel)
+      const cMap: Record<string, string> = {}
+      for (const c of (contractRes.data || [])) { cMap[c.id] = c.title }
+      setContractMap(cMap)
       setLoading(false)
     })
   }, [])
@@ -254,6 +259,30 @@ export default function Analytics() {
                 }))}
             />
           )}
+        </div>
+
+        {/* By Contract */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FileStack size={16} className="text-indigo-600" /> By Contract
+          </h3>
+          {(() => {
+            const byContract: Record<string, number> = { 'Standalone (no contract)': 0 }
+            for (const p of projects) {
+              const cId = (p as TaskOrder & { contract_id?: string }).contract_id
+              if (cId && contractMap[cId]) {
+                byContract[contractMap[cId]] = (byContract[contractMap[cId]] || 0) + 1
+              } else {
+                byContract['Standalone (no contract)'] += 1
+              }
+            }
+            const entries = Object.entries(byContract).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
+            return entries.length <= 1 && entries[0]?.[0] === 'Standalone (no contract)' ? (
+              <p className="text-sm text-gray-400">No contracts created yet</p>
+            ) : (
+              <BarChart data={entries.map(([label, value]) => ({ label, value, color: label === 'Standalone (no contract)' ? 'bg-gray-400' : 'bg-indigo-500' }))} />
+            )
+          })()}
         </div>
 
         {/* Monthly trend */}

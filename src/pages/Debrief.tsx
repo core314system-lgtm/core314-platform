@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import type { TaskOrder } from '../lib/types'
 import { saveDebrief, loadDebrief, type Debrief as DebriefType } from '../lib/debriefStorage'
 import { CheckCircle, XCircle, MinusCircle, AlertTriangle, Save, ArrowLeft, Plus, X } from 'lucide-react'
 
@@ -129,6 +130,7 @@ export default function DebriefPage() {
       evaluator_feedback: evaluatorFeedback,
       service_categories: serviceCategories,
       region: taskOrder.location_state || '',
+      contract_vehicle: (taskOrder as TaskOrder & { contract_id?: string }).contract_id || '',
       contract_value_range: getValueRange(parseFloat(ourProposedPrice || '0')),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

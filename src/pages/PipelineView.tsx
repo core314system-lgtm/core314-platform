@@ -3,23 +3,26 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { TaskOrder } from '../lib/types'
 import { getWorkflowStages, getStageColor, getProjectTypeLabel } from '../lib/projectTypes'
-import { LayoutGrid, List, MapPin, Clock } from 'lucide-react'
+import { LayoutGrid, List, MapPin, Clock, FileStack } from 'lucide-react'
 
 export default function PipelineView() {
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
+  const [contractMap, setContractMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board')
   const [filterType, setFilterType] = useState<string>('all')
 
   useEffect(() => {
-    supabase
-      .from('task_orders')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .then(({ data }) => {
-        setTaskOrders(data || [])
-        setLoading(false)
-      })
+    Promise.all([
+      supabase.from('task_orders').select('*').order('updated_at', { ascending: false }),
+      supabase.from('contracts').select('id, title'),
+    ]).then(([toRes, contractRes]) => {
+      setTaskOrders(toRes.data || [])
+      const cMap: Record<string, string> = {}
+      for (const c of (contractRes.data || [])) { cMap[c.id] = c.title }
+      setContractMap(cMap)
+      setLoading(false)
+    })
   }, [])
 
   // Determine which stages to show based on filter
@@ -113,10 +116,15 @@ export default function PipelineView() {
                         className="block bg-white rounded-lg p-3 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
                       >
                         <p className="text-sm font-medium text-gray-900 truncate">{to.title}</p>
-                        <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs text-gray-500">
                           <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-medium">
                             {getProjectTypeLabel(to.project_type)}
                           </span>
+                          {(to as TaskOrder & { contract_id?: string }).contract_id && contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!] && (
+                            <span className="flex items-center gap-0.5 text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-medium">
+                              <FileStack size={9} /> {contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!]}
+                            </span>
+                          )}
                           {to.site_name && (
                             <span className="flex items-center gap-0.5 truncate">
                               <MapPin size={10} /> {to.site_name}
@@ -145,6 +153,7 @@ export default function PipelineView() {
               <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
                 <th className="text-left px-4 py-3">Project</th>
                 <th className="text-left px-4 py-3">Type</th>
+                <th className="text-left px-4 py-3">Contract</th>
                 <th className="text-left px-4 py-3">Stage</th>
                 <th className="text-left px-4 py-3">Location</th>
                 <th className="text-left px-4 py-3">Due Date</th>
@@ -169,6 +178,15 @@ export default function PipelineView() {
                         <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                           {getProjectTypeLabel(to.project_type)}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(to as TaskOrder & { contract_id?: string }).contract_id && contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!] ? (
+                          <Link to={`/contracts/${(to as TaskOrder & { contract_id?: string }).contract_id}`} className="flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+                            <FileStack size={10} /> {contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!]}
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-medium px-2 py-1 rounded-full ${colors.bg} ${colors.text}`}>
