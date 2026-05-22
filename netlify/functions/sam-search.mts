@@ -2,50 +2,46 @@ import type { Context } from "@netlify/functions"
 
 /**
  * Netlify Function: Search SAM.gov Opportunities
- * 
- * Proxies requests to the SAM.gov Opportunities API (public, no key required for basic search).
- * https://open.gsa.gov/api/get-opportunities-public-api/
- * 
+ *
+ * Uses the SAM.gov public search API (same API the SAM.gov website uses).
+ * Search: https://sam.gov/api/prod/sgs/v1/search/?index=opp&...
+ * Detail: https://sam.gov/api/prod/opps/v2/opportunities/{id}
+ *
  * POST /api/sam-search
- * Body: { keyword, postedFrom?, postedTo?, solicitationType?, naicsCode?, setAside?, limit?, offset? }
+ * Body: { keyword, solicitationType?, naicsCode?, setAside?, activeOnly?, limit?, offset? }
  */
 
-interface SamOpportunity {
-  noticeId: string
+interface SearchResult {
+  _id: string
   title: string
   solicitationNumber: string
-  fullParentPathName: string
-  postedDate: string
-  responseDeadLine: string
-  type: string
-  typeOfSetAsideDescription: string | null
-  naicsCode: string
-  classificationCode: string
-  active: string
-  description: string
-  organizationType: string
-  uiLink: string
-  officeAddress: {
-    city: string
-    state: string
-    zipcode: string
-  } | null
-  placeOfPerformance: {
-    city: { name: string } | null
-    state: { code: string; name: string } | null
-    country: { code: string } | null
-  } | null
-  pointOfContact: Array<{
+  publishDate: string
+  responseDate: string | null
+  isActive: boolean
+  type: { code: string; value: string }
+  descriptions: Array<{ content: string }>
+  organizationHierarchy: Array<{ name: string; level: number; type: string }>
+  award: { awardee: { name: string | null } } | null
+  modifications: { count: number }
+}
+
+interface DetailData {
+  naics?: Array<{ code: string[]; type: string }>
+  title?: string
+  solicitationNumber?: string
+  classificationCode?: string
+  placeOfPerformance?: {
+    city?: { code: string } | null
+    state?: { code: string; name: string } | null
+    country?: { code: string; name: string } | null
+  }
+  pointOfContact?: Array<{
     fullName: string
     email: string
     phone: string
     type: string
   }>
-  award?: {
-    awardee?: { name: string }
-    amount?: string
-    date?: string
-  }
+  type?: { value: string }
 }
 
 export default async (req: Request, _context: Context) => {
@@ -71,95 +67,123 @@ export default async (req: Request, _context: Context) => {
     const body = await req.json()
     const {
       keyword = "",
-      postedFrom,
-      postedTo,
       solicitationType,
-      naicsCode,
-      setAside,
+      activeOnly = true,
       limit = 25,
       offset = 0,
     } = body
 
-    // Build SAM.gov API URL
-    const samApiKey = process.env.SAM_GOV_API_KEY || ""
-    const baseUrl = "https://api.sam.gov/opportunities/v2/search"
+    // Build SAM.gov search URL (public search API used by sam.gov website)
+    const searchUrl = new URL("https://sam.gov/api/prod/sgs/v1/search/")
+    searchUrl.searchParams.set("index", "opp")
+    searchUrl.searchParams.set("mode", "search")
+    searchUrl.searchParams.set("responseType", "json")
+    searchUrl.searchParams.set("size", String(limit))
+    searchUrl.searchParams.set("page", String(Math.floor(offset / Math.max(limit, 1))))
+    searchUrl.searchParams.set("sort", "-modifiedDate")
 
-    const params = new URLSearchParams()
-    if (keyword) params.set("keyword", keyword)
-
-    // SAM.gov requires postedFrom and postedTo date range (MM/dd/yyyy)
-    const now = new Date()
-    const sixMonthsAgo = new Date(now)
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-    const formatDate = (d: Date) =>
-      `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`
-    params.set("postedFrom", postedFrom || formatDate(sixMonthsAgo))
-    params.set("postedTo", postedTo || formatDate(now))
-    if (solicitationType) params.set("ptype", solicitationType)
-    if (naicsCode) params.set("ncode", naicsCode)
-    if (setAside) params.set("typeOfSetAside", setAside)
-    params.set("limit", String(limit))
-    params.set("offset", String(offset))
-
-    // SAM.gov API key is optional for basic public data
-    if (samApiKey) {
-      params.set("api_key", samApiKey)
+    // Build query string
+    let q = keyword || "*"
+    if (solicitationType) {
+      const typeMap: Record<string, string> = {
+        o: "Solicitation",
+        p: "Presolicitation",
+        k: "Combined Synopsis/Solicitation",
+        r: "Sources Sought",
+        s: "Special Notice",
+        i: "Intent to Bundle",
+      }
+      const typeLabel = typeMap[solicitationType] || solicitationType
+      q += ` AND type.value:("${typeLabel}")`
     }
+    if (activeOnly) {
+      q += " AND isActive:true"
+    }
+    searchUrl.searchParams.set("q", q)
 
-    const url = `${baseUrl}?${params.toString()}`
-    const samRes = await fetch(url, {
-      headers: { Accept: "application/json" },
+    const searchRes = await fetch(searchUrl.toString(), {
+      headers: { Accept: "application/hal+json" },
     })
 
-    if (!samRes.ok) {
-      const errText = await samRes.text()
-      const errorMsg =
-        samRes.status === 404
-          ? "SAM.gov Opportunities API is currently unavailable (404). This may be a temporary outage — please try again later."
-          : samRes.status === 429
-            ? "SAM.gov rate limit exceeded. Please wait a few minutes and try again."
-            : `SAM.gov API error (${samRes.status}): ${errText || "Unknown error"}`
+    if (!searchRes.ok) {
+      const errText = await searchRes.text()
       return new Response(
-        JSON.stringify({ error: errorMsg }),
+        JSON.stringify({
+          error: `SAM.gov search error (${searchRes.status}): ${errText || "Unknown error"}`,
+        }),
         { status: 502, headers: { "Content-Type": "application/json" } }
       )
     }
 
-    const samData = await samRes.json()
+    const searchData = await searchRes.json()
+    const results: SearchResult[] = searchData?._embedded?.results || []
+    const totalRecords = searchData?.page?.totalElements || 0
+
+    // Fetch details for each result (in parallel, max 10 at a time)
+    const detailPromises = results.slice(0, 10).map(async (r) => {
+      try {
+        const detailRes = await fetch(
+          `https://sam.gov/api/prod/opps/v2/opportunities/${r._id}?responseType=json`,
+          { headers: { Accept: "application/hal+json, application/json" } }
+        )
+        if (!detailRes.ok) return null
+        const detailJson = await detailRes.json()
+        return detailJson?.data2 as DetailData | null
+      } catch {
+        return null
+      }
+    })
+    const details = await Promise.all(detailPromises)
 
     // Normalize response
-    const opportunities = (samData.opportunitiesData || []).map((opp: SamOpportunity) => ({
-      noticeId: opp.noticeId || "",
-      title: opp.title || "",
-      solicitationNumber: opp.solicitationNumber || "",
-      agency: opp.fullParentPathName || "",
-      postedDate: opp.postedDate || "",
-      responseDeadline: opp.responseDeadLine || "",
-      type: opp.type || "",
-      setAside: opp.typeOfSetAsideDescription || null,
-      naicsCode: opp.naicsCode || "",
-      classificationCode: opp.classificationCode || "",
-      active: opp.active === "Yes",
-      description: (opp.description || "").substring(0, 500),
-      uiLink: opp.uiLink || `https://sam.gov/opp/${opp.noticeId}/view`,
-      placeOfPerformance: opp.placeOfPerformance
-        ? {
-            city: opp.placeOfPerformance.city?.name || null,
-            state: opp.placeOfPerformance.state?.code || null,
-          }
-        : null,
-      pointOfContact: (opp.pointOfContact || []).slice(0, 2).map((poc) => ({
-        name: poc.fullName || "",
-        email: poc.email || "",
-        phone: poc.phone || "",
-      })),
-    }))
+    const opportunities = results.map((r, i) => {
+      const detail = details[i]
+      const agency = (r.organizationHierarchy || [])
+        .sort((a, b) => a.level - b.level)
+        .map((o) => o.name)
+        .join(" > ")
+
+      const description = (r.descriptions || [])
+        .map((d) => d.content || "")
+        .join(" ")
+        .replace(/<[^>]*>/g, "")
+        .substring(0, 500)
+
+      const naicsCode =
+        detail?.naics?.[0]?.code?.[0] || ""
+      const pop = detail?.placeOfPerformance
+      const contacts = detail?.pointOfContact || []
+
+      return {
+        noticeId: r._id,
+        title: r.title || "",
+        solicitationNumber: r.solicitationNumber || "",
+        agency,
+        postedDate: r.publishDate || "",
+        responseDeadline: r.responseDate || "",
+        type: r.type?.value || "",
+        setAside: null as string | null,
+        naicsCode,
+        classificationCode: detail?.classificationCode || "",
+        active: r.isActive,
+        description,
+        uiLink: `https://sam.gov/opp/${r._id}/view`,
+        placeOfPerformance: pop
+          ? {
+              city: pop.city?.code?.split(" - ")?.[1] || pop.city?.code || null,
+              state: pop.state?.code || null,
+            }
+          : null,
+        pointOfContact: contacts.slice(0, 2).map((poc) => ({
+          name: poc.fullName || "",
+          email: poc.email || "",
+          phone: poc.phone || "",
+        })),
+      }
+    })
 
     return new Response(
-      JSON.stringify({
-        totalRecords: samData.totalRecords || 0,
-        opportunities,
-      }),
+      JSON.stringify({ totalRecords, opportunities }),
       {
         status: 200,
         headers: {
