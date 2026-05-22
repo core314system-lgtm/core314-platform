@@ -40,7 +40,7 @@ export default async (req: Request, _context: Context) => {
   const download = url.searchParams.get("download")
 
   try {
-    // Proxy download a specific file
+    // Proxy download a specific file from SAM.gov
     if (resourceId && download) {
       const downloadUrl = `https://sam.gov/api/prod/opps/v3/opportunities/resources/files/${resourceId}/download`
       const dlRes = await fetch(downloadUrl, { redirect: "follow" })
@@ -60,6 +60,7 @@ export default async (req: Request, _context: Context) => {
         headers: {
           "Content-Type": contentType,
           "Access-Control-Allow-Origin": "*",
+          "Access-Control-Expose-Headers": "Content-Type",
         },
       })
     }

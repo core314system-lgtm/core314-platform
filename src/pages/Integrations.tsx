@@ -195,32 +195,66 @@ export default function Integrations() {
           const fileAtts = attachments.filter(a => a.type === 'file')
           const linkAtts = attachments.filter(a => a.type === 'link')
 
-          // Download file attachments
+          // Download file attachments via proxy and upload to Supabase
+          let docCount = 0
           for (const att of fileAtts) {
             try {
               const dlRes = await fetch(`/api/sam-documents?resourceId=${att.resourceId}&download=1`)
-              if (!dlRes.ok) continue
+              if (!dlRes.ok) {
+                console.warn(`[SAM Import] Download failed for ${att.name}: HTTP ${dlRes.status}`)
+                continue
+              }
 
-              const blob = await dlRes.blob()
+              const arrayBuffer = await dlRes.arrayBuffer()
+              const ext = att.name.split('.').pop()?.toLowerCase() || ''
+              const mimeMap: Record<string, string> = {
+                pdf: 'application/pdf',
+                docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                doc: 'application/msword',
+                xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                xls: 'application/vnd.ms-excel',
+                zip: 'application/zip',
+              }
+              const mimeType = mimeMap[ext] || 'application/octet-stream'
+
+              const file = new File([arrayBuffer], att.name, { type: mimeType })
               const storagePath = `${projectId}/${Date.now()}_${att.name}`
+
+              console.log(`[SAM Import] Uploading ${att.name} (${(arrayBuffer.byteLength / 1024).toFixed(0)}KB) to ${storagePath}`)
 
               const { error: uploadErr } = await supabase.storage
                 .from('task-order-documents')
-                .upload(storagePath, blob, { contentType: blob.type || 'application/octet-stream' })
+                .upload(storagePath, file, { contentType: mimeType, upsert: false })
 
-              if (uploadErr) continue
+              if (uploadErr) {
+                console.error(`[SAM Import] Upload to storage failed for ${att.name}:`, uploadErr.message)
+                continue
+              }
 
-              await supabase.from('documents').insert({
+              const { error: insertErr } = await supabase.from('documents').insert({
                 task_order_id: projectId,
                 file_name: att.name,
                 file_path: storagePath,
-                file_size: att.size || blob.size,
-                file_type: blob.type || att.mimeType || 'application/octet-stream',
+                file_size: arrayBuffer.byteLength,
+                file_type: mimeType,
                 category: 'solicitation',
                 version: 1,
                 uploaded_by: user.id,
               })
-            } catch { /* skip individual file failures */ }
+              if (insertErr) {
+                console.error(`[SAM Import] DB insert failed for ${att.name}:`, insertErr.message)
+              } else {
+                docCount++
+                console.log(`[SAM Import] Successfully imported ${att.name}`)
+              }
+            } catch (err) {
+              console.error(`[SAM Import] Error for ${att.name}:`, err)
+            }
+          }
+          if (docCount > 0) {
+            console.log(`[SAM Import] Successfully imported ${docCount} document(s)`)
+          } else if (fileAtts.length > 0) {
+            console.warn(`[SAM Import] Failed to import any of ${fileAtts.length} document(s) — check browser console for errors`)
           }
 
           // Append external document links to project notes
