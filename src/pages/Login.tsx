@@ -144,7 +144,7 @@ export default function Login() {
           }
         }
         setError('')
-        navigate('/')
+        navigate('/dashboard')
       }
     } else {
       const { error: signInError } = await signIn(email, password)
@@ -158,7 +158,7 @@ export default function Login() {
             await acceptInvite(existingUser.id)
           }
         }
-        navigate('/')
+        navigate('/dashboard')
       }
     }
     setLoading(false)

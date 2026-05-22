@@ -23,7 +23,7 @@ import GlobalChat from './GlobalChat'
 import { useOrg } from '../contexts/OrgContext'
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projects', icon: ClipboardList },
   { path: '/pipeline', label: 'Pipeline', icon: Kanban },
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },
@@ -54,7 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/dashboard" className="flex items-center gap-2">
             <div className="bg-blue-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm">Px</div>
             <div>
               <h1 className="font-bold text-gray-900 text-sm leading-tight">Procuvex</h1>
@@ -68,7 +68,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="p-4 space-y-1">
           {navItems.map(item => {
-            const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
+            const isActive = item.path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(item.path)
             return (
               <Link
                 key={item.path}

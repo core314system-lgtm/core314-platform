@@ -32,6 +32,19 @@ import PipelineView from './pages/PipelineView'
 import Integrations from './pages/Integrations'
 import Analytics from './pages/Analytics'
 
+import LandingPage from './landing/pages/LandingPage'
+import ProductPage from './landing/pages/ProductPage'
+import HowItWorksPage from './landing/pages/HowItWorksPage'
+import SolutionsPage from './landing/pages/SolutionsPage'
+import IntegrationsOverviewPage from './landing/pages/IntegrationsPage'
+import PricingPage from './landing/pages/PricingPage'
+import ContactPage from './landing/pages/ContactPage'
+import PrivacyPage from './landing/pages/PrivacyPage'
+import TermsPage from './landing/pages/TermsPage'
+import CookiesPage from './landing/pages/CookiesPage'
+import DPAPage from './landing/pages/DPAPage'
+import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
@@ -39,18 +52,40 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <OrgProvider><Layout>{children}</Layout></OrgProvider>
 }
 
+function HomePage() {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
+  if (user) return <Navigate to="/dashboard" replace />
+  return <LandingPage />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* Public landing pages */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/product" element={<ProductPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/solutions" element={<SolutionsPage />} />
+          <Route path="/integrations-overview" element={<IntegrationsOverviewPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/cookies" element={<CookiesPage />} />
+          <Route path="/dpa" element={<DPAPage />} />
+          <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
+
+          {/* Auth */}
           <Route path="/login" element={<Login />} />
 
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
-          {/* Dashboard */}
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          {/* Dashboard (authenticated home) */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
           {/* Projects (formerly Task Orders) */}
           <Route path="/projects" element={<ProtectedRoute><TaskOrders /></ProtectedRoute>} />
