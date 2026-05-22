@@ -19,8 +19,11 @@ import {
   BarChart3,
   FileStack,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import GlobalChat from './GlobalChat'
+import OnboardingGuide from './OnboardingGuide'
+import OnboardingChecklist from './OnboardingChecklist'
+import { getOnboardingState, saveOnboardingState, resetOnboarding, markStepComplete } from '../lib/onboarding'
 import { useOrg } from '../contexts/OrgContext'
 
 const navItems = [
@@ -45,6 +48,48 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { currentOrg, isMultiTenantEnabled } = useOrg()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
+
+  useEffect(() => {
+    const state = getOnboardingState()
+    if (!state.started && !state.dismissedGuide) {
+      setShowGuide(true)
+      const s = getOnboardingState()
+      s.started = true
+      saveOnboardingState(s)
+    }
+  }, [])
+
+  function handleLaunchGuide() {
+    resetOnboarding()
+    const s = getOnboardingState()
+    s.started = true
+    saveOnboardingState(s)
+    setShowGuide(true)
+  }
+
+  // Auto-mark onboarding steps complete based on page visits
+  useEffect(() => {
+    const path = location.pathname
+    const routeToStep: Record<string, string> = {
+      '/settings': 'org_setup',
+      '/subcontractors': 'add_subs',
+      '/contracts': 'create_contract',
+      '/projects/new': 'create_project',
+      '/pipeline': 'explore_pipeline',
+    }
+    // Mark step for current route
+    for (const [route, stepId] of Object.entries(routeToStep)) {
+      if (path === route || path.startsWith(route + '/')) {
+        markStepComplete(stepId)
+      }
+    }
+    // Mark upload & analysis steps if on a project detail page
+    if (/^\/projects\/[^/]+$/.test(path)) {
+      markStepComplete('upload_docs')
+      markStepComplete('run_analysis')
+    }
+  }, [location.pathname])
 
   // Hide global chat on project detail pages (they have their own project-specific chat)
   const isTaskOrderDetailPage = /^\/projects\/[^/]+$/.test(location.pathname)
@@ -123,12 +168,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <span className="font-semibold text-gray-900 text-sm">Procuvex</span>
         </div>
         <div className="p-6 max-w-7xl mx-auto">
+          <OnboardingChecklist onLaunchGuide={handleLaunchGuide} />
           {children}
         </div>
       </main>
 
       {/* Global Procuvex Intelligence chat — hidden on task order detail pages which have their own chat */}
       {!isTaskOrderDetailPage && <GlobalChat />}
+
+      {/* Onboarding guide modal */}
+      {showGuide && <OnboardingGuide onClose={() => setShowGuide(false)} />}
     </div>
   )
 }

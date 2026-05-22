@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Search, ChevronDown, ChevronUp, BookOpen, Upload, Brain, Users, BarChart3, Download, MessageCircle, HelpCircle, ClipboardList, Shield, FileStack } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, BookOpen, Upload, Brain, Users, BarChart3, Download, MessageCircle, HelpCircle, ClipboardList, Shield, FileStack, Rocket, RotateCcw } from 'lucide-react'
+import { resetOnboarding, saveOnboardingState, getOnboardingState } from '../lib/onboarding'
 
 interface FaqItem {
   question: string
@@ -371,6 +372,31 @@ export default function HelpCenter() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Learn how to use the Procuvex platform</p>
         </div>
+      </div>
+
+      {/* Restart Tour Card */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-100 rounded-lg p-2">
+            <Rocket size={20} className="text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">New User Guided Tour</h3>
+            <p className="text-xs text-gray-500">Step-by-step walkthrough of the entire Procuvex platform</p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            resetOnboarding()
+            const s = getOnboardingState()
+            s.started = true
+            saveOnboardingState(s)
+            window.location.href = '/dashboard'
+          }}
+          className="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          <RotateCcw size={14} /> Restart Tour
+        </button>
       </div>
 
       {/* Search */}
