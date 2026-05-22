@@ -147,25 +147,29 @@ export default function Integrations() {
       insertData.org_id = currentOrg.id
     }
 
+    let projectId: string | null = null
+
     const { data, error } = await supabase.from('task_orders').insert(insertData).select().single()
 
     if (error) {
-      // Retry without columns that may not exist
       delete insertData.naics_code
       delete insertData.set_aside
-      const { error: e2 } = await supabase.from('task_orders').insert(insertData).select().single()
+      const { data: fallbackData, error: e2 } = await supabase.from('task_orders').insert(insertData).select().single()
       if (e2) {
         alert('Import failed: ' + e2.message)
         setSamImporting(null)
         return
       }
+      projectId = fallbackData?.id || null
+    } else {
+      projectId = data?.id || null
     }
 
     // Record in workflow history
-    if (data) {
+    if (projectId) {
       try {
         await supabase.from('workflow_history').insert({
-          task_order_id: data.id,
+          task_order_id: projectId,
           from_stage: null,
           to_stage: 'draft',
           changed_by: user?.id || '',
@@ -173,6 +177,46 @@ export default function Integrations() {
           note: `Imported from SAM.gov (${opp.solicitationNumber})`,
         })
       } catch { /* workflow_history may not exist */ }
+    }
+
+    // Download SAM.gov solicitation documents
+    if (projectId && user) {
+      try {
+        const attRes = await fetch(`/api/sam-documents?opportunityId=${opp.noticeId}`)
+        if (attRes.ok) {
+          const attData = await attRes.json()
+          const attachments = (attData.attachments || []) as Array<{
+            resourceId: string; name: string; mimeType: string; size: number
+          }>
+
+          for (const att of attachments) {
+            try {
+              const dlRes = await fetch(`/api/sam-documents?resourceId=${att.resourceId}&download=1`)
+              if (!dlRes.ok) continue
+
+              const blob = await dlRes.blob()
+              const storagePath = `${projectId}/${Date.now()}_${att.name}`
+
+              const { error: uploadErr } = await supabase.storage
+                .from('task-order-documents')
+                .upload(storagePath, blob, { contentType: blob.type || 'application/octet-stream' })
+
+              if (uploadErr) continue
+
+              await supabase.from('documents').insert({
+                task_order_id: projectId,
+                file_name: att.name,
+                file_path: storagePath,
+                file_size: att.size || blob.size,
+                file_type: blob.type || att.mimeType || 'application/octet-stream',
+                category: 'solicitation',
+                version: 1,
+                uploaded_by: user.id,
+              })
+            } catch { /* skip individual file failures */ }
+          }
+        }
+      } catch { /* documents download is best-effort */ }
     }
 
     setSamImported(prev => new Set(prev).add(opp.noticeId))
@@ -441,7 +485,7 @@ export default function Integrations() {
                     <div className="flex flex-col gap-2 flex-shrink-0">
                       {samImported.has(opp.noticeId) ? (
                         <span className="text-xs text-green-600 flex items-center gap-1 font-medium">
-                          <CheckCircle size={14} /> Imported
+                          <CheckCircle size={14} /> Imported with docs
                         </span>
                       ) : (
                         <button
@@ -449,7 +493,7 @@ export default function Integrations() {
                           disabled={samImporting === opp.noticeId}
                           className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
                         >
-                          {samImporting === opp.noticeId ? 'Importing...' : <><Plus size={12} /> Import</>}
+                          {samImporting === opp.noticeId ? 'Importing & downloading docs...' : <><Plus size={12} /> Import</>}
                         </button>
                       )}
                       <a
