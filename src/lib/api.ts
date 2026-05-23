@@ -5,9 +5,9 @@ const MAX_CHARS_PER_DOC = 8000
 const MAX_TOTAL_CHARS = 120000
 
 /**
- * Call the ai-proxy function which streams from OpenAI.
- * Handles both SSE (text/event-stream) and standard JSON responses.
- * Returns the raw response object { choices, model, usage }.
+ * Call the ai-proxy function. The server streams from OpenAI internally
+ * and returns the assembled JSON response with application/json content-type.
+ * Leading whitespace (used to keep connection alive) is trimmed before parsing.
  */
 export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ choices: Array<{ message: { content: string } }>; model?: string }> {
   const res = await fetch('/.netlify/functions/ai-proxy', {
@@ -17,47 +17,14 @@ export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ cho
   })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `API error: ${res.status}` }))
-    throw new Error(err.error || `API error: ${res.status}`)
+    const text = await res.text()
+    let errMsg = `API error: ${res.status}`
+    try { errMsg = JSON.parse(text.trim()).error || errMsg } catch { /* use default */ }
+    throw new Error(errMsg)
   }
 
-  const contentType = res.headers.get('content-type') || ''
-
-  if (contentType.includes('text/event-stream')) {
-    const reader = res.body!.getReader()
-    const decoder = new TextDecoder()
-    const contentParts: string[] = []
-    let sseBuffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      sseBuffer += decoder.decode(value, { stream: true })
-      const lines = sseBuffer.split('\n')
-      sseBuffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed === 'data: [DONE]') continue
-        if (!trimmed.startsWith('data: ')) continue
-
-        try {
-          const chunk = JSON.parse(trimmed.slice(6))
-          const delta = chunk.choices?.[0]?.delta
-          if (delta?.content) contentParts.push(delta.content)
-        } catch {
-          // skip malformed chunks
-        }
-      }
-    }
-
-    return {
-      choices: [{ message: { content: contentParts.join('') } }],
-    }
-  }
-
-  return await res.json()
+  const text = await res.text()
+  return JSON.parse(text.trim())
 }
 
 // Global directive prepended to every AI prompt to enforce factual accuracy
