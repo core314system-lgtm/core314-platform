@@ -97,6 +97,20 @@ export default async (req: Request, _context: Context) => {
         )
       }
 
+      // Verify user token if provided (multi-user security)
+      if (userToken && anonKey) {
+        const authClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: `Bearer ${userToken}` } },
+        })
+        const { data: { user: authUser }, error: authErr } = await authClient.auth.getUser()
+        if (authErr || !authUser) {
+          return new Response(
+            JSON.stringify({ error: "Unauthorized: invalid user token" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          )
+        }
+      }
+
       // Prefer service role key (bypasses RLS), fall back to user token
       const supabase = serviceRoleKey
         ? createClient(supabaseUrl, serviceRoleKey)

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
+import { fetchAIProxy } from '../lib/api'
 import { loadIntelligence, loadAllDebriefs } from '../lib/debriefStorage'
 import { getWorkflowStage } from '../lib/projectTypes'
 
@@ -610,26 +611,16 @@ ${SMART_NOTES_PROMPT}
 ACCOUNT DATA (live snapshot):
 ${freshContext}`
 
-      const res = await fetch('/.netlify/functions/ai-proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...newMessages.map(m => ({ role: m.role, content: m.content })),
-          ],
-          temperature: 0.05,
-          max_tokens: 2048,
-        }),
+      const data = await fetchAIProxy({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...newMessages.map(m => ({ role: m.role, content: m.content })),
+        ],
+        temperature: 0.05,
+        max_tokens: 2048,
       })
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `API error: ${res.status}` }))
-        throw new Error(err.error || `API error: ${res.status}`)
-      }
-
-      const data = await res.json()
       const reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.'
 
       // Check if response contains proposed changes

@@ -4,6 +4,62 @@ const MODEL = 'gpt-4o-mini'
 const MAX_CHARS_PER_DOC = 8000
 const MAX_TOTAL_CHARS = 120000
 
+/**
+ * Call the ai-proxy function which streams from OpenAI.
+ * Handles both SSE (text/event-stream) and standard JSON responses.
+ * Returns the raw response object { choices, model, usage }.
+ */
+export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ choices: Array<{ message: { content: string } }>; model?: string }> {
+  const res = await fetch('/.netlify/functions/ai-proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `API error: ${res.status}` }))
+    throw new Error(err.error || `API error: ${res.status}`)
+  }
+
+  const contentType = res.headers.get('content-type') || ''
+
+  if (contentType.includes('text/event-stream')) {
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    const contentParts: string[] = []
+    let sseBuffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      sseBuffer += decoder.decode(value, { stream: true })
+      const lines = sseBuffer.split('\n')
+      sseBuffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed === 'data: [DONE]') continue
+        if (!trimmed.startsWith('data: ')) continue
+
+        try {
+          const chunk = JSON.parse(trimmed.slice(6))
+          const delta = chunk.choices?.[0]?.delta
+          if (delta?.content) contentParts.push(delta.content)
+        } catch {
+          // skip malformed chunks
+        }
+      }
+    }
+
+    return {
+      choices: [{ message: { content: contentParts.join('') } }],
+    }
+  }
+
+  return await res.json()
+}
+
 // Global directive prepended to every AI prompt to enforce factual accuracy
 const TRUTH_DIRECTIVE = `ABSOLUTE RULES — VIOLATIONS ARE UNACCEPTABLE:
 1. Your job is to EXTRACT information that IS in the documents. Read each document thoroughly and extract every fact, requirement, specification, date, quantity, and detail you find. Be thorough — extract MORE, not less.
@@ -32,27 +88,17 @@ function truncateText(text: string, maxChars: number): string {
 }
 
 async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<Record<string, unknown>> {
-  const res = await fetch('/.netlify/functions/ai-proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1,
-      max_tokens: 16384,
-    }),
+  const data = await fetchAIProxy({
+    model: MODEL,
+    messages: [
+      { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.1,
+    max_tokens: 16384,
   })
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `AI analysis error: ${res.status}` }))
-    throw new Error(err.error || `AI analysis error: ${res.status}`)
-  }
-
-  const data = await res.json()
   const content = data.choices?.[0]?.message?.content || '{}'
   return JSON.parse(content)
 }
