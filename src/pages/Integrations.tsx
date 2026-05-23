@@ -68,7 +68,7 @@ export default function Integrations() {
   const [samSearching, setSamSearching] = useState(false)
   const [samError, setSamError] = useState('')
   const [samImporting, setSamImporting] = useState<string | null>(null)
-  const [samImported, setSamImported] = useState<Set<string>>(new Set())
+  const [samImported, setSamImported] = useState<Map<string, { docs: number; links: number }>>(new Map())
   const [showFilters, setShowFilters] = useState(false)
 
   // Import state
@@ -127,6 +127,8 @@ export default function Integrations() {
 
   async function handleImportOpportunity(opp: SamOpportunity) {
     setSamImporting(opp.noticeId)
+    let importedDocs = 0
+    let importedLinks = 0
 
     const insertData: Record<string, unknown> = {
       title: opp.title,
@@ -181,96 +183,47 @@ export default function Integrations() {
       } catch { /* workflow_history may not exist */ }
     }
 
-    // Download SAM.gov solicitation documents and capture links
+    // Server-side: download SAM.gov docs and upload to Supabase
     if (projectId && user) {
       try {
-        const attRes = await fetch(`/api/sam-documents?opportunityId=${opp.noticeId}`)
-        if (attRes.ok) {
-          const attData = await attRes.json()
-          const attachments = (attData.attachments || []) as Array<{
-            resourceId: string; name: string; mimeType: string; size: number;
-            type: 'file' | 'link'; uri?: string; description?: string
-          }>
-
-          const fileAtts = attachments.filter(a => a.type === 'file')
-          const linkAtts = attachments.filter(a => a.type === 'link')
-
-          // Download file attachments via proxy and upload to Supabase
-          let docCount = 0
-          for (const att of fileAtts) {
-            try {
-              const dlRes = await fetch(`/api/sam-documents?resourceId=${att.resourceId}&download=1`)
-              if (!dlRes.ok) {
-                console.warn(`[SAM Import] Download failed for ${att.name}: HTTP ${dlRes.status}`)
-                continue
-              }
-
-              const arrayBuffer = await dlRes.arrayBuffer()
-              const ext = att.name.split('.').pop()?.toLowerCase() || ''
-              const mimeMap: Record<string, string> = {
-                pdf: 'application/pdf',
-                docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                doc: 'application/msword',
-                xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                xls: 'application/vnd.ms-excel',
-                zip: 'application/zip',
-              }
-              const mimeType = mimeMap[ext] || 'application/octet-stream'
-
-              const file = new File([arrayBuffer], att.name, { type: mimeType })
-              const storagePath = `${projectId}/${Date.now()}_${att.name}`
-
-              console.log(`[SAM Import] Uploading ${att.name} (${(arrayBuffer.byteLength / 1024).toFixed(0)}KB) to ${storagePath}`)
-
-              const { error: uploadErr } = await supabase.storage
-                .from('task-order-documents')
-                .upload(storagePath, file, { contentType: mimeType, upsert: false })
-
-              if (uploadErr) {
-                console.error(`[SAM Import] Upload to storage failed for ${att.name}:`, uploadErr.message)
-                continue
-              }
-
-              const { error: insertErr } = await supabase.from('documents').insert({
-                task_order_id: projectId,
-                file_name: att.name,
-                file_path: storagePath,
-                file_size: arrayBuffer.byteLength,
-                file_type: mimeType,
-                category: 'solicitation',
-                version: 1,
-                uploaded_by: user.id,
-              })
-              if (insertErr) {
-                console.error(`[SAM Import] DB insert failed for ${att.name}:`, insertErr.message)
-              } else {
-                docCount++
-                console.log(`[SAM Import] Successfully imported ${att.name}`)
-              }
-            } catch (err) {
-              console.error(`[SAM Import] Error for ${att.name}:`, err)
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (token) {
+          const docRes = await fetch('/api/sam-documents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              opportunityId: opp.noticeId,
+              projectId,
+              userToken: token,
+              userId: user.id,
+            }),
+          })
+          if (docRes.ok) {
+            const docData = await docRes.json()
+            importedDocs = docData.successCount || 0
+            importedLinks = docData.totalLinks || 0
+            // Append external document links to project notes
+            if (docData.linkNotes) {
+              await supabase.from('task_orders')
+                .update({ notes: (insertData.notes as string || '') + docData.linkNotes })
+                .eq('id', projectId)
             }
-          }
-          if (docCount > 0) {
-            console.log(`[SAM Import] Successfully imported ${docCount} document(s)`)
-          } else if (fileAtts.length > 0) {
-            console.warn(`[SAM Import] Failed to import any of ${fileAtts.length} document(s) — check browser console for errors`)
-          }
-
-          // Append external document links to project notes
-          if (linkAtts.length > 0) {
-            const linkNotes = '\n\n--- SAM.gov Document Links ---\n' +
-              linkAtts.map(l => `• ${l.description || l.name}: ${l.uri}`).join('\n')
-
-            await supabase.from('task_orders')
-              .update({ notes: (insertData.notes as string || '') + linkNotes })
-              .eq('id', projectId)
+            const failed = (docData.results || []).filter((r: { status: string }) => r.status !== 'success')
+            if (failed.length > 0) {
+              console.warn('[SAM Import] Some documents failed:', failed)
+            }
+          } else {
+            const errText = await docRes.text()
+            console.error('[SAM Import] Server doc upload failed:', errText)
           }
         }
-      } catch { /* documents download is best-effort */ }
+      } catch (err) {
+        console.warn('[SAM Import] Document download error:', err)
+      }
     }
 
-    setSamImported(prev => new Set(prev).add(opp.noticeId))
+    setSamImported(prev => new Map(prev).set(opp.noticeId, { docs: importedDocs, links: importedLinks }))
     setSamImporting(null)
   }
 
@@ -550,7 +503,7 @@ export default function Integrations() {
                     <div className="flex flex-col gap-2 flex-shrink-0">
                       {samImported.has(opp.noticeId) ? (
                         <span className="text-xs text-green-600 flex items-center gap-1 font-medium">
-                          <CheckCircle size={14} /> Imported with docs
+                          <CheckCircle size={14} /> Imported{samImported.get(opp.noticeId)!.docs > 0 ? ` (${samImported.get(opp.noticeId)!.docs} doc${samImported.get(opp.noticeId)!.docs !== 1 ? 's' : ''})` : ''}
                         </span>
                       ) : (
                         <button
