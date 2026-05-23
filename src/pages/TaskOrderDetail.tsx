@@ -54,6 +54,7 @@ export default function TaskOrderDetail() {
   const [matchingMode, setMatchingMode] = useState<'database' | 'discover' | 'both'>('database')
   const [matchingInProgress, setMatchingInProgress] = useState(false)
   const [addingToDb, setAddingToDb] = useState<string | null>(null)
+  const [matchError, setMatchError] = useState<string | null>(null)
   const [auditKey, setAuditKey] = useState(0)
   const [contractName, setContractName] = useState<string | null>(null)
 
@@ -331,12 +332,18 @@ export default function TaskOrderDetail() {
   }
 
   async function runSubcontractorMatch(mode: 'database' | 'discover' | 'both', analysisOverride?: Record<string, unknown>) {
-    if (!taskOrder) return
+    if (!taskOrder) {
+      setMatchError('No task order loaded')
+      return
+    }
+
     setMatchingInProgress(true)
     setMatchingMode(mode)
+    setMatchError(null)
 
     const analysis = analysisOverride || analysisResult as unknown as Record<string, unknown>
     if (!analysis) {
+      setMatchError('No analysis results available. Run AI analysis first.')
       setMatchingInProgress(false)
       return
     }
@@ -345,17 +352,29 @@ export default function TaskOrderDetail() {
 
     try {
       if (mode === 'database' || mode === 'both') {
-        const { data: subs } = await supabase.from('subcontractors').select('id, company_name, service_categories, geographic_coverage, incumbent_status, preferred')
-        if (subs && subs.length > 0) {
-          const [matches, reqMatches] = await Promise.all([
-            matchSubcontractors(analysis, subs, location),
-            matchSubcontractorsPerRequirement(analysis, subs, location),
-          ])
-          setSubMatches(matches)
-          setRequirementMatches(reqMatches)
-        } else {
+        const { data: subs, error: subsError } = await supabase.from('subcontractors').select('id, company_name, service_categories, geographic_coverage, incumbent_status, preferred')
+        if (subsError) {
+          setMatchError('Failed to load subcontractors: ' + subsError.message)
+          setMatchingInProgress(false)
+          return
+        }
+        if (!subs || subs.length === 0) {
+          setMatchError('No subcontractors in your database. Add subcontractors first via the Subcontractors page.')
           setSubMatches([])
           setRequirementMatches([])
+          setMatchingInProgress(false)
+          return
+        }
+
+        const [matches, reqMatches] = await Promise.all([
+          matchSubcontractors(analysis, subs, location),
+          matchSubcontractorsPerRequirement(analysis, subs, location),
+        ])
+        setSubMatches(matches)
+        setRequirementMatches(reqMatches)
+
+        if (matches.length === 0 && reqMatches.length === 0) {
+          setMatchError(`Evaluated ${subs.length} subcontractors — none were relevant to this project's requirements. Try "Auto-Discover New" to find new vendors.`)
         }
       }
 
@@ -366,9 +385,15 @@ export default function TaskOrderDetail() {
         }
         const discoveries = await discoverSubsForRequirements(analysis, location, dbMatchCounts)
         setDiscoveredSubs(discoveries)
+
+        if (discoveries.every(d => d.discovered_businesses.length === 0)) {
+          setMatchError(prev => (prev ? prev + ' ' : '') + 'No businesses found nearby for any requirement category.')
+        }
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
       console.error('Matching error:', err)
+      setMatchError('Matching failed: ' + msg)
     } finally {
       setMatchingInProgress(false)
     }
@@ -842,6 +867,12 @@ export default function TaskOrderDetail() {
                   {matchingMode === 'database' && 'AI is evaluating your subcontractor database for relevance...'}
                   {matchingMode === 'discover' && 'Searching Google Places for new subcontractors near the project...'}
                   {matchingMode === 'both' && 'Running database match + discovering new subcontractors...'}
+                </div>
+              )}
+
+              {matchError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
+                  {matchError}
                 </div>
               )}
 
