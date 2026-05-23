@@ -774,58 +774,7 @@ export default function TaskOrderDetail() {
         )}
       </div>
 
-      {/* Step 3: Quick Links to Generated Outputs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <button
-          onClick={() => toggleSection('outputs')}
-          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
-        >
-          <div className="flex items-center gap-3">
-            <FileText size={20} className="text-green-600" />
-            <div>
-              <h2 className="font-semibold text-gray-900">Step 3: Review Generated Outputs</h2>
-              <p className="text-sm text-gray-500">{Object.values(aiStatus).filter(Boolean).length} of 6 outputs generated</p>
-            </div>
-          </div>
-          {expandedSection === 'outputs' ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
-        </button>
-
-        {expandedSection === 'outputs' && (
-          <div className="px-6 pb-6 border-t border-gray-100 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { label: 'SOW Bid Management', link: `/projects/${id}/sow-tracker`, key: '', desc: 'Match subs to SOWs, track RFQs, quotes & communications', highlight: true },
-                { label: 'Bid Summary Dashboard', link: `/projects/${id}/bid-summary`, key: '', desc: 'Aggregated pricing, quote coverage, and recommendations', highlight: true },
-                { label: 'Pricing Decision Matrix', link: `/projects/${id}/pricing-matrix`, key: '', desc: 'Select subs, set markup, calculate supplier totals & option year pricing', highlight: true },
-                { label: 'Compliance Matrix', link: `/projects/${id}/compliance`, key: 'compliance_matrix', desc: 'Requirements mapped to source documents with risk levels' },
-                { label: 'Subcontractor RFQ Packages', link: `/projects/${id}/rfq-packages`, key: 'rfq_packages', desc: 'Scope packages ready to send to subcontractors' },
-                { label: 'Clarification Questions', link: `/projects/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
-                { label: 'Pricing Risk Review', link: `/projects/${id}/pricing-risks`, key: 'pricing_risks', desc: 'Pricing gaps, risks, and action items' },
-                { label: 'Executive Bid Summary', link: `/projects/${id}/executive-summary`, key: 'executive_summary', desc: 'Management-ready bid overview' },
-                { label: 'Export Center', link: `/projects/${id}/exports`, key: '', desc: 'Download reports in Word, PDF, Excel' },
-              ].map(item => (
-                <Link
-                  key={item.label}
-                  to={item.link}
-                  className={`block rounded-lg border p-4 hover:shadow-md transition-shadow ${
-                    'highlight' in item && item.highlight ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200' :
-                    item.key && aiStatus[item.key] ? 'border-green-200 bg-green-50' : 'border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{item.label}</span>
-                    {'highlight' in item && item.highlight && <Users size={16} className="text-blue-500" />}
-                    {item.key && aiStatus[item.key] && <CheckCircle size={16} className="text-green-500" />}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Subcontractor Matching */}
+      {/* Subcontractor Matching — right after analysis */}
       {analysisResult && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <button
@@ -927,7 +876,7 @@ export default function TaskOrderDetail() {
                           ))}
                         </div>
                       ) : (
-                        <div className="px-4 py-3 text-xs text-gray-400 italic">No matches in your database — try "Auto-Discover New"</div>
+                        <div className="px-4 py-3 text-xs text-gray-400 italic">No matches in your database — try &quot;Auto-Discover New&quot;</div>
                       )}
                     </div>
                   ))}
@@ -1031,13 +980,64 @@ export default function TaskOrderDetail() {
               {!matchingInProgress && subMatches.length === 0 && requirementMatches.length === 0 && discoveredSubs.length === 0 && (
                 <div className="text-center py-6 text-gray-500">
                   <Users size={32} className="mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">Click a search button above to find subcontractors for this project's requirements</p>
+                  <p className="text-sm">Click a search button above to find subcontractors for this project&apos;s requirements</p>
                 </div>
               )}
             </div>
           )}
         </div>
       )}
+
+      {/* Step 3: Quick Links to Generated Outputs */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => toggleSection('outputs')}
+          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
+        >
+          <div className="flex items-center gap-3">
+            <FileText size={20} className="text-green-600" />
+            <div>
+              <h2 className="font-semibold text-gray-900">Step 3: Review Generated Outputs</h2>
+              <p className="text-sm text-gray-500">{Object.values(aiStatus).filter(Boolean).length} of 6 outputs generated</p>
+            </div>
+          </div>
+          {expandedSection === 'outputs' ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+        </button>
+
+        {expandedSection === 'outputs' && (
+          <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { label: 'SOW Bid Management', link: `/projects/${id}/sow-tracker`, key: '', desc: 'Match subs to SOWs, track RFQs, quotes & communications', highlight: true },
+                { label: 'Bid Summary Dashboard', link: `/projects/${id}/bid-summary`, key: '', desc: 'Aggregated pricing, quote coverage, and recommendations', highlight: true },
+                { label: 'Pricing Decision Matrix', link: `/projects/${id}/pricing-matrix`, key: '', desc: 'Select subs, set markup, calculate supplier totals & option year pricing', highlight: true },
+                { label: 'Compliance Matrix', link: `/projects/${id}/compliance`, key: 'compliance_matrix', desc: 'Requirements mapped to source documents with risk levels' },
+                { label: 'Subcontractor RFQ Packages', link: `/projects/${id}/rfq-packages`, key: 'rfq_packages', desc: 'Scope packages ready to send to subcontractors' },
+                { label: 'Clarification Questions', link: `/projects/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
+                { label: 'Pricing Risk Review', link: `/projects/${id}/pricing-risks`, key: 'pricing_risks', desc: 'Pricing gaps, risks, and action items' },
+                { label: 'Executive Bid Summary', link: `/projects/${id}/executive-summary`, key: 'executive_summary', desc: 'Management-ready bid overview' },
+                { label: 'Export Center', link: `/projects/${id}/exports`, key: '', desc: 'Download reports in Word, PDF, Excel' },
+              ].map(item => (
+                <Link
+                  key={item.label}
+                  to={item.link}
+                  className={`block rounded-lg border p-4 hover:shadow-md transition-shadow ${
+                    'highlight' in item && item.highlight ? 'border-blue-300 bg-blue-50 ring-1 ring-blue-200' :
+                    item.key && aiStatus[item.key] ? 'border-green-200 bg-green-50' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-900">{item.label}</span>
+                    {'highlight' in item && item.highlight && <Users size={16} className="text-blue-500" />}
+                    {item.key && aiStatus[item.key] && <CheckCircle size={16} className="text-green-500" />}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Notes */}
       {taskOrder.notes && (
