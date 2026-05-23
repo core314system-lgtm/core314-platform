@@ -1,25 +1,63 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { loadAiOutput } from '../lib/aiStorage'
-import type { ExecutiveSummary as ExecSummaryType, TaskOrder } from '../lib/types'
-import { BarChart3, ArrowLeft, AlertTriangle, CheckCircle, Target } from 'lucide-react'
+import { loadAiOutput, saveAiOutput } from '../lib/aiStorage'
+import { generateExecutiveSummary as generateExecSummary } from '../lib/api'
+import { parseFile } from '../lib/documentParser'
+import type { ExecutiveSummary as ExecSummaryType, TaskOrder, Document as Doc } from '../lib/types'
+import { BarChart3, ArrowLeft, AlertTriangle, CheckCircle, Target, Brain } from 'lucide-react'
 
 export default function ExecutiveSummaryPage() {
   const { id } = useParams<{ id: string }>()
   const [taskOrder, setTaskOrder] = useState<TaskOrder | null>(null)
   const [summary, setSummary] = useState<ExecSummaryType | null>(null)
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [documents, setDocuments] = useState<Doc[]>([])
 
   useEffect(() => {
     if (id) {
       supabase.from('task_orders').select('*').eq('id', id).single().then(({ data }) => setTaskOrder(data))
+      supabase.from('documents').select('*').eq('task_order_id', id).order('uploaded_at', { ascending: false }).then(({ data }) => setDocuments(data || []))
       loadAiOutput<ExecSummaryType>(id, 'executive_summary').then(data => {
         setSummary(data)
         setLoading(false)
       })
     }
   }, [id])
+
+  async function handleGenerate() {
+    if (!id || !taskOrder || documents.length === 0) return
+    setGenerating(true)
+
+    try {
+      const texts: string[] = []
+      const names: string[] = []
+
+      for (const doc of documents) {
+        const { data } = await supabase.storage.from('task-order-documents').download(doc.file_path)
+        if (data) {
+          const file = new File([data], doc.file_name, { type: doc.file_type })
+          const text = await parseFile(file)
+          texts.push(text)
+          names.push(doc.file_name)
+        }
+      }
+
+      if (texts.length === 0) {
+        alert('No document content could be extracted. Please ensure documents are uploaded.')
+        return
+      }
+
+      const result = await generateExecSummary(texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined) as unknown as ExecSummaryType
+      await saveAiOutput(id, 'executive_summary', result)
+      setSummary(result)
+    } catch (err) {
+      alert('Failed to generate executive summary: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>
 
@@ -37,13 +75,42 @@ export default function ExecutiveSummaryPage() {
       {!summary ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <BarChart3 className="mx-auto text-gray-400 mb-3" size={40} />
-          <p className="text-gray-500">No executive summary generated yet.</p>
-          <Link to={`/projects/${id}`} className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            Go to Project
-          </Link>
+          <p className="text-gray-500 mb-4">No executive summary generated yet.</p>
+          {documents.length > 0 ? (
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <Brain size={18} />
+              {generating ? 'Generating Executive Summary...' : 'Generate Executive Summary Now'}
+            </button>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-400 mb-3">Upload documents to the project first, then generate the summary.</p>
+              <Link to={`/projects/${id}`} className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                Go to Project
+              </Link>
+            </div>
+          )}
+          {generating && (
+            <p className="text-sm text-purple-600 mt-3 animate-pulse">AI is analyzing your documents and creating the executive summary. This may take 15-30 seconds...</p>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Regenerate button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 text-sm bg-purple-50 text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-100 border border-purple-200 disabled:opacity-50"
+            >
+              <Brain size={14} />
+              {generating ? 'Regenerating...' : 'Regenerate Summary'}
+            </button>
+          </div>
+
           {/* Confidence Rating */}
           <div className={`rounded-xl p-6 border ${
             summary.confidence_rating?.toLowerCase() === 'high' ? 'bg-green-50 border-green-200' :

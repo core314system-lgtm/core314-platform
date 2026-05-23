@@ -57,6 +57,75 @@ export default function TaskOrderDetail() {
   const [matchError, setMatchError] = useState<string | null>(null)
   const [auditKey, setAuditKey] = useState(0)
   const [contractName, setContractName] = useState<string | null>(null)
+  const [generatingSingle, setGeneratingSingle] = useState<string | null>(null)
+
+  async function handleViewDocument(doc: Doc) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('task-order-documents')
+        .createSignedUrl(doc.file_path, 3600)
+      if (error) throw error
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank')
+      }
+    } catch (err) {
+      alert('Failed to open document: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
+  }
+
+  async function handleGenerateSingle(outputType: string) {
+    if (!id || !taskOrder || documents.length === 0) return
+    setGeneratingSingle(outputType)
+
+    try {
+      const texts: string[] = []
+      const names: string[] = []
+
+      for (const doc of documents) {
+        const { data } = await supabase.storage.from('task-order-documents').download(doc.file_path)
+        if (data) {
+          const file = new File([data], doc.file_name, { type: doc.file_type })
+          const text = await parseFile(file)
+          texts.push(text)
+          names.push(doc.file_name)
+        }
+      }
+
+      const args = [texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined] as const
+
+      let result: unknown
+      switch (outputType) {
+        case 'analysis':
+          result = await analyzeDocuments(...args)
+          setAnalysisResult(result as unknown as AnalysisResult)
+          break
+        case 'compliance_matrix':
+          result = await generateComplianceMatrix(...args)
+          break
+        case 'rfq_packages':
+          result = await generateRfqPackages(...args)
+          break
+        case 'clarification_questions':
+          result = await generateClarificationQuestions(...args)
+          break
+        case 'pricing_risks':
+          result = await generatePricingRisks(...args)
+          break
+        case 'executive_summary':
+          result = await generateExecutiveSummary(...args)
+          break
+      }
+
+      if (result) {
+        await saveAiOutput(id, outputType, result)
+        setAiStatus(prev => ({ ...prev, [outputType]: true }))
+      }
+    } catch (err) {
+      alert(`Failed to generate ${outputType}: ` + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setGeneratingSingle(null)
+    }
+  }
 
   async function handleStageChange(newStageId: string, note?: string) {
     if (!taskOrder || !id) return
@@ -625,11 +694,16 @@ export default function TaskOrderDetail() {
                     <div className="space-y-1.5">
                       {group.docs.map(doc => (
                         <div key={doc.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <FileText size={16} className="text-gray-400" />
-                            <span className="text-sm text-gray-700">{doc.file_name}</span>
+                          <button
+                            onClick={() => handleViewDocument(doc)}
+                            className="flex items-center gap-2 hover:text-blue-600 text-left group"
+                            title="Click to view/download document"
+                          >
+                            <FileText size={16} className="text-blue-500 group-hover:text-blue-700" />
+                            <span className="text-sm text-blue-600 hover:underline">{doc.file_name}</span>
                             <span className="text-xs text-gray-400">({(doc.file_size / 1024).toFixed(0)} KB)</span>
-                          </div>
+                            <ExternalLink size={12} className="text-gray-400 group-hover:text-blue-500" />
+                          </button>
                           <button
                             onClick={() => handleDelete(doc)}
                             className="text-gray-400 hover:text-red-500"
@@ -706,14 +780,27 @@ export default function TaskOrderDetail() {
                       <div className="flex items-center gap-2">
                         {aiStatus[item.key] ? (
                           <CheckCircle size={16} className="text-green-500" />
+                        ) : generatingSingle === item.key ? (
+                          <Brain size={16} className="text-purple-500 animate-pulse" />
                         ) : (
                           <Clock size={16} className="text-gray-400" />
                         )}
                         <span className="text-sm font-medium text-gray-700">{item.label}</span>
                       </div>
-                      {aiStatus[item.key] && item.link && (
-                        <Link to={item.link} className="text-xs text-blue-600 hover:underline mt-1 block">View &rarr;</Link>
-                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        {aiStatus[item.key] && item.link && (
+                          <Link to={item.link} className="text-xs text-blue-600 hover:underline">View &rarr;</Link>
+                        )}
+                        {!generatingAll && (
+                          <button
+                            onClick={() => handleGenerateSingle(item.key)}
+                            disabled={!!generatingSingle || generatingAll || documents.length === 0}
+                            className="text-xs text-purple-600 hover:underline disabled:opacity-50 disabled:no-underline"
+                          >
+                            {generatingSingle === item.key ? 'Generating...' : aiStatus[item.key] ? 'Regenerate' : 'Generate'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
