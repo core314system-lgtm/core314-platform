@@ -191,11 +191,13 @@ export default function SowTracker() {
         const { data: existingAssigns } = await supabase.from('sow_subcontractors').select('subcontractor_id').eq('sow_item_id', sow.id)
         const assignedIds = new Set((existingAssigns || []).map(a => a.subcontractor_id))
 
+        const sowCat = sow.service_category.toLowerCase().trim()
+
         for (const sub of (subs || [])) {
           if (assignedIds.has(sub.id)) continue
+          // Strict matching: exact category name match only
           const catMatch = sub.service_categories?.some((sc: string) =>
-            sc.toLowerCase().includes(sow.service_category.toLowerCase()) ||
-            sow.service_category.toLowerCase().includes(sc.toLowerCase())
+            sc.toLowerCase().trim() === sowCat
           )
           if (!catMatch) continue
 
@@ -203,9 +205,9 @@ export default function SowTracker() {
             g.toUpperCase() === taskOrderState || g.toUpperCase().includes(taskOrderState)
           )
 
-          let score = 25
-          if (locMatch) score += 20
-          if (sub.preferred) score += 15
+          let score = 60
+          if (locMatch) score += 15
+          if (sub.preferred) score += 10
           if (sub.incumbent_status === 'known') score += 10
           if (sub.incumbent_status === 'suspected') score += 5
 

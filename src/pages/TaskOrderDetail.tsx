@@ -5,8 +5,9 @@ import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder, Document as Doc, DocumentCategory, AnalysisResult } from '../lib/types'
 import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
-import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors } from '../lib/api'
-import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack } from 'lucide-react'
+import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors, matchSubcontractorsPerRequirement, discoverSubsForRequirements } from '../lib/api'
+import type { SubMatch, RequirementMatch, RequirementDiscovery, DiscoveredBusiness } from '../lib/api'
+import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack, Search, Globe, Database, Plus, Star, ExternalLink } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
 import WorkflowBar from '../components/WorkflowBar'
@@ -47,7 +48,12 @@ export default function TaskOrderDetail() {
   const [generatingAll, setGeneratingAll] = useState(false)
   const [aiStatus, setAiStatus] = useState<Record<string, boolean>>({})
   const [expandedSection, setExpandedSection] = useState<string | null>('documents')
-  const [subMatches, setSubMatches] = useState<Array<{ subcontractor_id: string; company_name: string; matched_categories: string[]; location_match: boolean; incumbent_status: string; preferred: boolean; match_score: number }>>([])
+  const [subMatches, setSubMatches] = useState<SubMatch[]>([])
+  const [requirementMatches, setRequirementMatches] = useState<RequirementMatch[]>([])
+  const [discoveredSubs, setDiscoveredSubs] = useState<RequirementDiscovery[]>([])
+  const [matchingMode, setMatchingMode] = useState<'database' | 'discover' | 'both'>('database')
+  const [matchingInProgress, setMatchingInProgress] = useState(false)
+  const [addingToDb, setAddingToDb] = useState<string | null>(null)
   const [auditKey, setAuditKey] = useState(0)
   const [contractName, setContractName] = useState<string | null>(null)
 
@@ -253,13 +259,8 @@ export default function TaskOrderDetail() {
         }
       }
 
-      // Run resource matching
-      const { data: subs } = await supabase.from('subcontractors').select('id, company_name, service_categories, geographic_coverage, incumbent_status, preferred')
-      if (subs && subs.length > 0) {
-        const location = `${taskOrder.location_city || ''}, ${taskOrder.location_state || ''}`
-        const matches = await matchSubcontractors(result as unknown as Record<string, unknown>, subs, location)
-        setSubMatches(matches)
-      }
+      // Auto-run database matching after analysis
+      await runSubcontractorMatch('database', result as unknown as Record<string, unknown>)
     } catch (err) {
       alert('Analysis failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
     } finally {
@@ -326,6 +327,79 @@ export default function TaskOrderDetail() {
       alert('Generation failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
     } finally {
       setGeneratingAll(false)
+    }
+  }
+
+  async function runSubcontractorMatch(mode: 'database' | 'discover' | 'both', analysisOverride?: Record<string, unknown>) {
+    if (!taskOrder) return
+    setMatchingInProgress(true)
+    setMatchingMode(mode)
+
+    const analysis = analysisOverride || analysisResult as unknown as Record<string, unknown>
+    if (!analysis) {
+      setMatchingInProgress(false)
+      return
+    }
+
+    const location = `${taskOrder.location_city || ''}, ${taskOrder.location_state || ''}`
+
+    try {
+      if (mode === 'database' || mode === 'both') {
+        const { data: subs } = await supabase.from('subcontractors').select('id, company_name, service_categories, geographic_coverage, incumbent_status, preferred')
+        if (subs && subs.length > 0) {
+          const [matches, reqMatches] = await Promise.all([
+            matchSubcontractors(analysis, subs, location),
+            matchSubcontractorsPerRequirement(analysis, subs, location),
+          ])
+          setSubMatches(matches)
+          setRequirementMatches(reqMatches)
+        } else {
+          setSubMatches([])
+          setRequirementMatches([])
+        }
+      }
+
+      if (mode === 'discover' || mode === 'both') {
+        const dbMatchCounts: Record<string, number> = {}
+        for (const rm of requirementMatches) {
+          dbMatchCounts[rm.requirement_category] = rm.matched_subs.length
+        }
+        const discoveries = await discoverSubsForRequirements(analysis, location, dbMatchCounts)
+        setDiscoveredSubs(discoveries)
+      }
+    } catch (err) {
+      console.error('Matching error:', err)
+    } finally {
+      setMatchingInProgress(false)
+    }
+  }
+
+  async function addDiscoveredToDb(business: DiscoveredBusiness, serviceCategory: string) {
+    if (!profile?.current_org_id) return
+    setAddingToDb(business.company_name)
+
+    try {
+      const { error } = await supabase.from('subcontractors').insert({
+        company_name: business.company_name,
+        contact_email: null,
+        contact_phone: business.phone,
+        service_categories: [serviceCategory, ...business.categories].filter(Boolean),
+        geographic_coverage: business.state ? [business.state] : [],
+        city: business.city,
+        state: business.state,
+        address: business.address,
+        website: business.website,
+        preferred: false,
+        incumbent_status: 'unknown',
+        org_id: profile.current_org_id,
+      })
+
+      if (error) throw error
+      alert(`${business.company_name} added to your subcontractor database!`)
+    } catch (err) {
+      alert('Failed to add: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setAddingToDb(null)
     }
   }
 
@@ -751,8 +825,8 @@ export default function TaskOrderDetail() {
         )}
       </div>
 
-      {/* Resource Matching */}
-      {subMatches.length > 0 && (
+      {/* Subcontractor Matching */}
+      {analysisResult && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <button
             onClick={() => toggleSection('matching')}
@@ -761,38 +835,205 @@ export default function TaskOrderDetail() {
             <div className="flex items-center gap-3">
               <Users size={20} className="text-indigo-600" />
               <div>
-                <h2 className="font-semibold text-gray-900">Matched Subcontractors</h2>
-                <p className="text-sm text-gray-500">{subMatches.length} subcontractors matched to this task order</p>
+                <h2 className="font-semibold text-gray-900">Subcontractor Matching</h2>
+                <p className="text-sm text-gray-500">
+                  {subMatches.length > 0 ? `${subMatches.length} matched from database` : 'Find subcontractors for each requirement'}
+                  {discoveredSubs.length > 0 && ` · ${discoveredSubs.reduce((sum, d) => sum + d.discovered_businesses.length, 0)} discovered nearby`}
+                </p>
               </div>
             </div>
             {expandedSection === 'matching' ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
           </button>
 
           {expandedSection === 'matching' && (
-            <div className="px-6 pb-6 border-t border-gray-100 pt-4 space-y-3">
-              {subMatches.map(m => (
-                <div key={m.subcontractor_id} className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">{m.company_name}</span>
-                      {m.preferred && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Preferred</span>}
-                      {m.incumbent_status === 'known' && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Incumbent</span>}
-                      {m.location_match && <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded flex items-center gap-1"><MapPin size={10} />Local</span>}
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {m.matched_categories.map(cat => (
-                        <span key={cat} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{cat}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-lg font-bold ${
-                      m.match_score >= 70 ? 'text-green-600' : m.match_score >= 40 ? 'text-amber-600' : 'text-gray-500'
-                    }`}>{m.match_score}%</div>
-                    <div className="text-xs text-gray-500">Match Score</div>
-                  </div>
+            <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+              {/* Search mode buttons */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  onClick={() => runSubcontractorMatch('database')}
+                  disabled={matchingInProgress}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    matchingMode === 'database' && subMatches.length > 0
+                      ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                  } disabled:opacity-50`}
+                >
+                  <Database size={16} />
+                  {matchingInProgress && matchingMode === 'database' ? 'Matching...' : 'Match from Database'}
+                </button>
+                <button
+                  onClick={() => runSubcontractorMatch('discover')}
+                  disabled={matchingInProgress}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    matchingMode === 'discover' && discoveredSubs.length > 0
+                      ? 'bg-green-100 text-green-700 border border-green-300'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                  } disabled:opacity-50`}
+                >
+                  <Globe size={16} />
+                  {matchingInProgress && matchingMode === 'discover' ? 'Discovering...' : 'Auto-Discover New'}
+                </button>
+                <button
+                  onClick={() => runSubcontractorMatch('both')}
+                  disabled={matchingInProgress}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    matchingMode === 'both' && (subMatches.length > 0 || discoveredSubs.length > 0)
+                      ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                  } disabled:opacity-50`}
+                >
+                  <Search size={16} />
+                  {matchingInProgress && matchingMode === 'both' ? 'Searching...' : 'Full Search (Both)'}
+                </button>
+              </div>
+
+              {matchingInProgress && (
+                <div className="flex items-center gap-2 text-sm text-indigo-600 mb-4">
+                  <div className="animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full" />
+                  {matchingMode === 'database' && 'AI is evaluating your subcontractor database for relevance...'}
+                  {matchingMode === 'discover' && 'Searching Google Places for new subcontractors near the project...'}
+                  {matchingMode === 'both' && 'Running database match + discovering new subcontractors...'}
                 </div>
-              ))}
+              )}
+
+              {/* Per-Requirement View */}
+              {requirementMatches.length > 0 && (
+                <div className="space-y-4 mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Database size={14} />
+                    Database Matches by Requirement
+                  </h3>
+                  {requirementMatches.map(rm => (
+                    <div key={rm.requirement_category} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-gray-900 text-sm">{rm.requirement_category}</span>
+                          {rm.requirement_description && <span className="text-xs text-gray-500 ml-2">— {rm.requirement_description}</span>}
+                        </div>
+                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{rm.matched_subs.length} matches</span>
+                      </div>
+                      {rm.matched_subs.length > 0 ? (
+                        <div className="divide-y divide-gray-100">
+                          {rm.matched_subs.map(ms => (
+                            <div key={ms.subcontractor_id} className="px-4 py-2 flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">{ms.company_name}</span>
+                                <p className="text-xs text-gray-500 mt-0.5">{ms.relevance_reason}</p>
+                              </div>
+                              <div className={`text-sm font-bold ${
+                                ms.relevance_score >= 70 ? 'text-green-600' : ms.relevance_score >= 40 ? 'text-amber-600' : 'text-gray-500'
+                              }`}>{ms.relevance_score}%</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 text-xs text-gray-400 italic">No matches in your database — try "Auto-Discover New"</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Overall Database Matches */}
+              {subMatches.length > 0 && requirementMatches.length === 0 && (
+                <div className="space-y-3 mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700">Database Matches (Overall)</h3>
+                  {subMatches.map(m => (
+                    <div key={m.subcontractor_id} className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">{m.company_name}</span>
+                          {m.preferred && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Preferred</span>}
+                          {m.incumbent_status === 'known' && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Incumbent</span>}
+                          {m.location_match && <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded flex items-center gap-1"><MapPin size={10} />Local</span>}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{m.relevance_reason}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {m.matched_categories.map(cat => (
+                            <span key={cat} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{cat}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-lg font-bold ${
+                          m.match_score >= 70 ? 'text-green-600' : m.match_score >= 40 ? 'text-amber-600' : 'text-gray-500'
+                        }`}>{m.match_score}%</div>
+                        <div className="text-xs text-gray-500">Relevance</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Discovered Subcontractors */}
+              {discoveredSubs.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Globe size={14} />
+                    Discovered Nearby Subcontractors
+                  </h3>
+                  {discoveredSubs.map(rd => (
+                    <div key={rd.requirement_category} className="border border-green-200 rounded-lg overflow-hidden">
+                      <div className="bg-green-50 px-4 py-2 flex items-center justify-between">
+                        <div>
+                          <span className="font-medium text-gray-900 text-sm">{rd.requirement_category}</span>
+                          {rd.requirement_description && <span className="text-xs text-gray-500 ml-2">— {rd.requirement_description}</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {rd.db_matches_count > 0 && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{rd.db_matches_count} in DB</span>}
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{rd.discovered_businesses.length} discovered</span>
+                        </div>
+                      </div>
+                      {rd.discovered_businesses.length > 0 ? (
+                        <div className="divide-y divide-gray-100">
+                          {rd.discovered_businesses.map((biz, idx) => (
+                            <div key={`${biz.company_name}-${idx}`} className="px-4 py-3 flex items-center justify-between gap-4">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-900">{biz.company_name}</span>
+                                  {biz.rating && (
+                                    <span className="flex items-center gap-0.5 text-xs text-amber-600">
+                                      <Star size={10} className="fill-amber-400" />{biz.rating}
+                                      {biz.review_count && <span className="text-gray-400">({biz.review_count})</span>}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500 truncate">{biz.address}</p>
+                                <div className="flex items-center gap-3 mt-1">
+                                  {biz.phone && <span className="text-xs text-gray-500">{biz.phone}</span>}
+                                  {biz.website && (
+                                    <a href={`https://${biz.website}`} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5">
+                                      <ExternalLink size={10} />{biz.website.length > 30 ? biz.website.slice(0, 30) + '...' : biz.website}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => addDiscoveredToDb(biz, rd.requirement_category)}
+                                disabled={addingToDb === biz.company_name}
+                                className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                              >
+                                <Plus size={12} />
+                                {addingToDb === biz.company_name ? 'Adding...' : 'Add to DB'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 text-xs text-gray-400 italic">No businesses found nearby for this category</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!matchingInProgress && subMatches.length === 0 && requirementMatches.length === 0 && discoveredSubs.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  <Users size={32} className="mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">Click a search button above to find subcontractors for this project's requirements</p>
+                </div>
+              )}
             </div>
           )}
         </div>

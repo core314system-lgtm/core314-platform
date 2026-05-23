@@ -296,57 +296,260 @@ Return a JSON object with:
   return callOpenAI(systemPrompt, userPrompt)
 }
 
+export interface SubMatch {
+  subcontractor_id: string
+  company_name: string
+  matched_categories: string[]
+  location_match: boolean
+  incumbent_status: string
+  preferred: boolean
+  match_score: number
+  relevance_reason: string
+}
+
+export interface RequirementMatch {
+  requirement_category: string
+  requirement_description: string
+  matched_subs: Array<{
+    subcontractor_id: string
+    company_name: string
+    relevance_score: number
+    relevance_reason: string
+  }>
+}
+
 export async function matchSubcontractors(
   analysisResult: Record<string, unknown>,
   subcontractors: Array<{ id: string; company_name: string; service_categories: string[]; geographic_coverage: string[]; incumbent_status: string; preferred: boolean }>,
   taskOrderLocation: string,
-) {
-  const serviceCategories = (analysisResult.service_categories as Array<{ category: string }>) || []
-  const categories = serviceCategories.map(c => c.category)
-
-  const matches: Array<{
-    subcontractor_id: string
-    company_name: string
-    matched_categories: string[]
-    location_match: boolean
-    incumbent_status: string
-    preferred: boolean
-    match_score: number
-  }> = []
+): Promise<SubMatch[]> {
+  const serviceCategories = (analysisResult.service_categories as Array<{ category: string; description: string }>) || []
+  if (serviceCategories.length === 0 || subcontractors.length === 0) return []
 
   const locationState = taskOrderLocation?.split(',').pop()?.trim().toUpperCase() || ''
 
-  for (const sub of subcontractors) {
-    const matchedCats = sub.service_categories.filter(sc =>
-      categories.some(c => c.toLowerCase().includes(sc.toLowerCase()) || sc.toLowerCase().includes(c.toLowerCase()))
-    )
-    const locationMatch = sub.geographic_coverage.some(g =>
-      g.toUpperCase() === locationState ||
-      g.toUpperCase() === 'NATIONWIDE' ||
-      g.toUpperCase().includes(locationState)
+  // Build a concise summary of project needs for AI evaluation
+  const projectNeeds = serviceCategories.map(c => `${c.category}: ${c.description || ''}`).join('\n')
+
+  // Batch subcontractors into groups for AI evaluation (max ~30 at a time)
+  const BATCH_SIZE = 30
+  const allMatches: SubMatch[] = []
+
+  for (let i = 0; i < subcontractors.length; i += BATCH_SIZE) {
+    const batch = subcontractors.slice(i, i + BATCH_SIZE)
+    const subList = batch.map((s, idx) => `${idx + 1}. "${s.company_name}" — services: [${s.service_categories.join(', ')}], coverage: [${s.geographic_coverage.join(', ')}]`).join('\n')
+
+    try {
+      const result = await callOpenAI(
+        `You are a procurement matching expert. Evaluate how relevant each subcontractor is to the project requirements.
+
+For each subcontractor, determine:
+- relevance_score: 0-100 based on how well their services match the project needs. 0 = completely irrelevant (e.g., snow plowing for a janitorial project). 100 = perfect match.
+- relevant_categories: which of the project's service categories they could serve
+- reason: brief explanation of why they match or don't match
+
+SCORING GUIDE:
+- 80-100: Direct match — their services are exactly what the project needs
+- 60-79: Strong match — their services substantially overlap with project needs
+- 40-59: Partial match — some overlap but not a primary fit
+- 20-39: Weak match — tangential relevance at best
+- 0-19: No match — their services are unrelated to the project
+
+Be strict. A snow removal company does NOT match a janitorial project. A general "Services" category only counts if the specific services are relevant.
+
+Return JSON: { "matches": [{ "index": number, "relevance_score": number, "relevant_categories": string[], "reason": string }] }
+Only include subcontractors with relevance_score > 0.`,
+        `PROJECT SERVICE CATEGORIES:\n${projectNeeds}\n\nProject location: ${taskOrderLocation || 'Not specified'}\n\nSUBCONTRACTORS TO EVALUATE:\n${subList}`
+      )
+
+      const matches = (result.matches as Array<{ index: number; relevance_score: number; relevant_categories: string[]; reason: string }>) || []
+
+      for (const m of matches) {
+        const subIdx = m.index - 1
+        if (subIdx < 0 || subIdx >= batch.length) continue
+        if (m.relevance_score <= 0) continue
+
+        const sub = batch[subIdx]
+        const locationMatch = sub.geographic_coverage.some(g =>
+          g.toUpperCase() === locationState ||
+          g.toUpperCase() === 'NATIONWIDE' ||
+          g.toUpperCase().includes(locationState)
+        )
+
+        // Combine AI relevance with bonuses
+        let finalScore = m.relevance_score
+        if (locationMatch && finalScore > 0) finalScore = Math.min(finalScore + 5, 100)
+        if (sub.preferred && finalScore > 0) finalScore = Math.min(finalScore + 5, 100)
+        if (sub.incumbent_status === 'known') finalScore = Math.min(finalScore + 5, 100)
+
+        allMatches.push({
+          subcontractor_id: sub.id,
+          company_name: sub.company_name,
+          matched_categories: m.relevant_categories || [],
+          location_match: locationMatch,
+          incumbent_status: sub.incumbent_status,
+          preferred: sub.preferred,
+          match_score: finalScore,
+          relevance_reason: m.reason,
+        })
+      }
+    } catch {
+      // On AI failure, fall back to basic keyword matching for this batch
+      for (const sub of batch) {
+        const matchedCats = sub.service_categories.filter(sc =>
+          serviceCategories.some(c =>
+            c.category.toLowerCase() === sc.toLowerCase()
+          )
+        )
+        if (matchedCats.length === 0) continue
+
+        const locationMatch = sub.geographic_coverage.some(g =>
+          g.toUpperCase() === locationState ||
+          g.toUpperCase() === 'NATIONWIDE' ||
+          g.toUpperCase().includes(locationState)
+        )
+
+        let score = Math.round((matchedCats.length / serviceCategories.length) * 60)
+        if (locationMatch) score += 10
+        if (sub.preferred) score += 10
+        if (sub.incumbent_status === 'known') score += 10
+        score = Math.min(score, 100)
+
+        allMatches.push({
+          subcontractor_id: sub.id,
+          company_name: sub.company_name,
+          matched_categories: matchedCats,
+          location_match: locationMatch,
+          incumbent_status: sub.incumbent_status,
+          preferred: sub.preferred,
+          match_score: score,
+          relevance_reason: `Matched categories: ${matchedCats.join(', ')}`,
+        })
+      }
+    }
+  }
+
+  return allMatches.sort((a, b) => b.match_score - a.match_score)
+}
+
+export async function matchSubcontractorsPerRequirement(
+  analysisResult: Record<string, unknown>,
+  subcontractors: Array<{ id: string; company_name: string; service_categories: string[]; geographic_coverage: string[]; incumbent_status: string; preferred: boolean }>,
+  taskOrderLocation: string,
+): Promise<RequirementMatch[]> {
+  const serviceCategories = (analysisResult.service_categories as Array<{ category: string; description: string }>) || []
+
+  if (serviceCategories.length === 0 || subcontractors.length === 0) return []
+
+  const subList = subcontractors.map((s, idx) => `${idx + 1}. "${s.company_name}" — services: [${s.service_categories.join(', ')}], coverage: [${s.geographic_coverage.join(', ')}]`).join('\n')
+
+  try {
+    const result = await callOpenAI(
+      `You are a procurement matching expert. For each project requirement category, find the most relevant subcontractors from the list provided.
+
+For each requirement, evaluate every subcontractor and assign a relevance_score (0-100):
+- 80-100: Their services directly address this requirement
+- 40-79: Partial overlap
+- 0-39: Not relevant to this requirement
+
+Return JSON: { "requirement_matches": [{ "category": string, "description": string, "top_subs": [{ "index": number, "score": number, "reason": string }] }] }
+
+Only include subs with score >= 40 in top_subs. Sort top_subs by score descending. Max 5 subs per requirement.`,
+      `PROJECT REQUIREMENTS:\n${serviceCategories.map(c => `- ${c.category}: ${c.description || ''}`).join('\n')}\n\nProject location: ${taskOrderLocation || 'Not specified'}\n\nAVAILABLE SUBCONTRACTORS:\n${subList}`
     )
 
-    if (matchedCats.length > 0) {
-      let score = matchedCats.length * 25
-      if (locationMatch) score += 20
-      if (sub.preferred) score += 15
-      if (sub.incumbent_status === 'known') score += 10
-      if (sub.incumbent_status === 'suspected') score += 5
-      score = Math.min(score, 100)
+    const reqMatches = (result.requirement_matches as Array<{ category: string; description: string; top_subs: Array<{ index: number; score: number; reason: string }> }>) || []
 
-      matches.push({
-        subcontractor_id: sub.id,
-        company_name: sub.company_name,
-        matched_categories: matchedCats,
-        location_match: locationMatch,
-        incumbent_status: sub.incumbent_status,
-        preferred: sub.preferred,
-        match_score: score,
+    return reqMatches.map(rm => ({
+      requirement_category: rm.category,
+      requirement_description: rm.description || '',
+      matched_subs: (rm.top_subs || [])
+        .filter(ts => ts.index >= 1 && ts.index <= subcontractors.length && ts.score >= 40)
+        .map(ts => ({
+          subcontractor_id: subcontractors[ts.index - 1].id,
+          company_name: subcontractors[ts.index - 1].company_name,
+          relevance_score: ts.score,
+          relevance_reason: ts.reason,
+        })),
+    }))
+  } catch {
+    return []
+  }
+}
+
+export interface DiscoveredBusiness {
+  company_name: string
+  address: string
+  city: string
+  state: string
+  phone: string | null
+  website: string | null
+  rating: number | null
+  review_count: number | null
+  categories: string[]
+  source: 'google_places'
+}
+
+export interface RequirementDiscovery {
+  requirement_category: string
+  requirement_description: string
+  discovered_businesses: DiscoveredBusiness[]
+  db_matches_count: number
+}
+
+export async function discoverSubsForRequirements(
+  analysisResult: Record<string, unknown>,
+  taskOrderLocation: string,
+  dbMatchCounts?: Record<string, number>,
+): Promise<RequirementDiscovery[]> {
+  const serviceCategories = (analysisResult.service_categories as Array<{ category: string; description: string }>) || []
+  if (serviceCategories.length === 0) return []
+
+  const results: RequirementDiscovery[] = []
+
+  for (const cat of serviceCategories) {
+    const dbCount = dbMatchCounts?.[cat.category] ?? 0
+
+    try {
+      const res = await fetch('/api/discover-subs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: cat.category,
+          scope: 'local',
+          location: taskOrderLocation || 'United States',
+          radius: 50,
+        }),
+      })
+
+      if (!res.ok) {
+        results.push({
+          requirement_category: cat.category,
+          requirement_description: cat.description || '',
+          discovered_businesses: [],
+          db_matches_count: dbCount,
+        })
+        continue
+      }
+
+      const data = await res.json()
+      results.push({
+        requirement_category: cat.category,
+        requirement_description: cat.description || '',
+        discovered_businesses: data.results || [],
+        db_matches_count: dbCount,
+      })
+    } catch {
+      results.push({
+        requirement_category: cat.category,
+        requirement_description: cat.description || '',
+        discovered_businesses: [],
+        db_matches_count: dbCount,
       })
     }
   }
 
-  return matches.sort((a, b) => b.match_score - a.match_score)
+  return results
 }
 
 export async function compareTaskOrders(
