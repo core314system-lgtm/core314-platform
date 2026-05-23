@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import type { TaskOrder, Document as Doc, DocumentCategory, AnalysisResult } from '../lib/types'
+import type { TaskOrder, Document as Doc, DocumentCategory, AnalysisResult, ProjectSubcontractor, ProjectSubStatus, Subcontractor } from '../lib/types'
 import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors, matchSubcontractorsPerRequirement, discoverSubsForRequirements } from '../lib/api'
@@ -58,6 +58,9 @@ export default function TaskOrderDetail() {
   const [auditKey, setAuditKey] = useState(0)
   const [contractName, setContractName] = useState<string | null>(null)
   const [generatingSingle, setGeneratingSingle] = useState<string | null>(null)
+  const [projectSubs, setProjectSubs] = useState<ProjectSubcontractor[]>([])
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const [projectSubsTableExists, setProjectSubsTableExists] = useState(true)
 
   async function handleViewDocument(doc: Doc) {
     try {
@@ -161,6 +164,7 @@ export default function TaskOrderDetail() {
       fetchTaskOrder()
       fetchDocuments()
       loadExistingAnalysis()
+      loadProjectSubcontractors()
     }
   }, [id])
 
@@ -191,6 +195,82 @@ export default function TaskOrderDetail() {
       status[t] = !!data
     }
     setAiStatus(status)
+  }
+
+  async function loadProjectSubcontractors() {
+    if (!id) return
+    try {
+      const { data, error } = await supabase
+        .from('project_subcontractors')
+        .select('*, subcontractor:subcontractors(*)')
+        .eq('task_order_id', id)
+        .neq('status', 'removed')
+        .order('match_score', { ascending: false })
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('project_subcontractors')) {
+          setProjectSubsTableExists(false)
+        }
+        return
+      }
+      setProjectSubs(data || [])
+    } catch {
+      // Table may not exist yet
+    }
+  }
+
+  async function persistMatchesToProject(matches: SubMatch[]) {
+    if (!id || !user || !projectSubsTableExists) return
+    for (const match of matches) {
+      if (match.match_score < 20) continue
+      const { error } = await supabase
+        .from('project_subcontractors')
+        .upsert({
+          task_order_id: id,
+          subcontractor_id: match.subcontractor_id,
+          match_score: match.match_score,
+          relevance_reason: match.relevance_reason,
+          matched_requirements: match.matched_categories,
+          source: 'ai_match',
+          added_by: user.id,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'task_order_id,subcontractor_id' })
+      if (error) {
+        console.error('Failed to persist match:', error)
+      }
+    }
+    await loadProjectSubcontractors()
+  }
+
+  async function updateProjectSubStatus(projectSubId: string, newStatus: ProjectSubStatus) {
+    setUpdatingStatus(projectSubId)
+    try {
+      const { error } = await supabase
+        .from('project_subcontractors')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', projectSubId)
+      if (error) throw error
+      setProjectSubs(prev => prev.map(ps =>
+        ps.id === projectSubId ? { ...ps, status: newStatus } : ps
+      ))
+    } catch (err) {
+      alert('Failed to update status: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  async function removeProjectSub(projectSubId: string) {
+    if (!confirm('Remove this subcontractor from the project?')) return
+    try {
+      const { error } = await supabase
+        .from('project_subcontractors')
+        .update({ status: 'removed', updated_at: new Date().toISOString() })
+        .eq('id', projectSubId)
+      if (error) throw error
+      setProjectSubs(prev => prev.filter(ps => ps.id !== projectSubId))
+    } catch (err) {
+      alert('Failed to remove: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
   }
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -251,6 +331,8 @@ export default function TaskOrderDetail() {
     if (!confirm('Are you absolutely sure? Type OK to confirm.')) return
     setDeleting(true)
     try {
+      // Delete project subcontractors
+      await supabase.from('project_subcontractors').delete().eq('task_order_id', id).then(() => {})
       // Delete SOW-related data first (cascade should handle most, but be explicit)
       await supabase.from('sow_items').delete().eq('task_order_id', id)
       // Delete documents from storage
@@ -442,6 +524,11 @@ export default function TaskOrderDetail() {
         setSubMatches(matches)
         setRequirementMatches(reqMatches)
 
+        // Persist matched subcontractors to the project matrix
+        if (matches.length > 0) {
+          await persistMatchesToProject(matches)
+        }
+
         if (matches.length === 0 && reqMatches.length === 0) {
           setMatchError(`Evaluated ${subs.length} subcontractors — none were relevant to this project's requirements. Try "Auto-Discover New" to find new vendors.`)
         }
@@ -473,7 +560,7 @@ export default function TaskOrderDetail() {
     setAddingToDb(business.company_name)
 
     try {
-      const { error } = await supabase.from('subcontractors').insert({
+      const { data: inserted, error } = await supabase.from('subcontractors').insert({
         company_name: business.company_name,
         contact_email: null,
         contact_phone: business.phone,
@@ -486,10 +573,25 @@ export default function TaskOrderDetail() {
         preferred: false,
         incumbent_status: 'unknown',
         org_id: profile.current_org_id,
-      })
+      }).select('id').single()
 
       if (error) throw error
-      alert(`${business.company_name} added to your subcontractor database!`)
+
+      // Also link to this project
+      if (inserted && id && projectSubsTableExists) {
+        await supabase.from('project_subcontractors').upsert({
+          task_order_id: id,
+          subcontractor_id: inserted.id,
+          match_score: business.rating ? Math.min(Math.round(business.rating * 20), 100) : 50,
+          relevance_reason: `Discovered via Google Places for ${serviceCategory}`,
+          matched_requirements: [serviceCategory],
+          source: 'auto_discover',
+          added_by: user?.id || null,
+        }, { onConflict: 'task_order_id,subcontractor_id' })
+        await loadProjectSubcontractors()
+      }
+
+      alert(`${business.company_name} added to your database and linked to this project!`)
     } catch (err) {
       alert('Failed to add: ' + (err instanceof Error ? err.message : 'Unknown error'))
     } finally {
@@ -898,7 +1000,7 @@ export default function TaskOrderDetail() {
               <div>
                 <h2 className="font-semibold text-gray-900">Subcontractor Matching</h2>
                 <p className="text-sm text-gray-500">
-                  {subMatches.length > 0 ? `${subMatches.length} matched from database` : 'Find subcontractors for each requirement'}
+                  {projectSubs.length > 0 ? `${projectSubs.length} subcontractors in project matrix` : subMatches.length > 0 ? `${subMatches.length} matched from database` : 'Find subcontractors for each requirement'}
                   {discoveredSubs.length > 0 && ` · ${discoveredSubs.reduce((sum, d) => sum + d.discovered_businesses.length, 0)} discovered nearby`}
                 </p>
               </div>
@@ -960,6 +1062,88 @@ export default function TaskOrderDetail() {
               {matchError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
                   {matchError}
+                </div>
+              )}
+
+              {/* Project Subcontractor Matrix — persisted per-project list */}
+              {projectSubs.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Users size={14} />
+                      Project Subcontractor Matrix ({projectSubs.length})
+                    </h3>
+                    <span className="text-xs text-gray-400">Status changes are saved automatically</span>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-12 gap-2 bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                      <div className="col-span-3">Company</div>
+                      <div className="col-span-2">Match Score</div>
+                      <div className="col-span-3">Requirements</div>
+                      <div className="col-span-2">Status</div>
+                      <div className="col-span-2 text-right">Actions</div>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {projectSubs.map(ps => {
+                        const sub = ps.subcontractor as Subcontractor | undefined
+                        return (
+                          <div key={ps.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50">
+                            <div className="col-span-3">
+                              <span className="text-sm font-medium text-gray-900">{sub?.company_name || 'Unknown'}</span>
+                              {sub?.contact_phone && <p className="text-xs text-gray-400">{sub.contact_phone}</p>}
+                              {ps.source === 'auto_discover' && <span className="text-xs bg-green-50 text-green-600 px-1 py-0.5 rounded">Discovered</span>}
+                            </div>
+                            <div className="col-span-2">
+                              <span className={`text-sm font-bold ${
+                                ps.match_score >= 70 ? 'text-green-600' : ps.match_score >= 40 ? 'text-amber-600' : 'text-gray-500'
+                              }`}>{ps.match_score}%</span>
+                              {ps.relevance_reason && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{ps.relevance_reason}</p>}
+                            </div>
+                            <div className="col-span-3">
+                              <div className="flex flex-wrap gap-1">
+                                {(ps.matched_requirements || []).map(req => (
+                                  <span key={req} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{req}</span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="col-span-2">
+                              <select
+                                value={ps.status}
+                                onChange={e => updateProjectSubStatus(ps.id, e.target.value as ProjectSubStatus)}
+                                disabled={updatingStatus === ps.id}
+                                className={`text-xs rounded-lg border px-2 py-1 ${
+                                  ps.status === 'awarded' ? 'bg-green-50 border-green-300 text-green-700' :
+                                  ps.status === 'shortlisted' ? 'bg-blue-50 border-blue-300 text-blue-700' :
+                                  ps.status === 'invited' ? 'bg-indigo-50 border-indigo-300 text-indigo-700' :
+                                  ps.status === 'quoted' ? 'bg-amber-50 border-amber-300 text-amber-700' :
+                                  ps.status === 'rejected' ? 'bg-red-50 border-red-300 text-red-700' :
+                                  'bg-gray-50 border-gray-300 text-gray-700'
+                                }`}
+                              >
+                                <option value="matched">Matched</option>
+                                <option value="shortlisted">Shortlisted</option>
+                                <option value="invited">Invited</option>
+                                <option value="quoted">Quoted</option>
+                                <option value="awarded">Awarded</option>
+                                <option value="rejected">Rejected</option>
+                              </select>
+                            </div>
+                            <div className="col-span-2 flex justify-end gap-1">
+                              {sub && (
+                                <Link to={`/subcontractors`} className="text-xs text-indigo-600 hover:underline">View</Link>
+                              )}
+                              <button
+                                onClick={() => removeProjectSub(ps.id)}
+                                className="text-xs text-red-500 hover:text-red-700 ml-2"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
 

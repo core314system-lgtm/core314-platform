@@ -267,6 +267,28 @@ export interface TaskOrderComparison {
   summary: string
 }
 
+// ========== Project-Specific Subcontractor Matrix Types ==========
+
+export type ProjectSubStatus = 'matched' | 'shortlisted' | 'invited' | 'quoted' | 'awarded' | 'rejected' | 'removed'
+export type ProjectSubSource = 'ai_match' | 'auto_discover' | 'manual' | 'sow_tracker'
+
+export interface ProjectSubcontractor {
+  id: string
+  task_order_id: string
+  subcontractor_id: string
+  match_score: number
+  relevance_reason: string | null
+  matched_requirements: string[]
+  status: ProjectSubStatus
+  source: ProjectSubSource
+  added_by: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  subcontractor?: Subcontractor
+}
+
 // ========== Subcontractor Bid Management Types ==========
 
 export type SowStatus = 'not_started' | 'subs_identified' | 'rfqs_sent' | 'quotes_received' | 'evaluating' | 'awarded'

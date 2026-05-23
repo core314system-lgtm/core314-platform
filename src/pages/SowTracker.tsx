@@ -242,6 +242,19 @@ export default function SowTracker() {
       match_score: 0,
       outreach_status: 'identified',
     })
+
+    // Also link to the project matrix
+    if (taskOrderId) {
+      const sow = sowItems.find(s => s.id === sowId)
+      await supabase.from('project_subcontractors').upsert({
+        task_order_id: taskOrderId,
+        subcontractor_id: subId,
+        match_score: 0,
+        matched_requirements: sow ? [sow.service_category] : [],
+        source: 'sow_tracker',
+      }, { onConflict: 'task_order_id,subcontractor_id' }).then(() => {})
+    }
+
     setShowAddSub(null)
     setSubSearch('')
     fetchData()
