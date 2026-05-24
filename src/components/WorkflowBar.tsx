@@ -165,7 +165,7 @@ export default function WorkflowBar({ projectTypeId, currentStageId, onStageChan
               </button>
               <button
                 onClick={confirmStageChange}
-                disabled={changing || (showGateWarning && !overrideGate)}
+                disabled={changing || !!(showGateWarning && !overrideGate)}
                 className={`px-4 py-2 text-sm rounded-lg disabled:opacity-50 ${
                   showGateWarning && !overrideGate
                     ? 'bg-gray-400 text-white cursor-not-allowed'
