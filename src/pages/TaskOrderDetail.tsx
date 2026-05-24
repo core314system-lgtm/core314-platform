@@ -62,6 +62,8 @@ export default function TaskOrderDetail() {
   const [projectSubs, setProjectSubs] = useState<ProjectSubcontractor[]>([])
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [projectSubsTableExists, setProjectSubsTableExists] = useState(true)
+  const [selfPerformReqs, setSelfPerformReqs] = useState<string[]>([])
+  const [searchingGap, setSearchingGap] = useState<string | null>(null)
 
   async function handleViewDocument(doc: Doc) {
     try {
@@ -173,6 +175,7 @@ export default function TaskOrderDetail() {
       fetchDocuments()
       loadExistingAnalysis()
       loadProjectSubcontractors()
+      loadSelfPerformReqs()
     }
   }, [id])
 
@@ -224,6 +227,87 @@ export default function TaskOrderDetail() {
     } catch {
       // Table may not exist yet
     }
+  }
+
+  async function loadSelfPerformReqs() {
+    if (!id) return
+    const data = await loadAiOutput<string[]>(id, 'self_perform_requirements')
+    if (data) setSelfPerformReqs(data)
+  }
+
+  async function toggleSelfPerform(category: string) {
+    if (!id) return
+    const updated = selfPerformReqs.includes(category)
+      ? selfPerformReqs.filter(r => r !== category)
+      : [...selfPerformReqs, category]
+    setSelfPerformReqs(updated)
+    await saveAiOutput(id, 'self_perform_requirements', updated)
+  }
+
+  async function searchForGap(category: string) {
+    if (!taskOrder || !analysisResult) return
+    setSearchingGap(category)
+    const location = `${taskOrder.location_city || ''}, ${taskOrder.location_state || ''}`
+    try {
+      const discoveries = await discoverSubsForRequirements(
+        { service_categories: [{ category, description: '' }] } as unknown as Record<string, unknown>,
+        location,
+        {}
+      )
+      setDiscoveredSubs(prev => {
+        const filtered = prev.filter(d => d.requirement_category !== category)
+        return [...filtered, ...discoveries]
+      })
+    } catch (err) {
+      console.error('Gap search error:', err)
+    } finally {
+      setSearchingGap(null)
+    }
+  }
+
+  function computeCoverage() {
+    if (!analysisResult) return { total: 0, covered: 0, gaps: [] as { name: string; description: string }[], coverageMap: {} as Record<string, 'sub' | 'self'> }
+
+    // Build category list: prefer unique service_category values from requirements (more granular)
+    // Fall back to service_categories array if requirements don't have categories
+    const reqCategories = [...new Set(
+      (analysisResult.requirements || [])
+        .map(r => r.service_category)
+        .filter(Boolean)
+    )]
+
+    const svcCategories = (analysisResult.service_categories || []).map(c => c.category)
+
+    // Use whichever gives more granularity
+    const categories = reqCategories.length > svcCategories.length ? reqCategories : svcCategories
+    const total = categories.length
+    const coverageMap: Record<string, 'sub' | 'self'> = {}
+
+    for (const cat of categories) {
+      // Check if a projectSub explicitly covers this category (matched_requirements contains it)
+      const hasDbSub = projectSubs.some(ps =>
+        ps.status !== 'rejected' &&
+        (ps.matched_requirements || []).some(r => r.toLowerCase() === cat.toLowerCase())
+      )
+      // Also check in-memory subMatches from current session matching
+      const hasMemSub = subMatches.some(sm =>
+        (sm.matched_categories || []).some(c => c.toLowerCase() === cat.toLowerCase())
+      )
+      if (hasDbSub || hasMemSub) {
+        coverageMap[cat] = 'sub'
+      } else if (selfPerformReqs.includes(cat)) {
+        coverageMap[cat] = 'self'
+      }
+    }
+
+    const covered = Object.keys(coverageMap).length
+    const gaps = categories
+      .filter(c => !coverageMap[c])
+      .map(c => {
+        const svcInfo = analysisResult?.service_categories?.find(s => s.category === c)
+        return { name: c, description: svcInfo?.description || '' }
+      })
+    return { total, covered, gaps, coverageMap }
   }
 
   async function persistMatchesToProject(matches: SubMatch[]) {
@@ -1045,7 +1129,14 @@ export default function TaskOrderDetail() {
               <div>
                 <h2 className="font-semibold text-gray-900">Subcontractor Matching</h2>
                 <p className="text-sm text-gray-500">
-                  {projectSubs.length > 0 ? `${projectSubs.length} subcontractors in project matrix` : subMatches.length > 0 ? `${subMatches.length} matched from database` : 'Find subcontractors for each requirement'}
+                  {(() => {
+                    const { total, covered, gaps } = computeCoverage()
+                    if (total > 0 && gaps.length === 0) return `Full Coverage — all ${total} requirements covered`
+                    if (total > 0 && covered > 0) return `${covered}/${total} requirements covered · ${gaps.length} gap${gaps.length > 1 ? 's' : ''} remaining`
+                    if (projectSubs.length > 0) return `${projectSubs.length} subcontractors in project matrix`
+                    if (subMatches.length > 0) return `${subMatches.length} matched from database`
+                    return 'Find subcontractors for each requirement'
+                  })()}
                   {discoveredSubs.length > 0 && ` · ${discoveredSubs.reduce((sum, d) => sum + d.discovered_businesses.length, 0)} discovered nearby`}
                 </p>
               </div>
@@ -1110,6 +1201,101 @@ export default function TaskOrderDetail() {
                 </div>
               )}
 
+              {/* Coverage Bar & Gap Analysis */}
+              {(() => {
+                const { total, covered, gaps, coverageMap } = computeCoverage()
+                if (total === 0) return null
+                const pct = Math.round((covered / total) * 100)
+                const isFull = gaps.length === 0
+
+                return (
+                  <div className="mb-6">
+                    {/* Coverage Progress Bar */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          <CheckCircle size={14} className={isFull ? 'text-green-600' : 'text-amber-500'} />
+                          Requirement Coverage
+                        </h3>
+                        <span className={`text-sm font-bold ${isFull ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {covered} of {total} requirements covered ({pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${isFull ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      {isFull && (
+                        <p className="text-xs text-green-600 font-medium mt-2 flex items-center gap-1">
+                          <CheckCircle size={12} /> Full Coverage — all requirements have an assigned subcontractor or are self-performed
+                        </p>
+                      )}
+                      {!isFull && (total > 0) && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {(() => {
+                            const reqCats = [...new Set((analysisResult?.requirements || []).map(r => r.service_category).filter(Boolean))]
+                            const allCats = reqCats.length > (analysisResult?.service_categories || []).length ? reqCats : (analysisResult?.service_categories || []).map(c => c.category)
+                            return allCats.map(cat => (
+                              <span key={cat} className={`text-xs px-2 py-0.5 rounded-full ${
+                                coverageMap[cat] === 'sub' ? 'bg-green-100 text-green-700' :
+                                coverageMap[cat] === 'self' ? 'bg-blue-100 text-blue-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {cat}
+                                {coverageMap[cat] === 'sub' && ' \u2713 Sub'}
+                                {coverageMap[cat] === 'self' && ' \u2713 Self'}
+                                {!coverageMap[cat] && ' \u2014 Gap'}
+                              </span>
+                            ))
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Coverage Gaps */}
+                    {gaps.length > 0 && (
+                      <div className="border border-amber-200 bg-amber-50 rounded-lg overflow-hidden">
+                        <div className="px-4 py-3 border-b border-amber-200 flex items-center gap-2">
+                          <AlertTriangle size={14} className="text-amber-600" />
+                          <h3 className="text-sm font-semibold text-amber-800">
+                            Coverage Gaps ({gaps.length} requirement{gaps.length > 1 ? 's' : ''} uncovered)
+                          </h3>
+                        </div>
+                        <div className="divide-y divide-amber-100">
+                          {gaps.map(gap => (
+                              <div key={gap.name} className="px-4 py-3 flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <span className="text-sm font-medium text-gray-900">{gap.name}</span>
+                                  {gap.description && <p className="text-xs text-gray-500 mt-0.5">{gap.description}</p>}
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <button
+                                    onClick={() => searchForGap(gap.name)}
+                                    disabled={searchingGap === gap.name}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50"
+                                  >
+                                    <Search size={12} />
+                                    {searchingGap === gap.name ? 'Searching...' : 'Find Sub'}
+                                  </button>
+                                  <button
+                                    onClick={() => toggleSelfPerform(gap.name)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100"
+                                  >
+                                    <Users size={12} />
+                                    Self-Perform
+                                  </button>
+                                </div>
+                              </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {/* Project Subcontractor Matrix — persisted per-project list */}
               {projectSubs.length > 0 && (
                 <div className="mb-6">
@@ -1123,9 +1309,8 @@ export default function TaskOrderDetail() {
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="grid grid-cols-12 gap-2 bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
                       <div className="col-span-3">Company</div>
-                      <div className="col-span-2">Match Score</div>
-                      <div className="col-span-3">Requirements</div>
-                      <div className="col-span-2">Status</div>
+                      <div className="col-span-4">Covers Requirements</div>
+                      <div className="col-span-3">Status</div>
                       <div className="col-span-2 text-right">Actions</div>
                     </div>
                     <div className="divide-y divide-gray-100">
@@ -1135,23 +1320,23 @@ export default function TaskOrderDetail() {
                           <div key={ps.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50">
                             <div className="col-span-3">
                               <span className="text-sm font-medium text-gray-900">{sub?.company_name || 'Unknown'}</span>
-                              {sub?.contact_phone && <p className="text-xs text-gray-400">{sub.contact_phone}</p>}
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {sub?.contact_phone && <span className="text-xs text-gray-400">{sub.contact_phone}</span>}
+                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${ps.match_score >= 70 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{ps.match_score}%</span>
+                              </div>
                               {ps.source === 'auto_discover' && <span className="text-xs bg-green-50 text-green-600 px-1 py-0.5 rounded">Discovered</span>}
                             </div>
-                            <div className="col-span-2">
-                              <span className={`text-sm font-bold ${
-                                ps.match_score >= 70 ? 'text-green-600' : ps.match_score >= 40 ? 'text-amber-600' : 'text-gray-500'
-                              }`}>{ps.match_score}%</span>
-                              {ps.relevance_reason && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{ps.relevance_reason}</p>}
-                            </div>
-                            <div className="col-span-3">
+                            <div className="col-span-4">
                               <div className="flex flex-wrap gap-1">
                                 {(ps.matched_requirements || []).map(req => (
-                                  <span key={req} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{req}</span>
+                                  <span key={req} className="text-xs bg-green-50 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                    <CheckCircle size={10} />{req}
+                                  </span>
                                 ))}
                               </div>
+                              {ps.relevance_reason && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{ps.relevance_reason}</p>}
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-3">
                               <select
                                 value={ps.status}
                                 onChange={e => updateProjectSubStatus(ps.id, e.target.value as ProjectSubStatus)}
