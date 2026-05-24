@@ -79,7 +79,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: 'explore_more',
     title: 'You\'re All Set!',
-    description: 'You\'ve completed the basics. Explore Analytics for cross-project intelligence, Integrations for SAM.gov search and CSV import, and the Help Center for detailed guides.',
+    description: 'You\'ve completed the basics! Use the Procuvex Intelligence chatbot (bottom-right) for any questions — it knows your account data and can help with anything. Explore Analytics, Integrations, and Billing to manage your subscription.',
     action: 'Go to Dashboard',
     route: '/dashboard',
     checkKey: 'onboarding_complete',

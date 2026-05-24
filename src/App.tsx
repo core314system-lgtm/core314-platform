@@ -37,6 +37,7 @@ import ContractDetail from './pages/ContractDetail'
 import BidDecisionEngine from './pages/BidDecisionEngine'
 import PostAward from './pages/PostAward'
 import TeamingTracker from './pages/TeamingTracker'
+import Billing from './pages/Billing'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -152,8 +153,9 @@ export default function App() {
           <Route path="/intelligence" element={<ProtectedRoute><IntelligenceLibrary /></ProtectedRoute>} />
           <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
 
-          {/* Organization Settings */}
+          {/* Organization Settings & Billing */}
           <Route path="/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
+          <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

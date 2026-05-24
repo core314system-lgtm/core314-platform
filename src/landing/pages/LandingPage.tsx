@@ -210,7 +210,7 @@ export default function LandingPage() {
               transition={{ duration: 0.5, delay: 0.45 }}
               className="text-sm text-slate-400"
             >
-              14-day free trial &middot; Set up in minutes &middot; Cancel anytime
+              7-day free trial &middot; Set up in minutes &middot; Cancel anytime
             </motion.p>
           </div>
 

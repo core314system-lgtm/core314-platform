@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText, AlertTriangle } from 'lucide-react'
+import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText, AlertTriangle, Phone } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
 import { fetchAIProxy } from '../lib/api'
@@ -14,6 +14,8 @@ interface ChatMessage {
   proposedChanges?: SmartNotesResult
   changesApplied?: boolean
   changesResult?: { success: number; errors: string[] }
+  needsEscalation?: boolean
+  escalationSent?: boolean
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -606,6 +608,8 @@ CRITICAL RULES — FOLLOW EXACTLY:
 10. When the factual answer is "zero" or "none", state that confidently. Then ALWAYS provide helpful context: what the total count is, when the most recent activity was, and any related activity. For example, if zero subcontractors were added today, also mention the total count, when the last ones were added, and any SOW assignments made today.
 11. If data seems incomplete or inconsistent, note what you see and suggest what might be missing — but never invent the missing data.
 12. PROACTIVE CONTEXT: After answering the direct question, briefly mention 1-2 related data points the user might find useful. For example, after answering about subcontractors, mention how many are assigned to SOWs or have been contacted via RFQ.
+13. ESCALATION: If you are not 100% certain about an answer, or if the user's question is about billing, account issues, technical problems, or anything you cannot resolve from the data alone, include the EXACT phrase "[NEEDS_ESCALATION]" at the end of your response. Then say: "I'm not fully confident in this answer. Would you like me to connect you with our support team for a more thorough response?"
+14. NEVER guess or make up information. If the data doesn't contain the answer, be honest and offer to escalate to support.
 ${SMART_NOTES_PROMPT}
 
 ACCOUNT DATA (live snapshot):
@@ -623,14 +627,19 @@ ${freshContext}`
 
       const reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.'
 
+      // Check if response needs escalation
+      const needsEscalation = reply.includes('[NEEDS_ESCALATION]')
+      const cleanReply = reply.replace('[NEEDS_ESCALATION]', '').trim()
+
       // Check if response contains proposed changes
-      const proposedChanges = parseSmartNotesResponse(reply)
-      const humanContent = proposedChanges ? getHumanResponse(reply) : reply
+      const proposedChanges = parseSmartNotesResponse(cleanReply)
+      const humanContent = proposedChanges ? getHumanResponse(cleanReply) : cleanReply
 
       setMessages([...newMessages, {
         role: 'assistant',
         content: humanContent || 'I\'ve analyzed your notes and have the following proposed updates:',
         proposedChanges: proposedChanges || undefined,
+        needsEscalation,
       }])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
@@ -662,6 +671,35 @@ ${freshContext}`
     const updated = [...messages]
     updated[msgIndex] = { ...msg, changesApplied: true, changesResult: { success: 0, errors: ['Changes rejected by user'] } }
     setMessages(updated)
+  }
+
+  async function handleEscalate(msgIndex: number) {
+    const msg = messages[msgIndex]
+    if (msg.escalationSent) return
+
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const conversationContext = messages.slice(Math.max(0, msgIndex - 2), msgIndex + 1).map(m => `${m.role}: ${m.content}`).join('\n')
+
+      await fetch('/.netlify/functions/escalate-support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser?.id,
+          user_email: currentUser?.email,
+          user_name: currentUser?.user_metadata?.full_name || currentUser?.email,
+          message: messages[msgIndex - 1]?.content || 'Support requested',
+          conversation_context: conversationContext,
+          preferred_contact: 'email',
+        }),
+      })
+
+      const updated = [...messages]
+      updated[msgIndex] = { ...msg, escalationSent: true }
+      setMessages(updated)
+    } catch (err) {
+      console.error('Escalation failed:', err)
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -747,6 +785,24 @@ ${freshContext}`
                 <div className="whitespace-pre-wrap">{msg.content}</div>
               </div>
             </div>
+
+            {/* Escalation Button */}
+            {msg.needsEscalation && msg.role === 'assistant' && (
+              <div className="ml-8 max-w-[340px]">
+                {msg.escalationSent ? (
+                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <CheckCircle2 size={14} /> Support request sent — we'll respond within 24 hours via email.
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleEscalate(i)}
+                    className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-medium hover:bg-amber-100 transition-colors"
+                  >
+                    <Phone size={14} /> Schedule Support Callback
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Proposed Changes Card */}
             {msg.proposedChanges && (

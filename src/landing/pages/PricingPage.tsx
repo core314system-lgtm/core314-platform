@@ -1,57 +1,96 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { CheckCircle, X, ChevronDown } from 'lucide-react'
+import { CheckCircle, X, ChevronDown, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 
 const tiers = [
   {
-    name: 'Starter',
-    desc: 'For individual BD professionals managing a handful of bids.',
-    features: ['Up to 10 projects', '1 user', 'AI document analysis', 'Compliance matrix', 'Executive summary', 'Email support'],
-  },
-  {
-    name: 'Professional',
-    desc: 'For teams managing multiple concurrent bids across projects.',
-    features: ['Unlimited projects', 'Up to 10 users', 'All AI modules', 'Pipeline & workflow engine', 'SAM.gov integration', 'CSV/Excel import', 'Analytics dashboard', 'Priority support'],
+    name: 'Growth',
+    price: '$2,500',
+    annual_price: '$2,000',
+    desc: 'For procurement teams managing multiple concurrent bids across government and commercial markets.',
+    features: [
+      'Up to 25 active projects',
+      'Up to 10 user seats',
+      'AI document analysis (unlimited)',
+      'Subcontractor database (up to 500)',
+      'Automated RFQ with follow-ups',
+      'Gap analysis & coverage tracking',
+      'Pricing Decision Matrix with AI markup',
+      'Bid/No-Bid Decision Engine',
+      'Compliance auto-verification',
+      'Market rate intelligence',
+      'SAM.gov integration',
+      'Pipeline & workflow engine',
+      'Analytics dashboard',
+      'Data export (CSV/JSON)',
+      'Chat support with AI assistant',
+    ],
     popular: true,
   },
   {
     name: 'Enterprise',
-    desc: 'For large organizations with complex, multi-division procurement.',
-    features: ['Unlimited everything', 'Unlimited users', 'REST API access', 'Custom workflow stages', 'Intelligence library', 'Dedicated onboarding', 'Custom integrations', 'SLA guarantee'],
+    price: '$5,000',
+    annual_price: '$4,000',
+    desc: 'For large primes, JV partners, and multi-office firms managing complex portfolios.',
+    features: [
+      'Unlimited active projects',
+      'Unlimited user seats',
+      'Everything in Growth, plus:',
+      'Post-award transition tracking',
+      'Teaming & JV management',
+      'Resource capacity tracking',
+      'Subcontractor relationship intelligence',
+      'Vendor performance scoring & tiers',
+      'Custom quote form builder',
+      'REST API access',
+      'Custom workflow stages',
+      'Intelligence library',
+      'Dedicated onboarding',
+      'Priority support with SLA',
+      '99.9% uptime guarantee',
+    ],
   },
 ]
 
 const comparison = [
-  { name: 'Projects', starter: '10', pro: 'Unlimited', ent: 'Unlimited' },
-  { name: 'Users', starter: '1', pro: 'Up to 10', ent: 'Unlimited' },
-  { name: 'AI Document Analysis', starter: true, pro: true, ent: true },
-  { name: 'Compliance Matrix', starter: true, pro: true, ent: true },
-  { name: 'Executive Summary', starter: true, pro: true, ent: true },
-  { name: 'RFQ Package Generator', starter: true, pro: true, ent: true },
-  { name: 'Pricing & Risk Analysis', starter: true, pro: true, ent: true },
-  { name: 'Pipeline & Workflow', starter: false, pro: true, ent: true },
-  { name: 'Team Assignments', starter: false, pro: true, ent: true },
-  { name: 'SAM.gov Integration', starter: false, pro: true, ent: true },
-  { name: 'CSV/Excel Import', starter: false, pro: true, ent: true },
-  { name: 'Analytics Dashboard', starter: false, pro: true, ent: true },
-  { name: 'Smart Recommendations', starter: false, pro: true, ent: true },
-  { name: 'REST API', starter: false, pro: false, ent: true },
-  { name: 'Custom Workflows', starter: false, pro: false, ent: true },
-  { name: 'Intelligence Library', starter: false, pro: false, ent: true },
-  { name: 'Dedicated Onboarding', starter: false, pro: false, ent: true },
-  { name: 'SLA Guarantee', starter: false, pro: false, ent: true },
+  { name: 'Active Projects', growth: 'Up to 25', ent: 'Unlimited' },
+  { name: 'User Seats', growth: 'Up to 10', ent: 'Unlimited' },
+  { name: 'AI Document Analysis', growth: true, ent: true },
+  { name: 'Subcontractor Database', growth: '500', ent: 'Unlimited' },
+  { name: 'Automated RFQ & Follow-Ups', growth: true, ent: true },
+  { name: 'Gap Analysis & Coverage', growth: true, ent: true },
+  { name: 'Pricing Decision Matrix', growth: true, ent: true },
+  { name: 'AI Markup Suggestions', growth: true, ent: true },
+  { name: 'Bid/No-Bid Decision Engine', growth: true, ent: true },
+  { name: 'Compliance Auto-Verification', growth: true, ent: true },
+  { name: 'Market Rate Intelligence', growth: true, ent: true },
+  { name: 'SAM.gov Integration', growth: true, ent: true },
+  { name: 'Pipeline & Workflow', growth: true, ent: true },
+  { name: 'Analytics Dashboard', growth: true, ent: true },
+  { name: 'Data Export', growth: true, ent: true },
+  { name: 'Post-Award Transition', growth: false, ent: true },
+  { name: 'Teaming & JV Management', growth: false, ent: true },
+  { name: 'Resource Capacity Tracking', growth: false, ent: true },
+  { name: 'Relationship Intelligence', growth: false, ent: true },
+  { name: 'Custom Quote Forms', growth: false, ent: true },
+  { name: 'REST API Access', growth: false, ent: true },
+  { name: 'Custom Workflows', growth: false, ent: true },
+  { name: 'Dedicated Onboarding', growth: false, ent: true },
+  { name: '99.9% Uptime SLA', growth: false, ent: true },
 ]
 
 const faqs = [
-  { q: 'When will pricing be available?', a: 'We are finalizing tier pricing now. Join the waitlist or contact us for early access pricing and priority onboarding when we launch.' },
-  { q: 'Will there be a free trial?', a: 'Yes. Every plan will include a free trial period so you can evaluate Procuvex with your own documents and workflows before committing.' },
-  { q: 'Can I switch plans later?', a: 'Absolutely. You can upgrade or downgrade at any time. Changes take effect immediately with prorated billing.' },
-  { q: 'Is there a contract or commitment?', a: 'No long-term contracts on Starter or Professional plans. Enterprise plans may include annual options with additional discounts.' },
-  { q: 'What payment methods do you accept?', a: 'We will accept all major credit cards via Stripe. Enterprise customers can also pay by invoice.' },
-  { q: 'Do all plans include AI features?', a: 'Yes. Every plan includes AI document analysis, compliance matrix generation, and executive summary. Advanced features like pipeline, analytics, and integrations are available on Professional and Enterprise.' },
+  { q: 'Is there a free trial?', a: 'Yes. Every plan includes a 7-day free trial with full access to all features. No credit card required to start. After 7 days, you will need to subscribe to continue using the platform.' },
+  { q: 'Can I switch plans later?', a: 'Absolutely. You can upgrade from Growth to Enterprise at any time. Changes take effect immediately with prorated billing.' },
+  { q: 'Is there a contract or commitment?', a: 'No long-term contracts required. Pay monthly or save 20% with annual billing. Cancel anytime — your subscription remains active until the end of your billing period.' },
+  { q: 'What payment methods do you accept?', a: 'All major credit cards via Stripe. Enterprise customers can also pay by invoice or ACH transfer.' },
+  { q: 'How is data protected?', a: 'All data is encrypted at rest and in transit. Row-level security ensures complete tenant isolation — your data is never visible to other organizations. We maintain a comprehensive security posture document available upon request.' },
+  { q: 'Can I export my data?', a: 'Yes. Full data portability is guaranteed. Export your entire account — projects, subcontractors, documents, quotes, and analytics — in CSV or JSON format at any time.' },
+  { q: 'What support is included?', a: 'All plans include our AI-powered support assistant that can answer platform and account-specific questions 24/7. If the AI cannot resolve your issue, it escalates to a human specialist with callback scheduling.' },
+  { q: 'Do you support government contractors specifically?', a: 'Yes. Procuvex is built for government procurement from the ground up — SAM.gov integration, compliance matrices, set-aside tracking, NAICS code matching, and wage determination handling are all native to the platform.' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -74,6 +113,8 @@ function CellValue({ val }: { val: boolean | string }) {
 }
 
 export default function PricingPage() {
+  const [annual, setAnnual] = useState(false)
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
@@ -83,19 +124,33 @@ export default function PricingPage() {
           <div className="max-w-3xl mx-auto text-center">
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-blue-600 text-sm font-semibold uppercase tracking-wider mb-3">Pricing</motion.p>
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              Plans That <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Scale With You</span>
+              Invest in <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Winning More</span>
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              Pricing details coming soon. Join the waitlist for early access and priority onboarding.
+              One platform to manage your entire procurement lifecycle — from opportunity identification to contract execution. 7-day free trial on all plans.
             </motion.p>
+          </div>
+
+          {/* Annual/Monthly Toggle */}
+          <div className="flex items-center justify-center gap-4 mt-10">
+            <span className={`text-sm font-medium ${!annual ? 'text-slate-900' : 'text-slate-500'}`}>Monthly</span>
+            <button
+              onClick={() => setAnnual(!annual)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${annual ? 'bg-blue-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${annual ? 'translate-x-8' : 'translate-x-1'}`} />
+            </button>
+            <span className={`text-sm font-medium ${annual ? 'text-slate-900' : 'text-slate-500'}`}>
+              Annual <span className="text-green-600 font-bold">(Save 20%)</span>
+            </span>
           </div>
         </div>
       </section>
 
       {/* Tier Cards */}
       <section className="py-8">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {tiers.map((tier, i) => (
               <motion.div
                 key={i}
@@ -107,28 +162,34 @@ export default function PricingPage() {
                 }`}
               >
                 {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full">Most Popular</div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Most Popular
+                  </div>
                 )}
                 <h3 className="text-xl font-bold text-slate-900 mb-1">{tier.name}</h3>
-                <p className="text-sm text-slate-500 mb-6">{tier.desc}</p>
-                <div className="text-3xl font-extrabold text-slate-900 mb-6">Coming Soon</div>
+                <p className="text-sm text-slate-500 mb-4">{tier.desc}</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-extrabold text-slate-900">{annual ? tier.annual_price : tier.price}</span>
+                  <span className="text-slate-500 text-sm">/month{annual ? ' (billed annually)' : ''}</span>
+                </div>
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />{f}
+                    <li key={j} className="flex items-start gap-2 text-sm text-slate-700">
+                      <CheckCircle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />{f}
                     </li>
                   ))}
                 </ul>
                 <Link
-                  to="/contact"
-                  className={`block w-full py-3 text-center rounded-xl font-semibold text-sm transition-colors ${
+                  to="/login"
+                  className={`block w-full py-3.5 text-center rounded-xl font-semibold text-sm transition-colors ${
                     tier.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/25'
+                      : 'bg-slate-900 text-white hover:bg-slate-800'
                   }`}
                 >
-                  Join Waitlist
+                  Start 7-Day Free Trial
                 </Link>
+                <p className="text-xs text-slate-400 text-center mt-3">No credit card required to start</p>
               </motion.div>
             ))}
           </div>
@@ -137,15 +198,14 @@ export default function PricingPage() {
 
       {/* Comparison Table */}
       <section className="py-16 lg:py-24">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl font-bold text-slate-900 text-center mb-10" style={{ fontFamily: 'Poppins, sans-serif' }}>Feature Comparison</h2>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b-2 border-slate-200">
-                  <th className="text-left py-4 pr-4 text-sm font-semibold text-slate-900 w-1/3">Feature</th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-slate-900">Starter</th>
-                  <th className="text-center py-4 px-4 text-sm font-semibold text-blue-600">Professional</th>
+                  <th className="text-left py-4 pr-4 text-sm font-semibold text-slate-900 w-1/2">Feature</th>
+                  <th className="text-center py-4 px-4 text-sm font-semibold text-blue-600">Growth</th>
                   <th className="text-center py-4 px-4 text-sm font-semibold text-slate-900">Enterprise</th>
                 </tr>
               </thead>
@@ -153,8 +213,7 @@ export default function PricingPage() {
                 {comparison.map((row, i) => (
                   <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="py-3 pr-4 text-sm text-slate-700">{row.name}</td>
-                    <td className="py-3 px-4 text-center"><CellValue val={row.starter} /></td>
-                    <td className="py-3 px-4 text-center bg-blue-50/30"><CellValue val={row.pro} /></td>
+                    <td className="py-3 px-4 text-center bg-blue-50/30"><CellValue val={row.growth} /></td>
                     <td className="py-3 px-4 text-center"><CellValue val={row.ent} /></td>
                   </tr>
                 ))}
@@ -167,7 +226,7 @@ export default function PricingPage() {
       {/* FAQ */}
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-100">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 text-center mb-10" style={{ fontFamily: 'Poppins, sans-serif' }}>Pricing FAQ</h2>
+          <h2 className="text-2xl font-bold text-slate-900 text-center mb-10" style={{ fontFamily: 'Poppins, sans-serif' }}>Frequently Asked Questions</h2>
           <div className="divide-y divide-slate-200">
             {faqs.map((faq, i) => <FAQItem key={i} q={faq.q} a={faq.a} />)}
           </div>
