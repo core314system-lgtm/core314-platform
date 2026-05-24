@@ -44,6 +44,7 @@ export default function TaskOrderDetail() {
   const [dragOver, setDragOver] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory>('sow')
   const [analyzing, setAnalyzing] = useState(false)
+  const [analysisProgress, setAnalysisProgress] = useState('')
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [generatingAll, setGeneratingAll] = useState(false)
   const [aiStatus, setAiStatus] = useState<Record<string, boolean>>({})
@@ -85,13 +86,20 @@ export default function TaskOrderDetail() {
       const names: string[] = []
 
       for (const doc of documents) {
-        const { data } = await supabase.storage.from('task-order-documents').download(doc.file_path)
-        if (data) {
-          const file = new File([data], doc.file_name, { type: doc.file_type })
-          const text = await parseFile(file)
-          texts.push(text)
-          names.push(doc.file_name)
-        }
+        try {
+          const { data, error } = await supabase.storage.from('task-order-documents').download(doc.file_path)
+          if (error) { console.error(`Failed to download ${doc.file_name}:`, error); continue }
+          if (data) {
+            const file = new File([data], doc.file_name, { type: doc.file_type })
+            const text = await parseFile(file)
+            texts.push(text)
+            names.push(doc.file_name)
+          }
+        } catch { continue }
+      }
+
+      if (texts.length === 0) {
+        throw new Error('Could not read any documents.')
       }
 
       const args = [texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined] as const
@@ -371,21 +379,38 @@ export default function TaskOrderDetail() {
   async function handleAnalyze() {
     if (!id || !taskOrder || documents.length === 0) return
     setAnalyzing(true)
+    setAnalysisProgress('Downloading documents...')
 
     try {
       const texts: string[] = []
       const names: string[] = []
 
-      for (const doc of documents) {
-        const { data } = await supabase.storage.from('task-order-documents').download(doc.file_path)
-        if (data) {
-          const file = new File([data], doc.file_name, { type: doc.file_type })
-          const text = await parseFile(file)
-          texts.push(text)
-          names.push(doc.file_name)
+      for (let i = 0; i < documents.length; i++) {
+        const doc = documents[i]
+        setAnalysisProgress(`Downloading document ${i + 1} of ${documents.length}...`)
+        try {
+          const { data, error } = await supabase.storage.from('task-order-documents').download(doc.file_path)
+          if (error) {
+            console.error(`Failed to download ${doc.file_name}:`, error)
+            continue
+          }
+          if (data) {
+            const file = new File([data], doc.file_name, { type: doc.file_type })
+            const text = await parseFile(file)
+            texts.push(text)
+            names.push(doc.file_name)
+          }
+        } catch (dlErr) {
+          console.error(`Error downloading ${doc.file_name}:`, dlErr)
+          continue
         }
       }
 
+      if (texts.length === 0) {
+        throw new Error('Could not read any documents. Please check that documents are uploaded correctly.')
+      }
+
+      setAnalysisProgress(`Analyzing ${texts.length} documents with AI (this may take 15-30 seconds)...`)
       const result = await analyzeDocuments(texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined) as unknown as AnalysisResult
       await saveAiOutput(id, 'analysis', result)
       setAnalysisResult(result)
@@ -411,63 +436,82 @@ export default function TaskOrderDetail() {
         }
       }
 
+      setAnalysisProgress('Matching subcontractors...')
       // Auto-run database matching after analysis
       await runSubcontractorMatch('database', result as unknown as Record<string, unknown>)
     } catch (err) {
-      alert('Analysis failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      alert('Analysis failed: ' + msg)
     } finally {
       setAnalyzing(false)
+      setAnalysisProgress('')
     }
   }
 
   async function handleGenerateAll() {
     if (!id || !taskOrder || documents.length === 0) return
     setGeneratingAll(true)
+    setAnalysisProgress('Downloading documents...')
 
     try {
       const texts: string[] = []
       const names: string[] = []
 
-      for (const doc of documents) {
-        const { data } = await supabase.storage.from('task-order-documents').download(doc.file_path)
-        if (data) {
-          const file = new File([data], doc.file_name, { type: doc.file_type })
-          const text = await parseFile(file)
-          texts.push(text)
-          names.push(doc.file_name)
-        }
+      for (let i = 0; i < documents.length; i++) {
+        const doc = documents[i]
+        setAnalysisProgress(`Downloading document ${i + 1} of ${documents.length}...`)
+        try {
+          const { data, error } = await supabase.storage.from('task-order-documents').download(doc.file_path)
+          if (error) { console.error(`Failed to download ${doc.file_name}:`, error); continue }
+          if (data) {
+            const file = new File([data], doc.file_name, { type: doc.file_type })
+            const text = await parseFile(file)
+            texts.push(text)
+            names.push(doc.file_name)
+          }
+        } catch { continue }
+      }
+
+      if (texts.length === 0) {
+        throw new Error('Could not read any documents.')
       }
 
       const args = [texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined] as const
       const pause = () => new Promise(r => setTimeout(r, 3000))
 
       // Always regenerate all outputs (overwrites existing)
+      setAnalysisProgress('Generating Document Analysis (1/6)...')
       const analysis = await analyzeDocuments(...args)
       await saveAiOutput(id, 'analysis', analysis)
       setAnalysisResult(analysis as unknown as AnalysisResult)
       setAiStatus(prev => ({ ...prev, analysis: true }))
       await pause()
 
+      setAnalysisProgress('Generating Compliance Matrix (2/6)...')
       const matrix = await generateComplianceMatrix(...args)
       await saveAiOutput(id, 'compliance_matrix', matrix)
       setAiStatus(prev => ({ ...prev, compliance_matrix: true }))
       await pause()
 
+      setAnalysisProgress('Generating Subcontractor RFQs (3/6)...')
       const packages = await generateRfqPackages(...args)
       await saveAiOutput(id, 'rfq_packages', packages)
       setAiStatus(prev => ({ ...prev, rfq_packages: true }))
       await pause()
 
+      setAnalysisProgress('Generating Clarification Questions (4/6)...')
       const questions = await generateClarificationQuestions(...args)
       await saveAiOutput(id, 'clarification_questions', questions)
       setAiStatus(prev => ({ ...prev, clarification_questions: true }))
       await pause()
 
+      setAnalysisProgress('Generating Pricing & Risk Analysis (5/6)...')
       const risks = await generatePricingRisks(...args)
       await saveAiOutput(id, 'pricing_risks', risks)
       setAiStatus(prev => ({ ...prev, pricing_risks: true }))
       await pause()
 
+      setAnalysisProgress('Generating Executive Summary (6/6)...')
       const summary = await generateExecutiveSummary(...args)
       await saveAiOutput(id, 'executive_summary', summary)
       setAiStatus(prev => ({ ...prev, executive_summary: true }))
@@ -479,6 +523,7 @@ export default function TaskOrderDetail() {
       alert('Generation failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
     } finally {
       setGeneratingAll(false)
+      setAnalysisProgress('')
     }
   }
 
@@ -857,7 +902,7 @@ export default function TaskOrderDetail() {
                     className="bg-purple-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     <Brain size={18} />
-                    {analyzing ? 'Analyzing...' : 'Run Document Analysis'}
+                    {analyzing ? (analysisProgress || 'Analyzing...') : 'Run Document Analysis'}
                   </button>
                   <button
                     onClick={handleGenerateAll}
@@ -865,7 +910,7 @@ export default function TaskOrderDetail() {
                     className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     <Brain size={18} />
-                    {generatingAll ? 'Generating all outputs...' : 'Generate All AI Outputs'}
+                    {generatingAll ? (analysisProgress || 'Generating all outputs...') : 'Generate All AI Outputs'}
                   </button>
                 </div>
 

@@ -5,26 +5,76 @@ const MAX_CHARS_PER_DOC = 8000
 const MAX_TOTAL_CHARS = 120000
 
 /**
- * Call the ai-proxy function. The server streams from OpenAI internally
- * and returns the assembled JSON response with application/json content-type.
+ * Call the ai-proxy function with retry logic and timeout.
+ * The server streams from OpenAI internally and returns the assembled JSON response.
  * Leading whitespace (used to keep connection alive) is trimmed before parsing.
  */
 export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ choices: Array<{ message: { content: string } }>; model?: string }> {
-  const res = await fetch('/.netlify/functions/ai-proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const MAX_RETRIES = 2
+  const TIMEOUT_MS = 90000 // 90 second timeout
 
-  if (!res.ok) {
-    const text = await res.text()
-    let errMsg = `API error: ${res.status}`
-    try { errMsg = JSON.parse(text.trim()).error || errMsg } catch { /* use default */ }
-    throw new Error(errMsg)
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+    try {
+      const res = await fetch('/.netlify/functions/ai-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        const text = await res.text()
+        let errMsg = `API error: ${res.status}`
+        try { errMsg = JSON.parse(text.trim()).error || errMsg } catch { /* use default */ }
+        // Don't retry on 4xx errors (client errors)
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new Error(errMsg)
+        }
+        // Retry on 5xx or 429
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 2000))
+          continue
+        }
+        throw new Error(errMsg)
+      }
+
+      const text = await res.text()
+      const trimmed = text.trim()
+      if (!trimmed) {
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 2000))
+          continue
+        }
+        throw new Error('AI returned an empty response. Please try again.')
+      }
+      return JSON.parse(trimmed)
+    } catch (err: unknown) {
+      clearTimeout(timeoutId)
+      const isAbort = err instanceof Error && err.name === 'AbortError'
+      const isNetwork = err instanceof TypeError && err.message === 'Failed to fetch'
+
+      if (attempt < MAX_RETRIES && (isAbort || isNetwork)) {
+        // Wait before retrying (exponential backoff)
+        await new Promise(r => setTimeout(r, (attempt + 1) * 3000))
+        continue
+      }
+
+      if (isAbort) {
+        throw new Error('AI analysis timed out. The documents may be too large — try removing some non-essential documents and retry.')
+      }
+      if (isNetwork) {
+        throw new Error('Network connection lost during AI analysis. Please check your internet connection and try again.')
+      }
+      throw err
+    }
   }
 
-  const text = await res.text()
-  return JSON.parse(text.trim())
+  throw new Error('AI analysis failed after multiple attempts. Please try again later.')
 }
 
 // Global directive prepended to every AI prompt to enforce factual accuracy
