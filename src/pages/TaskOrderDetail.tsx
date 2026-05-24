@@ -11,6 +11,7 @@ import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, Che
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
 import WorkflowBar from '../components/WorkflowBar'
+import type { SowCoverageItem } from '../components/WorkflowBar'
 import AuditTrail from '../components/AuditTrail'
 import ProjectTeam from '../components/ProjectTeam'
 import BidReadiness from '../components/BidReadiness'
@@ -64,6 +65,8 @@ export default function TaskOrderDetail() {
   const [projectSubsTableExists, setProjectSubsTableExists] = useState(true)
   const [selfPerformReqs, setSelfPerformReqs] = useState<string[]>([])
   const [searchingGap, setSearchingGap] = useState<string | null>(null)
+  const [sowCoverage, setSowCoverage] = useState<SowCoverageItem[]>([])
+
 
   async function handleViewDocument(doc: Doc) {
     try {
@@ -176,6 +179,7 @@ export default function TaskOrderDetail() {
       loadExistingAnalysis()
       loadProjectSubcontractors()
       loadSelfPerformReqs()
+      loadSowCoverage()
     }
   }, [id])
 
@@ -235,6 +239,39 @@ export default function TaskOrderDetail() {
     if (data) setSelfPerformReqs(data)
   }
 
+  async function loadSowCoverage() {
+    if (!id) return
+    try {
+      // Get all SOW items for this project
+      const { data: sowItems } = await supabase
+        .from('sow_items')
+        .select('id, sow_name, service_category')
+        .eq('task_order_id', id)
+      if (!sowItems?.length) {
+        setSowCoverage([])
+        return
+      }
+      // Get quote counts for each SOW item
+      const { data: quotes } = await supabase
+        .from('sow_quotes')
+        .select('sow_item_id')
+        .in('sow_item_id', sowItems.map(s => s.id))
+        .eq('status', 'received')
+      const quoteCounts: Record<string, number> = {}
+      for (const q of quotes || []) {
+        quoteCounts[q.sow_item_id] = (quoteCounts[q.sow_item_id] || 0) + 1
+      }
+      const coverage: SowCoverageItem[] = sowItems.map(s => ({
+        name: s.sow_name || s.service_category || 'Unknown',
+        hasQuotes: (quoteCounts[s.id] || 0) > 0,
+        quoteCount: quoteCounts[s.id] || 0,
+      }))
+      setSowCoverage(coverage)
+    } catch {
+      // SOW items may not exist for this project
+    }
+  }
+
   async function toggleSelfPerform(category: string) {
     if (!id) return
     const updated = selfPerformReqs.includes(category)
@@ -268,18 +305,17 @@ export default function TaskOrderDetail() {
   function computeCoverage() {
     if (!analysisResult) return { total: 0, covered: 0, gaps: [] as { name: string; description: string }[], coverageMap: {} as Record<string, 'sub' | 'self'> }
 
-    // Build category list: prefer unique service_category values from requirements (more granular)
-    // Fall back to service_categories array if requirements don't have categories
+    // Use service_categories for coverage tracking since that's what subcontractor matching uses
+    const svcCategories = (analysisResult.service_categories || []).map(c => c.category)
+
+    // Fall back to unique requirement service_category values if no service_categories
     const reqCategories = [...new Set(
       (analysisResult.requirements || [])
         .map(r => r.service_category)
         .filter(Boolean)
     )]
 
-    const svcCategories = (analysisResult.service_categories || []).map(c => c.category)
-
-    // Use whichever gives more granularity
-    const categories = reqCategories.length > svcCategories.length ? reqCategories : svcCategories
+    const categories = svcCategories.length > 0 ? svcCategories : reqCategories
     const total = categories.length
     const coverageMap: Record<string, 'sub' | 'self'> = {}
 
@@ -835,6 +871,7 @@ export default function TaskOrderDetail() {
           currentStageId={taskOrder.status}
           onStageChange={handleStageChange}
           canManage={true}
+          sowCoverage={sowCoverage}
         />
       </div>
 
