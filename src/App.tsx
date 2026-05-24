@@ -34,6 +34,9 @@ import Analytics from './pages/Analytics'
 import Contracts from './pages/Contracts'
 import NewContract from './pages/NewContract'
 import ContractDetail from './pages/ContractDetail'
+import BidDecisionEngine from './pages/BidDecisionEngine'
+import PostAward from './pages/PostAward'
+import TeamingTracker from './pages/TeamingTracker'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -107,6 +110,8 @@ export default function App() {
           <Route path="/projects/:id/form-builder/:sowId" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
           <Route path="/projects/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
           <Route path="/projects/:id/debrief" element={<ProtectedRoute><DebriefPage /></ProtectedRoute>} />
+          <Route path="/projects/:id/bid-decision" element={<ProtectedRoute><BidDecisionEngine /></ProtectedRoute>} />
+          <Route path="/projects/:id/post-award" element={<ProtectedRoute><PostAward /></ProtectedRoute>} />
 
           {/* Backward-compatible redirects for old /task-orders URLs */}
           <Route path="/task-orders" element={<Navigate to="/projects" replace />} />
@@ -139,6 +144,9 @@ export default function App() {
           {/* Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
+
+          {/* Teaming & Joint Ventures */}
+          <Route path="/teaming" element={<ProtectedRoute><TeamingTracker /></ProtectedRoute>} />
 
           {/* Intelligence & Help */}
           <Route path="/intelligence" element={<ProtectedRoute><IntelligenceLibrary /></ProtectedRoute>} />

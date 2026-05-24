@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase'
 import type { Subcontractor } from '../lib/types'
 import { parseExcelForSubcontractors } from '../lib/documentParser'
 import { loadSourceRegistry, type SubSource } from '../lib/subcontractorSources'
-import { Plus, Search, MapPin, Star, Upload, X, FileSpreadsheet, Edit2, Trash2, Globe, Building, ChevronDown, ChevronUp, Download, Radar, Phone } from 'lucide-react'
+import { Plus, Search, MapPin, Star, Upload, X, FileSpreadsheet, Edit2, Trash2, Globe, Building, ChevronDown, ChevronUp, Download, Radar, Phone, AlertCircle } from 'lucide-react'
+import { getSubcontractorCompleteness } from '../lib/completeness'
 
 const US_REGIONS: Record<string, string[]> = {
   'Northeast': ['CT', 'ME', 'MA', 'NH', 'NJ', 'NY', 'PA', 'RI', 'VT'],
@@ -631,6 +632,20 @@ export default function Subcontractors() {
                     }`}>
                       {getSubSource(sub.id) === 'core314_capture' ? 'Procuvex Capture' : 'User Database'}
                     </span>
+                    {(() => {
+                      const c = getSubcontractorCompleteness(sub)
+                      return (
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1 ${
+                          c.level === 'complete' ? 'bg-green-50 text-green-700' :
+                          c.level === 'good' ? 'bg-blue-50 text-blue-700' :
+                          c.level === 'fair' ? 'bg-yellow-50 text-yellow-700' :
+                          'bg-red-50 text-red-700'
+                        }`} title={c.missing.length > 0 ? `Missing: ${c.missing.join(', ')}` : 'Profile complete'}>
+                          {c.level === 'poor' && <AlertCircle size={10} />}
+                          {c.score}%
+                        </span>
+                      )
+                    })()}
                   </div>
                   {sub.address && (
                     <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">

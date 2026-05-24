@@ -34,6 +34,7 @@ const navItems = [
   { path: '/subcontractors', label: 'Subcontractors', icon: Users },
   { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
   { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
+  { path: '/teaming', label: 'Teaming & JVs', icon: Users },
   { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
   { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
   { path: '/integrations', label: 'Integrations', icon: Plug },

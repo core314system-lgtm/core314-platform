@@ -10,6 +10,7 @@ import {
   Package, Mail, Phone, Building, Upload, FileText, Paperclip, Eye, Radar, Settings, Loader2
 } from 'lucide-react'
 import QuestionQueue from '../components/QuestionQueue'
+import FollowUpManager from '../components/FollowUpManager'
 
 const SOW_STATUS_CONFIG: Record<SowStatus, { label: string; color: string; bg: string }> = {
   not_started: { label: 'Not Started', color: 'text-gray-600', bg: 'bg-gray-100' },
@@ -641,6 +642,11 @@ export default function SowTracker() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Follow-Up Manager */}
+      {taskOrderId && totalSubsEngaged > 0 && (
+        <FollowUpManager taskOrderId={taskOrderId} />
       )}
 
       {/* Filter */}

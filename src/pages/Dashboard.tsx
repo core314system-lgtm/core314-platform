@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
 import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
+import ResourceCapacity from '../components/ResourceCapacity'
 
 
 
@@ -87,6 +88,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Resource Capacity */}
+      <ResourceCapacity />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

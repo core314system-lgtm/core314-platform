@@ -77,25 +77,8 @@ export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ cho
   throw new Error('AI analysis failed after multiple attempts. Please try again later.')
 }
 
-// Global directive prepended to every AI prompt to enforce factual accuracy
-const TRUTH_DIRECTIVE = `ABSOLUTE RULES — VIOLATIONS ARE UNACCEPTABLE:
-1. Your job is to EXTRACT information that IS in the documents. Read each document thoroughly and extract every fact, requirement, specification, date, quantity, and detail you find. Be thorough — extract MORE, not less.
-2. NEVER ADD information that is NOT in the documents. Do not fabricate, assume, infer, or guess. If the documents say "Facility Manager" and no other staffing roles, then the ONLY staffing role is Facility Manager. Do not invent additional staff, positions, or resources.
-3. NEVER use speculative language like "may require", "will likely need", "additional staff as needed", "depending on scope", or "exact number will depend on." If the document doesn't say it, don't say it.
-4. When documents describe a subcontracted service model (subcontractors perform the work, a Facility Manager manages them), state that EXACTLY. Do not imply the prime contractor has direct employees performing services unless the documents explicitly say so.
-5. If information is missing from the documents (e.g., quantities not listed, frequencies not specified), flag it as "Not specified in documents" — do NOT fill the gap with your own guess.
-6. Quantities, counts, measurements, and frequencies must come EXACTLY from the documents. Never estimate or round.
-7. Each SOW document covers a specific trade — analyze them individually. Extract the specific requirements, tasks, and frequencies from each SOW.
-8. DOCUMENT SOURCE CITATIONS — MANDATORY FOR EVERY EXTRACTED FACT:
-   - The document text includes [Page N] markers showing where each page starts. USE THESE to determine page numbers.
-   - For EVERY fact, requirement, or data point you extract, you MUST provide:
-     a) source_document: the exact filename of the document
-     b) page_section: a precise citation in the format "Page X, Section Y.Z" or "Page X, Paragraph N" or "Page X" at minimum
-   - If a section heading is visible in the text (e.g., "3.2 HVAC Maintenance"), include it: "Page 5, Section 3.2 — HVAC Maintenance"
-   - If you can identify a paragraph or list item number, include it: "Page 5, Section 3.2, Item (c)"
-   - NEVER leave page_section as empty, generic ("Various"), or vague ("Throughout document"). Every citation must reference at least a specific page number.
-   - For Excel/pricing sheet documents, cite the sheet name and cell range: "Sheet: Pricing, Row 15-20" or "Sheet: Labor Rates, Column B"
-
+// Concise directive to enforce factual extraction
+const TRUTH_DIRECTIVE = `RULES: Extract ONLY what is explicitly in the documents. Never fabricate, infer, or guess. Use exact language from documents. If info is missing, use null. Include source_document for every extracted fact.
 `
 
 function truncateText(text: string, maxChars: number): string {
@@ -113,7 +96,7 @@ async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<Rec
     ],
     response_format: { type: 'json_object' },
     temperature: 0.1,
-    max_tokens: 16384,
+    max_tokens: 4096,
   })
 
   const content = data.choices?.[0]?.message?.content || '{}'
@@ -140,32 +123,16 @@ export async function analyzeDocuments(
   const pt = getProjectType(projectTypeId)
 
   const systemPrompt = `${pt.aiContext}
-Analyze the provided project documents and extract ONLY information that is EXPLICITLY stated in the documents.
+Analyze the provided project documents. Extract ONLY explicitly stated information.
 
-IMPORTANT: You MUST populate the "requirements" array with individual requirements extracted DIRECTLY from the documents. Each task, inspection, service standard, staffing requirement, reporting obligation, safety protocol, or compliance item should be its own requirement entry. Use the EXACT language from the documents wherever possible.
-
-Extract project metadata ONLY if explicitly stated in the documents:
-- task_order_metadata: {title, solicitation_number, task_order_number, contract_number, contract_vehicle, site_name, location_city, location_state, contracting_officer, co_email, co_phone, period_of_performance_start, period_of_performance_end, pop_total_duration, pop_base_period, pop_option_periods, pop_structure_summary, estimated_value, naics_code, set_aside, response_due_date}
-
-PERIOD OF PERFORMANCE (PoP) EXTRACTION — CRITICAL:
-- period_of_performance_start: the START date of the BASE period (first day of performance)
-- period_of_performance_end: the END date of the ENTIRE contract including ALL option periods (last possible day)
-- pop_total_duration: total duration of the FULL contract including all options (e.g., "6 years")
-- pop_base_period: description of the base period with dates (e.g., "2-year base period: October 1, 2026 — September 30, 2028")
-- pop_option_periods: array of each option period with dates (e.g., ["Option Period 1 (2 years): October 1, 2028 — September 30, 2030", "Option Period 2 (2 years): October 1, 2030 — September 30, 2032"])
-- pop_structure_summary: concise summary like "6-year PoP: 2-year base + two 2-year option periods"
-- You MUST distinguish between the base period and option periods. Do NOT report only the base period dates as if they are the full PoP. Search ALL documents for option period language, ordering period references, and contract duration details.
-
-Return a JSON object with these keys:
-- task_order_metadata: object with the fields above (use null for any field NOT EXPLICITLY found in documents — do NOT guess)
-- requirements: array of {requirement, source_document, page_section, service_category, frequency, equipment_needed, staffing_needed, compliance_type, risk_level} — every field must come from the documents or be marked "Not specified". The page_section field MUST reference a specific page number from the [Page N] markers in the document text (e.g., "Page 3, Section 2.1 — Elevator Maintenance"). Never use vague references like "Various" or "General".
-- service_categories: array of {category, description, subcontractor_heavy, estimated_scope} — categories must match what the documents describe, not what you think should exist
-- staffing_requirements: array of {role, count, qualifications, certifications_needed, source_document} — ONLY roles explicitly mentioned in the documents. If documents say "Facility Manager" and no other positions, that is the ONLY entry. Do NOT add roles that are not in the documents.
-- compliance_items: array of {requirement, source_document, section, responsible_party, status, risk_level, notes}
-- unclear_items: array of {issue, source_document, section, suggested_clarification} — flag anything ambiguous or missing from the documents
-- pricing_alignment_issues: array of {issue, source_document, pricing_sheet_reference, risk_level}
+Return JSON with these keys:
+- task_order_metadata: {title, solicitation_number, task_order_number, contract_number, contract_vehicle, site_name, location_city, location_state, contracting_officer, co_email, co_phone, period_of_performance_start, period_of_performance_end, pop_total_duration, pop_base_period, pop_option_periods (array of strings), pop_structure_summary, estimated_value, naics_code, set_aside, response_due_date} — use null if not found
+- requirements: array of {requirement, source_document, service_category, frequency} — extract each task/service/inspection as separate entry
+- service_categories: array of {category, description, subcontractor_heavy (bool), estimated_scope} — break into specific sub-services (3-10 categories), each coverable by a different subcontractor
+- staffing_requirements: array of {role, count, qualifications, certifications_needed, source_document} — only explicitly mentioned roles
+- compliance_items: array of {requirement, source_document, risk_level}
 - key_dates: array of {date, description, source_document}
-- summary: string — factual overview using ONLY what the documents state. MUST include the full Period of Performance structure (base period AND option periods with dates, e.g., "6-year PoP: 2-year base period (Oct 2026 — Sep 2028) with two 2-year option periods"). Do NOT state only the base period as if it is the full PoP. Do NOT add context, industry knowledge, or assumptions.`
+- summary: string — concise factual overview including full PoP structure (base + options)`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
   return callOpenAI(systemPrompt, userPrompt)

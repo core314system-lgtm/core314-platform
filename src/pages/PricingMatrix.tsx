@@ -382,6 +382,45 @@ export default function PricingMatrix() {
         </div>
       </div>
 
+      {/* AI Pricing Suggestion */}
+      {taskOrder && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-4">
+          <h3 className="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2">
+            <TrendingUp size={16} /> AI-Suggested Markup
+          </h3>
+          <p className="text-xs text-amber-700 mb-2">
+            Based on project type ({taskOrder.project_type || 'government'}), set-aside ({taskOrder.set_aside || 'full and open'}), and estimated value ({taskOrder.estimated_value || 'unknown'}):
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-amber-900">
+                {taskOrder.set_aside && taskOrder.set_aside !== 'none'
+                  ? '8-12%'
+                  : taskOrder.project_type === 'facilities_management'
+                  ? '10-15%'
+                  : '10-12%'}
+              </span>
+              <span className="text-xs text-amber-600">recommended range</span>
+            </div>
+            <button
+              onClick={() => {
+                const suggested = taskOrder.set_aside && taskOrder.set_aside !== 'none' ? 10 : 12
+                applyCustomMarkup(suggested)
+                setGlobalProfile('Custom')
+              }}
+              className="text-xs px-3 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+            >
+              Apply Suggestion
+            </button>
+          </div>
+          <p className="text-xs text-amber-600 mt-2 italic">
+            {taskOrder.set_aside && taskOrder.set_aside !== 'none'
+              ? 'Set-aside contracts typically have tighter margins due to competition among small businesses.'
+              : 'Full and open competition supports standard industry markup of 10-15% for facilities management.'}
+          </p>
+        </div>
+      )}
+
       {/* Option Year Pricing Summary */}
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200 p-4">
         <h3 className="text-sm font-semibold text-purple-800 mb-3 flex items-center gap-2"><TrendingUp size={16} /> Option Year Pricing Projections</h3>
