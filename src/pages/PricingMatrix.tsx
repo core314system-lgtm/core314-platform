@@ -33,6 +33,7 @@ const DEFAULT_PROFILES: MarkupProfile[] = [
   { name: 'Standard (10%)', type: 'percentage', value: 10, description: 'Standard industry markup' },
   { name: 'High-Risk (15%)', type: 'percentage', value: 15, description: 'Higher margin for risky or complex work' },
   { name: 'Premium (20%)', type: 'percentage', value: 20, description: 'Premium services or sole-source situations' },
+  { name: 'Custom', type: 'percentage', value: -1, description: 'Enter your own markup percentage' },
 ]
 
 const ESCALATION_RATES = [
@@ -59,6 +60,7 @@ export default function PricingMatrix() {
   const [loading, setLoading] = useState(true)
   const [rows, setRows] = useState<SowPricingRow[]>([])
   const [globalProfile, setGlobalProfile] = useState<string>('Standard (10%)')
+  const [customMarkup, setCustomMarkup] = useState(12)
   const [globalEscalation, setGlobalEscalation] = useState(3)
   const [customEscalation, setCustomEscalation] = useState(3)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
@@ -161,11 +163,23 @@ export default function PricingMatrix() {
     const profile = DEFAULT_PROFILES.find(p => p.name === profileName)
     if (!profile) return
     setGlobalProfile(profileName)
+    if (profile.name === 'Custom') {
+      applyCustomMarkup(customMarkup)
+      return
+    }
     setRows(prev => prev.map(r => {
       const type = profile.type === 'none' ? 'percentage' as const : profile.type
       const value = profile.value
       const supplierTotal = calculateSupplierTotal(r.subCost, type, value, r.additionalCosts)
       return { ...r, markupType: type, markupValue: value, supplierTotal }
+    }))
+  }
+
+  function applyCustomMarkup(pct: number) {
+    setCustomMarkup(pct)
+    setRows(prev => prev.map(r => {
+      const supplierTotal = calculateSupplierTotal(r.subCost, 'percentage', pct, r.additionalCosts)
+      return { ...r, markupType: 'percentage', markupValue: pct, supplierTotal }
     }))
   }
 
@@ -280,15 +294,32 @@ export default function PricingMatrix() {
           {/* Markup Profile */}
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Apply Markup Profile to All SOWs</label>
-            <select
-              value={globalProfile}
-              onChange={(e) => applyGlobalProfile(e.target.value)}
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2"
-            >
-              {DEFAULT_PROFILES.map(p => (
-                <option key={p.name} value={p.name}>{p.name} — {p.description}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={globalProfile}
+                onChange={(e) => applyGlobalProfile(e.target.value)}
+                className={`${globalProfile === 'Custom' ? 'flex-1' : 'w-full'} text-sm border border-gray-300 rounded-lg px-3 py-2`}
+              >
+                {DEFAULT_PROFILES.map(p => (
+                  <option key={p.name} value={p.name}>{p.name} — {p.description}</option>
+                ))}
+              </select>
+              {globalProfile === 'Custom' && (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={customMarkup}
+                    onChange={(e) => applyCustomMarkup(Number(e.target.value))}
+                    className="w-20 text-sm border border-gray-300 rounded-lg px-2 py-2 text-center"
+                    placeholder="%"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                  />
+                  <span className="text-sm text-gray-500">%</span>
+                </div>
+              )}
+            </div>
           </div>
           {/* Escalation Rate */}
           <div>
