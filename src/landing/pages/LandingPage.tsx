@@ -109,7 +109,7 @@ const faqs = [
   { q: 'Does Procuvex integrate with SAM.gov?', a: 'Yes. You can search federal contract opportunities directly from Procuvex and import them as new projects with all details pre-populated — solicitation number, agency, deadline, NAICS code, and more.' },
   { q: 'Can I import existing projects?', a: 'Yes. Procuvex supports CSV/Excel bulk import and a REST API. You can import projects from spreadsheets or connect from your CRM, ERP, or custom tools.' },
   { q: 'What does the AI Disclaimer mean?', a: 'All AI-generated outputs (analysis, compliance matrices, recommendations) are advisory tools to support your decision-making. They are not a substitute for professional legal, financial, or procurement advice. You remain responsible for all bid decisions.' },
-  { q: 'How much does Procuvex cost?', a: 'We are finalizing pricing tiers. Join the waitlist or contact us for early access pricing. Plans will include Starter, Professional, and Enterprise tiers with features scaled to team size.' },
+  { q: 'How much does Procuvex cost?', a: 'Procuvex offers two tiers: Growth at $2,500/month (for teams with $5M-50M pipeline) and Enterprise at $5,000/month (for teams with $50M-500M+ pipeline). Both include a 7-day free trial. Annual billing saves 20%. Visit our Pricing page for full details.' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -426,66 +426,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING PREVIEW */}
+      {/* PRICING CTA - links to pricing page */}
       <section className="py-20 lg:py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-14">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }}>
             <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">Pricing</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              Plans That Scale With Your Team
+              Plans That Scale With Your Pipeline
             </h2>
-            <p className="text-lg text-slate-600">Pricing details coming soon. Join the waitlist for early access.</p>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+              Two tiers designed for procurement teams winning $10M–$1B+ contracts. Start with a 7-day free trial.
+            </p>
+            <Link
+              to="/pricing"
+              className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200"
+            >
+              View Pricing Plans
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
           </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {[
-              { name: 'Starter', desc: 'For individual BD professionals managing a few bids.', features: ['Up to 10 projects', '1 user', 'AI document analysis', 'Compliance matrix', 'Email support'] },
-              { name: 'Professional', desc: 'For teams managing multiple concurrent bids.', features: ['Unlimited projects', 'Up to 10 users', 'All AI modules', 'Pipeline & workflow', 'SAM.gov integration', 'Priority support'], popular: true },
-              { name: 'Enterprise', desc: 'For large organizations with complex procurement.', features: ['Unlimited everything', 'Unlimited users', 'REST API access', 'Custom workflows', 'Dedicated onboarding', 'SLA guarantee'] },
-            ].map((tier, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                className={`relative bg-white rounded-2xl p-8 ${
-                  tier.popular
-                    ? 'border-2 border-blue-600 shadow-xl shadow-blue-600/10'
-                    : 'border border-slate-200 shadow-sm'
-                }`}
-              >
-                {tier.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-xl font-bold text-slate-900 mb-1">{tier.name}</h3>
-                <p className="text-sm text-slate-500 mb-6">{tier.desc}</p>
-                <div className="text-3xl font-extrabold text-slate-900 mb-6">
-                  Coming Soon
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {tier.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to="/pricing"
-                  className={`block w-full py-3 text-center rounded-xl font-semibold text-sm transition-colors ${
-                    tier.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  Join Waitlist
-                </Link>
-              </motion.div>
-            ))}
-          </div>
         </div>
       </section>
 
