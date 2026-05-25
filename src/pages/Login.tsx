@@ -15,6 +15,8 @@ export default function Login() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('invite')
   const fromPricing = searchParams.get('from') === 'pricing' || document.referrer.includes('/pricing')
+  const selectedPlan = searchParams.get('plan') // 'growth' or 'enterprise'
+  const selectedBilling = searchParams.get('billing') || 'monthly' // 'monthly' or 'annual'
 
   const [isSignUp, setIsSignUp] = useState(!!inviteToken || fromPricing)
   const [email, setEmail] = useState('')
@@ -127,6 +129,28 @@ export default function Login() {
       .eq('id', invite.id)
   }
 
+  async function redirectToStripeCheckout(userEmail: string, orgId: string) {
+    const planId = `${selectedPlan || 'growth'}_${selectedBilling}`
+    const res = await fetch('/.netlify/functions/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan_id: planId,
+        org_id: orgId,
+        user_email: userEmail,
+        success_url: `${window.location.origin}/dashboard?subscription=success`,
+        cancel_url: `${window.location.origin}/dashboard?subscription=cancelled`,
+      }),
+    })
+    const data = await res.json()
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url
+    } else {
+      setError(data.error || 'Failed to create checkout session')
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -136,37 +160,64 @@ export default function Login() {
       const { error: signUpError } = await signUp(email, password, fullName)
       if (signUpError) {
         setError(signUpError.message)
-      } else {
-        // Check if session was created immediately (email confirmation disabled)
-        const { data: { session: newSession } } = await supabase.auth.getSession()
-        if (newSession) {
-          // User is auto-confirmed — proceed to dashboard
-          if (inviteToken) {
-            const { data: { user: newUser } } = await supabase.auth.getUser()
-            if (newUser) await acceptInvite(newUser.id)
-          }
+        setLoading(false)
+        return
+      }
+
+      // Check if session was created immediately (email confirmation disabled)
+      const { data: { session: newSession } } = await supabase.auth.getSession()
+      if (newSession) {
+        // User is auto-confirmed — handle invite or redirect to Stripe
+        if (inviteToken) {
+          const { data: { user: newUser } } = await supabase.auth.getUser()
+          if (newUser) await acceptInvite(newUser.id)
           navigate('/dashboard')
+        } else if (selectedPlan) {
+          // Redirect to Stripe Checkout for the selected plan
+          const { data: { user: newUser } } = await supabase.auth.getUser()
+          const profile = newUser ? await supabase
+            .from('user_profiles')
+            .select('current_org_id')
+            .eq('id', newUser.id)
+            .single() : null
+          const orgId = profile?.data?.current_org_id || ''
+          await redirectToStripeCheckout(email, orgId)
         } else {
-          // Email confirmation required — show success message
-          setSignUpSuccess(true)
+          navigate('/dashboard')
         }
+      } else {
+        // Email confirmation required — show success message
+        setSignUpSuccess(true)
+        setLoading(false)
       }
     } else {
       const { error: signInError } = await signIn(email, password)
       if (signInError) {
         setError(signInError.message)
-      } else {
-        // If existing user signs in via invite link, accept the invite
-        if (inviteToken) {
-          const { data: { user: existingUser } } = await supabase.auth.getUser()
-          if (existingUser) {
-            await acceptInvite(existingUser.id)
-          }
+        setLoading(false)
+        return
+      }
+      // If existing user signs in via invite link, accept the invite
+      if (inviteToken) {
+        const { data: { user: existingUser } } = await supabase.auth.getUser()
+        if (existingUser) {
+          await acceptInvite(existingUser.id)
         }
+      }
+      // If user signed in from pricing with a plan selected, redirect to Stripe
+      if (selectedPlan) {
+        const { data: { user: existingUser } } = await supabase.auth.getUser()
+        const profile = existingUser ? await supabase
+          .from('user_profiles')
+          .select('current_org_id')
+          .eq('id', existingUser.id)
+          .single() : null
+        const orgId = profile?.data?.current_org_id || ''
+        await redirectToStripeCheckout(email, orgId)
+      } else {
         navigate('/dashboard')
       }
     }
-    setLoading(false)
   }
 
   // Show success screen after signup when email confirmation is required
@@ -244,7 +295,12 @@ export default function Login() {
             {isSignUp ? (
               <>
                 <h1 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h1>
-                <p className="text-gray-500 mt-1">7 days free — no credit card required</p>
+                <p className="text-gray-500 mt-1">7 days free — cancel anytime before trial ends</p>
+                {selectedPlan && (
+                  <p className="text-blue-600 text-xs font-medium mt-2">
+                    {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan — {selectedBilling === 'annual' ? 'Annual' : 'Monthly'} billing
+                  </p>
+                )}
               </>
             ) : (
               <>

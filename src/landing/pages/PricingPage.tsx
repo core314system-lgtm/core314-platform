@@ -180,7 +180,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
                 <Link
-                  to="/login?from=pricing"
+                  to={`/login?from=pricing&plan=${tier.name.toLowerCase()}&billing=${annual ? 'annual' : 'monthly'}`}
                   className={`block w-full py-3.5 text-center rounded-xl font-semibold text-sm transition-colors ${
                     tier.popular
                       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/25'
@@ -189,7 +189,7 @@ export default function PricingPage() {
                 >
                   Start 7-Day Free Trial
                 </Link>
-                <p className="text-xs text-slate-400 text-center mt-3">No credit card required to start</p>
+                <p className="text-xs text-slate-400 text-center mt-3">Credit card required — cancel anytime during trial</p>
               </motion.div>
             ))}
           </div>
