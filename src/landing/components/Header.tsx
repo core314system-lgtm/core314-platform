@@ -51,7 +51,7 @@ export default function Header() {
             Log In
           </Link>
           <Link
-            to="/login"
+            to="/pricing"
             className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all"
           >
             Start Free Trial
@@ -85,7 +85,7 @@ export default function Header() {
               Log In
             </Link>
             <Link
-              to="/login"
+              to="/pricing"
               className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-center"
             >
               Start Free Trial

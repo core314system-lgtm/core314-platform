@@ -190,7 +190,7 @@ export default function LandingPage() {
               className="flex flex-col sm:flex-row gap-3 justify-center mb-4"
             >
               <Link
-                to="/login"
+                to="/pricing"
                 className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200"
               >
                 Start Free Trial
@@ -492,7 +492,7 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row gap-3 justify-center"
           >
             <Link
-              to="/login"
+              to="/pricing"
               className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-blue-600 bg-white hover:bg-blue-50 rounded-xl shadow-lg transition-all"
             >
               Start Free Trial

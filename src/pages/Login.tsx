@@ -168,11 +168,47 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Procuvex</h1>
-            <p className="text-gray-500 mt-1">AI-Powered Procurement Intelligence</p>
-            <p className="text-xs text-gray-400 mt-1">A product of Core314 Technologies LLC</p>
+        {/* Tab-style toggle between Sign In and Sign Up */}
+        <div className="flex mb-0 rounded-t-xl overflow-hidden border border-b-0 border-slate-200">
+          <button
+            onClick={() => { setIsSignUp(false); setError('') }}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              !isSignUp
+                ? 'bg-white text-slate-900 border-b-2 border-blue-600'
+                : 'bg-slate-50 text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => { setIsSignUp(true); setError('') }}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              isSignUp
+                ? 'bg-white text-slate-900 border-b-2 border-blue-600'
+                : 'bg-slate-50 text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        <div className="bg-white rounded-b-xl shadow-lg p-8 border border-t-0 border-slate-200">
+          {/* Header changes based on mode */}
+          <div className="text-center mb-6">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mx-auto mb-3">
+              <span className="text-white font-bold text-lg">P</span>
+            </div>
+            {isSignUp ? (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h1>
+                <p className="text-gray-500 mt-1">7 days free — no credit card required</p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
+                <p className="text-gray-500 mt-1">Sign in to your Procuvex account</p>
+              </>
+            )}
           </div>
 
           {inviteInfo && (
@@ -232,40 +268,35 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className={`w-full py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                isSignUp
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               {loading ? (
                 'Please wait...'
               ) : isSignUp ? (
-                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : 'Create Account'}</>
+                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : 'Start Free Trial'}</>
               ) : (
                 <><LogIn size={18} /> {inviteInfo ? 'Sign In & Join' : 'Sign In'}</>
               )}
             </button>
           </form>
 
-          <div className="mt-6">
-            {!isSignUp ? (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 text-center">
-                <p className="text-sm font-semibold text-slate-800 mb-1">New to Procuvex?</p>
-                <p className="text-xs text-slate-600 mb-3">Start your 7-day free trial — no credit card required.</p>
-                <button
-                  onClick={() => { setIsSignUp(true); setError('') }}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <UserPlus size={16} /> Sign Up Free
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <button
-                  onClick={() => { setIsSignUp(false); setError('') }}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Already have an account? Sign in
-                </button>
-              </div>
-            )}
+          {/* Contextual footer based on mode */}
+          {isSignUp && !inviteInfo && (
+            <div className="mt-4 text-center">
+              <p className="text-xs text-slate-400">
+                By creating an account, you agree to our Terms of Service and Privacy Policy.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-400">
+              A product of Core314 Technologies LLC
+            </p>
           </div>
         </div>
       </div>
