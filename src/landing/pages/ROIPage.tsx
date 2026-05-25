@@ -505,16 +505,17 @@ export default function ROIPage() {
       <section className="py-20 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">Who Benefits Most</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900">Built for Every Size — Scaled for the Largest</h2>
+            <p className="text-slate-600 mt-3 max-w-2xl mx-auto">From 5-person shops to 500+ employee primes, Procuvex delivers compounding value as your operation grows.</p>
           </motion.div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              { title: 'Small Firms (5–15 people)', desc: "Can't afford dedicated proposal staff — Procuvex IS your proposal department", icon: Building, color: 'blue' },
-              { title: 'Mid-Size Firms (15–50)', desc: 'Proposal team is stretched thin — Procuvex multiplies their capacity 3–5x', icon: Users, color: 'green' },
-              { title: 'Growing Firms', desc: 'Scale bid volume without proportional headcount growth', icon: TrendingUp, color: 'purple' },
-              { title: 'High-Turnover Firms', desc: 'Institutional knowledge is constantly walking out the door', icon: Brain, color: 'amber' },
-              { title: 'Multi-Office Firms', desc: 'Centralized bid intelligence across all locations', icon: Layers, color: 'indigo' },
-              { title: 'New Market Entrants', desc: 'Build competitive intelligence quickly in unfamiliar territory', icon: Target, color: 'cyan' },
+              { title: 'Large Primes & Enterprise', desc: 'Unify bid intelligence across divisions, eliminate duplicated effort, and enforce consistent pricing strategy across hundreds of pursuits per year', icon: Building, color: 'blue' },
+              { title: 'Multi-Office & Multi-Division', desc: 'Centralized bid intelligence across every office and business unit — one source of truth for pricing, subs, and competitive data', icon: Layers, color: 'indigo' },
+              { title: 'JV Partners & Teaming Leads', desc: 'Coordinate subcontractor outreach, track teaming agreements, and manage pricing across complex joint venture structures', icon: Users, color: 'green' },
+              { title: 'Mid-Size Firms (15–100+)', desc: 'Multiply your proposal team\'s capacity 3–5x without adding headcount — submit more bids, win more contracts', icon: TrendingUp, color: 'purple' },
+              { title: 'High-Growth & Acquisition', desc: 'Retain institutional knowledge through mergers, acquisitions, and rapid growth — onboard new teams instantly with AI-captured bid history', icon: Brain, color: 'amber' },
+              { title: 'Emerging & Small Firms', desc: 'Compete with firms 10x your size — Procuvex gives a 5-person team the bid management power of a full proposal department', icon: Target, color: 'cyan' },
             ].map((item, i) => {
               const Icon = item.icon
               return (
