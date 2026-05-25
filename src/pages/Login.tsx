@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LogIn, UserPlus, Mail } from 'lucide-react'
+import { LogIn, UserPlus, Mail, CheckCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface InviteInfo {
@@ -14,13 +14,17 @@ interface InviteInfo {
 export default function Login() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('invite')
+  const fromPricing = searchParams.get('from') === 'pricing' || document.referrer.includes('/pricing')
+  const selectedPlan = searchParams.get('plan') // 'growth' or 'enterprise'
+  const selectedBilling = searchParams.get('billing') || 'monthly' // 'monthly' or 'annual'
 
-  const [isSignUp, setIsSignUp] = useState(!!inviteToken)
+  const [isSignUp, setIsSignUp] = useState(!!inviteToken || fromPricing)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [signUpSuccess, setSignUpSuccess] = useState(false)
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
@@ -125,6 +129,28 @@ export default function Login() {
       .eq('id', invite.id)
   }
 
+  async function redirectToStripeCheckout(userEmail: string, orgId: string) {
+    const planId = `${selectedPlan || 'growth'}_${selectedBilling}`
+    const res = await fetch('/.netlify/functions/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan_id: planId,
+        org_id: orgId,
+        user_email: userEmail,
+        success_url: `${window.location.origin}/dashboard?subscription=success`,
+        cancel_url: `${window.location.origin}/dashboard?subscription=cancelled`,
+      }),
+    })
+    const data = await res.json()
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url
+    } else {
+      setError(data.error || 'Failed to create checkout session')
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -134,44 +160,151 @@ export default function Login() {
       const { error: signUpError } = await signUp(email, password, fullName)
       if (signUpError) {
         setError(signUpError.message)
-      } else {
-        // If invite token present, accept the invite
-        if (inviteToken) {
-          // Get the newly created user
+        setLoading(false)
+        return
+      }
+
+      // Account created successfully
+      if (inviteToken) {
+        // For invite flows, check if session exists to accept invite
+        const { data: { session: newSession } } = await supabase.auth.getSession()
+        if (newSession) {
           const { data: { user: newUser } } = await supabase.auth.getUser()
-          if (newUser) {
-            await acceptInvite(newUser.id)
-          }
+          if (newUser) await acceptInvite(newUser.id)
         }
-        setError('')
         navigate('/dashboard')
+      } else if (selectedPlan) {
+        // Redirect to Stripe Checkout immediately — no session needed
+        // Stripe just needs the email to create/find the customer
+        await redirectToStripeCheckout(email, '')
+      } else {
+        // No plan selected — check if session exists to go to dashboard
+        const { data: { session: newSession } } = await supabase.auth.getSession()
+        if (newSession) {
+          navigate('/dashboard')
+        } else {
+          setSignUpSuccess(true)
+          setLoading(false)
+        }
       }
     } else {
       const { error: signInError } = await signIn(email, password)
       if (signInError) {
         setError(signInError.message)
-      } else {
-        // If existing user signs in via invite link, accept the invite
-        if (inviteToken) {
-          const { data: { user: existingUser } } = await supabase.auth.getUser()
-          if (existingUser) {
-            await acceptInvite(existingUser.id)
-          }
+        setLoading(false)
+        return
+      }
+      // If existing user signs in via invite link, accept the invite
+      if (inviteToken) {
+        const { data: { user: existingUser } } = await supabase.auth.getUser()
+        if (existingUser) {
+          await acceptInvite(existingUser.id)
         }
+      }
+      // If user signed in from pricing with a plan selected, redirect to Stripe
+      if (selectedPlan) {
+        const { data: { user: existingUser } } = await supabase.auth.getUser()
+        const profile = existingUser ? await supabase
+          .from('user_profiles')
+          .select('current_org_id')
+          .eq('id', existingUser.id)
+          .single() : null
+        const orgId = profile?.data?.current_org_id || ''
+        await redirectToStripeCheckout(email, orgId)
+      } else {
         navigate('/dashboard')
       }
     }
-    setLoading(false)
+  }
+
+  // Show success screen after signup when email confirmation is required
+  if (signUpSuccess) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
+            <p className="text-gray-600 mb-4">
+              We sent a confirmation link to <strong>{email}</strong>
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Click the link in the email to activate your account and start your 7-day free trial. The link expires in 24 hours.
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                Don't see it? Check your spam folder or{' '}
+                <button
+                  onClick={() => setSignUpSuccess(false)}
+                  className="text-blue-600 font-semibold hover:underline"
+                >
+                  try again with a different email
+                </button>
+              </p>
+            </div>
+            <button
+              onClick={() => { setSignUpSuccess(false); setIsSignUp(false); setError('') }}
+              className="text-sm text-slate-500 hover:text-slate-700"
+            >
+              Already confirmed? Sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Procuvex</h1>
-            <p className="text-gray-500 mt-1">AI-Powered Procurement Intelligence</p>
-            <p className="text-xs text-gray-400 mt-1">A product of Core314 Technologies LLC</p>
+        {/* Tab-style toggle between Sign In and Sign Up */}
+        <div className="flex mb-0 rounded-t-xl overflow-hidden border border-b-0 border-slate-200">
+          <button
+            onClick={() => { setIsSignUp(false); setError('') }}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              !isSignUp
+                ? 'bg-white text-slate-900 border-b-2 border-blue-600'
+                : 'bg-slate-50 text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => { setIsSignUp(true); setError('') }}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              isSignUp
+                ? 'bg-white text-slate-900 border-b-2 border-blue-600'
+                : 'bg-slate-50 text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        <div className="bg-white rounded-b-xl shadow-lg p-8 border border-t-0 border-slate-200">
+          {/* Header changes based on mode */}
+          <div className="text-center mb-6">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mx-auto mb-3">
+              <span className="text-white font-bold text-lg">P</span>
+            </div>
+            {isSignUp ? (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h1>
+                <p className="text-gray-500 mt-1">7 days free — cancel anytime before trial ends</p>
+                {selectedPlan && (
+                  <p className="text-blue-600 text-xs font-medium mt-2">
+                    {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan — {selectedBilling === 'annual' ? 'Annual' : 'Monthly'} billing
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
+                <p className="text-gray-500 mt-1">Sign in to your Procuvex account</p>
+              </>
+            )}
           </div>
 
           {inviteInfo && (
@@ -231,25 +364,35 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className={`w-full py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                isSignUp
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               {loading ? (
                 'Please wait...'
               ) : isSignUp ? (
-                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : 'Create Account'}</>
+                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : 'Start Free Trial'}</>
               ) : (
                 <><LogIn size={18} /> {inviteInfo ? 'Sign In & Join' : 'Sign In'}</>
               )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => { setIsSignUp(!isSignUp); setError('') }}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
+          {/* Contextual footer based on mode */}
+          {isSignUp && !inviteInfo && (
+            <div className="mt-4 text-center">
+              <p className="text-xs text-slate-400">
+                By creating an account, you agree to our Terms of Service and Privacy Policy.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-400">
+              A product of Core314 Technologies LLC
+            </p>
           </div>
         </div>
       </div>
