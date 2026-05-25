@@ -466,10 +466,10 @@ export default function SubcontractorPortal() {
                       <>
                         <h3 className="font-bold text-green-800 mb-2">Answer Found in Documentation</h3>
                         <p className="text-sm text-gray-800 mb-3">{aiResult.ai_analysis.answer_text}</p>
-                        {aiResult.ai_analysis.source_references?.length > 0 && (
+                        {(aiResult.ai_analysis?.source_references?.length ?? 0) > 0 && (
                           <div className="bg-white rounded-lg p-3 border border-green-200">
                             <p className="text-xs font-medium text-gray-600 mb-1">Source:</p>
-                            {aiResult.ai_analysis.source_references.map((ref: SourceRef, i: number) => (
+                            {aiResult.ai_analysis?.source_references?.map((ref: SourceRef, i: number) => (
                               <p key={i} className="text-xs text-gray-600">
                                 <span className="font-medium">{ref.document_name}</span> &mdash; Section {ref.section}
                                 {ref.sub_section !== 'N/A' && ` "${ref.sub_section}"`}
