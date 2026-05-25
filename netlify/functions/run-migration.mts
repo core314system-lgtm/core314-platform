@@ -2,15 +2,14 @@ import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
 /**
- * Migration runner for Q&A Management tables.
- * Uses Supabase service role to verify table creation.
- * Tables must be created via the Supabase Dashboard SQL Editor.
+ * Migration status checker for Q&A Management tables.
+ * Verifies that all required tables and columns exist.
  *
  * POST /api/run-migration
  * Headers: Authorization: Bearer <service_role_key>
  *
- * Returns status of each required table (exists or missing).
- * If tables are missing, provides the SQL to run in the Dashboard.
+ * Returns status of each required table.
+ * Migration SQL must be run via the Supabase Dashboard SQL Editor.
  */
 
 const corsHeaders = {
@@ -39,7 +38,6 @@ export default async (req: Request, _context: Context) => {
 
   const results: Array<{ table: string; status: string; error?: string }> = []
 
-  // Check each required table
   const tables = ["opportunity_questions", "question_submissions", "question_answer_history"]
   for (const table of tables) {
     const { error } = await supabase.from(table).select("id").limit(1)
@@ -50,8 +48,7 @@ export default async (req: Request, _context: Context) => {
     }
   }
 
-  // Check question_deadline column on task_orders
-  const { data: to, error: toErr } = await supabase
+  const { error: toErr } = await supabase
     .from("task_orders")
     .select("question_deadline")
     .limit(1)
