@@ -466,7 +466,8 @@ export default async (req: Request, _context: Context) => {
         answer_text: status === "auto_answered" ? analysis.answer_text : null,
         answered_at: status === "auto_answered" ? new Date().toISOString() : null,
         shared_with_all: status === "auto_answered",
-      }).catch(() => { /* legacy table may not exist */ })
+      })
+      // legacy table may not exist — ignore errors
     }
 
     // Step 6: Log communication
@@ -477,7 +478,7 @@ export default async (req: Request, _context: Context) => {
         direction: "inbound",
         subject: `Question${related_section ? `: ${related_section}` : ""} (AI: ${status})`,
         body: question_text.trim(),
-      }).catch(() => {})
+      })
 
       const { data: sowSub } = await supabase
         .from("sow_subcontractors")
@@ -516,7 +517,7 @@ export default async (req: Request, _context: Context) => {
       was_auto_answered: status === "auto_answered",
       confidence_score: analysis.confidence_score,
       source_document_type: analysis.source_references[0]?.document_name ? "document" : null,
-    }).catch(() => { /* learning table may not exist yet */ })
+    })
 
     return new Response(
       JSON.stringify({
