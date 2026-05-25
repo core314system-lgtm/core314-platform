@@ -100,10 +100,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform lg:relative lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform lg:relative lg:translate-x-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
           <Link to="/dashboard" className="flex items-center gap-2">
             <div className="bg-blue-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm">Px</div>
             <div>
@@ -116,7 +116,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto min-h-0">
           {navItems.map(item => {
             const isActive = item.path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(item.path)
             return (
@@ -137,7 +137,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="shrink-0 p-4 border-t border-gray-200">
           {isMultiTenantEnabled && currentOrg && (
             <Link to="/settings" className="block mb-3 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors">
               <p className="text-xs font-medium text-gray-700 truncate">{currentOrg.name}</p>
