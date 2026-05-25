@@ -26,6 +26,7 @@ const tiers = [
       'Pipeline & workflow engine',
       'Analytics dashboard',
       'Data export (CSV/JSON)',
+      'AI Q&A Management',
       'Chat support with AI assistant',
     ],
     popular: true,
@@ -48,6 +49,7 @@ const tiers = [
       'REST API access',
       'Custom workflow stages',
       'Intelligence library',
+      'AI Q&A Management',
       'Dedicated onboarding',
       'Priority support with SLA',
       '99.9% uptime guarantee',
@@ -76,6 +78,7 @@ const comparison = [
   { name: 'Resource Capacity Tracking', growth: false, ent: true },
   { name: 'Relationship Intelligence', growth: false, ent: true },
   { name: 'Custom Quote Forms', growth: false, ent: true },
+  { name: 'AI Q&A Management', growth: true, ent: true },
   { name: 'REST API Access', growth: false, ent: true },
   { name: 'Custom Workflows', growth: false, ent: true },
   { name: 'Dedicated Onboarding', growth: false, ent: true },
@@ -84,6 +87,7 @@ const comparison = [
 
 const faqs = [
   { q: 'Is there a free trial?', a: 'Yes. Every plan includes a 7-day free trial with full access to all features. No credit card required to start. After 7 days, you will need to subscribe to continue using the platform.' },
+  { q: 'Do you offer a pilot program?', a: 'Yes. For teams new to procurement software, we offer a Pilot Program — 3 months at a reduced rate so you can prove ROI on your first contract before committing to a full subscription. Contact sales to learn more.' },
   { q: 'Can I switch plans later?', a: 'Absolutely. You can upgrade from Growth to Enterprise at any time. Changes take effect immediately with prorated billing.' },
   { q: 'Is there a contract or commitment?', a: 'No long-term contracts required. Pay monthly or save 20% with annual billing. Cancel anytime — your subscription remains active until the end of your billing period.' },
   { q: 'What payment methods do you accept?', a: 'All major credit cards via Stripe. Enterprise customers can also pay by invoice or ACH transfer.' },
@@ -128,6 +132,9 @@ export default function PricingPage() {
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
               One platform to manage your entire procurement lifecycle — from opportunity identification to contract execution. 7-day free trial on all plans.
+            </motion.p>
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-sm text-slate-500 mt-3">
+              New to procurement software? Ask about our <strong className="text-slate-700">Pilot Program</strong> — 3 months at a reduced rate to prove ROI.
             </motion.p>
           </div>
 

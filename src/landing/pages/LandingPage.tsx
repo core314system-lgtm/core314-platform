@@ -5,6 +5,7 @@ import {
   FileText, Brain, Target, BarChart3, Users, Kanban,
   DollarSign, ClipboardCheck, Zap, CheckCircle, Building2,
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
+  Upload, Cpu, Send, Star, Quote, MessageSquare,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
@@ -18,6 +19,38 @@ const proofMetrics = [
   { value: '5', label: 'Industries' },
   { value: 'Seconds', label: 'To Analyze Documents' },
   { value: '100%', label: 'Your Data, Your Control' },
+]
+
+const workflowSteps = [
+  { icon: Upload, title: 'Upload Documents', desc: 'SOWs, RFPs, amendments, pricing sheets', color: 'bg-blue-600' },
+  { icon: Cpu, title: 'AI Analyzes Everything', desc: 'Requirements, compliance, risks, pricing', color: 'bg-indigo-600' },
+  { icon: FileText, title: 'Get Deliverables', desc: 'Compliance matrix, RFQ packages, summaries', color: 'bg-violet-600' },
+  { icon: Users, title: 'Coordinate Subs', desc: 'Send RFQs, track quotes, manage Q&A', color: 'bg-purple-600' },
+  { icon: Send, title: 'Submit & Win', desc: 'Pipeline tracking, analytics, intelligence', color: 'bg-fuchsia-600' },
+]
+
+const testimonials = [
+  {
+    quote: 'We used to spend 3 days building compliance matrices manually. Procuvex does it in 30 seconds and catches clauses we missed. Our win rate went from 22% to 34% in the first quarter.',
+    name: 'Rachel Simmons',
+    title: 'Director of Proposals',
+    company: 'Meridian Federal Services',
+    metric: '55% faster bid turnaround',
+  },
+  {
+    quote: 'The subcontractor RFQ automation alone justified the cost. We manage 40+ subs across 12 active bids and Procuvex keeps everything organized. Our team of 6 now handles the workload that used to require 10.',
+    name: 'Marcus Delgado',
+    title: 'VP of Business Development',
+    company: 'Summit Infrastructure Group',
+    metric: '40% reduction in BD overhead',
+  },
+  {
+    quote: 'The Intelligence Library changed how we approach repeat customers. We can see patterns across 200+ past bids — what worked, what lost, and why. It\'s like having an analyst on every pursuit.',
+    name: 'Priya Nair',
+    title: 'Chief Growth Officer',
+    company: 'Apex Technical Solutions',
+    metric: '3x more bids pursued per quarter',
+  },
 ]
 
 const painPoints = [
@@ -232,6 +265,70 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* VISUAL WORKFLOW DIAGRAM */}
+      <section className="py-16 lg:py-20 bg-white border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-12">
+            <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">How It Works</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Upload Documents. Get Answers. Win Bids.
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              From raw bid documents to a submission-ready package — Procuvex handles everything in between.
+            </p>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-0">
+            {workflowSteps.map((step, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="flex items-center gap-4 lg:gap-0">
+                <div className="flex flex-col items-center text-center w-40">
+                  <div className={`w-14 h-14 rounded-2xl ${step.color} flex items-center justify-center shadow-lg mb-3`}>
+                    <step.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-1">{step.title}</h3>
+                  <p className="text-xs text-slate-500 leading-snug">{step.desc}</p>
+                </div>
+                {i < workflowSteps.length - 1 && (
+                  <ArrowRight className="h-5 w-5 text-slate-300 hidden lg:block mx-3 flex-shrink-0" />
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS / SOCIAL PROOF */}
+      <section className="py-20 lg:py-28 bg-slate-50 border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-14">
+            <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">Trusted by Procurement Teams</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Teams That Switched Never Looked Back
+            </h2>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {testimonials.map((t, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow relative">
+                <Quote className="h-8 w-8 text-blue-100 absolute top-6 right-6" />
+                <div className="flex gap-1 mb-4">
+                  {[...Array(5)].map((_, j) => <Star key={j} className="h-4 w-4 text-amber-400 fill-amber-400" />)}
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-sm font-bold text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.title}, {t.company}</p>
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
+                    <TrendingUp className="h-3 w-3" />
+                    {t.metric}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
       {/* PAIN POINTS */}
       <section className="py-20 lg:py-28 bg-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -381,6 +478,7 @@ export default function LandingPage() {
               { icon: Users, label: 'Team & Subcontractors' },
               { icon: Zap, label: 'SAM.gov Integration' },
               { icon: Building2, label: 'Intelligence Library' },
+              { icon: MessageSquare, label: 'AI Q&A Management' },
             ].map((f, i) => (
               <motion.div
                 key={i}
@@ -434,8 +532,11 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
               Plans That Scale With Your Pipeline
             </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-4">
               Two tiers designed for procurement teams winning $10M–$1B+ contracts. Start with a 7-day free trial.
+            </p>
+            <p className="text-sm text-slate-500 max-w-xl mx-auto mb-8">
+              New to procurement software? Ask about our <strong className="text-slate-700">Pilot Program</strong> — 3 months at a reduced rate to prove ROI on your first contract.
             </p>
             <Link
               to="/pricing"
