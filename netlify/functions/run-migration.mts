@@ -1,45 +1,76 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
+/**
+ * Migration status checker for Q&A Management tables.
+ * Verifies that all required tables and columns exist.
+ *
+ * POST /api/run-migration
+ * Headers: Authorization: Bearer <service_role_key>
+ *
+ * Returns status of each required table.
+ * Migration SQL must be run via the Supabase Dashboard SQL Editor.
+ */
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Content-Type": "application/json",
+}
+
 export default async (req: Request, _context: Context) => {
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  // Create tables by inserting a test row and letting it fail, then using rpc
-  // Actually, we need to create an exec_sql function first through the service role
-
-  // Use the Supabase REST endpoint to call postgres functions
-  // We'll create tables through the HTTP API
-  const tables = [
-    {
-      name: 'quote_form_templates',
-      testInsert: {
-        id: '00000000-0000-0000-0000-000000000001',
-        name: '__test__',
-        is_default: false,
-      }
-    }
-  ]
-
-  // Check if migration already ran by trying to read from one of the new tables
-  const { error: checkErr } = await supabase
-    .from('quote_form_templates')
-    .select('id')
-    .limit(1)
-
-  if (!checkErr) {
-    return new Response(JSON.stringify({ status: 'already_migrated' }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders })
+  }
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: corsHeaders })
   }
 
-  return new Response(JSON.stringify({
-    status: 'migration_needed',
-    error: checkErr.message,
-    hint: 'Run the SQL in supabase/migration-rfq-portal.sql via the Supabase Dashboard SQL editor'
-  }), {
-    headers: { 'Content-Type': 'application/json' }
+  const authHeader = req.headers.get("Authorization")
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.TASKORDER_SUPABASE_SERVICE_ROLE_KEY
+  if (!authHeader || !serviceKey || authHeader !== `Bearer ${serviceKey}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
+  const supabase = createClient(supabaseUrl, serviceKey)
+
+  const results: Array<{ table: string; status: string; error?: string }> = []
+
+  const tables = ["opportunity_questions", "question_submissions", "question_answer_history"]
+  for (const table of tables) {
+    const { error } = await supabase.from(table).select("id").limit(1)
+    if (error) {
+      results.push({ table, status: "missing", error: error.message })
+    } else {
+      results.push({ table, status: "exists" })
+    }
+  }
+
+  const { error: toErr } = await supabase
+    .from("task_orders")
+    .select("question_deadline")
+    .limit(1)
+  results.push({
+    table: "task_orders.question_deadline",
+    status: toErr ? "missing" : "exists",
+    error: toErr?.message,
   })
+
+  const missing = results.filter(r => r.status === "missing")
+  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || ""
+
+  return new Response(
+    JSON.stringify({
+      success: missing.length === 0,
+      results,
+      missing: missing.length,
+      instructions: missing.length > 0
+        ? `Run the migration SQL in the Supabase Dashboard SQL Editor: https://supabase.com/dashboard/project/${projectRef}/sql/new`
+        : "All tables exist. Migration complete.",
+      migration_file: "supabase/migration-qa-management.sql",
+    }),
+    { headers: corsHeaders }
+  )
 }

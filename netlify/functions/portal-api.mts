@@ -79,13 +79,23 @@ async function handleGet(url: URL) {
     )
   }
 
-  // Get existing questions (shared ones + this sub's own)
+  // Get existing questions (shared ones + this sub's own) from legacy table
   const { data: questions } = await supabase
     .from("subcontractor_questions")
     .select("*")
     .eq("sow_item_id", tokenData.sow_item_id)
     .or(`shared_with_all.eq.true,subcontractor_id.eq.${tokenData.subcontractor_id}`)
     .order("created_at", { ascending: true })
+
+  // Get AI-analyzed questions from the new opportunity_questions table
+  const { data: aiQuestions } = await supabase
+    .from("opportunity_questions")
+    .select("id, question_text, related_section, status, ai_answer, ai_confidence_score, ai_source_references, question_category, created_at, answered_at")
+    .eq("task_order_id", tokenData.task_order_id)
+    .or(`subcontractor_id.eq.${tokenData.subcontractor_id},status.eq.auto_answered`)
+    .order("created_at", { ascending: true })
+    .then(r => r)
+    .catch(() => ({ data: null }))
 
   // Get existing quote if already submitted
   const { data: existingQuote } = await supabase
@@ -142,7 +152,9 @@ async function handleGet(url: URL) {
       form_template: formTemplate,
       existing_quote: existingQuote,
       questions: questions || [],
+      ai_questions: aiQuestions || [],
       documents: documents || [],
+      question_deadline: (tokenData as any).task_orders?.question_deadline || null,
     }),
     { headers: corsHeaders }
   )
@@ -264,6 +276,29 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
     return new Response(JSON.stringify({ error: "Question text required" }), { status: 400, headers: corsHeaders })
   }
 
+  // Route through AI-powered submit-question for document analysis
+  const siteUrl = process.env.URL || "https://procuvex.com"
+  try {
+    const aiRes = await fetch(`${siteUrl}/.netlify/functions/submit-question`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: body.token,
+        question_text: question_text.trim(),
+        related_section: related_section || null,
+      }),
+    })
+
+    if (aiRes.ok) {
+      const result = await aiRes.json()
+      return new Response(JSON.stringify(result), { headers: corsHeaders })
+    }
+    console.error("AI question analysis failed, falling back:", await aiRes.text())
+  } catch (err) {
+    console.error("AI question analysis error, falling back:", err)
+  }
+
+  // Fallback: basic insert without AI analysis
   const { data: question, error } = await supabase
     .from("subcontractor_questions")
     .insert({
@@ -282,6 +317,19 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
+
+  // Also insert into opportunity_questions for the new Q&A system
+  await supabase.from("opportunity_questions").insert({
+    task_order_id: tokenData.task_order_id,
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    subcontractor_id: tokenData.subcontractor_id,
+    submitted_by_type: "subcontractor",
+    question_text: question_text.trim(),
+    related_section: related_section || null,
+    status: "pending_submission",
+    is_from_portal: true,
+    rfq_token_id: tokenData.id,
+  }).catch(() => {})
 
   // Update outreach status to questions_pending if currently just invited
   const { data: sowSub } = await supabase

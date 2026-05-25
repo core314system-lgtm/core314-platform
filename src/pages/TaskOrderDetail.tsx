@@ -16,6 +16,7 @@ import AuditTrail from '../components/AuditTrail'
 import ProjectTeam from '../components/ProjectTeam'
 import BidReadiness from '../components/BidReadiness'
 import SmartRecommendations from '../components/SmartRecommendations'
+import QAManagement from '../components/QAManagement'
 import { getProjectType, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] = [
@@ -1628,6 +1629,31 @@ export default function TaskOrderDetail() {
                 </Link>
               ))}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Q&A Management */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => toggleSection('questions')}
+          className="w-full flex items-center justify-between p-6 hover:bg-gray-50"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Brain size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">AI Q&A Management</h2>
+              <p className="text-sm text-gray-500">Track questions, AI-powered answers, and formal submissions</p>
+            </div>
+          </div>
+          {expandedSection === 'questions' ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+        </button>
+
+        {expandedSection === 'questions' && (
+          <div className="px-6 pb-6 border-t border-gray-100 pt-4">
+            <QAManagement taskOrderId={id!} />
           </div>
         )}
       </div>

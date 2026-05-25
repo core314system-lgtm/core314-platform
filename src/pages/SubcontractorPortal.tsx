@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2 } from 'lucide-react'
+import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain } from 'lucide-react'
 
 interface PortalData {
   task_order: {
@@ -31,7 +31,9 @@ interface PortalData {
   }
   existing_quote: any | null
   questions: Question[]
+  ai_questions: AIQuestion[]
   documents: any[]
+  question_deadline: string | null
 }
 
 interface FormField {
@@ -59,6 +61,27 @@ interface Question {
   subcontractor_id: string
 }
 
+interface SourceRef {
+  document_name: string
+  section: string
+  sub_section: string
+  page: number | null
+  excerpt: string
+}
+
+interface AIQuestion {
+  id: string
+  question_text: string
+  related_section: string | null
+  status: string
+  ai_answer: string | null
+  ai_confidence_score: number | null
+  ai_source_references: SourceRef[]
+  question_category: string | null
+  created_at: string
+  answered_at: string | null
+}
+
 export default function SubcontractorPortal() {
   const { token } = useParams<{ token: string }>()
   const [data, setData] = useState<PortalData | null>(null)
@@ -74,6 +97,7 @@ export default function SubcontractorPortal() {
   const [submittingQuestion, setSubmittingQuestion] = useState(false)
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
+  const [aiResult, setAiResult] = useState<{ status: string; ai_analysis?: { answer_text?: string; confidence_score?: number; source_references?: SourceRef[]; question_category?: string } } | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -174,9 +198,11 @@ export default function SubcontractorPortal() {
       })
 
       if (resp.ok) {
+        const result = await resp.json()
+        setAiResult(result)
         setQuestionText('')
         setQuestionSection('')
-        fetchPortalData() // Refresh to show new question
+        fetchPortalData()
       }
     } catch {
       // silent fail
@@ -301,7 +327,7 @@ export default function SubcontractorPortal() {
         <div className="flex gap-1 mb-4 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
           {[
             { key: 'quote' as const, label: 'Submit Quote', icon: FileText },
-            { key: 'questions' as const, label: `Questions${data.questions.length ? ` (${data.questions.length})` : ''}`, icon: MessageSquare },
+            { key: 'questions' as const, label: `Questions${(data.ai_questions?.length || data.questions.length) ? ` (${data.ai_questions?.length || data.questions.length})` : ''}`, icon: MessageSquare },
             { key: 'documents' as const, label: `Documents${data.documents.length ? ` (${data.documents.length})` : ''}`, icon: FileText },
           ].map(tab => (
             <button
@@ -422,12 +448,120 @@ export default function SubcontractorPortal() {
         {/* Questions Tab */}
         {activeTab === 'questions' && (
           <div className="space-y-4">
-            {/* Existing Q&A */}
-            {data.questions.length > 0 && (
+            {/* AI Result Banner */}
+            {aiResult && (
+              <div className={`rounded-xl shadow-sm border p-6 ${
+                aiResult.status === 'auto_answered' ? 'bg-green-50 border-green-200' :
+                aiResult.status === 'pending_review' ? 'bg-amber-50 border-amber-200' :
+                'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <Brain className={`w-5 h-5 mt-0.5 ${
+                    aiResult.status === 'auto_answered' ? 'text-green-600' :
+                    aiResult.status === 'pending_review' ? 'text-amber-600' :
+                    'text-blue-600'
+                  }`} />
+                  <div className="flex-1">
+                    {aiResult.status === 'auto_answered' && aiResult.ai_analysis?.answer_text ? (
+                      <>
+                        <h3 className="font-bold text-green-800 mb-2">Answer Found in Documentation</h3>
+                        <p className="text-sm text-gray-800 mb-3">{aiResult.ai_analysis.answer_text}</p>
+                        {(aiResult.ai_analysis?.source_references?.length ?? 0) > 0 && (
+                          <div className="bg-white rounded-lg p-3 border border-green-200">
+                            <p className="text-xs font-medium text-gray-600 mb-1">Source:</p>
+                            {aiResult.ai_analysis?.source_references?.map((ref: SourceRef, i: number) => (
+                              <p key={i} className="text-xs text-gray-600">
+                                <span className="font-medium">{ref.document_name}</span> &mdash; Section {ref.section}
+                                {ref.sub_section !== 'N/A' && ` "${ref.sub_section}"`}
+                                {ref.page && `, Page ${ref.page}`}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : aiResult.status === 'pending_review' ? (
+                      <>
+                        <h3 className="font-bold text-amber-800 mb-1">Question Under Review</h3>
+                        <p className="text-sm text-gray-700">We found some related information but want to verify before sharing. We will follow up shortly.</p>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="font-bold text-blue-800 mb-1">Question Submitted for Clarification</h3>
+                        <p className="text-sm text-gray-700">
+                          Your question has been added to our formal clarification request
+                          {data.question_deadline && (
+                            <>, which will be submitted on <strong>{new Date(data.question_deadline).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></>
+                          )}.
+                          You will be notified when an answer is available.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <button onClick={() => setAiResult(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                </div>
+              </div>
+            )}
+
+            {/* AI-Analyzed Q&A */}
+            {(data.ai_questions?.length > 0 || data.questions.length > 0) && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Questions & Answers</h2>
                 <div className="space-y-4">
-                  {data.questions.map(q => (
+                  {/* AI-analyzed questions first */}
+                  {data.ai_questions?.map(q => (
+                    <div key={q.id} className={`border rounded-lg p-4 ${
+                      q.status === 'auto_answered' || q.status === 'answered' ? 'border-green-200 bg-green-50/30' :
+                      q.status === 'pending_submission' || q.status === 'submitted' ? 'border-blue-200 bg-blue-50/30' :
+                      'border-gray-200'
+                    }`}>
+                      <div className="flex items-start gap-2 mb-2">
+                        <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{q.question_text}</p>
+                          {q.related_section && (
+                            <span className="text-xs text-gray-400">Re: {q.related_section}</span>
+                          )}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          q.status === 'auto_answered' || q.status === 'answered' ? 'bg-green-100 text-green-700' :
+                          q.status === 'pending_submission' || q.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {q.status === 'auto_answered' ? 'Answered' :
+                           q.status === 'answered' ? 'Answered' :
+                           q.status === 'pending_submission' ? 'Pending Submission' :
+                           q.status === 'submitted' ? 'Submitted' :
+                           q.status === 'pending_review' ? 'Under Review' : 'Pending'}
+                        </span>
+                      </div>
+                      {q.ai_answer && (q.status === 'auto_answered' || q.status === 'answered') && (
+                        <div className="ml-6 mt-2">
+                          <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                            <p className="text-sm text-gray-700">{q.ai_answer}</p>
+                          </div>
+                          {q.ai_source_references?.length > 0 && (
+                            <div className="mt-2 p-2 bg-amber-50 rounded border border-amber-200">
+                              <p className="text-xs font-medium text-amber-800 mb-1">Source Documentation:</p>
+                              {q.ai_source_references.map((ref: SourceRef, i: number) => (
+                                <p key={i} className="text-xs text-gray-600">
+                                  <span className="font-medium">{ref.document_name}</span> &mdash; Section {ref.section}
+                                  {ref.sub_section !== 'N/A' && ` "${ref.sub_section}"`}
+                                  {ref.page && `, Page ${ref.page}`}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {q.status === 'pending_submission' && data.question_deadline && (
+                        <div className="ml-6 mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                          Will be submitted for clarification on {new Date(data.question_deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {/* Legacy questions that are not in AI system */}
+                  {data.questions.filter(q => !data.ai_questions?.find(aq => aq.question_text === q.question_text)).map(q => (
                     <div key={q.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-start gap-2 mb-2">
                         <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
