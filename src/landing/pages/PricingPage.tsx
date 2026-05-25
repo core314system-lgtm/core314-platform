@@ -180,7 +180,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
                 <Link
-                  to="/login"
+                  to="/login?from=pricing"
                   className={`block w-full py-3.5 text-center rounded-xl font-semibold text-sm transition-colors ${
                     tier.popular
                       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/25'

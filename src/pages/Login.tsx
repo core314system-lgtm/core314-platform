@@ -14,8 +14,9 @@ interface InviteInfo {
 export default function Login() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('invite')
+  const fromPricing = searchParams.get('from') === 'pricing' || document.referrer.includes('/pricing')
 
-  const [isSignUp, setIsSignUp] = useState(!!inviteToken)
+  const [isSignUp, setIsSignUp] = useState(!!inviteToken || fromPricing)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -243,13 +244,28 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => { setIsSignUp(!isSignUp); setError('') }}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
+          <div className="mt-6">
+            {!isSignUp ? (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 text-center">
+                <p className="text-sm font-semibold text-slate-800 mb-1">New to Procuvex?</p>
+                <p className="text-xs text-slate-600 mb-3">Start your 7-day free trial — no credit card required.</p>
+                <button
+                  onClick={() => { setIsSignUp(true); setError('') }}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <UserPlus size={16} /> Sign Up Free
+                </button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <button
+                  onClick={() => { setIsSignUp(false); setError('') }}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Already have an account? Sign in
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
