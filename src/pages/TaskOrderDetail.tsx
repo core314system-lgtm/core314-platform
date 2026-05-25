@@ -443,7 +443,13 @@ export default function TaskOrderDetail() {
     }
 
     setUploading(false)
-    fetchDocuments()
+    await fetchDocuments()
+
+    // Auto-trigger AI analysis after upload if not already analyzed
+    if (!aiStatus.analysis && !analyzing && taskOrder) {
+      setExpandedSection('analysis')
+      handleAnalyze()
+    }
   }
 
   async function handleDelete(doc: Doc) {
@@ -1032,6 +1038,15 @@ export default function TaskOrderDetail() {
 
         {expandedSection === 'analysis' && (
           <div className="px-6 pb-6 space-y-4 border-t border-gray-100 pt-4">
+            {analyzing && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+                <div className="h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">{analysisProgress || 'Analyzing documents...'}</p>
+                  <p className="text-xs text-blue-600 mt-0.5">This typically takes 15-30 seconds depending on document size.</p>
+                </div>
+              </div>
+            )}
             {documents.length === 0 ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
                 <AlertTriangle size={20} className="text-yellow-500" />

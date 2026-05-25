@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   FileText, Brain, Shield, Users, DollarSign, ClipboardCheck,
   Target, Kanban, BarChart3, Zap, Building2, ArrowRight,
-  Upload, CheckCircle,
+  Upload, CheckCircle, MessageSquare,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -77,6 +77,12 @@ const modules = [
     title: 'Integrations',
     desc: 'Search SAM.gov for federal opportunities, import projects from CSV/Excel, or connect via REST API from your CRM, ERP, or custom tools.',
     features: ['SAM.gov search & import', 'CSV/Excel bulk import', 'REST API (create/list)', 'API key authentication'],
+  },
+  {
+    icon: MessageSquare,
+    title: 'AI Q&A Management',
+    desc: 'Subcontractors submit questions through the RFQ portal. AI instantly searches all bid documents and answers questions it can verify — with exact source citations. Unanswerable questions are queued for the formal Q&A submission deadline.',
+    features: ['AI-powered document search', 'Source citations (doc, section, page)', 'Auto-answer vs. pending routing', 'Question deadline tracking'],
   },
   {
     icon: Building2,
