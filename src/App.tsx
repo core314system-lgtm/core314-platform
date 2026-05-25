@@ -51,6 +51,7 @@ import TermsPage from './landing/pages/TermsPage'
 import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
+import ROIPage from './landing/pages/ROIPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="/solutions" element={<SolutionsPage />} />
           <Route path="/integrations-overview" element={<IntegrationsOverviewPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/roi" element={<ROIPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

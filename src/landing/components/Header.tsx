@@ -7,6 +7,7 @@ const navLinks = [
   { to: '/how-it-works', label: 'How It Works' },
   { to: '/solutions', label: 'Solutions' },
   { to: '/integrations-overview', label: 'Integrations' },
+  { to: '/roi', label: 'Why Procuvex' },
   { to: '/pricing', label: 'Pricing' },
   { to: '/contact', label: 'Contact' },
 ]
