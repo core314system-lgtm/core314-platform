@@ -1,45 +1,182 @@
 import type { Context } from "@netlify/functions"
-import { createClient } from "@supabase/supabase-js"
+import pg from "pg"
+
+/**
+ * Migration runner for Q&A Management tables.
+ * Connects directly to PostgreSQL to execute DDL statements.
+ * Protected by service role key.
+ *
+ * POST /api/run-migration
+ * Headers: Authorization: Bearer <service_role_key>
+ */
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Content-Type": "application/json",
+}
+
+const QA_MIGRATION_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS public.opportunity_questions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_order_id uuid NOT NULL REFERENCES public.task_orders ON DELETE CASCADE,
+    sow_subcontractor_id uuid REFERENCES public.sow_subcontractors ON DELETE SET NULL,
+    subcontractor_id uuid REFERENCES public.subcontractors ON DELETE SET NULL,
+    submitted_by_type text NOT NULL DEFAULT 'subcontractor' CHECK (submitted_by_type IN ('subcontractor', 'prime_team')),
+    submitted_by_user_id uuid REFERENCES auth.users ON DELETE SET NULL,
+    question_text text NOT NULL,
+    related_section text,
+    ai_answer text,
+    ai_confidence_score numeric(5,2) CHECK (ai_confidence_score >= 0 AND ai_confidence_score <= 100),
+    ai_source_references jsonb DEFAULT '[]',
+    official_answer text,
+    official_source_document_id uuid REFERENCES public.documents ON DELETE SET NULL,
+    status text NOT NULL DEFAULT 'pending_review' CHECK (status IN (
+      'auto_answered', 'pending_review', 'pending_submission', 'submitted', 'answered', 'unanswerable', 'dismissed'
+    )),
+    question_category text,
+    is_from_portal boolean NOT NULL DEFAULT false,
+    rfq_token_id uuid REFERENCES public.rfq_tokens ON DELETE SET NULL,
+    submission_id uuid,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    answered_at timestamptz,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `ALTER TABLE public.opportunity_questions ENABLE ROW LEVEL SECURITY`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'opportunity_questions' AND policyname = 'Auth users can manage opportunity questions') THEN
+      CREATE POLICY "Auth users can manage opportunity questions" ON public.opportunity_questions FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'opportunity_questions' AND policyname = 'Portal users can insert opportunity questions') THEN
+      CREATE POLICY "Portal users can insert opportunity questions" ON public.opportunity_questions FOR INSERT WITH CHECK (true);
+    END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'opportunity_questions' AND policyname = 'Portal users can read own questions') THEN
+      CREATE POLICY "Portal users can read own questions" ON public.opportunity_questions FOR SELECT USING (true);
+    END IF;
+  END $$`,
+  `CREATE TABLE IF NOT EXISTS public.question_submissions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_order_id uuid NOT NULL REFERENCES public.task_orders ON DELETE CASCADE,
+    submission_deadline timestamptz NOT NULL,
+    submitted_at timestamptz,
+    submitted_by uuid REFERENCES auth.users ON DELETE SET NULL,
+    question_count integer NOT NULL DEFAULT 0,
+    status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'response_received', 'closed')),
+    response_received_at timestamptz,
+    response_document_id uuid REFERENCES public.documents ON DELETE SET NULL,
+    notes text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `ALTER TABLE public.question_submissions ENABLE ROW LEVEL SECURITY`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'question_submissions' AND policyname = 'Auth users can manage question submissions') THEN
+      CREATE POLICY "Auth users can manage question submissions" ON public.question_submissions FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'fk_oq_submission') THEN
+      ALTER TABLE public.opportunity_questions ADD CONSTRAINT fk_oq_submission FOREIGN KEY (submission_id) REFERENCES public.question_submissions(id) ON DELETE SET NULL;
+    END IF;
+  END $$`,
+  `CREATE TABLE IF NOT EXISTS public.question_answer_history (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    opportunity_question_id uuid REFERENCES public.opportunity_questions ON DELETE SET NULL,
+    task_order_id uuid REFERENCES public.task_orders ON DELETE SET NULL,
+    question_category text,
+    question_pattern text NOT NULL,
+    answer_pattern text,
+    opportunity_type text,
+    agency text,
+    was_auto_answered boolean NOT NULL DEFAULT false,
+    confidence_score numeric(5,2),
+    source_document_type text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `ALTER TABLE public.question_answer_history ENABLE ROW LEVEL SECURITY`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'question_answer_history' AND policyname = 'Auth users can manage question history') THEN
+      CREATE POLICY "Auth users can manage question history" ON public.question_answer_history FOR ALL USING (auth.uid() IS NOT NULL);
+    END IF;
+  END $$`,
+  `ALTER TABLE public.task_orders ADD COLUMN IF NOT EXISTS question_deadline timestamptz`,
+  `CREATE INDEX IF NOT EXISTS idx_oq_task_order ON public.opportunity_questions(task_order_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_oq_status ON public.opportunity_questions(status)`,
+  `CREATE INDEX IF NOT EXISTS idx_oq_sub ON public.opportunity_questions(sow_subcontractor_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_oq_created ON public.opportunity_questions(created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_oq_confidence ON public.opportunity_questions(ai_confidence_score)`,
+  `CREATE INDEX IF NOT EXISTS idx_qs_task_order ON public.question_submissions(task_order_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_qs_deadline ON public.question_submissions(submission_deadline)`,
+  `CREATE INDEX IF NOT EXISTS idx_qah_category ON public.question_answer_history(question_category)`,
+  `CREATE INDEX IF NOT EXISTS idx_qah_pattern ON public.question_answer_history(question_pattern)`,
+]
 
 export default async (req: Request, _context: Context) => {
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  // Create tables by inserting a test row and letting it fail, then using rpc
-  // Actually, we need to create an exec_sql function first through the service role
-
-  // Use the Supabase REST endpoint to call postgres functions
-  // We'll create tables through the HTTP API
-  const tables = [
-    {
-      name: 'quote_form_templates',
-      testInsert: {
-        id: '00000000-0000-0000-0000-000000000001',
-        name: '__test__',
-        is_default: false,
-      }
-    }
-  ]
-
-  // Check if migration already ran by trying to read from one of the new tables
-  const { error: checkErr } = await supabase
-    .from('quote_form_templates')
-    .select('id')
-    .limit(1)
-
-  if (!checkErr) {
-    return new Response(JSON.stringify({ status: 'already_migrated' }), {
-      headers: { 'Content-Type': 'application/json' }
-    })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders })
+  }
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: corsHeaders })
   }
 
-  return new Response(JSON.stringify({
-    status: 'migration_needed',
-    error: checkErr.message,
-    hint: 'Run the SQL in supabase/migration-rfq-portal.sql via the Supabase Dashboard SQL editor'
-  }), {
-    headers: { 'Content-Type': 'application/json' }
+  const authHeader = req.headers.get("Authorization")
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.TASKORDER_SUPABASE_SERVICE_ROLE_KEY
+  if (!authHeader || !serviceKey || authHeader !== `Bearer ${serviceKey}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
+  }
+
+  const dbPassword = process.env.SUPABASE_DB_PASSWORD || process.env.TASKORDER_SUPABASE_DB_PASSWORD
+  if (!dbPassword) {
+    return new Response(JSON.stringify({ error: "Database password not configured" }), { status: 500, headers: corsHeaders })
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ""
+  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || ""
+
+  const client = new pg.Client({
+    host: `db.${projectRef}.supabase.co`,
+    port: 5432,
+    database: "postgres",
+    user: "postgres",
+    password: dbPassword,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000,
   })
+
+  const results: Array<{ step: number; status: string; error?: string }> = []
+
+  try {
+    await client.connect()
+    results.push({ step: 0, status: "connected" })
+
+    for (let i = 0; i < QA_MIGRATION_STATEMENTS.length; i++) {
+      try {
+        await client.query(QA_MIGRATION_STATEMENTS[i])
+        results.push({ step: i + 1, status: "ok" })
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Unknown"
+        if (msg.includes("already exists")) {
+          results.push({ step: i + 1, status: "skipped" })
+        } else {
+          results.push({ step: i + 1, status: "error", error: msg })
+        }
+      }
+    }
+
+    await client.end()
+    const errors = results.filter(r => r.status === "error")
+    return new Response(
+      JSON.stringify({ success: errors.length === 0, total: QA_MIGRATION_STATEMENTS.length, results, errors: errors.length }),
+      { headers: corsHeaders }
+    )
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Unknown"
+    try { await client.end() } catch { /* ignore */ }
+    return new Response(JSON.stringify({ error: msg, results }), { status: 500, headers: corsHeaders })
+  }
 }
