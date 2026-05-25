@@ -133,7 +133,7 @@ export default async (req: Request, _context: Context) => {
                   <p style="font-size: 13px; color: #64748b;">If you have any questions, our AI assistant is available in-app, or reach us at support@procuvex.com.</p>
                 </div>
                 <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-                  <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
+                  <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
                 </div>
               </div>
             `,
@@ -208,7 +208,7 @@ export default async (req: Request, _context: Context) => {
                     <p style="font-size: 13px; color: #64748b;">If you believe this is an error, please contact us at support@procuvex.com.</p>
                   </div>
                   <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-                    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
+                    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
                   </div>
                 </div>
               `,

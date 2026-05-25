@@ -125,7 +125,7 @@ export default async (req: Request, _context: Context) => {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
           
           <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-            Procuvex &mdash; A product of Core314 Technologies LLC
+            Delivered on behalf of ${org_name || "your organization"} &mdash; Powered by Procuvex
           </p>
         </div>
       </div>

@@ -21,7 +21,7 @@ To apply these templates, go to your **Supabase Dashboard → Authentication →
     <p style="font-size: 13px; color: #64748b;">If you didn't create a Procuvex account, you can safely ignore this email.</p>
   </div>
   <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
+    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
   </div>
 </div>
 ```
@@ -45,7 +45,7 @@ To apply these templates, go to your **Supabase Dashboard → Authentication →
     <p style="font-size: 13px; color: #64748b;">If you didn't request a password reset, you can safely ignore this email. This link expires in 24 hours.</p>
   </div>
   <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
+    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
   </div>
 </div>
 ```
@@ -69,7 +69,7 @@ To apply these templates, go to your **Supabase Dashboard → Authentication →
     <p style="font-size: 13px; color: #64748b;">If you didn't request this link, you can safely ignore this email.</p>
   </div>
   <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
+    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
   </div>
 </div>
 ```
@@ -93,7 +93,7 @@ To apply these templates, go to your **Supabase Dashboard → Authentication →
     <p style="font-size: 13px; color: #64748b;">If you weren't expecting this invitation, you can safely ignore this email.</p>
   </div>
   <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
+    <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
   </div>
 </div>
 ```
