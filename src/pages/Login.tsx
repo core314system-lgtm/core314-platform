@@ -164,31 +164,28 @@ export default function Login() {
         return
       }
 
-      // Check if session was created immediately (email confirmation disabled)
-      const { data: { session: newSession } } = await supabase.auth.getSession()
-      if (newSession) {
-        // User is auto-confirmed — handle invite or redirect to Stripe
-        if (inviteToken) {
+      // Account created successfully
+      if (inviteToken) {
+        // For invite flows, check if session exists to accept invite
+        const { data: { session: newSession } } = await supabase.auth.getSession()
+        if (newSession) {
           const { data: { user: newUser } } = await supabase.auth.getUser()
           if (newUser) await acceptInvite(newUser.id)
-          navigate('/dashboard')
-        } else if (selectedPlan) {
-          // Redirect to Stripe Checkout for the selected plan
-          const { data: { user: newUser } } = await supabase.auth.getUser()
-          const profile = newUser ? await supabase
-            .from('user_profiles')
-            .select('current_org_id')
-            .eq('id', newUser.id)
-            .single() : null
-          const orgId = profile?.data?.current_org_id || ''
-          await redirectToStripeCheckout(email, orgId)
-        } else {
-          navigate('/dashboard')
         }
+        navigate('/dashboard')
+      } else if (selectedPlan) {
+        // Redirect to Stripe Checkout immediately — no session needed
+        // Stripe just needs the email to create/find the customer
+        await redirectToStripeCheckout(email, '')
       } else {
-        // Email confirmation required — show success message
-        setSignUpSuccess(true)
-        setLoading(false)
+        // No plan selected — check if session exists to go to dashboard
+        const { data: { session: newSession } } = await supabase.auth.getSession()
+        if (newSession) {
+          navigate('/dashboard')
+        } else {
+          setSignUpSuccess(true)
+          setLoading(false)
+        }
       }
     } else {
       const { error: signInError } = await signIn(email, password)
