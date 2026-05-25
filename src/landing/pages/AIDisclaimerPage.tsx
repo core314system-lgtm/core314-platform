@@ -78,7 +78,7 @@ export default function AIDisclaimerPage() {
 
             <section>
               <h2 className="text-2xl font-semibold text-slate-900 mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>Contact</h2>
-              <p>If you have questions about this disclaimer or Procuvex's AI capabilities, please contact us at <a href="mailto:support@govmatchai.com" className="text-blue-600 hover:text-blue-700">support@govmatchai.com</a>.</p>
+              <p>If you have questions about this disclaimer or Procuvex's AI capabilities, please contact us at <a href="mailto:support@procuvex.com" className="text-blue-600 hover:text-blue-700">support@procuvex.com</a>.</p>
             </section>
           </div>
         </div>

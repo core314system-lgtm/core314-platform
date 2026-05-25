@@ -79,7 +79,7 @@ export default function PrivacyPage() {
 
             <section>
               <h2 className="text-2xl font-semibold text-slate-900 mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>5. Data Retention and Deletion</h2>
-              <p>We retain your data for as long as your account is active or as needed to provide services. You may request deletion of your account and associated data at any time by contacting us at <a href="mailto:support@govmatchai.com" className="text-blue-600 hover:text-blue-700">support@govmatchai.com</a>.</p>
+              <p>We retain your data for as long as your account is active or as needed to provide services. You may request deletion of your account and associated data at any time by contacting us at <a href="mailto:support@procuvex.com" className="text-blue-600 hover:text-blue-700">support@procuvex.com</a>.</p>
             </section>
 
             <section>
@@ -92,13 +92,13 @@ export default function PrivacyPage() {
                 <li>Export your data in a portable format</li>
                 <li>Object to certain processing activities</li>
               </ul>
-              <p className="mt-4">To exercise these rights, contact us at <a href="mailto:support@govmatchai.com" className="text-blue-600 hover:text-blue-700">support@govmatchai.com</a>.</p>
+              <p className="mt-4">To exercise these rights, contact us at <a href="mailto:support@procuvex.com" className="text-blue-600 hover:text-blue-700">support@procuvex.com</a>.</p>
             </section>
 
             <section>
               <h2 className="text-2xl font-semibold text-slate-900 mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>7. Contact Us</h2>
               <p>If you have questions about this Privacy Policy, please contact us:</p>
-              <p className="mt-2"><strong>Core314&trade; Technologies LLC</strong><br />Email: <a href="mailto:support@govmatchai.com" className="text-blue-600 hover:text-blue-700">support@govmatchai.com</a></p>
+              <p className="mt-2"><strong>Core314&trade; Technologies LLC</strong><br />Email: <a href="mailto:support@procuvex.com" className="text-blue-600 hover:text-blue-700">support@procuvex.com</a></p>
             </section>
           </div>
         </div>

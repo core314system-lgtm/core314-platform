@@ -82,7 +82,7 @@ export default async (_req: Request, _context: Context) => {
                 <p style="font-size: 13px; color: #64748b;">Questions? Our AI assistant is available in-app, or email support@procuvex.com.</p>
               </div>
               <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence<br/>A product of Core314 Technologies LLC</p>
+                <p style="margin: 0; font-size: 12px; color: #94a3b8;">Procuvex — AI-Powered Procurement Intelligence</p>
               </div>
             </div>
           `,
