@@ -223,19 +223,30 @@ export default function SubcontractorCapture() {
       setResults(discovered)
 
       // Scrape emails in the background for results that have websites
+      // Run in parallel batches of 3 for speed
       const withWebsites = discovered.filter(d => d.website)
-      for (const sub of withWebsites) {
-        try {
-          const resp = await fetch('/.netlify/functions/scrape-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ website: sub.website }),
-          })
-          const data = await resp.json()
-          if (data.best_email) {
-            setResults(prev => prev.map(r => r.id === sub.id ? { ...r, contact_email: data.best_email } : r))
+      const BATCH_SIZE = 3
+      for (let i = 0; i < withWebsites.length; i += BATCH_SIZE) {
+        const batch = withWebsites.slice(i, i + BATCH_SIZE)
+        const promises = batch.map(async (sub) => {
+          try {
+            setResults(prev => prev.map(r => r.id === sub.id ? { ...r, scraping_email: true } : r))
+            const resp = await fetch('/.netlify/functions/scrape-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ website: sub.website }),
+            })
+            const data = await resp.json()
+            if (data.best_email) {
+              setResults(prev => prev.map(r => r.id === sub.id ? { ...r, contact_email: data.best_email, scraping_email: false } : r))
+            } else {
+              setResults(prev => prev.map(r => r.id === sub.id ? { ...r, scraping_email: false } : r))
+            }
+          } catch {
+            setResults(prev => prev.map(r => r.id === sub.id ? { ...r, scraping_email: false } : r))
           }
-        } catch { /* ignore scrape failures */ }
+        })
+        await Promise.all(promises)
       }
     } catch {
       setError('Search failed. Please try again.')
@@ -667,7 +678,7 @@ export default function SubcontractorCapture() {
                           {sub.phone}
                         </span>
                       )}
-                      {sub.contact_email && (
+                      {sub.contact_email ? (
                         <a
                           href={`mailto:${sub.contact_email}`}
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
@@ -675,7 +686,12 @@ export default function SubcontractorCapture() {
                           <Mail size={13} />
                           {sub.contact_email}
                         </a>
-                      )}
+                      ) : sub.scraping_email ? (
+                        <span className="flex items-center gap-1 text-gray-400 text-xs">
+                          <Loader2 size={12} className="animate-spin" />
+                          Finding email…
+                        </span>
+                      ) : null}
                       {sub.website && (
                         <a
                           href={`https://${sub.website}`}
