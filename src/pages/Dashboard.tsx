@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import ResourceCapacity from '../components/ResourceCapacity'
-
-
+import OnboardingGuide from '../components/OnboardingGuide'
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -15,6 +14,17 @@ export default function Dashboard() {
   const [subCount, setSubCount] = useState(0)
   const [docCount, setDocCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('subscription') === 'success') {
+      setShowWelcome(true)
+      searchParams.delete('subscription')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     Promise.all([
@@ -40,6 +50,76 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Post-checkout welcome modal */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10 text-white text-center relative">
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="absolute top-4 right-4 text-white/70 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+              <PartyPopper size={48} className="mx-auto mb-4" />
+              <h2 className="text-2xl font-bold">Welcome to Procuvex!</h2>
+              <p className="text-blue-100 mt-2">Your free trial is now active</p>
+            </div>
+            <div className="px-8 py-6">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-green-800 font-medium">Your 7-day free trial has started. You have full access to all features.</p>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">Here are some things you can do to get started:</p>
+              <div className="space-y-3">
+                <Link
+                  to="/projects/new"
+                  onClick={() => setShowWelcome(false)}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                >
+                  <div className="bg-blue-100 rounded-lg p-2"><Plus size={16} className="text-blue-600" /></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Create your first project</p>
+                    <p className="text-xs text-gray-500">Upload a SOW or RFP to get started</p>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-400" />
+                </Link>
+                <Link
+                  to="/subcontractors"
+                  onClick={() => setShowWelcome(false)}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-green-50 hover:border-green-200 transition-colors"
+                >
+                  <div className="bg-green-100 rounded-lg p-2"><Users size={16} className="text-green-600" /></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Import subcontractors</p>
+                    <p className="text-xs text-gray-500">Upload your vendor database (Excel/CSV)</p>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-400" />
+                </Link>
+                <button
+                  onClick={() => { setShowWelcome(false); setShowOnboarding(true) }}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-purple-50 hover:border-purple-200 transition-colors w-full text-left"
+                >
+                  <div className="bg-purple-100 rounded-lg p-2"><Rocket size={16} className="text-purple-600" /></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Take a guided tour</p>
+                    <p className="text-xs text-gray-500">Learn what Procuvex can do for you</p>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-400" />
+                </button>
+              </div>
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="w-full mt-6 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Skip for now — go to dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onboarding guide modal */}
+      {showOnboarding && <OnboardingGuide onClose={() => setShowOnboarding(false)} />}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
           Procurement Dashboard
