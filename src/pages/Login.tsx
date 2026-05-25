@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LogIn, UserPlus, Mail } from 'lucide-react'
+import { LogIn, UserPlus, Mail, CheckCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface InviteInfo {
@@ -22,6 +22,7 @@ export default function Login() {
   const [fullName, setFullName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [signUpSuccess, setSignUpSuccess] = useState(false)
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
@@ -136,16 +137,19 @@ export default function Login() {
       if (signUpError) {
         setError(signUpError.message)
       } else {
-        // If invite token present, accept the invite
-        if (inviteToken) {
-          // Get the newly created user
-          const { data: { user: newUser } } = await supabase.auth.getUser()
-          if (newUser) {
-            await acceptInvite(newUser.id)
+        // Check if session was created immediately (email confirmation disabled)
+        const { data: { session: newSession } } = await supabase.auth.getSession()
+        if (newSession) {
+          // User is auto-confirmed — proceed to dashboard
+          if (inviteToken) {
+            const { data: { user: newUser } } = await supabase.auth.getUser()
+            if (newUser) await acceptInvite(newUser.id)
           }
+          navigate('/dashboard')
+        } else {
+          // Email confirmation required — show success message
+          setSignUpSuccess(true)
         }
-        setError('')
-        navigate('/dashboard')
       }
     } else {
       const { error: signInError } = await signIn(email, password)
@@ -163,6 +167,45 @@ export default function Login() {
       }
     }
     setLoading(false)
+  }
+
+  // Show success screen after signup when email confirmation is required
+  if (signUpSuccess) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
+            <p className="text-gray-600 mb-4">
+              We sent a confirmation link to <strong>{email}</strong>
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Click the link in the email to activate your account and start your 7-day free trial. The link expires in 24 hours.
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                Don't see it? Check your spam folder or{' '}
+                <button
+                  onClick={() => setSignUpSuccess(false)}
+                  className="text-blue-600 font-semibold hover:underline"
+                >
+                  try again with a different email
+                </button>
+              </p>
+            </div>
+            <button
+              onClick={() => { setSignUpSuccess(false); setIsSignUp(false); setError('') }}
+              className="text-sm text-slate-500 hover:text-slate-700"
+            >
+              Already confirmed? Sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
