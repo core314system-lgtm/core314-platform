@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { OrgProvider } from './contexts/OrgContext'
 import Layout from './components/Layout'
@@ -51,6 +52,7 @@ import TermsPage from './landing/pages/TermsPage'
 import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
+import ROIPage from './landing/pages/ROIPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -66,9 +68,16 @@ function HomePage() {
   return <LandingPage />
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <Routes>
           {/* Public landing pages */}
@@ -78,6 +87,7 @@ export default function App() {
           <Route path="/solutions" element={<SolutionsPage />} />
           <Route path="/integrations-overview" element={<IntegrationsOverviewPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/roi" element={<ROIPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

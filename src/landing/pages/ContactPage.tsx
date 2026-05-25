@@ -29,7 +29,7 @@ export default function ContactPage() {
         throw new Error('Failed to submit')
       }
     } catch {
-      setError('Something went wrong. Please try again or email us directly at support@govmatchai.com.')
+      setError('Something went wrong. Please try again or email us directly at support@procuvex.com.')
     } finally {
       setSubmitting(false)
     }
@@ -108,13 +108,13 @@ export default function ContactPage() {
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
                 <Building2 className="h-6 w-6 text-blue-600 mb-3" />
-                <h3 className="text-lg font-bold text-slate-900 mb-1">Core314 Technologies LLC</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Procuvex</h3>
                 <p className="text-sm text-slate-600">United States</p>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
                 <Mail className="h-6 w-6 text-blue-600 mb-3" />
                 <h3 className="text-lg font-bold text-slate-900 mb-1">Email Us</h3>
-                <a href="mailto:support@govmatchai.com" className="text-sm text-blue-600 hover:text-blue-700">support@govmatchai.com</a>
+                <a href="mailto:support@procuvex.com" className="text-sm text-blue-600 hover:text-blue-700">support@procuvex.com</a>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
                 <Clock className="h-6 w-6 text-blue-600 mb-3" />

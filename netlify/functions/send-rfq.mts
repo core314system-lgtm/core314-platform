@@ -51,6 +51,17 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "Task order not found" }), { status: 404 })
     }
 
+    // Look up the sending organization's name
+    let orgName = "Procuvex"
+    if (taskOrder.org_id) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("name")
+        .eq("id", taskOrder.org_id)
+        .single()
+      if (org?.name) orgName = org.name
+    }
+
     // Get all sow_subcontractors with their SOW and subcontractor details
     const { data: sowSubs } = await supabase
       .from("sow_subcontractors")
@@ -61,7 +72,7 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "No matching records found" }), { status: 404 })
     }
 
-    const siteUrl = process.env.URL || "https://core314-taskorder.netlify.app"
+    const siteUrl = process.env.URL || "https://procuvex.com"
     const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
     sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
 
@@ -137,7 +148,7 @@ export default async (req: Request, _context: Context) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #1e40af; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
             <h1 style="margin: 0; font-size: 20px;">Request for Quote</h1>
-            <p style="margin: 8px 0 0; opacity: 0.9; font-size: 14px;">Core314 Technologies LLC</p>
+            <p style="margin: 8px 0 0; opacity: 0.9; font-size: 14px;">On behalf of ${orgName}</p>
           </div>
           
           <div style="border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
@@ -176,8 +187,8 @@ export default async (req: Request, _context: Context) => {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
             
             <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-              Core314 Technologies LLC<br/>
-              Task Order Intelligence Platform
+              Delivered on behalf of ${orgName}<br/>
+              Powered by Procuvex
             </p>
           </div>
         </div>
@@ -188,7 +199,7 @@ export default async (req: Request, _context: Context) => {
           to: sub.contact_email,
           from: {
             email: process.env.SENDGRID_FROM_EMAIL || "noreply@core314.com",
-            name: "Core314 Task Order Intelligence",
+            name: orgName,
           },
           subject: `RFQ: ${sow.sow_name} — ${taskOrder.title}`,
           html: emailHtml,

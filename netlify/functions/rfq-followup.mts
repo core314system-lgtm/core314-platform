@@ -123,7 +123,7 @@ export default async function handler(req: Request, _context: Context) {
     // 3. Haven't exceeded max follow-ups
     let query = supabase
       .from('sow_subcontractors')
-      .select('*, subcontractors(*), sow_items(*, task_orders(title))')
+      .select('*, subcontractors(*), sow_items(*, task_orders(title, org_id))')
       .not('rfq_sent_date', 'is', null)
       .not('outreach_status', 'eq', 'quote_submitted')
       .lt('follow_up_count', MAX_FOLLOW_UPS)
@@ -200,11 +200,22 @@ export default async function handler(req: Request, _context: Context) {
         const sowName = sow.sow_name || sow.service_category || 'RFQ'
         const projectTitle = taskOrder?.title || 'Project'
 
+        // Look up the sending organization's name
+        let orgName = 'Procuvex'
+        if (taskOrder?.org_id) {
+          const { data: org } = await supabase
+            .from('organizations')
+            .select('name')
+            .eq('id', taskOrder.org_id)
+            .single()
+          if (org?.name) orgName = org.name
+        }
+
         await sgMail.default.send({
           to: sub.contact_email,
           from: {
             email: process.env.SENDGRID_FROM_EMAIL || 'noreply@core314.com',
-            name: 'Core314 Task Order Intelligence',
+            name: orgName,
           },
           subject: getFollowUpSubject(followUpNumber, sowName),
           html: getFollowUpHtml({

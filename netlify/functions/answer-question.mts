@@ -81,15 +81,26 @@ export default async (req: Request, _context: Context) => {
         const sowName = sow?.sow_name || sow?.service_category || "your RFQ"
         const questionText = (data as any).question_text || ""
 
-        // Get task order name for context
+        // Get task order name and org name for context
         let taskOrderTitle = "the project"
+        let orgName = "Procuvex"
         if (sow?.task_order_id) {
           const { data: to } = await supabase
             .from("task_orders")
-            .select("title")
+            .select("title, org_id")
             .eq("id", sow.task_order_id)
             .single()
-          if (to) taskOrderTitle = to.title
+          if (to) {
+            taskOrderTitle = to.title
+            if (to.org_id) {
+              const { data: org } = await supabase
+                .from("organizations")
+                .select("name")
+                .eq("id", to.org_id)
+                .single()
+              if (org?.name) orgName = org.name
+            }
+          }
         }
 
         // Find portal URL for this sub
@@ -110,7 +121,7 @@ export default async (req: Request, _context: Context) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #1e40af; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
               <h1 style="margin: 0; font-size: 20px;">Your Question Has Been Answered</h1>
-              <p style="margin: 8px 0 0; opacity: 0.9; font-size: 14px;">Core314 Technologies LLC</p>
+              <p style="margin: 8px 0 0; opacity: 0.9; font-size: 14px;">On behalf of ${orgName}</p>
             </div>
             
             <div style="border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
@@ -143,8 +154,8 @@ export default async (req: Request, _context: Context) => {
               <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
               
               <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-                Core314 Technologies LLC<br/>
-                Procuvex — Procurement Intelligence Platform
+                Delivered on behalf of ${orgName}<br/>
+                Powered by Procuvex
               </p>
             </div>
           </div>
@@ -154,7 +165,7 @@ export default async (req: Request, _context: Context) => {
           to: sub.contact_email,
           from: {
             email: process.env.SENDGRID_FROM_EMAIL || "noreply@core314.com",
-            name: "Core314 Task Order Intelligence",
+            name: orgName,
           },
           subject: `Answer to your question — ${sowName}`,
           html: emailHtml,
