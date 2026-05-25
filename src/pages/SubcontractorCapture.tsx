@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { markMultipleSources } from '../lib/subcontractorSources'
 import { searchCuratedCompanies, REGION_STATES, type CoverageLevel } from '../lib/curatedSubcontractors'
-import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2, ShieldCheck, Star } from 'lucide-react'
+import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2, ShieldCheck, Star, Mail } from 'lucide-react'
 
 const CUSTOM_CATEGORIES_KEY = 'core314_custom_service_categories'
 
@@ -50,9 +50,11 @@ interface DiscoveredSub {
   description: string
   rating?: number | null
   review_count?: number | null
+  contact_email: string | null
   data_source: DataSource
   selected: boolean
   imported: boolean
+  scraping_email?: boolean
 }
 
 export default function SubcontractorCapture() {
@@ -155,6 +157,7 @@ export default function SubcontractorCapture() {
                 description: r.address || `${r.city || ''}, ${r.state || ''}`,
                 rating: r.rating,
                 review_count: r.review_count,
+                contact_email: null,
                 data_source: 'google_places' as DataSource,
                 selected: false,
                 imported: false,
@@ -186,6 +189,7 @@ export default function SubcontractorCapture() {
             regions_served: c.regions_served,
             states_served: c.states_served,
             description: c.description,
+            contact_email: null,
             data_source: 'curated' as DataSource,
             selected: false,
             imported: false,
@@ -209,6 +213,7 @@ export default function SubcontractorCapture() {
             regions_served: c.regions_served,
             states_served: c.states_served,
             description: c.description,
+            contact_email: null,
             data_source: 'curated' as DataSource,
             selected: false,
             imported: false,
@@ -216,6 +221,22 @@ export default function SubcontractorCapture() {
       }
 
       setResults(discovered)
+
+      // Scrape emails in the background for results that have websites
+      const withWebsites = discovered.filter(d => d.website)
+      for (const sub of withWebsites) {
+        try {
+          const resp = await fetch('/.netlify/functions/scrape-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ website: sub.website }),
+          })
+          const data = await resp.json()
+          if (data.best_email) {
+            setResults(prev => prev.map(r => r.id === sub.id ? { ...r, contact_email: data.best_email } : r))
+          }
+        } catch { /* ignore scrape failures */ }
+      }
     } catch {
       setError('Search failed. Please try again.')
     } finally {
@@ -239,11 +260,31 @@ export default function SubcontractorCapture() {
     setImporting(true)
     setImportCount(0)
 
+    // Scrape emails for any selected subs that have a website but no email yet
+    const needsEmail = selected.filter(s => s.website && !s.contact_email)
+    if (needsEmail.length > 0) {
+      const scrapePromises = needsEmail.map(async (s) => {
+        try {
+          const resp = await fetch('/.netlify/functions/scrape-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ website: s.website }),
+          })
+          const data = await resp.json()
+          if (data.best_email) {
+            s.contact_email = data.best_email
+            setResults(prev => prev.map(r => r.id === s.id ? { ...r, contact_email: data.best_email } : r))
+          }
+        } catch { /* ignore */ }
+      })
+      await Promise.all(scrapePromises)
+    }
+
     function buildFullRecords(subs: DiscoveredSub[]) {
       return subs.map(s => ({
         company_name: s.company_name,
         contact_name: null,
-        contact_email: null,
+        contact_email: s.contact_email || null,
         contact_phone: s.phone,
         website: s.website ? (s.website.startsWith('http') ? s.website : `https://${s.website}`) : null,
         address: s.address || (s.hq_city && s.hq_state ? `${s.hq_city}, ${s.hq_state}` : null),
@@ -268,7 +309,7 @@ export default function SubcontractorCapture() {
       return subs.map(s => ({
         company_name: s.company_name,
         contact_name: null,
-        contact_email: null,
+        contact_email: s.contact_email || null,
         contact_phone: s.phone,
         service_categories: s.categories.length > 0 ? s.categories : [effectiveCategory],
         geographic_coverage: s.coverage === 'national'
@@ -625,6 +666,15 @@ export default function SubcontractorCapture() {
                           <Phone size={13} className="text-gray-400" />
                           {sub.phone}
                         </span>
+                      )}
+                      {sub.contact_email && (
+                        <a
+                          href={`mailto:${sub.contact_email}`}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                        >
+                          <Mail size={13} />
+                          {sub.contact_email}
+                        </a>
                       )}
                       {sub.website && (
                         <a
