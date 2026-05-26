@@ -56,10 +56,11 @@ export default async (req: Request, _context: Context) => {
       })
     }
 
-    // Create checkout session with 7-day trial
+    // Create checkout session with 7-day trial — payment method required upfront
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       mode: 'subscription',
+      payment_method_collection: 'always',
       payment_method_types: ['card', 'us_bank_account'],
       payment_method_options: {
         us_bank_account: {
