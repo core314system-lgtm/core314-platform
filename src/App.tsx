@@ -59,6 +59,13 @@ import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
 
+function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
+  const { profile, loading } = useAuth()
+  if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
+  if (!profile?.is_global_admin) return <Navigate to="/dashboard" replace />
+  return <>{children}</>
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth()
   const [betaAccepted, setBetaAccepted] = useState(true) // default true so existing users aren't blocked
@@ -208,7 +215,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
-          <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
+          <Route path="/admin/analytics" element={<ProtectedRoute><GlobalAdminRoute><AdminAnalytics /></GlobalAdminRoute></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />

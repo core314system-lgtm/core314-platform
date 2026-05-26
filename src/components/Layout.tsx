@@ -121,7 +121,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto min-h-0">
-          {navItems.map(item => {
+          {navItems.filter(item => item.path !== '/admin/analytics' || profile?.is_global_admin).map(item => {
             const isActive = item.path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(item.path)
             return (
               <Link
