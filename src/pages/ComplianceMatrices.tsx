@@ -1,0 +1,96 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { loadAiOutput } from '../lib/aiStorage'
+import type { TaskOrder, ComplianceItem } from '../lib/types'
+import { Shield, ArrowRight, CheckCircle, Clock, FileStack } from 'lucide-react'
+
+interface TOWithMatrix {
+  taskOrder: TaskOrder
+  hasMatrix: boolean
+  itemCount: number
+}
+
+export default function ComplianceMatrices() {
+  const [items, setItems] = useState<TOWithMatrix[]>([])
+  const [contractMap, setContractMap] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const [toRes, contractRes] = await Promise.all([
+        supabase.from('task_orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('contracts').select('id, title'),
+      ])
+      const taskOrders = toRes.data
+      const cMap: Record<string, string> = {}
+      for (const c of (contractRes.data || [])) { cMap[c.id] = c.title }
+      setContractMap(cMap)
+
+      const results: TOWithMatrix[] = []
+      for (const to of taskOrders || []) {
+        const matrix = await loadAiOutput<{ items: ComplianceItem[] }>(to.id, 'compliance_matrix')
+        results.push({
+          taskOrder: to,
+          hasMatrix: !!matrix?.items?.length,
+          itemCount: matrix?.items?.length || 0,
+        })
+      }
+      setItems(results)
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Shield className="text-blue-600" size={24} /> Compliance Matrices
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">View compliance matrices for all projects</p>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <Shield className="mx-auto text-gray-400 mb-3" size={40} />
+          <p className="text-gray-500">No projects registered yet.</p>
+          <Link to="/projects/new" className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            New Project
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map(({ taskOrder: to, hasMatrix, itemCount }) => (
+            <Link
+              key={to.id}
+              to={hasMatrix ? `/projects/${to.id}/compliance` : `/projects/${to.id}`}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center justify-between hover:shadow-md transition-shadow block"
+            >
+              <div className="flex items-center gap-4">
+                {hasMatrix ? (
+                  <CheckCircle size={24} className="text-green-500" />
+                ) : (
+                  <Clock size={24} className="text-gray-400" />
+                )}
+                <div>
+                  <h3 className="font-semibold text-gray-900">{to.title}</h3>
+                  {(to as TaskOrder & { contract_id?: string }).contract_id && contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!] && (
+                    <p className="flex items-center gap-1 text-xs text-indigo-600 mt-0.5"><FileStack size={10} /> {contractMap[(to as TaskOrder & { contract_id?: string }).contract_id!]}</p>
+                  )}
+                  <p className="text-sm text-gray-500">
+                    {to.site_name && `${to.site_name} | `}
+                    {hasMatrix ? `${itemCount} compliance items` : 'No matrix generated - run AI analysis'}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight size={18} className="text-gray-400" />
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

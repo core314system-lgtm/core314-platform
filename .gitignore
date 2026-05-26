@@ -1,28 +1,31 @@
-# Local Netlify folder
-.netlify
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Environment variables - NEVER commit .env files with real secrets
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
 .env
 .env.local
-.env.development
 .env.production
-.env.*.local
-**/.env
-**/.env.production
-
-# Dependencies
-node_modules/
-
-# Build output
-dist/
-build/
-
-# Logs
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Private proprietary modules (Phase 25+)
-core314-app/supabase/functions/_private/
+.netlify/
+supabase/.temp/
