@@ -1,5 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
+import { sanitizeText, sanitizeAndLimit, isValidUUID } from "./_shared/sanitize.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -377,6 +379,14 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "Question text is required" }), { status: 400, headers: corsHeaders })
     }
 
+    // Sanitize inputs
+    const cleanQuestion = sanitizeAndLimit(question_text, 2000)
+    const cleanSection = related_section ? sanitizeAndLimit(related_section, 500) : null
+
+    if (task_order_id && !isValidUUID(task_order_id)) {
+      return new Response(JSON.stringify({ error: "Invalid task order ID" }), { status: 400, headers: corsHeaders })
+    }
+
     let taskOrderId = task_order_id
     let sowSubcontractorId: string | null = null
     let subcontractorId: string | null = null
@@ -406,13 +416,20 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "Task order ID is required" }), { status: 400, headers: corsHeaders })
     }
 
+    // Rate limit: look up org from task order
+    const { data: toForRl } = await supabase.from("task_orders").select("org_id").eq("id", taskOrderId).single()
+    if (toForRl?.org_id) {
+      const rl = await checkRateLimit(toForRl.org_id, "ai_call")
+      if (!rl.allowed) return rateLimitResponse(rl, "question submission")
+    }
+
     const { orgName, taskOrderTitle, questionDeadline } = await getOrgInfo(taskOrderId)
 
     // Step 1: Fetch all documents for this task order
     const documents = await fetchDocumentTexts(taskOrderId)
 
     // Step 2: Analyze question against documents using AI
-    const analysis = await analyzeQuestionWithAI(question_text.trim(), documents, related_section)
+    const analysis = await analyzeQuestionWithAI(cleanQuestion, documents, cleanSection || undefined)
 
     // Step 3: Determine status based on confidence score
     let status: string
@@ -433,8 +450,8 @@ export default async (req: Request, _context: Context) => {
         subcontractor_id: subcontractorId,
         submitted_by_type: submitted_by_type || (token ? "subcontractor" : "prime_team"),
         submitted_by_user_id: user_id || null,
-        question_text: question_text.trim(),
-        related_section: related_section || null,
+        question_text: cleanQuestion,
+        related_section: cleanSection,
         ai_answer: analysis.answer_text,
         ai_confidence_score: analysis.confidence_score,
         ai_source_references: analysis.source_references,
@@ -460,8 +477,8 @@ export default async (req: Request, _context: Context) => {
         sow_item_id: sowItemId,
         task_order_id: taskOrderId,
         subcontractor_id: subcontractorId,
-        question_text: question_text.trim(),
-        related_section: related_section || null,
+        question_text: cleanQuestion,
+        related_section: cleanSection,
         status: status === "auto_answered" ? "answered" : "pending",
         answer_text: status === "auto_answered" ? analysis.answer_text : null,
         answered_at: status === "auto_answered" ? new Date().toISOString() : null,
@@ -477,7 +494,7 @@ export default async (req: Request, _context: Context) => {
         comm_type: "question",
         direction: "inbound",
         subject: `Question${related_section ? `: ${related_section}` : ""} (AI: ${status})`,
-        body: question_text.trim(),
+        body: cleanQuestion,
       })
 
       const { data: sowSub } = await supabase
@@ -497,13 +514,13 @@ export default async (req: Request, _context: Context) => {
     if (status === "auto_answered" && subEmail && analysis.answer_text) {
       await sendAutoAnsweredEmail(
         subEmail, subName, orgName, taskOrderTitle,
-        question_text.trim(), analysis.answer_text,
+        cleanQuestion, analysis.answer_text,
         analysis.source_references, portalLink
       ).catch(err => console.error("Email error:", err))
     } else if (status === "pending_submission" && subEmail) {
       await sendPendingSubmissionEmail(
         subEmail, subName, orgName, taskOrderTitle,
-        question_text.trim(), questionDeadline, portalLink
+        cleanQuestion, questionDeadline, portalLink
       ).catch(err => console.error("Email error:", err))
     }
 
@@ -512,7 +529,7 @@ export default async (req: Request, _context: Context) => {
       opportunity_question_id: question.id,
       task_order_id: taskOrderId,
       question_category: analysis.question_category,
-      question_pattern: question_text.trim(),
+      question_pattern: cleanQuestion,
       answer_pattern: analysis.answer_text || null,
       was_auto_answered: status === "auto_answered",
       confidence_score: analysis.confidence_score,

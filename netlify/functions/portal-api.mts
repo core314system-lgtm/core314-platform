@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { sanitizeAndLimit } from "./_shared/sanitize.ts"
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
@@ -278,6 +279,9 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
     return new Response(JSON.stringify({ error: "Question text required" }), { status: 400, headers: corsHeaders })
   }
 
+  const cleanQuestion = sanitizeAndLimit(question_text, 2000)
+  const cleanSection = related_section ? sanitizeAndLimit(related_section, 500) : null
+
   // Route through AI-powered submit-question for document analysis
   const siteUrl = process.env.URL || "https://procuvex.com"
   try {
@@ -286,8 +290,8 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token: body.token,
-        question_text: question_text.trim(),
-        related_section: related_section || null,
+        question_text: cleanQuestion,
+        related_section: cleanSection,
       }),
     })
 
@@ -309,8 +313,8 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
       sow_item_id: tokenData.sow_item_id,
       task_order_id: tokenData.task_order_id,
       subcontractor_id: tokenData.subcontractor_id,
-      question_text: question_text.trim(),
-      related_section: related_section || null,
+      question_text: cleanQuestion,
+      related_section: cleanSection,
       status: "pending",
     })
     .select()
@@ -326,8 +330,8 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
     sow_subcontractor_id: tokenData.sow_subcontractor_id,
     subcontractor_id: tokenData.subcontractor_id,
     submitted_by_type: "subcontractor",
-    question_text: question_text.trim(),
-    related_section: related_section || null,
+    question_text: cleanQuestion,
+    related_section: cleanSection,
     status: "pending_submission",
     is_from_portal: true,
     rfq_token_id: tokenData.id,
@@ -352,8 +356,8 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
     sow_subcontractor_id: tokenData.sow_subcontractor_id,
     comm_type: "question",
     direction: "inbound",
-    subject: `Question from portal${related_section ? `: ${related_section}` : ""}`,
-    body: question_text.trim(),
+    subject: `Question from portal${cleanSection ? `: ${cleanSection}` : ""}`,
+    body: cleanQuestion,
   })
 
   return new Response(
@@ -377,8 +381,9 @@ async function handleBatchQuestionSubmission(tokenData: any, body: any) {
   const results: Array<{ status: string; ai_analysis?: any }> = []
 
   for (const q of questions) {
-    const questionText = q.question_text?.trim()
+    const questionText = sanitizeAndLimit(q.question_text || "", 2000)
     if (!questionText) continue
+    const qSection = q.related_section ? sanitizeAndLimit(q.related_section, 500) : null
 
     try {
       const aiRes = await fetch(`${siteUrl}/.netlify/functions/submit-question`, {
@@ -387,7 +392,7 @@ async function handleBatchQuestionSubmission(tokenData: any, body: any) {
         body: JSON.stringify({
           token: body.token,
           question_text: questionText,
-          related_section: q.related_section || null,
+          related_section: qSection,
         }),
       })
 
@@ -403,7 +408,7 @@ async function handleBatchQuestionSubmission(tokenData: any, body: any) {
           task_order_id: tokenData.task_order_id,
           subcontractor_id: tokenData.subcontractor_id,
           question_text: questionText,
-          related_section: q.related_section || null,
+          related_section: qSection,
           status: "pending",
         })
         results.push({ status: "pending_submission" })
@@ -417,7 +422,7 @@ async function handleBatchQuestionSubmission(tokenData: any, body: any) {
         task_order_id: tokenData.task_order_id,
         subcontractor_id: tokenData.subcontractor_id,
         question_text: questionText,
-        related_section: q.related_section || null,
+        related_section: qSection,
         status: "pending",
       })
       results.push({ status: "pending_submission" })

@@ -1,5 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
+import { sanitizeEmail, isValidUUID } from "./_shared/sanitize.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -41,11 +43,24 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers })
     }
 
+    if (!isValidUUID(org_id)) {
+      return new Response(JSON.stringify({ error: "Invalid organization ID" }), { status: 400, headers })
+    }
+
+    const cleanEmail = sanitizeEmail(email)
+    if (!cleanEmail) {
+      return new Response(JSON.stringify({ error: "Invalid email address" }), { status: 400, headers })
+    }
+
+    // Rate limit invitations
+    const rl = await checkRateLimit(org_id, "email")
+    if (!rl.allowed) return rateLimitResponse(rl, "invitations")
+
     // Check if already a member
     const { data: existingProfile } = await supabase
       .from("user_profiles")
       .select("id")
-      .eq("email", email.trim().toLowerCase())
+      .eq("email", cleanEmail)
       .single()
 
     if (existingProfile) {
@@ -66,7 +81,7 @@ export default async (req: Request, _context: Context) => {
       .from("org_invitations")
       .select("id")
       .eq("org_id", org_id)
-      .eq("email", email.trim().toLowerCase())
+      .eq("email", cleanEmail)
       .eq("status", "pending")
       .single()
 
@@ -81,7 +96,7 @@ export default async (req: Request, _context: Context) => {
 
     const { error: insertErr } = await supabase.from("org_invitations").insert({
       org_id,
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       role,
       token,
       invited_by: body.invited_by_id,
