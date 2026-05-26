@@ -123,8 +123,8 @@ export default async (req: Request, _context: Context) => {
                     <ul style="margin: 0; padding-left: 20px; color: #0c4a6e; font-size: 14px;">
                       <li>Your 7-day free trial starts today</li>
                       <li>Full access to all ${planLabel} features</li>
-                      <li>Cancel anytime before the trial ends — no charge</li>
-                      <li>After 7 days, your subscription begins automatically</li>
+                      <li>Cancel anytime before the trial ends — your card will not be charged</li>
+                      <li>After 7 days, your card on file will be charged and your subscription begins automatically</li>
                     </ul>
                   </div>
                   <div style="text-align: center; margin: 32px 0;">

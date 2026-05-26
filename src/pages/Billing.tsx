@@ -239,7 +239,7 @@ export default function Billing() {
                 >
                   {checkoutLoading === plan.id ? 'Redirecting...' : 'Start 7-Day Free Trial'}
                 </button>
-                <p className="text-xs text-gray-400 text-center mt-2">No charge during trial</p>
+                <p className="text-xs text-gray-400 text-center mt-2">Credit card required — no charge during trial</p>
               </div>
             ))}
           </div>
