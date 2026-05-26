@@ -1,0 +1,230 @@
+import { Check, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { createCheckoutSession } from '../services/stripe';
+import { useAuth } from '../hooks/useAuth';
+import { useState } from 'react';
+import { PRICING, formatPrice, formatAnnualMonthly, annualSavings } from '../config/pricing';
+
+// ============================================================================
+// PHASE 13.4: BILLING UX (TRUST-FIRST)
+// NON-NEGOTIABLE: Plans affect scale & depth only, never feature availability
+// All integrations remain visible and functional on all plans
+// ============================================================================
+
+// ============================================================================
+// PHASE 14.1: PRICING PAGE SOURCE-OF-TRUTH FIX
+// All pricing values are imported from shared/pricing.ts
+// NO inline price literals ($99, $199, etc.) are allowed in this file
+// ============================================================================
+
+type BillingInterval = 'monthly' | 'annual';
+
+const getTiers = (interval: BillingInterval) => [
+  {
+    name: PRICING.intelligence.name,
+    displayPrice: interval === 'monthly'
+      ? formatPrice(PRICING.intelligence.monthly)
+      : formatAnnualMonthly(PRICING.intelligence.annual),
+    annualTotal: PRICING.intelligence.annual,
+    savings: annualSavings(PRICING.intelligence.monthly, PRICING.intelligence.annual),
+    priceId: interval === 'monthly'
+      ? import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE
+      : (import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE_ANNUAL || import.meta.env.VITE_STRIPE_PRICE_INTELLIGENCE),
+    description: PRICING.intelligence.description,
+    features: PRICING.intelligence.features as unknown as string[],
+  },
+  {
+    name: PRICING.commandCenter.name,
+    displayPrice: interval === 'monthly'
+      ? formatPrice(PRICING.commandCenter.monthly)
+      : formatAnnualMonthly(PRICING.commandCenter.annual),
+    annualTotal: PRICING.commandCenter.annual,
+    savings: annualSavings(PRICING.commandCenter.monthly, PRICING.commandCenter.annual),
+    priceId: interval === 'monthly'
+      ? import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER
+      : (import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER_ANNUAL || import.meta.env.VITE_STRIPE_PRICE_COMMAND_CENTER),
+    description: PRICING.commandCenter.description,
+    popular: true,
+    features: PRICING.commandCenter.features as unknown as string[],
+  },
+  {
+    name: PRICING.enterprise.name,
+    displayPrice: 'Custom',
+    annualTotal: 0,
+    savings: 0,
+    priceId: import.meta.env.VITE_STRIPE_PRICE_ENTERPRISE,
+    description: PRICING.enterprise.description,
+    isCustom: true,
+    features: PRICING.enterprise.features as unknown as string[],
+  },
+];
+
+
+export function Pricing() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState<string | null>(null);
+  const [showAddons, setShowAddons] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
+
+  const tiers = getTiers(billingInterval);
+
+  const handleSubscribe = async (priceId: string, tierName: string) => {
+    if (!priceId) {
+      window.location.href = '/contact-sales';
+      return;
+    }
+    
+    setLoading(priceId);
+    try {
+      await createCheckoutSession({
+        priceId,
+        email: user?.email,
+        metadata: { tier: tierName.toLowerCase(), interval: billingInterval },
+      });
+    } catch (error) {
+      console.error('Checkout error:', error);
+      setLoading(null);
+    }
+  };
+
+
+  return (
+    <div className="py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            Choose Your Plan
+          </h1>
+          <p className="text-xl text-gray-600 dark:text-gray-400">
+            Select the perfect plan for your organization
+          </p>
+
+          {/* Billing interval toggle */}
+          <div className="mt-6 inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 p-1">
+            <button
+              onClick={() => setBillingInterval('monthly')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                billingInterval === 'monthly'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingInterval('annual')}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                billingInterval === 'annual'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              Annual
+              <span className="ml-2 inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">
+                Save 17%
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <Alert className="mb-8 border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <span className="font-medium">Trial begins after your first integration is connected.</span>{' '}
+            Each tier builds on the previous one, giving you deeper operational intelligence as your needs grow.
+          </AlertDescription>
+        </Alert>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          {tiers.map((tier) => (
+            <Card
+              key={tier.name}
+              className={tier.popular ? 'border-2 border-blue-500 relative' : ''}
+            >
+              {tier.popular && (
+                <div className="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 text-sm font-semibold rounded-bl-lg rounded-tr-lg">
+                  Most Popular
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle className="text-2xl">{tier.name}</CardTitle>
+                <CardDescription>{tier.description}</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                    {tier.displayPrice}
+                  </span>
+                  {!tier.isCustom && (
+                    <span className="text-gray-600 dark:text-gray-400">/month</span>
+                  )}
+                </div>
+                {!tier.isCustom && billingInterval === 'annual' && (
+                  <div className="mt-1 space-y-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {formatPrice(tier.annualTotal)}/year billed annually
+                    </p>
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                      Save {formatPrice(tier.savings)} per year
+                    </p>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3 mb-6">
+                  {tier.features.map((feature) => (
+                    <li key={feature} className="flex items-center">
+                      <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+                      <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="space-y-2">
+                  <Button
+                    className="w-full"
+                    variant={tier.popular ? 'default' : 'outline'}
+                    onClick={() => handleSubscribe(tier.priceId, tier.name)}
+                    disabled={loading === tier.priceId || tier.isCustom}
+                  >
+                    {tier.isCustom ? 'Contact Sales' : loading === tier.priceId ? 'Processing...' : 'Start Free Trial'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="mt-16">
+          <div className="text-center mb-8">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowAddons(!showAddons)}
+              className="mx-auto"
+            >
+              {showAddons ? (
+                <>
+                  <ChevronUp className="w-5 h-5 mr-2" />
+                  Hide Available Add-Ons
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-5 h-5 mr-2" />
+                  View Available Add-Ons
+                </>
+              )}
+            </Button>
+          </div>
+
+          {showAddons && (
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-400">
+                Enterprise customers can request custom add-ons. Contact sales for details.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

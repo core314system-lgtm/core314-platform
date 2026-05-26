@@ -1,0 +1,336 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { sendIntegrationFailureEmail } from '../_shared/integration-notifications.ts';
+
+/**
+ * Integration Scheduler (Orchestrator)
+ * 
+ * Central scheduler that orchestrates all integration operations:
+ * 1. Health check — validate OAuth tokens for all connected integrations
+ * 2. Token refresh — refresh expiring tokens before they expire
+ * 3. Polling — call each service-specific poll function to collect data
+ * 
+ * Designed to be invoked by pg_cron every 15 minutes.
+ * Each poll function handles its own rate limiting via integration_ingestion_state.
+ * 
+ * Flow:
+ *   pg_cron (every 15 min) → integration-scheduler → health-check + pollers → entity-resolver → signal-detector → signal-correlator
+ */
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+interface StepResult {
+  step: string;
+  success: boolean;
+  message: string;
+  duration_ms: number;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Call a Supabase Edge Function by name using the service role key.
+ * Returns the parsed JSON response or an error object.
+ */
+async function callEdgeFunction(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  functionName: string
+): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+  const url = `${supabaseUrl}/functions/v1/${functionName}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ triggered_by: 'integration-scheduler' }),
+    });
+
+    const data = await response.json();
+    return { ok: response.ok, data };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { ok: false, data: { error: errorMessage } };
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const startTime = Date.now();
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const results: StepResult[] = [];
+    const now = new Date();
+
+    console.log(`[scheduler] ========== SCHEDULER RUN START ==========`);
+    console.log(`[scheduler] Timestamp: ${now.toISOString()}`);
+    console.log(`[scheduler] Run ID: ${now.getTime()}`);
+
+    // Step 0: Proactive token refresh (refresh ALL expiring tokens BEFORE polling)
+    const refreshStart = Date.now();
+    console.log('[scheduler] Step 0/5: Running proactive token refresh...');
+    const refreshResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'token-refresh-all');
+    const refreshDuration = Date.now() - refreshStart;
+    console.log(`[scheduler] Step 0/5: Token refresh ${refreshResult.ok ? 'SUCCESS' : 'FAILED'} (${refreshDuration}ms)`, {
+      refreshed: refreshResult.data.refreshed ?? 0,
+      failed: refreshResult.data.failed ?? 0,
+    });
+    results.push({
+      step: 'token-refresh-all',
+      success: refreshResult.ok,
+      message: refreshResult.ok
+        ? `Refreshed ${refreshResult.data.refreshed || 0} tokens, ${refreshResult.data.failed || 0} failed`
+        : `Token refresh error: ${refreshResult.data.error || 'unknown error'}`,
+      duration_ms: refreshDuration,
+      details: refreshResult.ok ? {
+        refreshed: refreshResult.data.refreshed,
+        failed: refreshResult.data.failed,
+        total: refreshResult.data.total,
+      } : undefined,
+    });
+
+    // Step 1: Run health check (validates tokens, refreshes expiring ones)
+    const healthStart = Date.now();
+    console.log('[scheduler] Step 1/5: Running health check...');
+    const healthResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'integration-health-check');
+    const healthDuration = Date.now() - healthStart;
+    console.log(`[scheduler] Step 1/5: Health check ${healthResult.ok ? 'SUCCESS' : 'FAILED'} (${healthDuration}ms)`, {
+      total_checked: (healthResult.data.summary as Record<string, number>)?.total || 0,
+      ok: healthResult.ok,
+    });
+    results.push({
+      step: 'health-check',
+      success: healthResult.ok,
+      message: healthResult.ok
+        ? `Checked ${(healthResult.data.summary as Record<string, number>)?.total || 0} integrations`
+        : `Health check failed: ${healthResult.data.error || 'unknown error'}`,
+      duration_ms: healthDuration,
+      details: healthResult.data.summary as Record<string, unknown> || undefined,
+    });
+
+    // Step 2: Run each service-specific poller (all 10 integrations)
+    const pollers = [
+      { name: 'slack-poll', service: 'Slack' },
+      { name: 'hubspot-poll', service: 'HubSpot' },
+      { name: 'quickbooks-poll', service: 'QuickBooks' },
+      { name: 'google-calendar-poll', service: 'Google Calendar' },
+      { name: 'gmail-poll', service: 'Gmail' },
+      { name: 'jira-poll', service: 'Jira' },
+      { name: 'trello-poll', service: 'Trello' },
+      { name: 'teams-poll', service: 'Microsoft Teams' },
+      { name: 'sheets-poll', service: 'Google Sheets' },
+      { name: 'asana-poll', service: 'Asana' },
+      { name: 'salesforce-poll', service: 'Salesforce' },
+      { name: 'zoom-poll', service: 'Zoom' },
+      { name: 'github-poll', service: 'GitHub' },
+      { name: 'zendesk-poll', service: 'Zendesk' },
+      { name: 'notion-poll', service: 'Notion' },
+      { name: 'monday-poll', service: 'Monday.com' },
+    ];
+
+    // Track consecutive failures per poller for alerting
+    const { data: failureState } = await supabase
+      .from('integration_ingestion_state')
+      .select('metadata')
+      .eq('user_id', '00000000-0000-0000-0000-000000000000')
+      .eq('user_integration_id', '00000000-0000-0000-0000-000000000000')
+      .eq('service_name', 'scheduler_failures')
+      .single();
+
+    const failureCounts: Record<string, number> = (failureState?.metadata as Record<string, number>) || {};
+
+    for (let i = 0; i < pollers.length; i++) {
+      const poller = pollers[i];
+      const pollStart = Date.now();
+      console.log(`[scheduler] Step 2/5 [${i + 1}/${pollers.length}]: Running ${poller.service} poll...`);
+
+      // Retry once on failure with exponential backoff
+      let pollResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, poller.name);
+      if (!pollResult.ok) {
+        console.log(`[scheduler] ${poller.service} failed, retrying after 2s...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        pollResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, poller.name);
+      }
+
+      if (pollResult.ok) {
+        failureCounts[poller.name] = 0; // Reset on success
+      } else {
+        failureCounts[poller.name] = (failureCounts[poller.name] || 0) + 1;
+        const consecutiveFailures = failureCounts[poller.name];
+        console.error(`[scheduler] ${poller.service} consecutive failure #${consecutiveFailures}`);
+
+        // Send email alert on 3rd consecutive failure (and every 3rd after)
+        if (consecutiveFailures >= 3 && consecutiveFailures % 3 === 0) {
+          // Find users with this integration connected to alert them
+          const serviceName = poller.name.replace('-poll', '').replace(/-/g, '_');
+          const { data: affectedTokens } = await supabase
+            .from('oauth_tokens')
+            .select('user_id, integration_registry!inner(service_name)')
+            .eq('integration_registry.service_name', serviceName)
+            .limit(10);
+
+          if (affectedTokens && affectedTokens.length > 0) {
+            for (const token of affectedTokens) {
+              const { data: { user: affectedUser } } = await supabase.auth.admin.getUserById(token.user_id);
+              if (affectedUser?.email) {
+                sendIntegrationFailureEmail(
+                  serviceName,
+                  consecutiveFailures,
+                  String(pollResult.data.error || pollResult.data.message || 'Polling failed'),
+                  { recipientEmail: affectedUser.email, recipientName: affectedUser.user_metadata?.full_name as string }
+                ).catch(err => console.error(`[scheduler] Failure email error:`, err));
+              }
+            }
+          }
+        }
+      }
+
+      const pollDuration = Date.now() - pollStart;
+      console.log(`[scheduler] Step 2/5 [${i + 1}/${pollers.length}]: ${poller.service} ${pollResult.ok ? 'SUCCESS' : 'FAILED'} (${pollDuration}ms)`, {
+        processed: pollResult.data.processed ?? 0,
+        total: pollResult.data.total ?? 0,
+        errors: pollResult.data.errors ? (pollResult.data.errors as unknown[]).length : 0,
+      });
+
+      results.push({
+        step: poller.name,
+        success: pollResult.ok,
+        message: pollResult.ok
+          ? `Processed ${pollResult.data.processed || 0} of ${pollResult.data.total || 0} integrations`
+          : `Poll failed: ${pollResult.data.error || pollResult.data.message || 'unknown error'}`,
+        duration_ms: pollDuration,
+        details: pollResult.ok ? {
+          processed: pollResult.data.processed,
+          total: pollResult.data.total,
+          errors: pollResult.data.errors,
+        } : { consecutive_failures: failureCounts[poller.name] },
+      });
+    }
+
+    // Persist failure counts for next run
+    await supabase.from('integration_ingestion_state').upsert({
+      user_id: '00000000-0000-0000-0000-000000000000',
+      user_integration_id: '00000000-0000-0000-0000-000000000000',
+      service_name: 'scheduler_failures',
+      last_polled_at: now.toISOString(),
+      next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+      metadata: failureCounts,
+      updated_at: now.toISOString(),
+    }, { onConflict: 'user_id,user_integration_id,service_name' });
+
+    // Step 3: Run entity resolver (cross-system identity resolution)
+    const entityStart = Date.now();
+    console.log('[scheduler] Step 3/6: Running entity resolver...');
+    const entityResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'entity-resolver');
+    results.push({
+      step: 'entity-resolver',
+      success: entityResult.ok,
+      message: entityResult.ok
+        ? `Resolved ${entityResult.data.entities_resolved || 0} entities (${entityResult.data.new_entities || 0} new)`
+        : `Entity resolution failed: ${entityResult.data.error || 'unknown error'}`,
+      duration_ms: Date.now() - entityStart,
+      details: entityResult.ok ? {
+        events_processed: entityResult.data.events_processed,
+        entities_resolved: entityResult.data.entities_resolved,
+        new_entities: entityResult.data.new_entities,
+        source_records_created: entityResult.data.source_records_created,
+      } : undefined,
+    });
+    console.log(`[scheduler] Step 3/6: Entity resolver ${entityResult.ok ? 'SUCCESS' : 'FAILED'} (${Date.now() - entityStart}ms)`);
+
+    // Step 4: Run signal detector (analyzes integration_events → creates operational_signals)
+    const signalStart = Date.now();
+    console.log('[scheduler] Step 4/6: Running signal detector...');
+    const signalResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-detector');
+    results.push({
+      step: 'signal-detector',
+      success: signalResult.ok,
+      message: signalResult.ok
+        ? `Created ${signalResult.data.signals_created || 0} signals, deactivated ${signalResult.data.signals_deactivated || 0}`
+        : `Signal detection failed: ${signalResult.data.error || 'unknown error'}`,
+      duration_ms: Date.now() - signalStart,
+      details: signalResult.ok ? {
+        users_processed: signalResult.data.users_processed,
+        signals_created: signalResult.data.signals_created,
+        signals_deactivated: signalResult.data.signals_deactivated,
+      } : undefined,
+    });
+    console.log(`[scheduler] Step 4/6: Signal detector ${signalResult.ok ? 'SUCCESS' : 'FAILED'} (${Date.now() - signalStart}ms)`);
+
+    // Step 5: Run signal correlator (groups signals from multiple integrations into correlated events)
+    const correlatorStart = Date.now();
+    console.log('[scheduler] Step 5/6: Running signal correlator...');
+    const correlatorResult = await callEdgeFunction(supabaseUrl, serviceRoleKey, 'signal-correlator');
+    results.push({
+      step: 'signal-correlator',
+      success: correlatorResult.ok,
+      message: correlatorResult.ok
+        ? `Analyzed ${correlatorResult.data.signals_analyzed || 0} signals, found ${correlatorResult.data.correlated_events || 0} correlated events`
+        : `Signal correlation failed: ${correlatorResult.data.error || 'unknown error'}`,
+      duration_ms: Date.now() - correlatorStart,
+      details: correlatorResult.ok ? {
+        signals_analyzed: correlatorResult.data.signals_analyzed,
+        correlated_events: correlatorResult.data.correlated_events,
+      } : undefined,
+    });
+
+    // Step 6: Log scheduler run to a tracking table (for UI to query)
+    const totalDuration = Date.now() - startTime;
+    const allSuccess = results.every(r => r.success);
+    const failedSteps = results.filter(r => !r.success).map(r => r.step);
+
+    // Update a scheduler_runs record in integration_ingestion_state (reuse as meta tracker)
+    // We use a special service_name 'scheduler' to track the last run
+    await supabase.from('integration_ingestion_state').upsert({
+      user_id: '00000000-0000-0000-0000-000000000000', // System user
+      user_integration_id: '00000000-0000-0000-0000-000000000000', // System
+      service_name: 'scheduler',
+      last_polled_at: now.toISOString(),
+      last_event_timestamp: now.toISOString(),
+      next_poll_after: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+      metadata: {
+        run_timestamp: now.toISOString(),
+        duration_ms: totalDuration,
+        all_success: allSuccess,
+        failed_steps: failedSteps,
+        results,
+      },
+      updated_at: now.toISOString(),
+    }, { onConflict: 'user_id,user_integration_id,service_name' });
+
+    console.log(`[scheduler] Step 5/6: Signal correlator ${results[results.length - 1].success ? 'SUCCESS' : 'FAILED'} (${Date.now() - correlatorStart}ms)`);
+    console.log(`[scheduler] ========== SCHEDULER RUN COMPLETE ==========`);
+    console.log(`[scheduler] Duration: ${totalDuration}ms | Status: ${allSuccess ? 'ALL SUCCESS' : `FAILURES: ${failedSteps.join(', ')}`}`);
+    console.log(`[scheduler] Next run: ${new Date(now.getTime() + 15 * 60 * 1000).toISOString()}`);
+
+    return new Response(JSON.stringify({
+      success: allSuccess,
+      timestamp: now.toISOString(),
+      duration_ms: totalDuration,
+      results,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[scheduler] Fatal error:', error);
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});

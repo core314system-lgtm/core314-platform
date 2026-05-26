@@ -1,0 +1,558 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { useSupabaseClient } from '../contexts/SupabaseClientContext';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { 
+  User, 
+  Loader2,
+  Check,
+  Camera,
+  Key,
+  Building2,
+  Download,
+  Shield
+} from 'lucide-react';
+
+export function Settings() {
+  const { user } = useAuth();
+  const supabase = useSupabaseClient();
+  
+  // Profile state
+  const [fullName, setFullName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [emailUpdateMessage, setEmailUpdateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+  const [passwordResetMessage, setPasswordResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dataExportLoading, setDataExportLoading] = useState(false);
+  const [dataExportMessage, setDataExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, company_logo_url')
+      .eq('id', user.id)
+      .single();
+    
+    if (data) {
+      setFullName(data.full_name || '');
+      setAvatarUrl(data.avatar_url || null);
+      setCompanyLogoUrl((data as Record<string, unknown>).company_logo_url as string | null ?? null);
+    }
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+    
+    setAvatarUploading(true);
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      setAvatarUrl(publicUrl);
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleCompanyLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/company_logo_${Date.now()}.${fileExt}`;
+    
+    setLogoUploading(true);
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ company_logo_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      setCompanyLogoUrl(publicUrl);
+    } catch (err) {
+      console.error('Error uploading company logo:', err);
+      alert('Failed to upload company logo. Please try again.');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleRemoveCompanyLogo = async () => {
+    if (!user) return;
+    setLogoUploading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ company_logo_url: null, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      if (error) throw error;
+      setCompanyLogoUrl(null);
+    } catch (err) {
+      console.error('Error removing company logo:', err);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    
+    setPasswordResetLoading(true);
+    setPasswordResetMessage(null);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password/confirm`,
+      });
+      
+      if (error) throw error;
+      
+      setPasswordResetMessage({
+        type: 'success',
+        text: 'Password reset email sent! Check your inbox for instructions to reset your password.',
+      });
+    } catch (err) {
+      console.error('Error sending password reset:', err);
+      setPasswordResetMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to send password reset email. Please try again.',
+      });
+    } finally {
+      setPasswordResetLoading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+    
+    setProfileLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleEmailUpdate = async () => {
+    if (!user || !newEmail || newEmail === user.email) return;
+    
+    setProfileLoading(true);
+    setEmailUpdateMessage(null);
+    
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      
+      if (error) throw error;
+      
+      setEmailUpdateMessage({
+        type: 'success',
+        text: 'Verification email sent to your new address. Please check your inbox and click the confirmation link to complete the change.',
+      });
+      setIsEditingEmail(false);
+    } catch (err) {
+      console.error('Error updating email:', err);
+      setEmailUpdateMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to update email. Please try again.',
+      });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleDataExport = async () => {
+    if (!user) return;
+    setDataExportLoading(true);
+    setDataExportMessage(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/gdpr-data-export`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error((errData as Record<string, string>).error || 'Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `core314-data-export-${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      setDataExportMessage({ type: 'success', text: 'Your data export has been downloaded.' });
+    } catch (err) {
+      console.error('Data export error:', err);
+      setDataExportMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to export data. Please try again.',
+      });
+    } finally {
+      setDataExportLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+        <p className="text-gray-600 dark:text-gray-400">Manage your profile settings</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Avatar Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Photo</CardTitle>
+            <CardDescription>Upload a profile picture</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="h-24 w-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-12 w-12 text-gray-400" />
+                  )}
+                </div>
+                {avatarUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="avatar-upload" className="cursor-pointer">
+                  <Button variant="outline" size="sm" asChild disabled={avatarUploading}>
+                    <span>
+                      <Camera className="mr-2 h-4 w-4" />
+                      {avatarUploading ? 'Uploading...' : 'Upload Photo'}
+                    </span>
+                  </Button>
+                </Label>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                  disabled={avatarUploading}
+                />
+                <p className="text-xs text-gray-500">JPG, PNG, GIF or WebP. Max 5MB.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Company Logo Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Logo</CardTitle>
+            <CardDescription>Upload your company logo to brand exported PowerPoint briefs</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="h-20 w-40 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden border border-dashed border-gray-300 dark:border-gray-600">
+                  {companyLogoUrl ? (
+                    <img src={companyLogoUrl} alt="Company Logo" className="h-full w-full object-contain p-2" />
+                  ) : (
+                    <Building2 className="h-8 w-8 text-gray-400" />
+                  )}
+                </div>
+                {logoUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="logo-upload" className="cursor-pointer">
+                  <Button variant="outline" size="sm" asChild disabled={logoUploading}>
+                    <span>
+                      <Building2 className="mr-2 h-4 w-4" />
+                      {logoUploading ? 'Uploading...' : companyLogoUrl ? 'Replace Logo' : 'Upload Logo'}
+                    </span>
+                  </Button>
+                </Label>
+                <input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={handleCompanyLogoUpload}
+                  disabled={logoUploading}
+                />
+                {companyLogoUrl && (
+                  <Button variant="ghost" size="sm" onClick={handleRemoveCompanyLogo} disabled={logoUploading} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                    Remove Logo
+                  </Button>
+                )}
+                <p className="text-xs text-gray-500">PNG, JPG, SVG or WebP. Appears on PowerPoint exports.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Profile Info Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Information</CardTitle>
+            <CardDescription>Update your personal information</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input 
+                id="fullName" 
+                value={fullName} 
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+              />
+            </div>
+            
+            <Button onClick={saveProfile} disabled={profileLoading}>
+              {profileLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : profileSaved ? (
+                <Check className="mr-2 h-4 w-4" />
+              ) : null}
+              {profileSaved ? 'Saved!' : 'Save Changes'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Email & Password Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Email & Password</CardTitle>
+            <CardDescription>Manage your account credentials</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              {isEditingEmail ? (
+                <div className="space-y-2">
+                  <Input 
+                    id="newEmail" 
+                    type="email"
+                    value={newEmail} 
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="Enter new email address"
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={handleEmailUpdate}
+                      disabled={profileLoading || !newEmail || newEmail === user?.email}
+                    >
+                      {profileLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Send Verification
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditingEmail(false);
+                        setNewEmail('');
+                        setEmailUpdateMessage(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    id="email" 
+                    value={user?.email || ''} 
+                    disabled 
+                    className="bg-gray-50 dark:bg-gray-800 flex-1"
+                  />
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditingEmail(true);
+                      setNewEmail(user?.email || '');
+                    }}
+                  >
+                    Change
+                  </Button>
+                </div>
+              )}
+              {emailUpdateMessage && (
+                <p className={`text-xs ${emailUpdateMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {emailUpdateMessage.text}
+                </p>
+              )}
+            </div>
+          
+            {/* Password Reset Section */}
+            <div className="pt-4 border-t space-y-2">
+              <Label>Password</Label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Send a password reset link to your email address
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={handlePasswordReset}
+                disabled={passwordResetLoading}
+              >
+                {passwordResetLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Key className="mr-2 h-4 w-4" />
+                )}
+                {passwordResetLoading ? 'Sending...' : 'Reset Password'}
+              </Button>
+              {passwordResetMessage && (
+                <div className="space-y-1">
+                  <p className={`text-xs ${passwordResetMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {passwordResetMessage.text}
+                  </p>
+                  {passwordResetMessage.type === 'success' && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      If you don't see the email within 1-3 minutes, please check your spam folder.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        {/* Privacy & Data Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Privacy & Data
+            </CardTitle>
+            <CardDescription>
+              Manage your data and privacy preferences. Under GDPR Article 20, you have the right to export your personal data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Export Your Data</Label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Download a copy of all your personal data stored in Core314, including your profile,
+                integrations, signals, briefs, and email communications.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleDataExport}
+                disabled={dataExportLoading}
+              >
+                {dataExportLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {dataExportLoading ? 'Exporting...' : 'Export My Data'}
+              </Button>
+              {dataExportMessage && (
+                <p className={`text-xs ${dataExportMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {dataExportMessage.text}
+                </p>
+              )}
+            </div>
+            <div className="pt-4 border-t space-y-2">
+              <Label>Cookie Preferences</Label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                You can manage your cookie preferences at any time. Click below to update your choices.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem('core314-cookie-consent');
+                  window.location.reload();
+                }}
+              >
+                Manage Cookie Preferences
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

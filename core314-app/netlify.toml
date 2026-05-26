@@ -1,0 +1,67 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Exclude public Supabase identifiers from Netlify's secrets scanning
+  # These are NOT secrets - they are designed for client-side use:
+  # - SUPABASE_URL: Public project URL (required for Supabase client)
+  # - VITE_SUPABASE_URL: Same URL exposed to Vite build
+  # - SUPABASE_ANON_KEY: Public anonymous key (designed for browser use)
+  # - VITE_SUPABASE_ANON_KEY: Same key exposed to Vite build
+  # Real secrets (service_role, Stripe secret keys, etc.) remain protected
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,VITE_SUPABASE_URL,SUPABASE_ANON_KEY,VITE_SUPABASE_ANON_KEY"
+
+# AUTHORITATIVE SYSTEM FACT ENDPOINT
+# This redirect MUST come before the SPA catch-all
+[[redirects]]
+  from = "/api/system/integrations"
+  to = "/.netlify/functions/system-integrations"
+  status = 200
+
+# Stripe checkout and billing redirects
+[[redirects]]
+  from = "/api/create-checkout-session"
+  to = "/.netlify/functions/create-checkout-session"
+  status = 200
+
+[[redirects]]
+  from = "/api/create-portal-session"
+  to = "/.netlify/functions/create-portal-session"
+  status = 200
+
+# HubSpot OAuth flow redirects
+[[redirects]]
+  from = "/auth/hubspot/callback"
+  to = "/.netlify/functions/hubspot-callback"
+  status = 200
+
+[[redirects]]
+  from = "/api/hubspot/auth"
+  to = "/.netlify/functions/hubspot-auth"
+  status = 200
+
+[[redirects]]
+  from = "/api/hubspot/refresh"
+  to = "/.netlify/functions/hubspot-refresh-token"
+  status = 200
+
+[[redirects]]
+  from = "/api/hubspot/poll"
+  to = "/.netlify/functions/hubspot-poll"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"

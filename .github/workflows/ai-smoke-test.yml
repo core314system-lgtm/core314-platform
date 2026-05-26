@@ -1,0 +1,135 @@
+name: AI Security & Smoke Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'core314-app/supabase/functions/**'
+      - 'core314-admin/src/services/ai.ts'
+      - 'core314-app/src/services/ai.ts'
+      - 'scripts/check-secrets-in-bundle.js'
+      - 'scripts/test-ai-edge-function.mjs'
+      - '.github/workflows/ai-smoke-test.yml'
+
+jobs:
+  build-and-scan:
+    name: Build & Secret Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            core314-admin/package-lock.json
+            core314-app/package-lock.json
+
+      - name: Install admin dependencies
+        working-directory: core314-admin
+        run: npm ci
+
+      - name: Build admin app
+        working-directory: core314-admin
+        env:
+          VITE_SUPABASE_URL: https://placeholder.invalid
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+          VITE_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+          VITE_STRIPE_STARTER_PRICE_ID: price_placeholder
+          VITE_STRIPE_PRO_PRICE_ID: price_placeholder
+          VITE_STRIPE_ENTERPRISE_PRICE_ID: price_placeholder
+        run: npm run build
+
+      - name: Install user app dependencies
+        working-directory: core314-app
+        run: npm ci
+
+      - name: Build user app
+        working-directory: core314-app
+        env:
+          VITE_SUPABASE_URL: https://placeholder.invalid
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+        run: npm run build
+
+      - name: Scan admin bundle for secrets
+        run: node scripts/check-secrets-in-bundle.js core314-admin/dist
+
+      - name: Scan user app bundle for secrets
+        run: node scripts/check-secrets-in-bundle.js core314-app/dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: |
+            core314-admin/dist
+            core314-app/dist
+          retention-days: 1
+
+  ai-smoke-tests:
+    name: AI Edge Function Tests
+    runs-on: ubuntu-latest
+    needs: build-and-scan
+    # AI Edge Function tests are gated behind ENABLE_AI_EDGE_TESTS flag.
+    # These tests are disabled by default because:
+    # - AI Support Widget is intentionally disabled via feature flag (VITE_ENABLE_AI_SUPPORT_WIDGET=false)
+    # - Associated Supabase Edge Functions (e.g. support-chat-handler) are not deployed/configured
+    # - This should not block beta readiness
+    # Re-enable these tests post-beta when Edge Functions are deployed by setting ENABLE_AI_EDGE_TESTS=true
+    if: vars.ENABLE_AI_EDGE_TESTS == 'true' && (github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy ai-generate Edge Function (if credentials available)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_PROJECT_REF" ]; then
+            echo "📦 Deploying ai-generate Edge Function to Supabase..."
+            cd core314-app
+            supabase functions deploy ai-generate --project-ref $SUPABASE_PROJECT_REF
+            echo "✅ Edge Function deployed successfully"
+          else
+            echo "⚠️  Skipping Edge Function deployment (SUPABASE_ACCESS_TOKEN or SUPABASE_PROJECT_REF not configured)"
+            echo "⚠️  Tests will run against currently deployed Edge Functions"
+            echo "⚠️  To enable automatic deployment, add SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF secrets"
+          fi
+        continue-on-error: false
+
+      - name: Install test dependencies
+        run: npm install @supabase/supabase-js
+
+      - name: Run AI smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node scripts/test-ai-edge-function.mjs
+
+      - name: Report test results
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ All AI smoke tests passed"
+          else
+            echo "❌ AI smoke tests failed"
+            exit 1
+          fi

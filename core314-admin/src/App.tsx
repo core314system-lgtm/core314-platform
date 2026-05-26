@@ -1,0 +1,161 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AdminLogin } from './pages/auth/AdminLogin';
+import { AdminLayout } from './pages/admin/Layout';
+import { UserManagement } from './pages/admin/UserManagement';
+import { IntegrationTracking } from './pages/admin/IntegrationTracking';
+import { BillingOverview } from './pages/admin/BillingOverview';
+import { AILogs } from './pages/admin/AILogs';
+import { SystemHealth } from './pages/admin/SystemHealth';
+import { SelfHealingActivity } from './pages/admin/SelfHealingActivity';
+import { AdaptiveWorkflows } from './pages/admin/AdaptiveWorkflows';
+import { FusionRiskDashboard } from './pages/admin/FusionRiskDashboard';
+import { AuditAnomalies } from './pages/admin/AuditAnomalies';
+import { AlertCenter } from './pages/admin/AlertCenter';
+import { EfficiencyIndex } from './pages/admin/EfficiencyIndex';
+import { BehavioralAnalytics } from './pages/admin/BehavioralAnalytics';
+import { PredictiveInsights } from './pages/admin/PredictiveInsights';
+import { FusionCalibration } from './pages/admin/FusionCalibration';
+import { AutonomousOversight } from './pages/admin/AutonomousOversight';
+import { CoreOrchestrator } from './pages/admin/CoreOrchestrator';
+import { InsightHub } from './pages/admin/InsightHub';
+import { AdaptivePolicy } from './pages/admin/AdaptivePolicy';
+import { TrustGraph } from './pages/admin/TrustGraph';
+import { GovernanceInsights } from './pages/admin/GovernanceInsights';
+import { Explainability } from './pages/admin/Explainability';
+import { PolicyNetwork } from './pages/admin/PolicyNetwork';
+import { SimulationCenter } from './pages/admin/SimulationCenter';
+import { E2EOrchestration } from './pages/admin/E2EOrchestration';
+import { E2ECampaign } from './pages/admin/E2ECampaign';
+import { BetaReadiness } from './pages/admin/BetaReadiness';
+import { NotificationCenter } from './pages/admin/NotificationCenter';
+import { AuditTrail } from './pages/admin/AuditTrail';
+import { AutomationCenter } from './pages/admin/AutomationCenter';
+import { AgentActivityLog } from './pages/admin/AgentActivityLog';
+import { Optimizations } from './pages/admin/Optimizations';
+import { ReliabilityDashboard } from './pages/admin/ReliabilityDashboard';
+import { FusionEfficiency } from './pages/admin/FusionEfficiency';
+import { AddOnPurchases } from './pages/admin/AddOnPurchases';
+import Subscriptions from './pages/admin/Subscriptions';
+import BetaFeedback from './pages/admin/BetaFeedback';
+import BetaOpsConsole from './pages/admin/BetaOpsConsole';
+import BetaAccessControl from './pages/admin/BetaAccessControl';
+import { SystemIntelligenceSummary } from './pages/admin/SystemIntelligenceSummary';
+import HealthCheck from './pages/HealthCheck';
+import { AdminProtectedRoute } from './components/AdminProtectedRoute';
+import { useAdminAuth } from './hooks/useAdminAuth';
+import { SentryTest } from './pages/SentryTest';
+import SentryVerify from './pages/SentryVerify';
+// New Phase 2 pages
+import { SignalIntelligence } from './pages/admin/SignalIntelligence';
+// Phase 1: Entity Resolution pages
+import { EntityBrowser } from './pages/admin/EntityBrowser';
+import { EntityMergeQueue } from './pages/admin/EntityMergeQueue';
+import { EntityMatchStats } from './pages/admin/EntityMatchStats';
+// Phase 2: Ontology Abstraction Layer pages
+import { EntityTypeManager } from './pages/admin/EntityTypeManager';
+import { IntegrationMappingManager } from './pages/admin/IntegrationMappingManager';
+import { MappingOverrideManager } from './pages/admin/MappingOverrideManager';
+import { OntologyViewer } from './pages/admin/OntologyViewer';
+import { BriefTracker } from './pages/admin/BriefTracker';
+import { HealthScoreDashboard } from './pages/admin/HealthScoreDashboard';
+import { IntegrationHealthMonitor } from './pages/admin/IntegrationHealthMonitor';
+import { RealMetricsDashboard } from './pages/admin/RealMetricsDashboard';
+import { AdminAuditLog } from './pages/admin/AdminAuditLog';
+import { PlatformAlerts } from './pages/admin/PlatformAlerts';
+
+function App() {
+  const { authStatus } = useAdminAuth();
+
+  // Show spinner only while auth is resolving (max 3 seconds due to timeout)
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Once auth is resolved (authenticated or unauthenticated), render the router
+  // The AdminProtectedRoute will handle redirects for unauthenticated users
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={authStatus === 'authenticated' ? <Navigate to="/" /> : <AdminLogin />} />
+        <Route path="/admin-health" element={<HealthCheck />} />
+        
+        <Route
+          path="/"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout />
+            </AdminProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/users" replace />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="integrations" element={<IntegrationTracking />} />
+          <Route path="metrics" element={<RealMetricsDashboard />} />
+          <Route path="billing" element={<BillingOverview />} />
+          <Route path="ai-logs" element={<AILogs />} />
+          <Route path="system-health" element={<SystemHealth />} />
+          <Route path="system-intelligence" element={<SystemIntelligenceSummary />} />
+          <Route path="self-healing" element={<SelfHealingActivity />} />
+          <Route path="adaptive-workflows" element={<AdaptiveWorkflows />} />
+          <Route path="fusion-risk-dashboard" element={<FusionRiskDashboard />} />
+          <Route path="audit" element={<AuditAnomalies />} />
+          <Route path="alerts" element={<AlertCenter />} />
+          <Route path="efficiency" element={<EfficiencyIndex />} />
+          <Route path="behavioral-analytics" element={<BehavioralAnalytics />} />
+          <Route path="predictive-insights" element={<PredictiveInsights />} />
+          <Route path="fusion-calibration" element={<FusionCalibration />} />
+          <Route path="autonomous-oversight" element={<AutonomousOversight />} />
+          <Route path="core-orchestrator" element={<CoreOrchestrator />} />
+          <Route path="insight-hub" element={<InsightHub />} />
+          <Route path="adaptive-policy" element={<AdaptivePolicy />} />
+          <Route path="trust-graph" element={<TrustGraph />} />
+          <Route path="governance-insights" element={<GovernanceInsights />} />
+          <Route path="explainability" element={<Explainability />} />
+          <Route path="policy-network" element={<PolicyNetwork />} />
+          <Route path="simulation-center" element={<SimulationCenter />} />
+          <Route path="e2e-orchestration" element={<E2EOrchestration />} />
+          <Route path="e2e-campaign" element={<E2ECampaign />} />
+          <Route path="beta-readiness" element={<BetaReadiness />} />
+          <Route path="notifications" element={<NotificationCenter />} />
+          <Route path="audit-trail" element={<AuditTrail />} />
+          <Route path="automation-center" element={<AutomationCenter />} />
+          <Route path="reliability" element={<ReliabilityDashboard />} />
+          <Route path="agent-activity" element={<AgentActivityLog />} />
+          <Route path="optimizations" element={<Optimizations />} />
+          <Route path="fusion-efficiency" element={<FusionEfficiency />} />
+          <Route path="addon-purchases" element={<AddOnPurchases />} />
+          <Route path="subscriptions" element={<Subscriptions />} />
+          <Route path="beta-feedback" element={<BetaFeedback />} />
+          <Route path="beta-ops" element={<BetaOpsConsole />} />
+          <Route path="beta-access" element={<BetaAccessControl />} />
+          {/* Phase 2: Operational Intelligence */}
+          <Route path="signal-intelligence" element={<SignalIntelligence />} />
+          <Route path="brief-tracker" element={<BriefTracker />} />
+          <Route path="health-scores" element={<HealthScoreDashboard />} />
+          <Route path="integration-health" element={<IntegrationHealthMonitor />} />
+          <Route path="admin-audit" element={<AdminAuditLog />} />
+          <Route path="platform-alerts" element={<PlatformAlerts />} />
+          {/* Phase 1: Entity Resolution */}
+          <Route path="entity-browser" element={<EntityBrowser />} />
+          <Route path="entity-merge-queue" element={<EntityMergeQueue />} />
+          <Route path="entity-match-stats" element={<EntityMatchStats />} />
+          {/* Phase 2: Ontology Abstraction Layer */}
+          <Route path="ontology-types" element={<EntityTypeManager />} />
+          <Route path="ontology-mappings" element={<IntegrationMappingManager />} />
+          <Route path="ontology-overrides" element={<MappingOverrideManager />} />
+          <Route path="ontology-viewer" element={<OntologyViewer />} />
+          <Route path="sentry-test" element={<SentryTest />} />
+          {import.meta.env.VITE_DEV_SENTRY_VERIFY === 'true' && (
+            <Route path="sentry-verify" element={<SentryVerify />} />
+          )}
+        </Route>
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;

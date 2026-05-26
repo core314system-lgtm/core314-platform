@@ -1,0 +1,55 @@
+name: Weekly RLS Compliance Audit
+
+on:
+  schedule:
+    # Run every Monday at 3:00 AM UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch: # Allow manual triggering for testing
+
+jobs:
+  rls-audit:
+    runs-on: ubuntu-latest
+    name: Run RLS Audit
+    
+    steps:
+      - name: Run verify-rls Edge Function
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://ygvkegcstaowikessigx.supabase.co/functions/v1/verify-rls?alerts=true" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "X-Internal-Token: ${{ secrets.INTERNAL_WEBHOOK_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"mode":"audit"}')
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" != "200" ]; then
+            echo "❌ RLS Audit failed with HTTP $http_code"
+            exit 1
+          fi
+          
+          # Check if audit passed
+          status=$(echo "$body" | jq -r '.summary.status')
+          pass_count=$(echo "$body" | jq -r '.summary.pass_count')
+          fail_count=$(echo "$body" | jq -r '.summary.fail_count')
+          total_tables=$(echo "$body" | jq -r '.summary.total_tables')
+          
+          echo "✅ RLS Audit completed successfully"
+          echo "Status: $status"
+          echo "Passed: $pass_count/$total_tables tables"
+          echo "Failed: $fail_count tables"
+          
+          if [ "$status" != "PASS" ]; then
+            echo "⚠️ Warning: RLS Audit status is $status"
+            echo "Issues found:"
+            echo "$body" | jq -r '.issues'
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Weekly RLS Audit failed. Please check the logs above for details."

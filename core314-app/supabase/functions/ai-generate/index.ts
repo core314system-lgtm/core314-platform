@@ -1,0 +1,206 @@
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withSentry, breadcrumb, handleSentryTest, jsonError } from "../_shared/sentry.ts";
+import { 
+  deriveExecutionMode, 
+  getBaselineGenericResponse,
+  type ExecutionMode 
+} from '../_shared/execution_mode.ts';
+
+const allowedOrigins = new Set([
+  "https://admin.core314.com",
+  "https://app.core314.com",
+  "http://localhost:5173",
+  "http://localhost:5174",
+]);
+
+function cors(origin: string | null) {
+  const allowOrigin = origin && allowedOrigins.has(origin) ? origin : "https://admin.core314.com";
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+interface AIRequest {
+  prompt: string;
+  model?: string;
+  temperature?: number;
+  max_tokens?: number;
+  response_format?: { type: string };
+  operation?: "chat" | "embedding";
+}
+
+serve(withSentry(async (req) => {
+  const testResponse = await handleSentryTest(req);
+  if (testResponse) return testResponse;
+
+  const origin = req.headers.get("Origin");
+  const corsHeaders = cors(origin);
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return jsonError(405, "method_not_allowed", "Method Not Allowed", corsHeaders);
+  }
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+
+  if (!openaiKey) {
+    return jsonError(500, "openai_key_not_configured", "OPENAI_API_KEY not configured", corsHeaders);
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !user) {
+    return jsonError(401, "unauthorized", "Unauthorized", corsHeaders);
+  }
+
+  // ============================================================
+  // GLOBAL EXECUTION SWITCH - SINGLE SOURCE OF TRUTH
+  // MANDATORY: This gate MUST be checked at the VERY TOP before ANY AI processing
+  // FAIL-CLOSED: If system_status is missing, treat as baseline (NO AI)
+  // ============================================================
+  // Note: ai-generate is a generic endpoint that doesn't receive system_status
+  // We need to fetch it from the database to determine execution mode
+  const supabaseService = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  
+  // Fetch user's system status to determine execution mode
+  const { data: fusionScores } = await supabaseService
+    .from('fusion_scores')
+    .select('fusion_score, score_origin')
+    .eq('user_id', user.id)
+    .order('calculated_at', { ascending: false })
+    .limit(1);
+  
+  const { data: efficiencyMetrics } = await supabaseService
+    .from('fusion_efficiency_metrics')
+    .select('id')
+    .eq('user_id', user.id)
+    .limit(1);
+  
+  // Derive execution mode from fetched data
+  const hasComputedScore = fusionScores && fusionScores.length > 0 && fusionScores[0].score_origin === 'computed';
+  const hasEfficiencyMetrics = efficiencyMetrics && efficiencyMetrics.length > 0;
+  
+  // FAIL-CLOSED: If no computed score or no efficiency metrics, treat as baseline
+  const execution_mode: ExecutionMode = (hasComputedScore && hasEfficiencyMetrics) ? 'computed' : 'baseline';
+  
+  // HARD DISABLE: If baseline mode, return IMMEDIATELY with fixed response
+  // NO prompt assembly, NO cache access, NO LLM client reference
+  if (execution_mode === 'baseline') {
+    console.log('BASELINE SHORT-CIRCUIT HIT: ai-generate - baseline mode (NO AI)');
+    const baselineResponse = getBaselineGenericResponse();
+    return new Response(JSON.stringify(baselineResponse), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  let body: AIRequest;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonError(400, "invalid_json", "Invalid JSON", corsHeaders);
+  }
+
+  const prompt = (body.prompt ?? "").trim();
+  if (!prompt || prompt.trim() === "") {
+    return jsonError(400, "empty_prompt", "empty_prompt", corsHeaders);
+  }
+  if (prompt.length > 8000) {
+    return jsonError(400, "prompt_too_long", "Prompt too long", corsHeaders);
+  }
+
+  const normalized = prompt.toLowerCase();
+  if (normalized.includes("respond with exactly one word: operational")) {
+    return new Response(JSON.stringify({ status: "operational", text: "operational" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const operation = body.operation ?? "chat";
+
+  try {
+    if (operation === "embedding") {
+      breadcrumb.openai("embeddings", undefined, "text-embedding-3-small");
+      const resp = await fetch("https://api.openai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "text-embedding-3-small",
+          input: prompt,
+        }),
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        console.error("OpenAI embedding error:", json);
+        return jsonError(500, "openai_api_error", "OpenAI API error", corsHeaders);
+      }
+
+      const embedding = json?.data?.[0]?.embedding ?? [];
+      return new Response(JSON.stringify({ embedding }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } else {
+      const model = body.model ?? "gpt-4o-mini";
+      const temperature = Math.min(Math.max(body.temperature ?? 0.3, 0), 2);
+      const max_tokens = Math.min(body.max_tokens ?? 1000, 4000);
+
+      const allowedModels = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"];
+      if (!allowedModels.includes(model)) {
+        return jsonError(400, "model_not_allowed", "model_not_allowed", corsHeaders);
+      }
+
+      const requestBody: any = {
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens,
+        temperature,
+      };
+
+      if (body.response_format) {
+        requestBody.response_format = body.response_format;
+      }
+
+      breadcrumb.openai("chat/completions", undefined, model);
+      const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        console.error("OpenAI chat error:", json);
+        return jsonError(500, "openai_api_error", "OpenAI API error", corsHeaders);
+      }
+
+      const text = json?.choices?.[0]?.message?.content ?? "";
+      return new Response(JSON.stringify({ text, usage: json.usage }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return jsonError(500, "internal_server_error", "Internal server error", corsHeaders);
+  }
+}, { name: "ai-generate" }));
