@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { OrgProvider } from './contexts/OrgContext'
 import Layout from './components/Layout'
@@ -41,6 +41,9 @@ import BidDecisionEngine from './pages/BidDecisionEngine'
 import PostAward from './pages/PostAward'
 import TeamingTracker from './pages/TeamingTracker'
 import Billing from './pages/Billing'
+import ResetPassword from './pages/ResetPassword'
+import AccountSettings from './pages/AccountSettings'
+import AdminAnalytics from './pages/AdminAnalytics'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -57,9 +60,38 @@ import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
-  if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
+  const { user, profile, loading } = useAuth()
+  const [betaAccepted, setBetaAccepted] = useState(true) // default true so existing users aren't blocked
+  const [checkingBeta, setCheckingBeta] = useState(true)
+
+  useEffect(() => {
+    if (profile) {
+      // Only show beta agreement if the feature is enabled and not yet accepted
+      const accepted = (profile as any).beta_agreement_accepted_at
+      setBetaAccepted(!!accepted)
+      setCheckingBeta(false)
+    } else if (!loading) {
+      setCheckingBeta(false)
+    }
+  }, [profile, loading])
+
+  if (loading || checkingBeta) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
+
+  // Show beta agreement modal if not yet accepted and beta mode is enabled
+  if (!betaAccepted && user) {
+    const BetaAgreementModal = lazy(() => import('./components/BetaAgreementModal'))
+    return (
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>}>
+        <BetaAgreementModal
+          userId={user.id}
+          userName={user.user_metadata?.full_name || user.email || 'Tester'}
+          onAccepted={() => setBetaAccepted(true)}
+        />
+      </Suspense>
+    )
+  }
+
   return (
     <OrgProvider>
       <Layout>
@@ -105,6 +137,7 @@ export default function App() {
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
@@ -174,6 +207,8 @@ export default function App() {
           {/* Organization Settings & Billing */}
           <Route path="/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+          <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+          <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />

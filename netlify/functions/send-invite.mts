@@ -155,6 +155,10 @@ export default async (req: Request, _context: Context) => {
         },
         subject: `You're invited to join ${org_name || "Procuvex"}`,
         html: emailHtml,
+        customArgs: {
+          org_id,
+          email_type: 'invite',
+        },
       })
     } catch (emailErr: unknown) {
       // Email failed but invitation was created — still return success

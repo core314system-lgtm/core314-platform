@@ -104,6 +104,9 @@ export interface UserProfile {
   role: UserRole
   created_at: string
   current_org_id?: string | null
+  last_sign_in_at?: string | null
+  beta_agreement_accepted_at?: string | null
+  beta_agreement_version?: string | null
 }
 
 // AI Analysis types

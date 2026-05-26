@@ -19,6 +19,8 @@ import {
   BarChart3,
   FileStack,
   CreditCard,
+  User,
+  Activity,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import GlobalChat from './GlobalChat'
@@ -43,6 +45,8 @@ const navItems = [
   { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
   { path: '/billing', label: 'Billing', icon: CreditCard },
   { path: '/settings', label: 'Organization', icon: Settings },
+  { path: '/account', label: 'Account', icon: User },
+  { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]
 

@@ -23,6 +23,27 @@ export default async (req: Request, _context: Context) => {
       const sowSubId = event.sow_subcontractor_id || event.unique_args?.sow_subcontractor_id
       const rfqToken = event.rfq_token || event.unique_args?.rfq_token
       const sgMessageId = event.sg_message_id
+      const orgId = event.unique_args?.org_id
+      const emailType = event.unique_args?.email_type // welcome, invite, rfq, etc.
+
+      // Log to email_delivery_log for global monitoring (bounce/complaint tracking)
+      if (orgId && (eventType === 'bounce' || eventType === 'dropped' || eventType === 'spamreport' || eventType === 'delivered')) {
+        const logEntry: Record<string, unknown> = {
+          org_id: orgId,
+          email_type: emailType || 'unknown',
+          recipient_email: event.email || '',
+          sendgrid_message_id: sgMessageId,
+          status: eventType === 'spamreport' ? 'spam_report' : eventType,
+        }
+        if (eventType === 'bounce' || eventType === 'dropped') {
+          logEntry.bounce_reason = event.reason || event.response || ''
+          logEntry.bounced_at = new Date().toISOString()
+        }
+        if (eventType === 'delivered') {
+          logEntry.delivered_at = new Date().toISOString()
+        }
+        await supabase.from('email_delivery_log').insert(logEntry)
+      }
 
       if (!sowSubId && !rfqToken) continue
 
