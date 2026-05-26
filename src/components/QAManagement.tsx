@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import * as XLSX from 'xlsx'
 import {
   MessageSquare, Send, Loader2, CheckCircle, Clock, AlertTriangle,
-  FileText, ChevronDown, ChevronUp, Calendar, Brain
+  FileText, ChevronDown, ChevronUp, Calendar, Brain,
+  Download, Upload, SendHorizontal
 } from 'lucide-react'
 
 interface SourceReference {
@@ -30,6 +32,7 @@ interface OpportunityQuestion {
   status: string
   question_category: string | null
   is_from_portal: boolean
+  submission_id: string | null
   created_at: string
   answered_at: string | null
   updated_at: string
@@ -74,6 +77,11 @@ export default function QAManagement({ taskOrderId }: Props) {
   const [savingReview, setSavingReview] = useState(false)
   const [deadlineInput, setDeadlineInput] = useState('')
   const [settingDeadline, setSettingDeadline] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [markingSubmitted, setMarkingSubmitted] = useState(false)
+  const [uploadingAnswers, setUploadingAnswers] = useState(false)
+  const [uploadResult, setUploadResult] = useState<{ matched: number; total: number } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadQuestions()
@@ -183,6 +191,212 @@ export default function QAManagement({ taskOrderId }: Props) {
     if (!error) loadQuestions()
   }
 
+  async function exportQuestionsToExcel() {
+    setExporting(true)
+    try {
+      // Get pending/submitted questions
+      const pendingQuestions = questions.filter(q =>
+        q.status === 'pending_submission' || q.status === 'submitted' || q.status === 'pending_review'
+      )
+
+      if (pendingQuestions.length === 0) {
+        alert('No pending questions to export. Only questions with "Pending Submission", "Submitted", or "Needs Review" status are included.')
+        return
+      }
+
+      // Get task order title for filename
+      const { data: to } = await supabase.from('task_orders').select('title, solicitation_number').eq('id', taskOrderId).single()
+      const projectName = to?.title || 'Project'
+
+      // Build worksheet data
+      const wsData = [
+        ['#', 'Question ID', 'Question', 'Related Section', 'Submitted By', 'Category', 'Date Submitted', 'Status', 'AI Answer (Reference)', 'Source Document', 'Official Answer (Fill In)']
+      ]
+
+      pendingQuestions.forEach((q, i) => {
+        const sourceRefs = (q.ai_source_references || []) as SourceReference[]
+        const sourceDoc = sourceRefs.length > 0
+          ? sourceRefs.map(r => `${r.document_name} — Section ${r.section}${r.sub_section !== 'N/A' ? ` "${r.sub_section}"` : ''}${r.page ? `, Page ${r.page}` : ''}`).join('; ')
+          : ''
+
+        wsData.push([
+          String(i + 1),
+          q.id,
+          q.question_text,
+          q.related_section || '',
+          q.subcontractor_id && subNames[q.subcontractor_id]
+            ? subNames[q.subcontractor_id]
+            : q.submitted_by_type === 'prime_team' ? 'Prime Team' : 'Subcontractor',
+          q.question_category ? (CATEGORY_LABELS[q.question_category] || q.question_category) : '',
+          new Date(q.created_at).toLocaleDateString(),
+          (STATUS_CONFIG[q.status]?.label || q.status),
+          q.ai_answer || '',
+          sourceDoc,
+          q.official_answer || '',
+        ])
+      })
+
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.aoa_to_sheet(wsData)
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 4 },   // #
+        { wch: 10 },  // ID (hidden-ish, narrow)
+        { wch: 60 },  // Question
+        { wch: 20 },  // Section
+        { wch: 25 },  // Submitted By
+        { wch: 15 },  // Category
+        { wch: 14 },  // Date
+        { wch: 18 },  // Status
+        { wch: 50 },  // AI Answer
+        { wch: 40 },  // Source Doc
+        { wch: 50 },  // Official Answer
+      ]
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Questions for Submission')
+
+      // Add instructions sheet
+      const instrData = [
+        ['Instructions for Q&A Submission'],
+        [''],
+        ['Project:', projectName],
+        ['Solicitation:', to?.solicitation_number || 'N/A'],
+        ['Export Date:', new Date().toLocaleDateString()],
+        ['Total Questions:', String(pendingQuestions.length)],
+        [''],
+        ['How to use this file:'],
+        ['1. Review all questions in the "Questions for Submission" sheet'],
+        ['2. Edit question text as needed for formal submission'],
+        ['3. Remove any questions you do not wish to submit (delete the row)'],
+        ['4. Send this file or copy the questions to your formal submission'],
+        ['5. When answers are received, fill in the "Official Answer" column'],
+        ['6. Upload the completed file back into Procuvex to distribute answers to subcontractors'],
+        [''],
+        ['Important: Do not modify the "Question ID" column — it is used to match answers back to the original questions.'],
+      ]
+      const instrWs = XLSX.utils.aoa_to_sheet(instrData)
+      instrWs['!cols'] = [{ wch: 80 }]
+      XLSX.utils.book_append_sheet(wb, instrWs, 'Instructions')
+
+      const safeName = projectName.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').slice(0, 40)
+      const dateStr = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(wb, `Questions_for_Submission_${safeName}_${dateStr}.xlsx`)
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('Failed to export questions. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function markQuestionsAsSubmitted() {
+    const pendingIds = questions.filter(q => q.status === 'pending_submission').map(q => q.id)
+    if (pendingIds.length === 0) {
+      alert('No pending questions to mark as submitted.')
+      return
+    }
+
+    if (!confirm(`Mark ${pendingIds.length} pending question(s) as formally submitted to the buyer?`)) return
+    setMarkingSubmitted(true)
+
+    try {
+      // Create a submission record
+      const { data: submission, error: subError } = await supabase
+        .from('question_submissions')
+        .insert({
+          task_order_id: taskOrderId,
+          submission_deadline: questionDeadline || new Date().toISOString(),
+          submitted_at: new Date().toISOString(),
+          submitted_by: user?.id,
+          question_count: pendingIds.length,
+          status: 'submitted',
+        })
+        .select()
+        .single()
+
+      if (subError) throw subError
+
+      // Update all pending questions to submitted
+      const { error: updateError } = await supabase
+        .from('opportunity_questions')
+        .update({
+          status: 'submitted',
+          submission_id: submission.id,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', pendingIds)
+
+      if (updateError) throw updateError
+
+      loadQuestions()
+    } catch (err) {
+      console.error('Failed to mark as submitted:', err)
+      alert('Failed to update question status. Please try again.')
+    } finally {
+      setMarkingSubmitted(false)
+    }
+  }
+
+  async function handleUploadAnswers(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAnswers(true)
+    setUploadResult(null)
+
+    try {
+      const data = await file.arrayBuffer()
+      const wb = XLSX.read(data)
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws)
+
+      let matched = 0
+      const total = rows.length
+
+      for (const row of rows) {
+        const questionId = row['Question ID']
+        const officialAnswer = row['Official Answer (Fill In)'] || row['Official Answer']
+        if (!questionId || !officialAnswer?.trim()) continue
+
+        const { error } = await supabase
+          .from('opportunity_questions')
+          .update({
+            official_answer: officialAnswer.trim(),
+            status: 'answered',
+            answered_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', questionId)
+          .eq('task_order_id', taskOrderId)
+
+        if (!error) matched++
+      }
+
+      setUploadResult({ matched, total })
+      loadQuestions()
+
+      // Also update the submission record if there is one
+      const submittedIds = questions.filter(q => q.status === 'submitted' && q.submission_id).map(q => q.submission_id!)
+      const uniqueSubIds = [...new Set(submittedIds)]
+      for (const subId of uniqueSubIds) {
+        await supabase
+          .from('question_submissions')
+          .update({
+            status: 'response_received',
+            response_received_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', subId)
+      }
+    } catch (err) {
+      console.error('Upload failed:', err)
+      alert('Failed to process the uploaded file. Please ensure it is a valid .xlsx file with the correct format.')
+    } finally {
+      setUploadingAnswers(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   async function setQuestionDeadlineDate() {
     if (!deadlineInput) return
     setSettingDeadline(true)
@@ -220,6 +434,51 @@ export default function QAManagement({ taskOrderId }: Props) {
           <span className="text-sm text-gray-500">({questions.length} questions)</span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Export Questions */}
+          {questions.some(q => q.status === 'pending_submission' || q.status === 'submitted' || q.status === 'pending_review') && (
+            <button
+              onClick={exportQuestionsToExcel}
+              disabled={exporting}
+              className="flex items-center gap-1.5 border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              title="Export pending questions to Excel for formal submission"
+            >
+              {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              Export
+            </button>
+          )}
+          {/* Mark as Submitted */}
+          {questions.some(q => q.status === 'pending_submission') && (
+            <button
+              onClick={markQuestionsAsSubmitted}
+              disabled={markingSubmitted}
+              className="flex items-center gap-1.5 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+              title="Mark all pending questions as formally submitted to the buyer"
+            >
+              {markingSubmitted ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <SendHorizontal className="w-3.5 h-3.5" />}
+              Mark Submitted
+            </button>
+          )}
+          {/* Upload Answers */}
+          {questions.some(q => q.status === 'submitted') && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleUploadAnswers}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAnswers}
+                className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                title="Upload the Q&A response file with official answers"
+              >
+                {uploadingAnswers ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                Upload Answers
+              </button>
+            </>
+          )}
           <button
             onClick={() => setShowQuestionForm(!showQuestionForm)}
             className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700"
@@ -229,6 +488,21 @@ export default function QAManagement({ taskOrderId }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Upload Result Notification */}
+      {uploadResult && (
+        <div className={`rounded-lg p-3 flex items-center justify-between ${uploadResult.matched > 0 ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+          <div className="flex items-center gap-2">
+            {uploadResult.matched > 0 ? <CheckCircle className="w-4 h-4 text-green-600" /> : <AlertTriangle className="w-4 h-4 text-amber-600" />}
+            <span className="text-sm font-medium">
+              {uploadResult.matched > 0
+                ? `Successfully matched ${uploadResult.matched} answer(s) from ${uploadResult.total} row(s) in the uploaded file.`
+                : `No answers could be matched from the uploaded file (${uploadResult.total} rows). Make sure the "Question ID" and "Official Answer" columns are present.`}
+            </span>
+          </div>
+          <button onClick={() => setUploadResult(null)} className="text-gray-400 hover:text-gray-600 text-sm">&times;</button>
+        </div>
+      )}
 
       {/* Status Summary Badges */}
       <div className="flex flex-wrap gap-2">
