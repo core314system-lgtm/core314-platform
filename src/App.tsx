@@ -44,6 +44,7 @@ import Billing from './pages/Billing'
 import ResetPassword from './pages/ResetPassword'
 import AccountSettings from './pages/AccountSettings'
 import AdminAnalytics from './pages/AdminAnalytics'
+import GlobalAdminSettings from './pages/GlobalAdminSettings'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -216,6 +217,7 @@ export default function App() {
           <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute><GlobalAdminRoute><AdminAnalytics /></GlobalAdminRoute></ProtectedRoute>} />
+          <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
