@@ -1,4 +1,6 @@
 import type { Context } from "@netlify/functions"
+import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
+import { sanitizeText } from "./_shared/sanitize.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,11 +25,23 @@ export default async (req: Request, _context: Context) => {
 
   try {
     const body = await req.json()
-    const { messages, model, temperature, max_tokens, response_format } = body
+    const { messages, model, temperature, max_tokens, response_format, org_id } = body
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "Missing 'messages' array" }), { status: 400, headers: corsHeaders })
     }
+
+    // Rate limit by org if provided
+    if (org_id) {
+      const rl = await checkRateLimit(org_id, "ai_call")
+      if (!rl.allowed) return rateLimitResponse(rl, "AI analysis")
+    }
+
+    // Sanitize message content to prevent prompt injection of HTML/scripts
+    const sanitizedMessages = messages.map((m: { role: string; content: string }) => ({
+      ...m,
+      content: typeof m.content === "string" ? sanitizeText(m.content) : m.content,
+    }))
 
     // Use OpenAI streaming to keep the Netlify function alive.
     // We return a ReadableStream that emits whitespace while waiting
@@ -42,7 +56,7 @@ export default async (req: Request, _context: Context) => {
       },
       body: JSON.stringify({
         model: model || "gpt-4o-mini",
-        messages,
+        messages: sanitizedMessages,
         temperature: temperature ?? 0.1,
         max_tokens: max_tokens || 16384,
         ...(response_format ? { response_format } : {}),

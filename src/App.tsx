@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { OrgProvider } from './contexts/OrgContext'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
+import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import TaskOrders from './pages/TaskOrders'
@@ -58,7 +60,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
-  return <OrgProvider><Layout>{children}</Layout></OrgProvider>
+  return (
+    <OrgProvider>
+      <Layout>
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </Layout>
+    </OrgProvider>
+  )
 }
 
 function HomePage() {
@@ -167,8 +175,8 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

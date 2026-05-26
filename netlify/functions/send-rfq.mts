@@ -1,5 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
+import { isValidUUID } from "./_shared/sanitize.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -40,6 +42,10 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 })
     }
 
+    if (!isValidUUID(task_order_id)) {
+      return new Response(JSON.stringify({ error: "Invalid task order ID" }), { status: 400 })
+    }
+
     // Get task order details
     const { data: taskOrder } = await supabase
       .from("task_orders")
@@ -49,6 +55,12 @@ export default async (req: Request, _context: Context) => {
 
     if (!taskOrder) {
       return new Response(JSON.stringify({ error: "Task order not found" }), { status: 404 })
+    }
+
+    // Rate limit by org
+    if (taskOrder.org_id) {
+      const rl = await checkRateLimit(taskOrder.org_id, "email")
+      if (!rl.allowed) return rateLimitResponse(rl, "RFQ emails")
     }
 
     // Look up the sending organization's name and RFQ template
