@@ -51,15 +51,19 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "Task order not found" }), { status: 404 })
     }
 
-    // Look up the sending organization's name
+    // Look up the sending organization's name and RFQ template
     let orgName = "Procuvex"
+    let customRfqTemplate = ""
     if (taskOrder.org_id) {
       const { data: org } = await supabase
         .from("organizations")
-        .select("name")
+        .select("name, settings")
         .eq("id", taskOrder.org_id)
         .single()
       if (org?.name) orgName = org.name
+      if ((org?.settings as any)?.rfq_template) {
+        customRfqTemplate = (org.settings as any).rfq_template
+      }
     }
 
     // Get all sow_subcontractors with their SOW and subcontractor details
@@ -144,7 +148,54 @@ export default async (req: Request, _context: Context) => {
           </div>`
         : ""
 
-      const emailHtml = `
+      // Build custom template body if org has one
+      let customBodyHtml = ""
+      if (customRfqTemplate) {
+        const renderedTemplate = customRfqTemplate
+          .replace(/{contact_name}/g, sub.contact_name || sub.company_name)
+          .replace(/{org_name}/g, orgName)
+          .replace(/{task_order_title}/g, taskOrder.title || "")
+          .replace(/{sow_name}/g, sow.sow_name || "")
+          .replace(/{service_category}/g, sow.service_category || "")
+          .replace(/{site_name}/g, taskOrder.site_name || "")
+          .replace(/{location_city}/g, taskOrder.location_city || "")
+          .replace(/{location_state}/g, taskOrder.location_state || "")
+          .replace(/{due_date}/g, dueDate)
+          .replace(/{solicitation_number}/g, taskOrder.solicitation_number || "")
+        customBodyHtml = renderedTemplate.split("\n").map((line: string) => `<p style="margin: 4px 0; font-size: 14px;">${line || "&nbsp;"}</p>`).join("\n")
+      }
+
+      const emailHtml = customRfqTemplate
+        ? `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: #1e40af; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 20px;">Request for Quote</h1>
+            <p style="margin: 8px 0 0; opacity: 0.9; font-size: 14px;">On behalf of ${orgName}</p>
+          </div>
+          
+          <div style="border: 1px solid #e5e7eb; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+            ${customBodyHtml}
+
+            ${custom_message ? `<div style="background: #eff6ff; border-left: 4px solid #1e40af; padding: 12px 16px; margin: 16px 0; font-size: 14px;"><strong>Note from the team:</strong><br/>${custom_message}</div>` : ""}
+            
+            ${docListHtml}
+            
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${portalUrl}" style="display: inline-block; background: #1e40af; color: white; padding: 14px 32px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                View RFQ & Submit Quote
+              </a>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+            
+            <p style="font-size: 12px; color: #9ca3af; margin: 0;">
+              Delivered on behalf of ${orgName}<br/>
+              Powered by Procuvex
+            </p>
+          </div>
+        </div>
+      `
+        : `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #1e40af; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
             <h1 style="margin: 0; font-size: 20px;">Request for Quote</h1>

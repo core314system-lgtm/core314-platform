@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain } from 'lucide-react'
+import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain, Plus, Trash2 } from 'lucide-react'
 
 interface PortalData {
   task_order: {
@@ -92,12 +92,11 @@ export default function SubcontractorPortal() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [declined, setDeclined] = useState(false)
-  const [questionText, setQuestionText] = useState('')
-  const [questionSection, setQuestionSection] = useState('')
+  const [questions, setQuestions] = useState<Array<{ section: string; text: string }>>([{ section: '', text: '' }])
   const [submittingQuestion, setSubmittingQuestion] = useState(false)
+  const [batchResults, setBatchResults] = useState<Array<{ status: string; ai_analysis?: { answer_text?: string; confidence_score?: number; source_references?: SourceRef[]; question_category?: string } }> | null>(null)
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
-  const [aiResult, setAiResult] = useState<{ status: string; ai_analysis?: { answer_text?: string; confidence_score?: number; source_references?: SourceRef[]; question_category?: string } } | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -181,9 +180,23 @@ export default function SubcontractorPortal() {
     }
   }
 
-  async function handleSubmitQuestion() {
-    if (!token || !questionText.trim()) return
+  function addQuestion() {
+    setQuestions(prev => [...prev, { section: '', text: '' }])
+  }
+
+  function removeQuestion(index: number) {
+    setQuestions(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function updateQuestion(index: number, field: 'section' | 'text', value: string) {
+    setQuestions(prev => prev.map((q, i) => i === index ? { ...q, [field]: value } : q))
+  }
+
+  async function handleSubmitQuestions() {
+    const validQuestions = questions.filter(q => q.text.trim())
+    if (!token || validQuestions.length === 0) return
     setSubmittingQuestion(true)
+    setBatchResults(null)
 
     try {
       const resp = await fetch('/api/portal-api', {
@@ -191,17 +204,18 @@ export default function SubcontractorPortal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
-          action: 'submit_question',
-          question_text: questionText,
-          related_section: questionSection || null,
+          action: 'submit_questions_batch',
+          questions: validQuestions.map(q => ({
+            question_text: q.text.trim(),
+            related_section: q.section.trim() || null,
+          })),
         }),
       })
 
       if (resp.ok) {
         const result = await resp.json()
-        setAiResult(result)
-        setQuestionText('')
-        setQuestionSection('')
+        setBatchResults(result.results || [])
+        setQuestions([{ section: '', text: '' }])
         fetchPortalData()
       }
     } catch {
@@ -448,60 +462,6 @@ export default function SubcontractorPortal() {
         {/* Questions Tab */}
         {activeTab === 'questions' && (
           <div className="space-y-4">
-            {/* AI Result Banner */}
-            {aiResult && (
-              <div className={`rounded-xl shadow-sm border p-6 ${
-                aiResult.status === 'auto_answered' ? 'bg-green-50 border-green-200' :
-                aiResult.status === 'pending_review' ? 'bg-amber-50 border-amber-200' :
-                'bg-blue-50 border-blue-200'
-              }`}>
-                <div className="flex items-start gap-3">
-                  <Brain className={`w-5 h-5 mt-0.5 ${
-                    aiResult.status === 'auto_answered' ? 'text-green-600' :
-                    aiResult.status === 'pending_review' ? 'text-amber-600' :
-                    'text-blue-600'
-                  }`} />
-                  <div className="flex-1">
-                    {aiResult.status === 'auto_answered' && aiResult.ai_analysis?.answer_text ? (
-                      <>
-                        <h3 className="font-bold text-green-800 mb-2">Answer Found in Documentation</h3>
-                        <p className="text-sm text-gray-800 mb-3">{aiResult.ai_analysis.answer_text}</p>
-                        {(aiResult.ai_analysis?.source_references?.length ?? 0) > 0 && (
-                          <div className="bg-white rounded-lg p-3 border border-green-200">
-                            <p className="text-xs font-medium text-gray-600 mb-1">Source:</p>
-                            {aiResult.ai_analysis?.source_references?.map((ref: SourceRef, i: number) => (
-                              <p key={i} className="text-xs text-gray-600">
-                                <span className="font-medium">{ref.document_name}</span> &mdash; Section {ref.section}
-                                {ref.sub_section !== 'N/A' && ` "${ref.sub_section}"`}
-                                {ref.page && `, Page ${ref.page}`}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : aiResult.status === 'pending_review' ? (
-                      <>
-                        <h3 className="font-bold text-amber-800 mb-1">Question Under Review</h3>
-                        <p className="text-sm text-gray-700">We found some related information but want to verify before sharing. We will follow up shortly.</p>
-                      </>
-                    ) : (
-                      <>
-                        <h3 className="font-bold text-blue-800 mb-1">Question Submitted for Clarification</h3>
-                        <p className="text-sm text-gray-700">
-                          Your question has been added to our formal clarification request
-                          {data.question_deadline && (
-                            <>, which will be submitted on <strong>{new Date(data.question_deadline).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong></>
-                          )}.
-                          You will be notified when an answer is available.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <button onClick={() => setAiResult(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-                </div>
-              </div>
-            )}
-
             {/* AI-Analyzed Q&A */}
             {(data.ai_questions?.length > 0 || data.questions.length > 0) && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -588,40 +548,117 @@ export default function SubcontractorPortal() {
               </div>
             )}
 
-            {/* Ask a Question */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Submit a Question</h2>
-              <p className="text-sm text-gray-500 mb-4">Ask questions about the scope of work, requirements, or anything else you need clarified to complete your quote.</p>
+            {/* Batch Results */}
+            {batchResults && batchResults.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-bold text-gray-900">Submission Results</h2>
+                  <button onClick={() => setBatchResults(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="space-y-3">
+                  {batchResults.map((result, i) => (
+                    <div key={i} className={`rounded-lg p-4 border ${
+                      result.status === 'auto_answered' ? 'border-green-200 bg-green-50' :
+                      result.status === 'pending_review' ? 'border-amber-200 bg-amber-50' :
+                      'border-blue-200 bg-blue-50'
+                    }`}>
+                      {result.status === 'auto_answered' && result.ai_analysis ? (
+                        <>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Brain className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-bold text-green-800">Answered from Documents</span>
+                            <span className="text-xs text-green-600">({result.ai_analysis.confidence_score}% confidence)</span>
+                          </div>
+                          <p className="text-sm text-gray-700 mb-2">{result.ai_analysis.answer_text}</p>
+                          {result.ai_analysis.source_references && result.ai_analysis.source_references.length > 0 && (
+                            <div className="bg-white rounded-lg p-2 border border-green-200">
+                              <p className="text-xs font-medium text-gray-600 mb-1">Source:</p>
+                              {result.ai_analysis.source_references.map((ref: SourceRef, j: number) => (
+                                <p key={j} className="text-xs text-gray-600">
+                                  <span className="font-medium">{ref.document_name}</span> &mdash; Section {ref.section}
+                                  {ref.sub_section !== 'N/A' && ` "${ref.sub_section}"`}
+                                  {ref.page && `, Page ${ref.page}`}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : result.status === 'pending_review' ? (
+                        <>
+                          <h3 className="font-bold text-amber-800 mb-1 text-sm">Question Under Review</h3>
+                          <p className="text-sm text-gray-700">We found related info but need to verify. We will follow up shortly.</p>
+                        </>
+                      ) : (
+                        <>
+                          <h3 className="font-bold text-blue-800 mb-1 text-sm">Submitted for Clarification</h3>
+                          <p className="text-sm text-gray-700">Added to our formal clarification request. You will be notified when an answer is available.</p>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Related Section (optional)</label>
-                  <input
-                    type="text"
-                    value={questionSection}
-                    onChange={e => setQuestionSection(e.target.value)}
-                    placeholder="e.g., Section 3.2 - Equipment Requirements"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Your Question *</label>
-                  <textarea
-                    value={questionText}
-                    onChange={e => setQuestionText(e.target.value)}
-                    placeholder="Type your question here..."
-                    rows={4}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="flex justify-end">
+            {/* Submit Questions */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-2">Submit Questions</h2>
+              <p className="text-sm text-gray-500 mb-4">Ask questions about the scope of work, requirements, or anything else you need clarified. You can submit multiple questions at once.</p>
+
+              <div className="space-y-4">
+                {questions.map((q, index) => (
+                  <div key={index} className={`space-y-2 ${index > 0 ? 'pt-4 border-t border-gray-200' : ''}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-700">Question {index + 1}</span>
+                      {questions.length > 1 && (
+                        <button
+                          onClick={() => removeQuestion(index)}
+                          className="text-red-400 hover:text-red-600 p-1"
+                          title="Remove this question"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Related Section (optional)</label>
+                      <input
+                        type="text"
+                        value={q.section}
+                        onChange={e => updateQuestion(index, 'section', e.target.value)}
+                        placeholder="e.g., Section 3.2 - Equipment Requirements"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Your Question *</label>
+                      <textarea
+                        value={q.text}
+                        onChange={e => updateQuestion(index, 'text', e.target.value)}
+                        placeholder="Type your question here..."
+                        rows={3}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={addQuestion}
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium py-2"
+                >
+                  <Plus className="w-4 h-4" /> Add Another Question
+                </button>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-500">{questions.filter(q => q.text.trim()).length} question{questions.filter(q => q.text.trim()).length !== 1 ? 's' : ''} ready to submit</span>
                   <button
-                    onClick={handleSubmitQuestion}
-                    disabled={submittingQuestion || !questionText.trim()}
+                    onClick={handleSubmitQuestions}
+                    disabled={submittingQuestion || questions.filter(q => q.text.trim()).length === 0}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
                     {submittingQuestion ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Submit Question
+                    Submit {questions.filter(q => q.text.trim()).length > 1 ? `${questions.filter(q => q.text.trim()).length} Questions` : 'Question'}
                   </button>
                 </div>
               </div>

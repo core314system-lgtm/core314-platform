@@ -178,6 +178,8 @@ async function handlePost(req: Request) {
     return handleQuoteSubmission(tokenData, body)
   } else if (action === "submit_question") {
     return handleQuestionSubmission(tokenData, body)
+  } else if (action === "submit_questions_batch") {
+    return handleBatchQuestionSubmission(tokenData, body)
   } else if (action === "decline") {
     return handleDecline(tokenData, body)
   }
@@ -356,6 +358,98 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
 
   return new Response(
     JSON.stringify({ success: true, question_id: question.id }),
+    { headers: corsHeaders }
+  )
+}
+
+async function handleBatchQuestionSubmission(tokenData: any, body: any) {
+  const { questions } = body
+
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return new Response(JSON.stringify({ error: "At least one question is required" }), { status: 400, headers: corsHeaders })
+  }
+
+  if (questions.length > 20) {
+    return new Response(JSON.stringify({ error: "Maximum 20 questions per submission" }), { status: 400, headers: corsHeaders })
+  }
+
+  const siteUrl = process.env.URL || "https://procuvex.com"
+  const results: Array<{ status: string; ai_analysis?: any }> = []
+
+  for (const q of questions) {
+    const questionText = q.question_text?.trim()
+    if (!questionText) continue
+
+    try {
+      const aiRes = await fetch(`${siteUrl}/.netlify/functions/submit-question`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: body.token,
+          question_text: questionText,
+          related_section: q.related_section || null,
+        }),
+      })
+
+      if (aiRes.ok) {
+        const result = await aiRes.json()
+        results.push(result)
+      } else {
+        // Fallback: basic insert
+        await supabase.from("subcontractor_questions").insert({
+          rfq_token_id: tokenData.id,
+          sow_subcontractor_id: tokenData.sow_subcontractor_id,
+          sow_item_id: tokenData.sow_item_id,
+          task_order_id: tokenData.task_order_id,
+          subcontractor_id: tokenData.subcontractor_id,
+          question_text: questionText,
+          related_section: q.related_section || null,
+          status: "pending",
+        })
+        results.push({ status: "pending_submission" })
+      }
+    } catch {
+      // Fallback on error
+      await supabase.from("subcontractor_questions").insert({
+        rfq_token_id: tokenData.id,
+        sow_subcontractor_id: tokenData.sow_subcontractor_id,
+        sow_item_id: tokenData.sow_item_id,
+        task_order_id: tokenData.task_order_id,
+        subcontractor_id: tokenData.subcontractor_id,
+        question_text: questionText,
+        related_section: q.related_section || null,
+        status: "pending",
+      })
+      results.push({ status: "pending_submission" })
+    }
+  }
+
+  // Update outreach status
+  const { data: sowSub } = await supabase
+    .from("sow_subcontractors")
+    .select("outreach_status")
+    .eq("id", tokenData.sow_subcontractor_id)
+    .single()
+
+  if (sowSub && sowSub.outreach_status === "invited") {
+    await supabase
+      .from("sow_subcontractors")
+      .update({ outreach_status: "questions_pending", updated_at: new Date().toISOString() })
+      .eq("id", tokenData.sow_subcontractor_id)
+  }
+
+  // Log batch communication
+  const sub = tokenData.subcontractors
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "question",
+    direction: "inbound",
+    subject: `Batch question submission (${results.length} questions)`,
+    body: `${sub?.company_name || "Subcontractor"} submitted ${results.length} questions through the portal.`,
+  })
+
+  return new Response(
+    JSON.stringify({ success: true, count: results.length, results }),
     { headers: corsHeaders }
   )
 }
