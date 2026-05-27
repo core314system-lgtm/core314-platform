@@ -373,8 +373,8 @@ export default function Login() {
             </div>
             {isSignUp ? (
               <>
-                <h1 className="text-2xl font-bold text-gray-900">{betaInviteInfo ? 'Join the Beta Program' : 'Start Your Free Trial'}</h1>
-                <p className="text-gray-500 mt-1">{betaInviteInfo ? 'Create your account to get started' : '7 days free — cancel anytime before trial ends'}</p>
+                <h1 className="text-2xl font-bold text-gray-900">{betaInviteInfo ? 'Activate Your Founding Partner Access' : 'Start Your Free Trial'}</h1>
+                <p className="text-gray-500 mt-1">{betaInviteInfo ? 'Create your account to begin the 30-day program' : '7 days free — cancel anytime before trial ends'}</p>
                 {selectedPlan && (
                   <p className="text-blue-600 text-xs font-medium mt-2">
                     {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan — {selectedBilling === 'annual' ? 'Annual' : 'Monthly'} billing
@@ -402,13 +402,13 @@ export default function Login() {
           )}
 
           {betaInviteInfo && !inviteInfo && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-center">
-              <Mail className="mx-auto text-indigo-500 mb-2" size={24} />
-              <p className="text-sm text-indigo-900 font-medium">
-                You've been invited to beta test <strong>Procuvex</strong>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-center">
+              <Mail className="mx-auto text-green-500 mb-2" size={24} />
+              <p className="text-sm text-green-900 font-medium">
+                Welcome to the <strong>Procuvex Founding Partner Program</strong>
               </p>
-              <p className="text-xs text-indigo-600 mt-1">
-                Create your account below to get started with your 7-day free trial.
+              <p className="text-xs text-green-600 mt-1">
+                Create your account below. Your 30-day program begins at first login.
               </p>
             </div>
           )}
@@ -490,7 +490,7 @@ export default function Login() {
               {loading ? (
                 'Please wait...'
               ) : isSignUp ? (
-                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : betaInviteInfo ? 'Create Beta Account' : 'Start Free Trial'}</>
+                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : betaInviteInfo ? 'Activate Founding Partner Access' : 'Start Free Trial'}</>
               ) : (
                 <><LogIn size={18} /> {inviteInfo ? 'Sign In & Join' : 'Sign In'}</>
               )}

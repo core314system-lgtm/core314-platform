@@ -30,13 +30,16 @@ interface TesterActivity {
   last_sign_in_at: string | null
   created_at: string
   project_count: number
+  beta_start_date?: string | null
+  beta_program_status?: string | null
+  feedback_count?: number
 }
 
 interface BetaInvite {
   id: string
   email: string
   token: string
-  status: 'pending' | 'accepted' | 'expired' | 'revoked'
+  status: 'pending' | 'applied' | 'accepted' | 'declined' | 'expired' | 'revoked'
   created_at: string
   claimed_at: string | null
   expires_at: string | null
@@ -59,7 +62,8 @@ export default function AdminBetaInvites() {
   const [emailList, setEmailList] = useState<string[]>([])
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'expired' | 'revoked'>('all')
+  const [seats, setSeats] = useState<{ total: number; accepted: number; remaining: number } | null>(null)
+  const [filter, setFilter] = useState<'all' | 'pending' | 'applied' | 'accepted' | 'declined' | 'expired' | 'revoked'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -71,6 +75,9 @@ export default function AdminBetaInvites() {
   const [followUpMessage, setFollowUpMessage] = useState('')
   const [sendingFollowUp, setSendingFollowUp] = useState(false)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'invitations' | 'feedback'>('invitations')
+  const [allFeedback, setAllFeedback] = useState<Array<{ user_id: string; week_number: number; responses: Record<string, unknown>; submitted_at: string; user_email?: string; user_name?: string }>>([])
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
 
   async function fetchInvites() {
     setLoading(true)
@@ -86,6 +93,7 @@ export default function AdminBetaInvites() {
       }
       setInvites(data.invites || [])
       setTesterActivity(data.testerActivity || {})
+      if (data.seats) setSeats(data.seats)
     } catch {
       setError('Failed to load invitations')
     } finally {
@@ -93,9 +101,25 @@ export default function AdminBetaInvites() {
     }
   }
 
+  async function fetchFeedback() {
+    setFeedbackLoading(true)
+    try {
+      const res = await fetch('/.netlify/functions/beta-feedback?all=true', {
+        headers: { 'x-user-id': user?.id || '' },
+      })
+      const data = await res.json()
+      if (data.feedback) setAllFeedback(data.feedback)
+    } catch { /* ignore */ }
+    finally { setFeedbackLoading(false) }
+  }
+
   useEffect(() => {
     if (user?.id) fetchInvites()
   }, [user?.id])
+
+  useEffect(() => {
+    if (activeTab === 'feedback' && allFeedback.length === 0 && user?.id) fetchFeedback()
+  }, [activeTab, user?.id])
 
   function addEmail() {
     const trimmed = emailInput.trim().toLowerCase()
@@ -207,6 +231,51 @@ export default function AdminBetaInvites() {
       }
     } catch {
       setError('Failed to delete invitation')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function acceptApplication(inviteId: string) {
+    setActionLoading(inviteId)
+    try {
+      const res = await fetch('/.netlify/functions/manage-beta-invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caller_id: user?.id, action: 'accept', invite_id: inviteId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSuccess('Application accepted — welcome email sent!')
+        fetchInvites()
+      } else {
+        setError(data.error || 'Failed to accept application')
+      }
+    } catch {
+      setError('Failed to accept application')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function declineApplication(inviteId: string) {
+    if (!confirm('Decline this application? A capacity-full email will be sent.')) return
+    setActionLoading(inviteId)
+    try {
+      const res = await fetch('/.netlify/functions/manage-beta-invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caller_id: user?.id, action: 'decline', invite_id: inviteId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSuccess('Application declined — notification sent.')
+        fetchInvites()
+      } else {
+        setError(data.error || 'Failed to decline application')
+      }
+    } catch {
+      setError('Failed to decline application')
     } finally {
       setActionLoading(null)
     }
@@ -356,7 +425,9 @@ export default function AdminBetaInvites() {
   const counts = {
     all: invites.length,
     pending: invites.filter(i => i.status === 'pending').length,
+    applied: invites.filter(i => i.status === 'applied').length,
     accepted: invites.filter(i => i.status === 'accepted').length,
+    declined: invites.filter(i => i.status === 'declined').length,
     expired: invites.filter(i => i.status === 'expired').length,
     revoked: invites.filter(i => i.status === 'revoked').length,
   }
@@ -391,7 +462,9 @@ export default function AdminBetaInvites() {
   const statusBadge = (status: string) => {
     const styles: Record<string, string> = {
       pending: 'bg-amber-100 text-amber-700',
+      applied: 'bg-blue-100 text-blue-700',
       accepted: 'bg-green-100 text-green-700',
+      declined: 'bg-gray-100 text-gray-500',
       expired: 'bg-gray-100 text-gray-500',
       revoked: 'bg-red-100 text-red-600',
     }
@@ -425,11 +498,26 @@ export default function AdminBetaInvites() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Mail className="h-6 w-6 text-blue-600" />
-            Beta Tester Invitations
+            Founding Partner Program
           </h1>
           <p className="text-gray-500 mt-1">
-            Manage beta invitations, track tester activity, and communicate with testers
+            Manage invitations, review applications, track tester activity, and communicate with partners
           </p>
+          {seats && (
+            <div className="mt-2 flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-gray-700">{seats.accepted}/{seats.total} seats filled</span>
+                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(seats.accepted / seats.total) * 100}%` }} />
+                </div>
+                <span className="text-gray-500">{seats.remaining} remaining</span>
+              </div>
+            </div>
+          )}
+          <div className="mt-3 flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+            <button onClick={() => setActiveTab('invitations')} className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'invitations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Invitations</button>
+            <button onClick={() => setActiveTab('feedback')} className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'feedback' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Feedback Submissions</button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -452,6 +540,56 @@ export default function AdminBetaInvites() {
         </div>
       </div>
 
+      {activeTab === 'feedback' && (
+        <div className="bg-white rounded-xl border border-gray-200">
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">All Feedback Submissions</h2>
+              <p className="text-sm text-gray-500 mt-1">{allFeedback.length} total submissions across all testers</p>
+            </div>
+            <button
+              onClick={fetchFeedback}
+              disabled={feedbackLoading}
+              className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${feedbackLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+          {feedbackLoading ? (
+            <div className="p-12 text-center text-gray-500">Loading feedback...</div>
+          ) : allFeedback.length === 0 ? (
+            <div className="p-12 text-center text-gray-400">No feedback submissions yet</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {allFeedback.map((fb, idx) => (
+                <div key={idx} className="p-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        Week {fb.week_number}
+                      </span>
+                      <span className="text-sm font-medium text-gray-900">{fb.user_email || fb.user_id.slice(0, 8)}</span>
+                      {fb.user_name && <span className="text-xs text-gray-500">({fb.user_name})</span>}
+                    </div>
+                    <span className="text-xs text-gray-400">{new Date(fb.submitted_at).toLocaleString()}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                    {Object.entries(fb.responses).map(([key, val]) => (
+                      <div key={key} className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-xs text-gray-500 font-medium">{key.replace(/_/g, ' ')}</p>
+                        <p className="text-sm text-gray-800 mt-0.5">{Array.isArray(val) ? val.join(', ') : String(val)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'invitations' && <>
       {/* Send Invites Section */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -584,7 +722,7 @@ export default function AdminBetaInvites() {
         </div>
 
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-          {(['all', 'pending', 'accepted', 'expired', 'revoked'] as const).map(f => (
+          {(['all', 'pending', 'applied', 'accepted', 'declined', 'expired', 'revoked'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -759,6 +897,28 @@ export default function AdminBetaInvites() {
                             </button>
                           )}
 
+                          {/* Accept/Decline (applied only) */}
+                          {invite.status === 'applied' && (
+                            <>
+                              <button
+                                onClick={() => acceptApplication(invite.id)}
+                                disabled={actionLoading === invite.id}
+                                className="text-green-500 hover:text-green-700 p-1 disabled:opacity-50"
+                                title="Accept application"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => declineApplication(invite.id)}
+                                disabled={actionLoading === invite.id}
+                                className="text-gray-400 hover:text-red-600 p-1 disabled:opacity-50"
+                                title="Decline application"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+
                           {/* Revoke (pending only) */}
                           {invite.status === 'pending' && (
                             <button
@@ -892,9 +1052,10 @@ export default function AdminBetaInvites() {
           Beta Feedback Channel
         </h3>
         <p className="text-xs text-blue-700 leading-relaxed">
-          Beta testers can submit feedback using the <strong>"Ask Procuvex Intelligence"</strong> chat widget (bottom-right of every page) or by emailing <strong>support@govmatchai.com</strong>. You can also send follow-up emails directly from this page using the message icon on accepted invitations.
+          Founding Partners submit weekly feedback via the <strong>Partner Feedback</strong> page in their sidebar. View all submissions in the "Feedback Submissions" tab above.
         </p>
       </div>
+      </>}
     </div>
   )
 }

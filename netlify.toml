@@ -10,10 +10,20 @@
 [functions."trial-reminder"]
   schedule = "0 13 * * *"
 
+# Scheduled function: beta program reminders (daily at 9am ET / 1pm UTC)
+[functions."beta-reminders"]
+  schedule = "0 13 * * *"
+
 # API routes for Netlify Functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
+  status = 200
+
+# Beta application routes (public, no auth)
+[[redirects]]
+  from = "/beta/*"
+  to = "/index.html"
   status = 200
 
 # Portal route (public, no auth)
