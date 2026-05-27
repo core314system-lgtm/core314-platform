@@ -188,17 +188,17 @@ export default async (req: Request, _context: Context) => {
 
   // --- GET: List all invitations with tester activity (global admin only) ---
   if (req.method === "GET") {
-    const callerId = req.headers.get("x-user-id")
-    if (!callerId) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers })
-    }
-
     const url = new URL(req.url)
 
     // Public endpoint: get seats remaining (no auth required for landing page)
     if (url.searchParams.get("action") === "seats") {
       const accepted = await getAcceptedCount()
       return new Response(JSON.stringify({ total: MAX_BETA_SEATS, remaining: Math.max(0, MAX_BETA_SEATS - accepted) }), { headers })
+    }
+
+    const callerId = req.headers.get("x-user-id")
+    if (!callerId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers })
     }
 
     if (!(await verifyGlobalAdmin(callerId))) {
