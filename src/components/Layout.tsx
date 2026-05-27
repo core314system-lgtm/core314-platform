@@ -21,6 +21,7 @@ import {
   CreditCard,
   User,
   Activity,
+  MailPlus,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import GlobalChat from './GlobalChat'
@@ -47,6 +48,7 @@ const navItems = [
   { path: '/settings', label: 'Organization', icon: Settings },
   { path: '/account', label: 'Account', icon: User },
   { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
+  { path: '/admin/invites', label: 'Beta Invitations', icon: MailPlus },
   { path: '/admin/access', label: 'Global Admin', icon: Shield },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { LogIn, UserPlus, Mail, CheckCircle } from 'lucide-react'
+import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface InviteInfo {
@@ -11,14 +11,20 @@ interface InviteInfo {
   token: string
 }
 
+interface BetaInviteInfo {
+  email: string
+  token: string
+}
+
 export default function Login() {
   const [searchParams] = useSearchParams()
   const inviteToken = searchParams.get('invite')
+  const betaInviteToken = searchParams.get('beta_invite')
   const fromPricing = searchParams.get('from') === 'pricing' || document.referrer.includes('/pricing')
   const selectedPlan = searchParams.get('plan') // 'growth' or 'enterprise'
   const selectedBilling = searchParams.get('billing') || 'monthly' // 'monthly' or 'annual'
 
-  const [isSignUp, setIsSignUp] = useState(!!inviteToken || fromPricing)
+  const [isSignUp, setIsSignUp] = useState(!!inviteToken || !!betaInviteToken || fromPricing)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -26,6 +32,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [signUpSuccess, setSignUpSuccess] = useState(false)
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null)
+  const [betaInviteInfo, setBetaInviteInfo] = useState<BetaInviteInfo | null>(null)
+  const [betaInviteError, setBetaInviteError] = useState<string | null>(null)
+  const [betaValidating, setBetaValidating] = useState(!!betaInviteToken)
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
 
@@ -44,6 +53,29 @@ export default function Login() {
       })
     }
   }, [inviteToken])
+
+  // Validate beta invite token
+  useEffect(() => {
+    if (betaInviteToken) {
+      setBetaValidating(true)
+      fetch('/.netlify/functions/manage-beta-invites', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: betaInviteToken, action: 'validate' }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.valid) {
+            setBetaInviteInfo({ email: data.email, token: betaInviteToken })
+            setEmail(data.email)
+          } else {
+            setBetaInviteError(data.error || 'Invalid invitation')
+          }
+        })
+        .catch(() => setBetaInviteError('Failed to validate invitation'))
+        .finally(() => setBetaValidating(false))
+    }
+  }, [betaInviteToken])
 
   async function loadInviteInfo(token: string) {
     const { data } = await supabase
@@ -164,7 +196,17 @@ export default function Login() {
         return
       }
 
-      // Account created successfully
+      // Account created successfully — claim beta invite token if present
+      if (betaInviteInfo) {
+        try {
+          await fetch('/.netlify/functions/manage-beta-invites', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: betaInviteInfo.token, action: 'claim' }),
+          })
+        } catch { /* best effort */ }
+      }
+
       if (inviteToken) {
         // For invite flows, check if session exists to accept invite
         const { data: { session: newSession } } = await supabase.auth.getSession()
@@ -256,6 +298,46 @@ export default function Login() {
     )
   }
 
+  // Signup requires a valid beta invite or org invite (invite-only mode)
+  const hasValidInvite = !!inviteInfo || !!betaInviteInfo
+  const signupBlocked = isSignUp && !hasValidInvite && !inviteToken && !betaInviteToken
+
+  // Show loading while validating beta invite
+  if (betaValidating) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-gray-500">Validating your invitation...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error if beta invite token is invalid
+  if (betaInviteError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Invitation</h1>
+          <p className="text-gray-600 mb-4">{betaInviteError}</p>
+          <p className="text-sm text-gray-500 mb-6">
+            This invitation link may have expired or already been used. Please contact the person who invited you for a new link.
+          </p>
+          <button
+            onClick={() => { setBetaInviteError(null); setIsSignUp(false) }}
+            className="text-blue-600 font-semibold hover:underline text-sm"
+          >
+            Go to Sign In
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -291,8 +373,8 @@ export default function Login() {
             </div>
             {isSignUp ? (
               <>
-                <h1 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h1>
-                <p className="text-gray-500 mt-1">7 days free — cancel anytime before trial ends</p>
+                <h1 className="text-2xl font-bold text-gray-900">{betaInviteInfo ? 'Join the Beta Program' : 'Start Your Free Trial'}</h1>
+                <p className="text-gray-500 mt-1">{betaInviteInfo ? 'Create your account to get started' : '7 days free — cancel anytime before trial ends'}</p>
                 {selectedPlan && (
                   <p className="text-blue-600 text-xs font-medium mt-2">
                     {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan — {selectedBilling === 'annual' ? 'Annual' : 'Monthly'} billing
@@ -319,6 +401,34 @@ export default function Login() {
             </div>
           )}
 
+          {betaInviteInfo && !inviteInfo && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-center">
+              <Mail className="mx-auto text-indigo-500 mb-2" size={24} />
+              <p className="text-sm text-indigo-900 font-medium">
+                You've been invited to beta test <strong>Procuvex</strong>
+              </p>
+              <p className="text-xs text-indigo-600 mt-1">
+                Create your account below to get started with your 7-day free trial.
+              </p>
+            </div>
+          )}
+
+          {/* Signup blocked — invite only */}
+          {signupBlocked ? (
+            <div className="text-center py-4">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                <ShieldAlert className="h-6 w-6 text-amber-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Invite Only</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Procuvex is currently in beta. Account creation requires an invitation from a platform administrator.
+              </p>
+              <p className="text-xs text-gray-400">
+                Already have an account? Switch to the <button onClick={() => setIsSignUp(false)} className="text-blue-600 font-medium hover:underline">Sign In</button> tab.
+              </p>
+            </div>
+          ) : (
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div>
@@ -341,7 +451,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
-                readOnly={!!inviteInfo}
+                readOnly={!!inviteInfo || !!betaInviteInfo}
               />
             </div>
 
@@ -380,15 +490,17 @@ export default function Login() {
               {loading ? (
                 'Please wait...'
               ) : isSignUp ? (
-                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : 'Start Free Trial'}</>
+                <><UserPlus size={18} /> {inviteInfo ? 'Create Account & Join' : betaInviteInfo ? 'Create Beta Account' : 'Start Free Trial'}</>
               ) : (
                 <><LogIn size={18} /> {inviteInfo ? 'Sign In & Join' : 'Sign In'}</>
               )}
             </button>
           </form>
 
+          )}
+
           {/* Contextual footer based on mode */}
-          {isSignUp && !inviteInfo && (
+          {isSignUp && !inviteInfo && !signupBlocked && (
             <div className="mt-4 text-center">
               <p className="text-xs text-slate-400">
                 By creating an account, you agree to our Terms of Service and Privacy Policy.
