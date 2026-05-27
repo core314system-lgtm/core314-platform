@@ -137,7 +137,7 @@ export default async (req: Request, _context: Context) => {
           <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
             <p style="font-size: 16px; color: #111827; margin-top: 0;">You've been hand-selected to join a limited group of procurement professionals testing Procuvex before public launch.</p>
             
-            <p style="color: #374151; line-height: 1.7; font-size: 15px;">Procuvex was built from real-world federal procurement and multi-site facility management operations. It's designed for teams managing complex solicitations, subcontractor coordination, and compliance-heavy bid processes &mdash; the kind of work where manual spreadsheets and disconnected tools cost you time and wins.</p>
+            <p style="color: #374151; line-height: 1.7; font-size: 15px;">Procuvex was built from real-world federal procurement and multi-site facility management operations. It's designed for teams managing complex solicitations, subcontractor coordination, and compliance-heavy bid processes &mdash; the kind of work where manual spreadsheets and disconnected tools cost you time and wins. <a href="https://procuvex.com" style="color: #1e40af; text-decoration: underline;">Learn more at procuvex.com</a></p>
 
             <div style="background: #fefce8; border-left: 4px solid #ca8a04; border-radius: 4px; padding: 14px 16px; margin: 24px 0;">
               <p style="margin: 0; font-size: 14px; color: #854d0e; font-weight: 600;">What Procuvex helps you do:</p>
@@ -154,7 +154,7 @@ export default async (req: Request, _context: Context) => {
               <p style="margin: 0 0 10px; font-size: 14px; color: #0c4a6e; font-weight: 600;">As a founding beta tester, you receive:</p>
               <ul style="margin: 0; padding-left: 18px; color: #0369a1; font-size: 14px; line-height: 2;">
                 <li>Complimentary full-platform access during the beta period</li>
-                <li>Exclusive founding member pricing after beta</li>
+                <li><strong>25% lifetime discount</strong> on your chosen plan upon completion of the beta program</li>
                 <li>Direct access to the development team for feedback</li>
                 <li>Early influence on platform direction and features</li>
               </ul>
@@ -162,7 +162,7 @@ export default async (req: Request, _context: Context) => {
 
             <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 24px 0;">
               <p style="margin: 0 0 8px; font-size: 14px; color: #374151; font-weight: 600;">What we ask from beta testers:</p>
-              <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.7;">We're looking for procurement professionals willing to actively test workflows and provide feedback during the beta period. Upload at least one project, explore the core features, and share what works and what doesn't. Your input directly shapes what we build next.</p>
+              <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.7;">We're looking for procurement professionals willing to actively test workflows and provide feedback during the beta period. Upload at least one project, explore the core features, and share what works and what doesn't. Complete the beta program guidelines and your 25% lifetime discount is yours. Your input directly shapes what we build next.</p>
             </div>
             
             <div style="text-align: center; margin: 32px 0;">
