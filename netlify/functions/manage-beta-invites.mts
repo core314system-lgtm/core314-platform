@@ -127,38 +127,58 @@ export default async (req: Request, _context: Context) => {
       const signupUrl = `${siteUrl}/login?beta_invite=${token}`
 
       const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #1e40af, #4338ca); color: white; padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: bold;">You're Invited to Beta Test Procuvex</h1>
-            <p style="margin: 12px 0 0; opacity: 0.9; font-size: 15px;">AI-Powered Procurement Intelligence Platform</p>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 40px 32px; border-radius: 12px 12px 0 0; text-align: center;">
+            <p style="margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8;">Private Beta Invitation</p>
+            <h1 style="margin: 0; font-size: 26px; font-weight: bold; line-height: 1.3;">You've Been Selected for<br/>the Procuvex Beta Program</h1>
+            <p style="margin: 14px 0 0; opacity: 0.85; font-size: 14px;">AI-Powered Procurement Intelligence for Complex Bid &amp; Subcontractor Workflows</p>
           </div>
           
           <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
-            <p style="font-size: 16px; color: #111827; margin-top: 0;">Hi there,</p>
+            <p style="font-size: 16px; color: #111827; margin-top: 0;">You've been hand-selected to join a limited group of procurement professionals testing Procuvex before public launch.</p>
             
-            <p style="color: #374151; line-height: 1.6;">You've been selected to join the <strong>Procuvex Beta Program</strong>. As a beta tester, you'll get early access to our AI-powered procurement intelligence platform that helps teams analyze documents, generate compliance matrices, manage subcontractors, and streamline bid processes.</p>
-            
-            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 24px 0;">
-              <p style="margin: 0; font-size: 14px; color: #0c4a6e;"><strong>What you get as a beta tester:</strong></p>
-              <ul style="margin: 8px 0 0; padding-left: 20px; color: #0369a1; font-size: 14px; line-height: 1.8;">
-                <li>7-day free trial with full platform access</li>
-                <li>Exclusive beta tester discount on subscription plans</li>
-                <li>Direct line to our development team for feedback</li>
+            <p style="color: #374151; line-height: 1.7; font-size: 15px;">Procuvex was built from real-world federal procurement and multi-site facility management operations. It's designed for teams managing complex solicitations, subcontractor coordination, and compliance-heavy bid processes &mdash; the kind of work where manual spreadsheets and disconnected tools cost you time and wins. <a href="https://procuvex.com" style="color: #1e40af; text-decoration: underline;">Learn more at procuvex.com</a></p>
+
+            <div style="background: #fefce8; border-left: 4px solid #ca8a04; border-radius: 4px; padding: 14px 16px; margin: 24px 0;">
+              <p style="margin: 0; font-size: 14px; color: #854d0e; font-weight: 600;">What Procuvex helps you do:</p>
+              <ul style="margin: 8px 0 0; padding-left: 18px; color: #713f12; font-size: 14px; line-height: 2;">
+                <li>Cut proposal prep time with AI-powered document analysis</li>
+                <li>Find and qualify subcontractors faster</li>
+                <li>Identify compliance gaps automatically</li>
+                <li>Centralize task order and bid management</li>
+                <li>Eliminate manual spreadsheet workflows</li>
               </ul>
             </div>
             
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="${signupUrl}" style="background: linear-gradient(135deg, #1e40af, #4338ca); color: white; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
-                Create Your Beta Account
-              </a>
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 24px 0;">
+              <p style="margin: 0 0 10px; font-size: 14px; color: #0c4a6e; font-weight: 600;">As a founding beta tester, you receive:</p>
+              <ul style="margin: 0; padding-left: 18px; color: #0369a1; font-size: 14px; line-height: 2;">
+                <li>Complimentary full-platform access during the beta period</li>
+                <li><strong>25% lifetime discount</strong> on your chosen plan upon completion of the beta program</li>
+                <li>Direct access to the development team for feedback</li>
+                <li>Early influence on platform direction and features</li>
+              </ul>
+            </div>
+
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 24px 0;">
+              <p style="margin: 0 0 8px; font-size: 14px; color: #374151; font-weight: 600;">What we ask from beta testers:</p>
+              <p style="margin: 0; font-size: 13px; color: #6b7280; line-height: 1.7;">We're looking for procurement professionals willing to actively test workflows and provide feedback during the beta period. Upload at least one project, explore the core features, and share what works and what doesn't. Complete the beta program guidelines and your 25% lifetime discount is yours. Your input directly shapes what we build next.</p>
             </div>
             
-            <p style="font-size: 13px; color: #6b7280;">This invitation is personal and expires in 30 days. If you didn't expect this email, you can safely ignore it.</p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${signupUrl}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 16px 44px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block; letter-spacing: 0.3px;">
+                Activate Beta Access
+              </a>
+              <p style="margin: 12px 0 0; font-size: 12px; color: #9ca3af;">Limited beta cohort &mdash; spots are not guaranteed</p>
+            </div>
+            
+            <p style="font-size: 13px; color: #6b7280; line-height: 1.6;">This invitation is personal and non-transferable. It expires in 30 days. If you didn't expect this email, you can safely ignore it.</p>
             
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
             
-            <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-              Procuvex &mdash; A product of Core314 Technologies LLC
+            <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;">
+              Procuvex &mdash; Built for government contractors, procurement teams, and subcontractor-driven operations.<br/>
+              A product of Core314 Technologies LLC
             </p>
           </div>
         </div>
@@ -168,7 +188,7 @@ export default async (req: Request, _context: Context) => {
         await sgMail.default.send({
           to: email,
           from: { email: "noreply@core314.com", name: "Procuvex" },
-          subject: "You're Invited to Beta Test Procuvex",
+          subject: "Private Beta Invitation — You've Been Selected for Procuvex",
           html: emailHtml,
           customArgs: { email_type: "beta_invite" },
         })
