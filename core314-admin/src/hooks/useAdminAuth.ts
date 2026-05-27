@@ -29,7 +29,7 @@ const OPERATION_TIMEOUT_MS = 3000;
  */
 const ADMIN_ALLOWLIST = [
   'core314system@gmail.com',
-  'support@govmatchai.com',
+  'support@core314.com',
 ];
 
 /**

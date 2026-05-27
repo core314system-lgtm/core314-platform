@@ -17,6 +17,6 @@ SET
     subscription_status = 'inactive',
     stripe_customer_id = NULL,
     stripe_subscription_id = NULL
-WHERE email = 'support@govmatchai.com';
+WHERE email = 'support@core314.com';
 
 COMMENT ON COLUMN public.profiles.is_platform_admin IS 'Primary governance flag for platform administrator access - when TRUE, user has full platform access regardless of role or subscription';

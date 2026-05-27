@@ -111,7 +111,7 @@ function buildAcceptanceEmailHtml(signupUrl: string, seatsRemaining: number): st
           </a>
         </div>
 
-        <p style="font-size: 14px; color: #374151; line-height: 1.7;">Questions? Reply to this email or reach us at <a href="mailto:support@govmatchai.com" style="color: #1e40af;">support@govmatchai.com</a>.</p>
+        <p style="font-size: 14px; color: #374151; line-height: 1.7;">Questions? Use the <strong>Ask Procuvex Intelligence</strong> chatbot (bottom-right of every page) once you're logged in.</p>
         <p style="font-size: 14px; color: #374151; margin-top: 16px;">Welcome aboard,<br/><strong>The Procuvex Team</strong></p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;">

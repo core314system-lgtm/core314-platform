@@ -4,7 +4,7 @@ import { useAuth } from './useAuth';
 // Hardcoded allowlist for platform owners / test accounts
 // This can be expanded or moved to a database-driven approach in the future
 const INTELLIGENCE_DASHBOARD_ALLOWLIST = [
-  'support@govmatchai.com',
+  'support@core314.com',
   'admin@core314.com',
   'test@core314.com',
 ];
