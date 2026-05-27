@@ -47,6 +47,7 @@ const navItems = [
   { path: '/settings', label: 'Organization', icon: Settings },
   { path: '/account', label: 'Account', icon: User },
   { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
+  { path: '/admin/access', label: 'Global Admin', icon: Shield },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]
 
@@ -121,7 +122,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="p-4 space-y-1 flex-1 overflow-y-auto min-h-0">
-          {navItems.map(item => {
+          {navItems.filter(item => !item.path.startsWith('/admin/') || profile?.is_global_admin).map(item => {
             const isActive = item.path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(item.path)
             return (
               <Link

@@ -107,6 +107,7 @@ export interface UserProfile {
   last_sign_in_at?: string | null
   beta_agreement_accepted_at?: string | null
   beta_agreement_version?: string | null
+  is_global_admin?: boolean
 }
 
 // AI Analysis types
