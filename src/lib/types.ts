@@ -108,6 +108,10 @@ export interface UserProfile {
   beta_agreement_accepted_at?: string | null
   beta_agreement_version?: string | null
   is_global_admin?: boolean
+  beta_start_date?: string | null
+  beta_program_status?: string | null
+  beta_coupon_code?: string | null
+  beta_coupon_expires_at?: string | null
 }
 
 // AI Analysis types

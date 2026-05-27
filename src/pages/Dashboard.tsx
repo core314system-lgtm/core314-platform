@@ -7,6 +7,7 @@ import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, 
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import ResourceCapacity from '../components/ResourceCapacity'
 import OnboardingGuide from '../components/OnboardingGuide'
+import BetaClaimBanner from '../components/BetaClaimBanner'
 
 export default function Dashboard() {
   const { profile } = useAuth()
@@ -120,6 +121,7 @@ export default function Dashboard() {
 
       {/* Onboarding guide modal */}
       {showOnboarding && <OnboardingGuide onClose={() => setShowOnboarding(false)} />}
+      <BetaClaimBanner />
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
           Procurement Dashboard

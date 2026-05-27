@@ -22,6 +22,7 @@ import {
   User,
   Activity,
   MailPlus,
+  MessageSquare,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import GlobalChat from './GlobalChat'
@@ -48,8 +49,9 @@ const navItems = [
   { path: '/settings', label: 'Organization', icon: Settings },
   { path: '/account', label: 'Account', icon: User },
   { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
-  { path: '/admin/invites', label: 'Beta Invitations', icon: MailPlus },
+  { path: '/admin/invites', label: 'Partner Program', icon: MailPlus },
   { path: '/admin/access', label: 'Global Admin', icon: Shield },
+  { path: '/feedback', label: 'Partner Feedback', icon: MessageSquare },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]
 

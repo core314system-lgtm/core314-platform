@@ -46,6 +46,9 @@ import AccountSettings from './pages/AccountSettings'
 import AdminAnalytics from './pages/AdminAnalytics'
 import GlobalAdminSettings from './pages/GlobalAdminSettings'
 import AdminBetaInvites from './pages/AdminBetaInvites'
+import BetaApply from './pages/BetaApply'
+import BetaThankYou from './pages/BetaThankYou'
+import BetaFeedback from './pages/BetaFeedback'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -148,6 +151,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
+          {/* Beta Program (public, no auth) */}
+          <Route path="/beta/apply/:token" element={<BetaApply />} />
+          <Route path="/beta/thank-you" element={<BetaThankYou />} />
+
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
@@ -217,6 +224,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><OrgSettings /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+          <Route path="/feedback" element={<ProtectedRoute><BetaFeedback /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute><GlobalAdminRoute><AdminAnalytics /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/invites" element={<ProtectedRoute><GlobalAdminRoute><AdminBetaInvites /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
