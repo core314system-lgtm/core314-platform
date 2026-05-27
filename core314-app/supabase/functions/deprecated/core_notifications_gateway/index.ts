@@ -13,7 +13,7 @@ const SENTRY_DSN = Deno.env.get('SENTRY_DSN');
 const SLACK_WEBHOOK_URL = Deno.env.get('SLACK_WEBHOOK_URL');
 const TEAMS_WEBHOOK_URL = Deno.env.get('TEAMS_WEBHOOK_URL') ?? Deno.env.get('MICROSOFT_TEAMS_WEBHOOK_URL');
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY');
-const SENDGRID_FROM = Deno.env.get('SENDGRID_FROM') || 'noreply@core314.com';
+const SENDGRID_FROM = Deno.env.get('SENDGRID_FROM') || 'team@procuvex.com';
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'admin@core314.com';
 const NOTIFICATIONS_TEST_MODE = Deno.env.get('NOTIFICATIONS_TEST_MODE') === 'true';
 

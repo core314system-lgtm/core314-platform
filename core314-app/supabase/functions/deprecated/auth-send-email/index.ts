@@ -22,7 +22,7 @@ const corsHeaders = {
 };
 
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') || '';
-const SENDGRID_SENDER_EMAIL = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'noreply@core314.com';
+const SENDGRID_SENDER_EMAIL = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'team@procuvex.com';
 const SENDGRID_SENDER_NAME = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
 const APP_URL = Deno.env.get('APP_URL') || 'https://app.core314.com';
 

@@ -108,7 +108,7 @@ export const handler: Handler = async (event) => {
               subject: `Core314 Contact: ${name}${company ? ` (${company})` : ''}`,
             }],
             from: {
-              email: 'noreply@core314.com',
+              email: 'team@procuvex.com',
               name: 'Core314 Contact Form',
             },
             reply_to: {

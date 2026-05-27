@@ -150,9 +150,10 @@ export default async (req: Request, _context: Context) => {
       await sgMail.default.send({
         to: email.trim(),
         from: {
-          email: "noreply@core314.com",
+          email: "team@procuvex.com",
           name: "Procuvex",
         },
+        replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
         subject: `You're invited to join ${org_name || "Procuvex"}`,
         html: emailHtml,
         customArgs: {

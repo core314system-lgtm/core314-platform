@@ -164,9 +164,10 @@ export default async (req: Request, _context: Context) => {
         await sgMail.default.send({
           to: sub.contact_email,
           from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@core314.com",
+            email: process.env.SENDGRID_FROM_EMAIL || "team@procuvex.com",
             name: orgName,
           },
+          replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `Answer to your question — ${sowName}`,
           html: emailHtml,
           trackingSettings: {
