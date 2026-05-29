@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { CheckCircle, X, ChevronDown, Sparkles } from 'lucide-react'
+import { CheckCircle, X, ChevronDown, Sparkles, Shield, Lock, Award, Globe } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -191,6 +191,25 @@ export default function PricingPage() {
                 </Link>
                 <p className="text-xs text-slate-400 text-center mt-3">Credit card required — cancel anytime during trial</p>
               </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Badges */}
+      <section className="py-10 border-t border-slate-100">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { icon: Shield, label: 'SOC 2 Architecture' },
+              { icon: Lock, label: 'AES-256 Encryption' },
+              { icon: Globe, label: 'ITAR / CUI Capable' },
+              { icon: Award, label: 'FedRAMP-Ready' },
+            ].map((badge, i) => (
+              <div key={i} className="flex items-center gap-2 justify-center py-3 px-4 bg-slate-50 rounded-xl border border-slate-200">
+                <badge.icon className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <span className="text-xs font-semibold text-slate-700">{badge.label}</span>
+              </div>
             ))}
           </div>
         </div>
