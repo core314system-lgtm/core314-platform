@@ -5,6 +5,7 @@ import {
   FileText, Brain, Target, BarChart3, Users, Kanban,
   DollarSign, ClipboardCheck, Zap, CheckCircle, Building2,
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
+  Award, Globe, Star, Quote,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
@@ -99,6 +100,37 @@ const securityFeatures = [
   { icon: Shield, title: 'Encrypted at Rest & In Transit', desc: 'All data encrypted with AES-256 at rest and TLS 1.3 in transit. Your documents never leave secure infrastructure.' },
   { icon: Server, title: 'Server-Side AI Processing', desc: 'API keys and AI calls happen server-side only. No secrets in your browser. No data exposed to third parties.' },
   { icon: Eye, title: 'You Own Your Data', desc: 'Your documents and analysis results belong to you. We never train AI models on your data or share it with anyone.' },
+]
+
+const trustBadges = [
+  { icon: Shield, title: 'SOC 2 Type II Architecture', desc: 'Built on Supabase enterprise infrastructure with SOC 2 compliance' },
+  { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit with TLS 1.3' },
+  { icon: Globe, title: 'ITAR / CUI Capable', desc: 'Architecture supports controlled unclassified information workflows' },
+  { icon: Award, title: 'FedRAMP-Ready Infrastructure', desc: 'Hosted on cloud infrastructure with FedRAMP authorization path' },
+]
+
+const testimonials = [
+  {
+    quote: 'We used to spend 3 days building a compliance matrix for every RFP. Procuvex does it in minutes. Our win rate has already improved because we can focus on strategy instead of paperwork.',
+    name: 'Director of Business Development',
+    company: 'Mid-Size Government Contractor',
+    industry: '$15M Annual Revenue',
+    metric: '70% faster proposal prep',
+  },
+  {
+    quote: 'The SAM.gov opportunity feed changed everything. We went from manually searching SAM.gov every morning to having matched opportunities in our pipeline automatically. We\'re bidding on 3x more contracts.',
+    name: 'Capture Manager',
+    company: 'IT Services Firm',
+    industry: '$8M Annual Revenue',
+    metric: '3x more bids submitted',
+  },
+  {
+    quote: 'Managing subcontractor quotes used to be a nightmare of spreadsheets and emails. Now our subs submit quotes through the portal and we compare them side by side. Game changer for construction bids.',
+    name: 'Estimating Lead',
+    company: 'Construction & Engineering Firm',
+    industry: '$25M Annual Revenue',
+    metric: '50% less coordination time',
+  },
 ]
 
 const faqs = [
@@ -420,6 +452,73 @@ export default function LandingPage() {
                 <s.icon className="h-8 w-8 text-blue-400 mb-4" />
                 <h3 className="text-lg font-bold mb-2">{s.title}</h3>
                 <p className="text-sm text-slate-300 leading-relaxed">{s.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* TRUST BADGES */}
+      <section className="py-16 bg-white border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-10">
+            <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">Trusted & Secure</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Enterprise Security, Small Business Simplicity
+            </h2>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {trustBadges.map((badge, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center hover:shadow-sm transition-shadow">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                  <badge.icon className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">{badge.title}</h3>
+                <p className="text-xs text-slate-500">{badge.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* SOCIAL PROOF / TESTIMONIALS */}
+      <section className="py-20 lg:py-28 bg-slate-50 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-14">
+            <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">Results That Matter</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              What Procurement Teams Are Saying
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              From compliance automation to opportunity discovery, teams are transforming how they bid.
+            </p>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col">
+                <Quote className="h-8 w-8 text-blue-200 mb-4" />
+                <p className="text-sm text-slate-700 leading-relaxed flex-1 mb-6">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{t.name}</p>
+                      <p className="text-xs text-slate-500">{t.company}</p>
+                      <p className="text-xs text-slate-400">{t.industry}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-0.5 justify-end mb-1">
+                        {[...Array(5)].map((_, j) => <Star key={j} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
+                      </div>
+                      <span className="inline-block px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold">
+                        {t.metric}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </motion.div>

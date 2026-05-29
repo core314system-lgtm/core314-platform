@@ -13,11 +13,18 @@ const footerLinks = {
     { label: 'Construction Firms', to: '/solutions#construction' },
     { label: 'IT Services', to: '/solutions#it-services' },
   ],
+  resources: [
+    { label: 'Compliance Matrix Guide', to: '/guides/compliance-matrix' },
+    { label: 'Gov Proposal Checklist', to: '/guides/government-proposals' },
+    { label: 'SAM.gov Guide', to: '/guides/sam-gov' },
+    { label: 'Compare Procuvex', to: '/compare' },
+  ],
   company: [
     { label: 'About Us', to: '/about' },
     { label: 'Contact', to: '/contact' },
     { label: 'Security', to: '/security' },
     { label: 'SLA', to: '/sla' },
+    { label: 'Why Procuvex', to: '/roi' },
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },
   ],
@@ -29,7 +36,7 @@ export default function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-400">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12">
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
@@ -59,6 +66,17 @@ export default function Footer() {
             <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Solutions</h3>
             <ul className="space-y-2.5">
               {footerLinks.solutions.map(link => (
+                <li key={link.to}>
+                  <Link to={link.to} className="text-sm hover:text-white transition-colors">{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">Resources</h3>
+            <ul className="space-y-2.5">
+              {footerLinks.resources.map(link => (
                 <li key={link.to}>
                   <Link to={link.to} className="text-sm hover:text-white transition-colors">{link.label}</Link>
                 </li>
