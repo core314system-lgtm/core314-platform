@@ -64,6 +64,9 @@ import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
+import AboutPage from './landing/pages/AboutPage'
+import SLAPage from './landing/pages/SLAPage'
+import SecurityPage from './landing/pages/SecurityPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -147,6 +150,9 @@ export default function App() {
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/dpa" element={<DPAPage />} />
           <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/sla" element={<SLAPage />} />
+          <Route path="/security" element={<SecurityPage />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />

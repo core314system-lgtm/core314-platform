@@ -14,10 +14,12 @@ const footerLinks = {
     { label: 'IT Services', to: '/solutions#it-services' },
   ],
   company: [
+    { label: 'About Us', to: '/about' },
     { label: 'Contact', to: '/contact' },
+    { label: 'Security', to: '/security' },
+    { label: 'SLA', to: '/sla' },
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },
-    { label: 'AI Disclaimer', to: '/ai-disclaimer' },
   ],
 }
 
