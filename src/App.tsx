@@ -64,6 +64,9 @@ import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
+import AboutPage from './landing/pages/AboutPage'
+import SLAPage from './landing/pages/SLAPage'
+import SecurityPage from './landing/pages/SecurityPage'
 import ComplianceMatrixGuidePage from './landing/pages/ComplianceMatrixGuidePage'
 import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
 import SamGovGuidePage from './landing/pages/SamGovGuidePage'
@@ -151,6 +154,9 @@ export default function App() {
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/dpa" element={<DPAPage />} />
           <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/sla" element={<SLAPage />} />
+          <Route path="/security" element={<SecurityPage />} />
 
           {/* Resource Guides (SEO) */}
           <Route path="/guides/compliance-matrix" element={<ComplianceMatrixGuidePage />} />

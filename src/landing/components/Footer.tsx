@@ -20,7 +20,10 @@ const footerLinks = {
     { label: 'Compare Procuvex', to: '/compare' },
   ],
   company: [
+    { label: 'About Us', to: '/about' },
     { label: 'Contact', to: '/contact' },
+    { label: 'Security', to: '/security' },
+    { label: 'SLA', to: '/sla' },
     { label: 'Why Procuvex', to: '/roi' },
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },
