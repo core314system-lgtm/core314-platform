@@ -23,6 +23,7 @@ import {
   Activity,
   MailPlus,
   MessageSquare,
+  Compass,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import GlobalChat from './GlobalChat'
@@ -33,6 +34,7 @@ import { useOrg } from '../contexts/OrgContext'
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/opportunities', label: 'Opportunity Feed', icon: Compass },
   { path: '/contracts', label: 'Contracts', icon: FileStack },
   { path: '/projects', label: 'Projects', icon: ClipboardList },
   { path: '/pipeline', label: 'Pipeline', icon: Kanban },
