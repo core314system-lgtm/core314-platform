@@ -64,6 +64,10 @@ import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
+import ComplianceMatrixGuidePage from './landing/pages/ComplianceMatrixGuidePage'
+import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
+import SamGovGuidePage from './landing/pages/SamGovGuidePage'
+import ComparePage from './landing/pages/ComparePage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -147,6 +151,15 @@ export default function App() {
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/dpa" element={<DPAPage />} />
           <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
+
+          {/* Resource Guides (SEO) */}
+          <Route path="/guides/compliance-matrix" element={<ComplianceMatrixGuidePage />} />
+          <Route path="/guides/government-proposals" element={<GovProposalGuidePage />} />
+          <Route path="/guides/sam-gov" element={<SamGovGuidePage />} />
+
+          {/* Comparison Pages (SEO) */}
+          <Route path="/compare" element={<ComparePage />} />
+          <Route path="/compare/:competitor" element={<ComparePage />} />
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
