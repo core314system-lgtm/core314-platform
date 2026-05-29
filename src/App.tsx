@@ -49,6 +49,7 @@ import AdminBetaInvites from './pages/AdminBetaInvites'
 import BetaApply from './pages/BetaApply'
 import BetaThankYou from './pages/BetaThankYou'
 import BetaFeedback from './pages/BetaFeedback'
+import OpportunityDiscovery from './pages/OpportunityDiscovery'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -199,6 +200,9 @@ export default function App() {
 
           {/* Project Comparison */}
           <Route path="/comparison" element={<ProtectedRoute><TaskOrderComparisonPage /></ProtectedRoute>} />
+
+          {/* Opportunity Discovery */}
+          <Route path="/opportunities" element={<ProtectedRoute><OpportunityDiscovery /></ProtectedRoute>} />
 
           {/* Pipeline View */}
           <Route path="/pipeline" element={<ProtectedRoute><PipelineView /></ProtectedRoute>} />
