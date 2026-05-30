@@ -253,7 +253,7 @@ const helpSections: HelpSection[] = [
     faqs: [
       {
         question: 'How do I search for federal opportunities on SAM.gov?',
-        answer: 'Go to Integrations → SAM.gov Search tab. Enter keywords like "facility maintenance" or "HVAC" and click Search. Filter by opportunity type, NAICS code, or set-aside. Click "Import" next to any opportunity to create a project from it — the solicitation number, location, deadline, and description are automatically populated.',
+        answer: 'Use the Opportunity Feed (click "Opportunity Feed" in the sidebar). Set your preferences — NAICS codes, set-aside types, agencies, keywords, and dollar range — and Procuvex will match you with relevant SAM.gov opportunities. Each result includes an AI match score (0–100%), urgency badges for approaching deadlines, and a one-click "Import" button to create a project with all details pre-populated. You can also use the legacy search via Integrations → SAM.gov Search tab.',
       },
       {
         question: 'Can I import projects from a spreadsheet?',

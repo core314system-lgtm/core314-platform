@@ -1,19 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Rocket, Building, Users, FileStack, ClipboardList,
+  Rocket, Building, Compass, Users, FileStack, ClipboardList,
   Upload, Brain, Kanban, PartyPopper, ChevronRight,
   ChevronLeft, X, CheckCircle,
 } from 'lucide-react'
 import { ONBOARDING_STEPS, getOnboardingState, saveOnboardingState, markStepComplete } from '../lib/onboarding'
 
-const STEP_ICONS = [Rocket, Building, Users, FileStack, ClipboardList, Upload, Brain, Kanban, PartyPopper]
+const STEP_ICONS = [Rocket, Building, Compass, Users, FileStack, ClipboardList, Upload, Brain, Kanban, PartyPopper]
 const STEP_COLORS = [
   'from-blue-600 to-indigo-600',
   'from-purple-600 to-indigo-600',
+  'from-cyan-600 to-blue-600',
   'from-green-600 to-teal-600',
   'from-indigo-600 to-blue-600',
-  'from-cyan-600 to-blue-600',
+  'from-cyan-600 to-teal-600',
   'from-orange-600 to-amber-600',
   'from-purple-600 to-pink-600',
   'from-teal-600 to-cyan-600',
@@ -128,19 +129,26 @@ export default function OnboardingGuide({ onClose }: OnboardingGuideProps) {
                 <li className="flex items-start gap-2"><CheckCircle size={12} className="mt-0.5 text-blue-500 shrink-0" /> Auto-generated compliance matrices and RFQ packages</li>
                 <li className="flex items-start gap-2"><CheckCircle size={12} className="mt-0.5 text-blue-500 shrink-0" /> Pipeline management with workflow stages</li>
                 <li className="flex items-start gap-2"><CheckCircle size={12} className="mt-0.5 text-blue-500 shrink-0" /> Subcontractor management and SOW bid tracking</li>
-                <li className="flex items-start gap-2"><CheckCircle size={12} className="mt-0.5 text-blue-500 shrink-0" /> SAM.gov integration for federal opportunity search</li>
+                <li className="flex items-start gap-2"><CheckCircle size={12} className="mt-0.5 text-blue-500 shrink-0" /> SAM.gov Opportunity Feed with AI match scoring</li>
               </ul>
             </div>
           )}
 
-          {step === 4 && (
+          {step === 2 && (
+            <div className="bg-cyan-50 border border-cyan-100 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-semibold text-cyan-900 mb-1">Set your preferences to find matching opportunities:</h4>
+              <p className="text-xs text-cyan-800">NAICS codes, set-aside types (8(a), HUBZone, SDVOSB, WOSB), agencies, keywords, and dollar range. AI scores each opportunity 0–100% based on your profile.</p>
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 mb-4">
               <h4 className="text-sm font-semibold text-amber-900 mb-1">Supported project types:</h4>
               <p className="text-xs text-amber-800">Government Task Orders, Government RFPs, Construction Bids, IT Services, Commercial Procurement</p>
             </div>
           )}
 
-          {step === 6 && (
+          {step === 7 && (
             <div className="bg-purple-50 border border-purple-100 rounded-lg p-4 mb-4">
               <h4 className="text-sm font-semibold text-purple-900 mb-1">AI generates for each project:</h4>
               <p className="text-xs text-purple-800">Compliance Matrix, RFQ Packages, Clarification Questions, Pricing & Risk Analysis, Executive Summary</p>
