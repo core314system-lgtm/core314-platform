@@ -24,6 +24,7 @@ const footerLinks = {
     { label: 'Contact', to: '/contact' },
     { label: 'Security', to: '/security' },
     { label: 'SLA', to: '/sla' },
+    { label: 'System Status', to: '/status' },
     { label: 'Why Procuvex', to: '/roi' },
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },

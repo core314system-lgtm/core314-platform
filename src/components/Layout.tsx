@@ -24,6 +24,7 @@ import {
   MailPlus,
   MessageSquare,
   Compass,
+  HeartPulse,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import GlobalChat from './GlobalChat'
@@ -53,6 +54,7 @@ const navItems = [
   { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
   { path: '/admin/invites', label: 'Partner Program', icon: MailPlus },
   { path: '/admin/access', label: 'Global Admin', icon: Shield },
+  { path: '/admin/system-health', label: 'System Health', icon: HeartPulse },
   { path: '/feedback', label: 'Partner Feedback', icon: MessageSquare },
   { path: '/help', label: 'Help Center', icon: HelpCircle },
 ]

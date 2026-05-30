@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { resilientFetch } from "./_shared/resilience.ts"
 
 /**
  * Netlify Function: SAM.gov Document Management
@@ -39,9 +40,10 @@ function getMimeType(fileName: string): string {
 
 async function fetchAttachments(opportunityId: string) {
   const resUrl = `https://sam.gov/api/prod/opps/v3/opportunities/${opportunityId}/resources?responseType=json`
-  const res = await fetch(resUrl, {
+  const res = await resilientFetch(resUrl, {
     headers: { Accept: "application/hal+json, application/json" },
-  })
+    signal: AbortSignal.timeout(10000),
+  }, { maxRetries: 2, baseDelayMs: 1000 })
 
   if (!res.ok) return { files: [] as SamAttachment[], links: [] as SamAttachment[] }
 

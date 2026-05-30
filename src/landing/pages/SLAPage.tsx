@@ -243,7 +243,7 @@ export default function SLAPage() {
               </p>
               <ul className="list-disc pl-6 space-y-1 mt-2">
                 <li>Email: <a href="mailto:support@core314.com" className="text-blue-600 hover:underline">support@core314.com</a></li>
-                <li>Status page: <span className="text-slate-400">Coming soon</span></li>
+                <li>Status page: <a href="/status" className="text-blue-400 hover:text-blue-300 underline">status.procuvex.com</a></li>
               </ul>
             </section>
 
