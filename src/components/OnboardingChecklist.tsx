@@ -15,8 +15,19 @@ interface OnboardingChecklistProps {
 
 export default function OnboardingChecklist({ onLaunchGuide }: OnboardingChecklistProps) {
   const [state, setState] = useState(getOnboardingState())
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(() => {
+    const saved = localStorage.getItem('onboarding_checklist_expanded')
+    return saved !== null ? saved === 'true' : true
+  })
   const [dismissed, setDismissed] = useState(false)
+
+  function handleToggleExpanded() {
+    setExpanded(prev => {
+      const next = !prev
+      localStorage.setItem('onboarding_checklist_expanded', String(next))
+      return next
+    })
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -60,7 +71,7 @@ export default function OnboardingChecklist({ onLaunchGuide }: OnboardingCheckli
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-4 overflow-hidden">
       {/* Header */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={handleToggleExpanded}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-2">
