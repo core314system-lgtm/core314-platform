@@ -29,6 +29,14 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     checkKey: 'onboarding_org_setup',
   },
   {
+    id: 'discover_opportunities',
+    title: 'Discover Opportunities',
+    description: 'Browse the SAM.gov Opportunity Feed to find federal contracts that match your capabilities. Set your NAICS codes, set-aside preferences, and keywords — then import any opportunity directly into a Procuvex project with one click.',
+    action: 'Go to Opportunity Feed',
+    route: '/opportunities',
+    checkKey: 'onboarding_discover_opportunities',
+  },
+  {
     id: 'add_subs',
     title: 'Add Your Subcontractors',
     description: 'Build your subcontractor database — add vendors manually or import from CSV. These will be available to assign across all your projects.',

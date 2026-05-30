@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import ResourceCapacity from '../components/ResourceCapacity'
 import OnboardingGuide from '../components/OnboardingGuide'
@@ -81,6 +81,18 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">Create your first project</p>
                     <p className="text-xs text-gray-500">Upload a SOW or RFP to get started</p>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-400" />
+                </Link>
+                <Link
+                  to="/opportunities"
+                  onClick={() => setShowWelcome(false)}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-cyan-50 hover:border-cyan-200 transition-colors"
+                >
+                  <div className="bg-cyan-100 rounded-lg p-2"><Compass size={16} className="text-cyan-600" /></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Find opportunities</p>
+                    <p className="text-xs text-gray-500">Browse SAM.gov federal contract opportunities</p>
                   </div>
                   <ArrowRight size={16} className="text-gray-400" />
                 </Link>
@@ -180,6 +192,11 @@ export default function Dashboard() {
           <Plus className="mb-2" size={24} />
           <h3 className="font-semibold">New Project</h3>
           <p className="text-xs text-blue-200 mt-1">Start a new procurement project</p>
+        </Link>
+        <Link to="/opportunities" className="bg-gradient-to-br from-cyan-600 to-blue-600 text-white rounded-xl p-5 hover:from-cyan-700 hover:to-blue-700 transition-colors">
+          <Compass className="mb-2" size={24} />
+          <h3 className="font-semibold">Opportunity Feed</h3>
+          <p className="text-xs text-cyan-200 mt-1">Find & import SAM.gov opportunities</p>
         </Link>
         <Link to="/subcontractors" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
           <Upload className="mb-2 text-green-600" size={24} />
