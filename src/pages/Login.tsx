@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert } from 'lucide-react'
+import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert, Send, Building, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface InviteInfo {
@@ -14,6 +14,151 @@ interface InviteInfo {
 interface BetaInviteInfo {
   email: string
   token: string
+}
+
+function BetaRequestForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
+  const [reqName, setReqName] = useState('')
+  const [reqEmail, setReqEmail] = useState('')
+  const [reqCompany, setReqCompany] = useState('')
+  const [reqReason, setReqReason] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [reqError, setReqError] = useState('')
+
+  async function handleRequestSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setReqError('')
+    setSubmitting(true)
+
+    try {
+      const res = await fetch('/.netlify/functions/manage-beta-invites', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: 'request',
+          action: 'request_access',
+          email: reqEmail.trim(),
+          name: reqName.trim(),
+          company: reqCompany.trim() || undefined,
+          reason: reqReason.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setReqError(data.error || 'Failed to submit request')
+      } else {
+        setSubmitted(true)
+      }
+    } catch {
+      setReqError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="text-center py-4">
+        <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="h-7 w-7 text-green-600" />
+        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Request Submitted</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Thank you for your interest in Procuvex! We'll review your request and reach out to <strong>{reqEmail}</strong> if you're selected for the beta program.
+        </p>
+        <p className="text-xs text-gray-400">
+          Already have an account? <button onClick={onSwitchToSignIn} className="text-blue-600 font-medium hover:underline">Sign In</button>
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="text-center mb-4">
+        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
+          <ShieldAlert className="h-6 w-6 text-blue-600" />
+        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Beta Access</h2>
+        <p className="text-sm text-gray-600">
+          Procuvex is currently in beta. Submit your information below to request access.
+        </p>
+      </div>
+
+      <form onSubmit={handleRequestSubmit} className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+          <div className="relative">
+            <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={reqName}
+              onChange={(e) => setReqName(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              placeholder="John Smith"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Work Email *</label>
+          <div className="relative">
+            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="email"
+              value={reqEmail}
+              onChange={(e) => setReqEmail(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              placeholder="john@company.com"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+          <div className="relative">
+            <Building size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={reqCompany}
+              onChange={(e) => setReqCompany(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              placeholder="Acme Federal Solutions"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Why are you interested in Procuvex?</label>
+          <textarea
+            value={reqReason}
+            onChange={(e) => setReqReason(e.target.value)}
+            rows={2}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+            placeholder="e.g., We manage 20+ subcontractors across federal contracts..."
+          />
+        </div>
+
+        {reqError && (
+          <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{reqError}</div>
+        )}
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full py-2.5 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+        >
+          {submitting ? 'Submitting...' : <><Send size={16} /> Request Beta Access</>}
+        </button>
+      </form>
+
+      <p className="text-xs text-gray-400 text-center mt-4">
+        Already have an account? <button onClick={onSwitchToSignIn} className="text-blue-600 font-medium hover:underline">Sign In</button>
+      </p>
+    </div>
+  )
 }
 
 export default function Login() {
@@ -413,20 +558,9 @@ export default function Login() {
             </div>
           )}
 
-          {/* Signup blocked — invite only */}
+          {/* Signup blocked — invite only, show request form */}
           {signupBlocked ? (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-                <ShieldAlert className="h-6 w-6 text-amber-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Invite Only</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Procuvex is currently in beta. Account creation requires an invitation from a platform administrator.
-              </p>
-              <p className="text-xs text-gray-400">
-                Already have an account? Switch to the <button onClick={() => setIsSignUp(false)} className="text-blue-600 font-medium hover:underline">Sign In</button> tab.
-              </p>
-            </div>
+            <BetaRequestForm onSwitchToSignIn={() => { setIsSignUp(false); setError('') }} />
           ) : (
 
           <form onSubmit={handleSubmit} className="space-y-4">

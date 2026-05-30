@@ -439,10 +439,82 @@ export default async (req: Request, _context: Context) => {
     return new Response(JSON.stringify({ results, sent: sentCount, total: emails.length }), { headers })
   }
 
-  // --- PUT: Apply (public), validate, or claim ---
+  // --- PUT: Apply (public), validate, claim, or request_access ---
   if (req.method === "PUT") {
     const body = await req.json()
     const { token, action } = body
+
+    // Request beta access (public — no token needed)
+    if (action === "request_access") {
+      const { email: reqEmail, name: reqName, company: reqCompany, reason: reqReason } = body
+
+      if (!reqEmail || typeof reqEmail !== "string") {
+        return new Response(JSON.stringify({ error: "Email is required" }), { status: 400, headers })
+      }
+      if (!reqName || typeof reqName !== "string") {
+        return new Response(JSON.stringify({ error: "Name is required" }), { status: 400, headers })
+      }
+
+      const cleanEmail = sanitizeEmail(reqEmail)
+
+      // Check for existing invitation/request
+      const { data: existing } = await supabase
+        .from("beta_invitations")
+        .select("id, status")
+        .eq("email", cleanEmail)
+        .maybeSingle()
+
+      if (existing) {
+        if (existing.status === "accepted") {
+          return new Response(JSON.stringify({ error: "This email already has an active invitation. Check your email for the signup link." }), { status: 400, headers })
+        }
+        if (existing.status === "applied" || existing.status === "pending") {
+          return new Response(JSON.stringify({ error: "A request for this email is already under review." }), { status: 400, headers })
+        }
+        // If previously declined/revoked/expired, allow re-request by deleting old record
+        await supabase.from("beta_invitations").delete().eq("id", existing.id)
+      }
+
+      const requestToken = generateToken()
+      const noteParts: string[] = []
+      if (reqCompany) noteParts.push(`Company: ${reqCompany}`)
+      if (reqReason) noteParts.push(`Reason: ${reqReason}`)
+
+      const { error: insertErr } = await supabase.from("beta_invitations").insert({
+        email: cleanEmail,
+        token: requestToken,
+        status: "applied",
+        applicant_name: reqName.trim(),
+        notes: noteParts.length > 0 ? noteParts.join("\n") : null,
+        agreed_at: new Date().toISOString(),
+      })
+
+      if (insertErr) {
+        return new Response(JSON.stringify({ error: insertErr.message }), { status: 500, headers })
+      }
+
+      // Send notification email to admin
+      try {
+        initSendGrid()
+        await sgMail.default.send({
+          to: "team@procuvex.com",
+          from: { email: "team@procuvex.com", name: "Procuvex" },
+          subject: `Beta Access Request: ${reqName.trim()} (${cleanEmail})`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 500px; padding: 20px;">
+              <h2 style="color: #1e3a5f;">New Beta Access Request</h2>
+              <p><strong>Name:</strong> ${reqName.trim()}</p>
+              <p><strong>Email:</strong> ${cleanEmail}</p>
+              ${reqCompany ? `<p><strong>Company:</strong> ${reqCompany}</p>` : ""}
+              ${reqReason ? `<p><strong>Why they want access:</strong> ${reqReason}</p>` : ""}
+              <p style="margin-top: 20px;"><a href="https://procuvex.com/admin/invites" style="background: #1e40af; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Review in Admin Panel</a></p>
+            </div>
+          `,
+        })
+      } catch { /* email notification is best-effort */ }
+
+      return new Response(JSON.stringify({ success: true }), { headers })
+    }
 
     if (!token || typeof token !== "string") {
       return new Response(JSON.stringify({ error: "Token required" }), { status: 400, headers })
