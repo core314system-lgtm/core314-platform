@@ -25,39 +25,107 @@ import {
   MessageSquare,
   Compass,
   HeartPulse,
+  ChevronDown,
+  Briefcase,
+  Network,
+  BarChart2,
+  Wrench,
+  ShieldCheck,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
 import OnboardingGuide from './OnboardingGuide'
 import OnboardingChecklist from './OnboardingChecklist'
 import { getOnboardingState, saveOnboardingState, resetOnboarding, markStepComplete } from '../lib/onboarding'
 import { useOrg } from '../contexts/OrgContext'
 
-const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/opportunities', label: 'Opportunity Feed', icon: Compass },
-  { path: '/contracts', label: 'Contracts', icon: FileStack },
-  { path: '/projects', label: 'Projects', icon: ClipboardList },
-  { path: '/pipeline', label: 'Pipeline', icon: Kanban },
-  { path: '/subcontractors', label: 'Subcontractors', icon: Users },
-  { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
-  { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
-  { path: '/teaming', label: 'Teaming & JVs', icon: Users },
-  { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
-  { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
-  { path: '/integrations', label: 'Integrations', icon: Plug },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
-  { path: '/billing', label: 'Billing', icon: CreditCard },
-  { path: '/settings', label: 'Organization', icon: Settings },
-  { path: '/account', label: 'Account', icon: User },
-  { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
-  { path: '/admin/invites', label: 'Partner Program', icon: MailPlus },
-  { path: '/admin/access', label: 'Global Admin', icon: Shield },
-  { path: '/admin/system-health', label: 'System Health', icon: HeartPulse },
-  { path: '/feedback', label: 'Partner Feedback', icon: MessageSquare },
-  { path: '/help', label: 'Help Center', icon: HelpCircle },
+interface NavItem {
+  path: string
+  label: string
+  icon: React.ElementType
+  adminOnly?: boolean
+}
+
+interface NavGroup {
+  id: string
+  label: string
+  icon: React.ElementType
+  items: NavItem[]
+  adminOnly?: boolean
+}
+
+const navGroups: NavGroup[] = [
+  {
+    id: 'work',
+    label: 'Work',
+    icon: Briefcase,
+    items: [
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { path: '/opportunities', label: 'Opportunity Feed', icon: Compass },
+      { path: '/projects', label: 'Projects', icon: ClipboardList },
+      { path: '/pipeline', label: 'Pipeline', icon: Kanban },
+      { path: '/contracts', label: 'Contracts', icon: FileStack },
+    ],
+  },
+  {
+    id: 'network',
+    label: 'Network',
+    icon: Network,
+    items: [
+      { path: '/subcontractors', label: 'Subcontractors', icon: Users },
+      { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
+      { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
+      { path: '/teaming', label: 'Teaming & JVs', icon: Users },
+    ],
+  },
+  {
+    id: 'analysis',
+    label: 'Analysis',
+    icon: BarChart2,
+    items: [
+      { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
+      { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
+      { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+      { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    icon: Wrench,
+    items: [
+      { path: '/integrations', label: 'Integrations', icon: Plug },
+      { path: '/billing', label: 'Billing', icon: CreditCard },
+      { path: '/settings', label: 'Organization', icon: Settings },
+      { path: '/account', label: 'Account', icon: User },
+      { path: '/feedback', label: 'Partner Feedback', icon: MessageSquare },
+      { path: '/help', label: 'Help Center', icon: HelpCircle },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: ShieldCheck,
+    adminOnly: true,
+    items: [
+      { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
+      { path: '/admin/invites', label: 'Partner Program', icon: MailPlus },
+      { path: '/admin/access', label: 'Global Admin', icon: Shield },
+      { path: '/admin/system-health', label: 'System Health', icon: HeartPulse },
+    ],
+  },
 ]
+
+function findActiveGroup(pathname: string): string {
+  for (const group of navGroups) {
+    for (const item of group.items) {
+      if (item.path === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.path)) {
+        return group.id
+      }
+    }
+  }
+  return 'work'
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { signOut, profile } = useAuth()
@@ -65,6 +133,31 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
+
+  const activeGroupId = useMemo(() => findActiveGroup(location.pathname), [location.pathname])
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set([activeGroupId]))
+
+  // Auto-expand the group containing the active page
+  useEffect(() => {
+    setExpandedGroups(prev => {
+      if (prev.has(activeGroupId)) return prev
+      const next = new Set(prev)
+      next.add(activeGroupId)
+      return next
+    })
+  }, [activeGroupId])
+
+  function toggleGroup(groupId: string) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(groupId)) {
+        next.delete(groupId)
+      } else {
+        next.add(groupId)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     const state = getOnboardingState()
@@ -129,25 +222,63 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <nav className="p-4 space-y-1 flex-1 overflow-y-auto min-h-0">
-          {navItems.filter(item => !item.path.startsWith('/admin/') || profile?.is_global_admin).map(item => {
-            const isActive = item.path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(item.path)
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <item.icon size={18} />
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="p-3 space-y-0.5 flex-1 overflow-y-auto min-h-0">
+          {navGroups
+            .filter(group => !group.adminOnly || profile?.is_global_admin)
+            .map(group => {
+              const isExpanded = expandedGroups.has(group.id)
+              const hasActiveItem = group.items.some(item =>
+                item.path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(item.path)
+              )
+              const GroupIcon = group.icon
+
+              return (
+                <div key={group.id}>
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
+                      hasActiveItem
+                        ? 'text-blue-700 bg-blue-50/50'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <GroupIcon size={14} />
+                      {group.label}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-0.5 mb-1 space-y-0.5">
+                      {group.items.map(item => {
+                        const isActive = item.path === '/dashboard'
+                          ? location.pathname === '/dashboard'
+                          : location.pathname.startsWith(item.path)
+                        return (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              isActive
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
+                          >
+                            <item.icon size={16} />
+                            {item.label}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
         </nav>
 
         <div className="shrink-0 p-4 border-t border-gray-200">
