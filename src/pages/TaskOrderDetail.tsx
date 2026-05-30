@@ -749,8 +749,6 @@ export default function TaskOrderDetail() {
         contact_phone: business.phone,
         service_categories: [serviceCategory, ...business.categories].filter(Boolean),
         geographic_coverage: business.state ? [business.state] : [],
-        city: business.city,
-        state: business.state,
         address: business.address,
         website: business.website,
         preferred: false,
@@ -780,8 +778,13 @@ export default function TaskOrderDetail() {
       } else {
         alert(`⚠ ${business.company_name} added to database.\n\nNo email address found — RFQs cannot be sent until email is added.\n\nYou can add their email by editing their profile in the Master Subcontractor Database.`)
       }
-    } catch (err) {
-      alert('Failed to add: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } catch (err: unknown) {
+      const msg = err instanceof Error
+        ? err.message
+        : (err && typeof err === 'object' && 'message' in err)
+          ? String((err as { message: unknown }).message)
+          : JSON.stringify(err)
+      alert('Failed to add: ' + msg)
     } finally {
       setAddingToDb(null)
     }
