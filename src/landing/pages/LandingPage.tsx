@@ -142,6 +142,7 @@ const faqs = [
   { q: 'Can I import existing projects?', a: 'Yes. Procuvex supports CSV/Excel bulk import and a REST API. You can import projects from spreadsheets or connect from your CRM, ERP, or custom tools.' },
   { q: 'What does the AI Disclaimer mean?', a: 'All AI-generated outputs (analysis, compliance matrices, recommendations) are advisory tools to support your decision-making. They are not a substitute for professional legal, financial, or procurement advice. You remain responsible for all bid decisions.' },
   { q: 'How much does Procuvex cost?', a: 'Procuvex offers two tiers: Growth at $2,500/month (for teams with $5M-50M pipeline) and Enterprise at $5,000/month (for teams with $50M-500M+ pipeline). Both include a 7-day free trial. Annual billing saves 20%. Visit our Pricing page for full details.' },
+  { q: 'What is the uptime guarantee?', a: 'Procuvex guarantees 99.9% uptime backed by our published SLA. All services include automated health monitoring, retry logic with circuit breakers, and self-healing infrastructure. View real-time system status at any time on our Status page.' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {

@@ -50,6 +50,7 @@ import BetaApply from './pages/BetaApply'
 import BetaThankYou from './pages/BetaThankYou'
 import BetaFeedback from './pages/BetaFeedback'
 import OpportunityDiscovery from './pages/OpportunityDiscovery'
+import SystemHealth from './pages/SystemHealth'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -67,6 +68,7 @@ import ROIPage from './landing/pages/ROIPage'
 import AboutPage from './landing/pages/AboutPage'
 import SLAPage from './landing/pages/SLAPage'
 import SecurityPage from './landing/pages/SecurityPage'
+import StatusPage from './landing/pages/StatusPage'
 import ComplianceMatrixGuidePage from './landing/pages/ComplianceMatrixGuidePage'
 import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
 import SamGovGuidePage from './landing/pages/SamGovGuidePage'
@@ -157,6 +159,7 @@ export default function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/sla" element={<SLAPage />} />
           <Route path="/security" element={<SecurityPage />} />
+          <Route path="/status" element={<StatusPage />} />
 
           {/* Resource Guides (SEO) */}
           <Route path="/guides/compliance-matrix" element={<ComplianceMatrixGuidePage />} />
@@ -251,6 +254,7 @@ export default function App() {
           <Route path="/admin/analytics" element={<ProtectedRoute><GlobalAdminRoute><AdminAnalytics /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/invites" element={<ProtectedRoute><GlobalAdminRoute><AdminBetaInvites /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
+          <Route path="/admin/system-health" element={<ProtectedRoute><GlobalAdminRoute><SystemHealth /></GlobalAdminRoute></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />

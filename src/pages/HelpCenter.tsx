@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, ChevronDown, ChevronUp, BookOpen, Upload, Brain, Users, BarChart3, Download, MessageCircle, HelpCircle, ClipboardList, Shield, FileStack, Rocket, RotateCcw } from 'lucide-react'
+import { Search, ChevronDown, ChevronUp, BookOpen, Upload, Brain, Users, BarChart3, Download, MessageCircle, HelpCircle, ClipboardList, Shield, FileStack, Rocket, RotateCcw, Activity } from 'lucide-react'
 import { resetOnboarding, saveOnboardingState, getOnboardingState } from '../lib/onboarding'
 
 interface FaqItem {
@@ -318,6 +318,30 @@ const helpSections: HelpSection[] = [
       {
         question: 'What happens if I delete a contract?',
         answer: 'Deleting a contract unlinks all associated projects but does NOT delete the projects themselves. They become standalone projects again.',
+      },
+    ],
+  },
+  {
+    id: 'platform-health',
+    title: 'Platform Health & Reliability',
+    icon: Activity,
+    description: 'Monitor system status, understand uptime guarantees, and learn about self-healing infrastructure.',
+    faqs: [
+      {
+        question: 'How do I check if the platform is experiencing issues?',
+        answer: 'Visit the public System Status page at /status (also linked in the website footer under "System Status"). It shows real-time health checks for all services: Database, Authentication, SAM.gov Feed, AI Engine, and Billing. The page auto-refreshes every 60 seconds.',
+      },
+      {
+        question: 'What is the uptime guarantee?',
+        answer: 'Procuvex guarantees 99.9% uptime as defined in our SLA (Service Level Agreement). This means no more than ~8.7 hours of downtime per year. If uptime falls below this threshold, service credits are issued automatically. See the full SLA at /sla.',
+      },
+      {
+        question: 'What happens if SAM.gov or the AI engine goes down?',
+        answer: 'Each external service (SAM.gov, OpenAI, Stripe) has built-in retry logic with exponential backoff and circuit breakers. If SAM.gov is down, the Opportunity Feed will show an error message but the rest of the platform continues working normally. If the AI engine is down, you can still upload documents and manage projects — AI analysis will be unavailable until the service recovers.',
+      },
+      {
+        question: 'Where can I see detailed service health as an admin?',
+        answer: 'Global admins can access the System Health dashboard from the sidebar (Admin → System Health). It shows detailed latency metrics, error messages, and includes an integrated operational runbook with step-by-step recovery procedures for each service.',
       },
     ],
   },

@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions"
+import { resilientFetch } from "./_shared/resilience.ts"
 
 /**
  * Netlify Function: SAM.gov Opportunity Discovery Feed
@@ -197,9 +198,10 @@ export default async (req: Request, _context: Context) => {
       searchUrl.searchParams.set("qFilters", `publishDate:[${fromDate.toISOString()} TO *]`)
     }
 
-    const searchRes = await fetch(searchUrl.toString(), {
+    const searchRes = await resilientFetch(searchUrl.toString(), {
       headers: { Accept: "application/hal+json" },
-    })
+      signal: AbortSignal.timeout(15000),
+    }, { maxRetries: 2, baseDelayMs: 1000 })
 
     if (!searchRes.ok) {
       const errText = await searchRes.text()
@@ -216,9 +218,10 @@ export default async (req: Request, _context: Context) => {
     // Fetch details for each result (in parallel, up to 15)
     const enrichPromises = results.slice(0, 15).map(async (r) => {
       try {
-        const detailRes = await fetch(
+        const detailRes = await resilientFetch(
           `https://sam.gov/api/prod/opps/v2/opportunities/${r._id}?responseType=json`,
-          { headers: { Accept: "application/hal+json, application/json" } }
+          { headers: { Accept: "application/hal+json, application/json" }, signal: AbortSignal.timeout(10000) },
+          { maxRetries: 1, baseDelayMs: 500 }
         )
         if (detailRes.ok) {
           const dj = await detailRes.json()
