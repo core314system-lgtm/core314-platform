@@ -32,6 +32,17 @@
   to = "/index.html"
   status = 200
 
+# Presentation static site (serve as-is, not through SPA)
+[[redirects]]
+  from = "/presentation"
+  to = "/presentation/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/presentation/*"
+  to = "/presentation/:splat"
+  status = 200
+
 # SPA catch-all (must be last)
 [[redirects]]
   from = "/*"

@@ -18,6 +18,7 @@ const footerLinks = {
     { label: 'Gov Proposal Checklist', to: '/guides/government-proposals' },
     { label: 'SAM.gov Guide', to: '/guides/sam-gov' },
     { label: 'Compare Procuvex', to: '/compare' },
+    { label: 'Presentation', to: '/presentation' },
   ],
   company: [
     { label: 'About Us', to: '/about' },
