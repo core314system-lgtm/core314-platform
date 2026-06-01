@@ -1,22 +1,23 @@
 import { Link } from 'react-router-dom';
 
 const footerLinks = {
-  product: [
-    { label: 'Product', to: '/product' },
-    { label: 'How It Works', to: '/how-it-works' },
-    { label: 'Integrations', to: '/integrations' },
-    { label: 'Pricing', to: '/pricing' },
-  ],
-  solutions: [
-    { label: 'Solutions', to: '/solutions' },
-    { label: 'Partners', to: '/partners' },
-    { label: 'Affiliate Program', to: '/affiliate' },
+  products: [
+    { label: 'All Products', to: '/products' },
+    { label: 'Procuvex', to: '/products/procuvex' },
+    { label: 'Enterprise Solutions', to: '/enterprise' },
   ],
   company: [
+    { label: 'About', to: '/about' },
+    { label: 'Partners', to: '/partners' },
+    { label: 'Affiliate Program', to: '/affiliate' },
     { label: 'Contact', to: '/contact' },
+  ],
+  legal: [
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },
     { label: 'AI Disclaimer', to: '/ai-disclaimer' },
+    { label: 'Cookies', to: '/cookies' },
+    { label: 'DPA', to: '/dpa' },
   ],
 };
 
@@ -31,41 +32,27 @@ export default function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2.5 mb-4">
               <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8" />
-              <span className="text-lg font-bold text-white tracking-tight">
-                Core<span className="text-sky-400">314</span>
-              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-lg font-bold text-white tracking-tight">
+                  Core<span className="text-sky-400">314</span>
+                </span>
+                <span className="text-[9px] font-medium text-slate-500 uppercase tracking-widest -mt-0.5">
+                  Technologies
+                </span>
+              </div>
             </Link>
-            <p className="text-sm leading-relaxed mb-4">
-              Operational Intelligence Platform for Leadership Teams. Patent Pending.
+            <p className="text-sm leading-relaxed">
+              Building intelligent software for modern businesses. Patent Pending.
             </p>
           </div>
 
-          {/* Product */}
+          {/* Products */}
           <div>
             <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">
-              Product
+              Products
             </h3>
             <ul className="space-y-2.5">
-              {footerLinks.product.map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-sm hover:text-white transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Solutions */}
-          <div>
-            <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">
-              Solutions
-            </h3>
-            <ul className="space-y-2.5">
-              {footerLinks.solutions.map((link) => (
+              {footerLinks.products.map((link) => (
                 <li key={link.to}>
                   <Link
                     to={link.to}
@@ -96,27 +83,31 @@ export default function Footer() {
               ))}
             </ul>
           </div>
+
+          {/* Legal */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">
+              Legal
+            </h3>
+            <ul className="space-y-2.5">
+              {footerLinks.legal.map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="text-sm hover:text-white transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-slate-500">
             &copy; {currentYear} Core314&trade; Technologies LLC. All rights reserved. United States. Patent Pending.
-          </p>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <Link to="/cookies" className="hover:text-slate-300 transition-colors">
-              Cookies
-            </Link>
-            <Link to="/dpa" className="hover:text-slate-300 transition-colors">
-              DPA
-            </Link>
-          </div>
-        </div>
-
-        {/* Legal disclaimer */}
-        <div className="mt-6 pt-6 border-t border-slate-800">
-          <p className="text-xs text-slate-600 leading-relaxed text-center">
-            Slack, HubSpot, QuickBooks, Google Calendar, Gmail, Jira, Trello, Microsoft Teams, Google Sheets, Asana, Salesforce, Zoom, GitHub, Zendesk, Notion, and Monday.com are trademarks of their respective owners. Core314 is not affiliated with or endorsed by these companies. Integration availability may vary and additional integrations are continuously being added.
           </p>
         </div>
       </div>

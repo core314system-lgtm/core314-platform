@@ -3,11 +3,10 @@ import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 
 const navLinks = [
-  { to: '/product', label: 'Product' },
-  { to: '/how-it-works', label: 'How It Works' },
-  { to: '/solutions', label: 'Solutions' },
-  { to: '/integrations', label: 'Integrations' },
-  { to: '/pricing', label: 'Pricing' },
+  { to: '/about', label: 'About' },
+  { to: '/products', label: 'Products' },
+  { to: '/enterprise', label: 'Enterprise' },
+  { to: '/partners', label: 'Partners' },
   { to: '/contact', label: 'Contact' },
 ];
 
@@ -52,9 +51,14 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 lg:h-18">
           <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
             <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8" />
-            <span className="text-lg font-bold text-slate-900 tracking-tight">
-              Core<span className="text-sky-600">314</span>
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg font-bold text-slate-900 tracking-tight">
+                Core<span className="text-sky-600">314</span>
+              </span>
+              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest -mt-0.5">
+                Technologies
+              </span>
+            </div>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1">
@@ -63,7 +67,7 @@ export default function Header() {
                 key={link.to}
                 to={link.to}
                 className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  location.pathname === link.to
+                  location.pathname === link.to || location.pathname.startsWith(link.to + '/')
                     ? 'text-sky-600'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
@@ -75,16 +79,10 @@ export default function Header() {
 
           <div className="hidden lg:flex items-center gap-3">
             <Link
-              to="/login"
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              Log in
-            </Link>
-            <Link
-              to="/signup"
+              to="/contact"
               className="px-4 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
             >
-              Start Free Trial
+              Get in Touch
             </Link>
           </div>
 
@@ -123,16 +121,10 @@ export default function Header() {
               ))}
               <div className="pt-3 mt-2 border-t border-slate-100 space-y-2">
                 <Link
-                  to="/login"
-                  className="block px-3 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-md"
-                >
-                  Log in
-                </Link>
-                <Link
-                  to="/signup"
+                  to="/contact"
                   className="block w-full py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center"
                 >
-                  Start Free Trial
+                  Get in Touch
                 </Link>
               </div>
             </nav>

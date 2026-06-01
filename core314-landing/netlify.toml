@@ -7,13 +7,86 @@
   to = "/.netlify/functions/health"
   status = 200
 
-# Redirect login to platform app - landing site should not handle auth
+# Legacy OI marketing pages → redirect to products page
 [[redirects]]
-  from = "/login"
-  to = "https://app.core314.com/login"
+  from = "/product"
+  to = "/products"
   status = 301
   force = true
 
+[[redirects]]
+  from = "/how-it-works"
+  to = "/products"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/solutions"
+  to = "/enterprise"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/integrations"
+  to = "/products"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/pricing"
+  to = "/products"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/signup"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/signup/success"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/signup-success"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/login"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/reset-password"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/reset-password/confirm"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/billing"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/beta"
+  to = "/"
+  status = 301
+  force = true
+
+# SPA catch-all
 [[redirects]]
   from = "/*"
   to = "/index.html"
