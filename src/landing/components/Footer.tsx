@@ -82,6 +82,9 @@ export default function Footer() {
                   <Link to={link.to} className="text-sm hover:text-white transition-colors">{link.label}</Link>
                 </li>
               ))}
+              <li>
+                <a href="/presentation" className="text-sm hover:text-white transition-colors">Presentation</a>
+              </li>
             </ul>
           </div>
 
