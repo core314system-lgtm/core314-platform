@@ -21,12 +21,6 @@
   force = true
 
 [[redirects]]
-  from = "/solutions"
-  to = "/enterprise"
-  status = 301
-  force = true
-
-[[redirects]]
   from = "/integrations"
   to = "/products"
   status = 301
