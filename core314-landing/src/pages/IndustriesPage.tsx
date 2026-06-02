@@ -15,9 +15,9 @@ export default function IndustriesPage() {
             Industry Expertise
           </h1>
           <p className="mt-6 text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-            We don&apos;t study these industries from the outside. We&apos;ve operated in them.
-            Our technology is built from direct experience with the challenges these
-            sectors face every day.
+            Deep understanding of how these industries operate informs how we design
+            technology. Our systems are built for the specific challenges and
+            complexities these sectors face every day.
           </p>
         </div>
       </section>
@@ -112,8 +112,9 @@ export default function IndustriesPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-lg text-slate-600 leading-relaxed mb-8">
             These industries represent areas where Core314 Technologies has significant
-            operational experience. Our technology principles — operational grounding,
-            practical system design, and real-world intelligence — apply across many sectors.
+            insight into operational challenges. Our technology principles — practical
+            system design, business-aligned intelligence, and operational grounding —
+            apply across many sectors.
           </p>
           <h2 className="text-2xl font-bold text-slate-900 mb-4">
             Operating in a Complex Industry?

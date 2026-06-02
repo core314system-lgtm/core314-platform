@@ -30,7 +30,7 @@ export default function InnovationPage() {
           </h2>
           <p className="text-lg text-slate-600 mb-10 max-w-3xl">
             Every research initiative at Core314 Technologies begins with a real
-            operational problem observed in the field.
+            operational problem that organizations face today.
           </p>
           <div className="space-y-6">
             {[
@@ -120,7 +120,7 @@ export default function InnovationPage() {
               },
               {
                 title: 'Problem-Driven Development',
-                desc: 'Every feature, every system, every line of code starts with a real operational problem observed in the field.',
+                desc: 'Every feature, every system, every line of code starts with a real business problem that organizations need solved.',
               },
             ].map((item) => (
               <div key={item.title} className="p-5 rounded-lg border border-slate-200">

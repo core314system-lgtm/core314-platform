@@ -27,8 +27,8 @@ export default function ProcuvexPage() {
           </div>
           <p className="text-lg text-slate-600 leading-relaxed max-w-3xl">
             Procuvex transforms government and enterprise procurement through intelligent
-            automation. Built from direct experience in government contracting operations,
-            it addresses the specific challenges procurement teams face every day.
+            automation. Designed specifically for the complexity of government contracting,
+            it addresses the challenges procurement teams face every day.
           </p>
         </div>
       </section>
@@ -36,12 +36,12 @@ export default function ProcuvexPage() {
       {/* Origin Story */}
       <section className="py-16 lg:py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Built From Experience</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-6">Purpose-Built for Procurement</h2>
           <p className="text-lg text-slate-600 leading-relaxed">
             Procuvex was created because existing procurement tools fail to address the
             complexity of government contracting — task order analysis, compliance
             requirements, bid/no-bid decisions, and subcontractor coordination. Rather
-            than adapting generic software, we built a system designed specifically for
+            than adapting generic software, Procuvex was designed specifically for
             how procurement teams actually operate.
           </p>
         </div>

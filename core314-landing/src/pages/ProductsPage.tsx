@@ -16,7 +16,7 @@ export default function ProductsPage() {
           </h1>
           <p className="mt-6 text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Platforms designed, built, and operated by Core314 Technologies.
-            Each product is born from direct operational experience in its target domain.
+            Each product is purpose-built for a specific operational domain.
           </p>
         </div>
       </section>
@@ -36,8 +36,8 @@ export default function ProductsPage() {
             </div>
             <p className="text-lg text-slate-600 leading-relaxed mb-6">
               Procuvex transforms government and enterprise procurement through AI-driven
-              task order analysis, bid intelligence, and compliance automation. Built from
-              direct experience in government contracting operations.
+              task order analysis, bid intelligence, and compliance automation. Purpose-built
+              for the complexity of government procurement workflows.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
               {[

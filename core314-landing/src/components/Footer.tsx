@@ -49,7 +49,7 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm leading-relaxed">
-              Technology built from operational experience.
+              Intelligent systems for complex operations.
             </p>
           </div>
 

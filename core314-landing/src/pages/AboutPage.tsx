@@ -30,18 +30,18 @@ export default function AboutPage() {
           <div className="space-y-5 text-slate-600 text-lg leading-relaxed">
             <p>
               Many software products fail because they are designed without understanding
-              the environments in which they operate. Developers build tools based on
-              theoretical workflows — not the reality of how organizations function day to day.
+              the environments in which they operate. Too often, organizations are forced
+              to adapt their processes to fit the limitations of existing technology rather
+              than using technology that adapts to their needs.
             </p>
             <p>
-              Core314 Technologies was founded to bridge the gap between operational reality
-              and technology. By combining real-world operational experience with modern
-              software development, we create systems designed around how organizations
-              actually function — not how a product team imagines they should.
+              Core314 Technologies was founded on a simple observation: there is a
+              fundamental gap between how organizations actually operate and how most
+              software assumes they should. We exist to close that gap.
             </p>
             <p>
-              The mission is not to build software. The mission is to solve operational
-              problems through technology.
+              The mission is not to build software. The mission is to solve complex
+              business challenges through intelligent technology.
             </p>
           </div>
         </div>
@@ -55,21 +55,31 @@ export default function AboutPage() {
           </h2>
           <div className="space-y-5 text-slate-600 text-lg leading-relaxed">
             <p>
-              Core314 Technologies started where most enterprise software fails: in the
-              field. After years of managing complex operations across government
-              contracting, facilities, and enterprise services — and watching software
-              consistently fall short — we decided to build something better.
+              Core314 Technologies was founded on a simple observation: many organizations
+              rely on software that was never designed around the realities of how they
+              actually operate.
             </p>
             <p>
-              Not a generic platform configured to approximate operational needs. Not
-              another SaaS tool that forces organizations to change how they work.
-              Instead, proprietary technology built from the inside out — systems
-              designed by people who have lived the challenges they solve.
+              Too often, businesses are forced to adapt their processes to fit the
+              limitations of existing technology rather than using technology that
+              adapts to their needs. We believed there was a better approach.
             </p>
             <p>
-              What began as solving our own operational problems evolved into a technology
-              company with a growing portfolio of platforms — each addressing a distinct
-              operational domain, each built from direct experience.
+              Core314 Technologies was created to develop intelligent systems that align
+              technology with operational reality. Our philosophy is straightforward:
+              software should simplify complexity, improve visibility, support better
+              decision-making, and help organizations operate more effectively.
+            </p>
+            <p>
+              What began as a vision for building more practical, purpose-driven technology
+              evolved into a company focused on developing proprietary software platforms,
+              intelligent operational systems, and enterprise technologies designed to
+              solve complex business challenges.
+            </p>
+            <p>
+              Today, Core314 Technologies continues to invest in innovative products and
+              solutions that help organizations gain clarity, improve performance, and
+              make better decisions through technology.
             </p>
           </div>
         </div>
@@ -84,8 +94,8 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[
               {
-                title: 'Operations First',
-                description: 'Technology should serve operational reality, not the other way around. Systems must be designed around how organizations actually work.',
+                title: 'Technology Should Fit the Business',
+                description: 'Software should adapt to how organizations operate — not force organizations to change how they work. Systems must be designed around operational reality.',
               },
               {
                 title: 'Own What We Build',
@@ -140,16 +150,16 @@ export default function AboutPage() {
           </h2>
           <div className="space-y-5 text-slate-600 text-lg leading-relaxed">
             <p>
-              Core314 Technologies is building a portfolio of operational technology
+              Core314 Technologies is building a portfolio of intelligent technology
               platforms that serve organizations across industries. Each platform
-              addresses a distinct domain. Each is built to operate independently.
-              Each is informed by real-world operational experience.
+              addresses a distinct operational domain. Each is designed to operate
+              independently. Each is built to solve real business challenges.
             </p>
             <p>
-              Our vision is not to become the largest technology company. It is to
-              build the most operationally grounded one — a company whose technology
-              is trusted precisely because it was built by people who understand the
-              environments it serves.
+              Our vision is to build the most operationally grounded technology
+              company in our space — one whose products are trusted because they
+              are designed around how organizations actually function, not how
+              software companies imagine they should.
             </p>
           </div>
           <div className="mt-10">

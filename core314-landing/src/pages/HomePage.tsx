@@ -8,17 +8,17 @@ export default function HomePage() {
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
 
-      {/* SECTION 1: HERO — THE OPERATOR STORY */}
+      {/* SECTION 1: HERO */}
       <section className="pt-28 pb-20 lg:pt-36 lg:pb-28 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
-            Technology Built from{' '}
-            <span className="text-sky-600">Operational Experience</span>
+            Intelligent Systems for{' '}
+            <span className="text-sky-600">Complex Operations</span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
             Core314 Technologies develops proprietary software platforms and intelligent
-            systems informed by decades of real-world operational experience. We build
-            technology designed around how organizations actually operate.
+            systems designed around how organizations actually operate. We build
+            technology that adapts to your business — not the other way around.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
@@ -43,10 +43,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
-              What Changes When Your Systems Are Built by Operators
+              Technology Designed Around How You Actually Operate
             </h2>
             <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-              Technology informed by operational reality delivers measurable outcomes.
+              Intelligent systems that deliver measurable business outcomes.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -152,7 +152,7 @@ export default function HomePage() {
               Platforms We Build and Operate
             </h2>
             <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-              Each product is born from direct operational experience in its target domain.
+              Each product is purpose-built for a specific operational domain.
             </p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -167,7 +167,7 @@ export default function HomePage() {
               <p className="text-slate-600 leading-relaxed mb-4">
                 AI-powered procurement intelligence for government contractors and enterprise
                 procurement teams. Task order analysis, bid intelligence, and compliance
-                automation — built from direct experience in government contracting operations.
+                automation designed for the complexity of government procurement.
               </p>
               <Link
                 to="/products/procuvex"
@@ -264,11 +264,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
-              Operational Experience Across Industries
+              Industry Insight That Informs Better Technology
             </h2>
             <p className="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">
-              Our technology is informed by direct experience in complex, regulated,
-              and high-stakes environments.
+              Deep understanding of complex, regulated, and high-stakes
+              operational environments drives how we design systems.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -305,8 +305,8 @@ export default function HomePage() {
             ))}
           </div>
           <p className="text-center mt-8 text-sm text-slate-500 max-w-2xl mx-auto">
-            These industries represent areas where Core314 Technologies has significant operational
-            experience. Our technology principles apply across many sectors.
+            These industries represent areas where Core314 Technologies has significant
+            insight into operational challenges. Our technology principles apply across many sectors.
           </p>
           <div className="text-center mt-6">
             <Link
@@ -361,7 +361,7 @@ export default function HomePage() {
           </div>
           <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-5xl mx-auto">
             {[
-              'Operationally Informed',
+              'Operations-Aligned Design',
               'Proprietary Platforms',
               'Product Ownership',
               'Selective Engagements',
@@ -387,9 +387,9 @@ export default function HomePage() {
               </p>
             </div>
             <div>
-              <p className="text-lg font-bold text-slate-900">Operational Origins</p>
+              <p className="text-lg font-bold text-slate-900">Purpose-Built Systems</p>
               <p className="text-sm text-slate-600 mt-1">
-                Every system built from real-world operational experience
+                Every system designed around real operational requirements
               </p>
             </div>
             <div>
