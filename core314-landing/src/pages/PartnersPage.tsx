@@ -1,23 +1,13 @@
-import { Link } from 'react-router-dom';
+import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 export default function PartnersPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/logo-icon.svg" alt="Core314" className="h-8 w-8" />
-            <span className="text-xl font-semibold text-slate-900">
-              Core<span className="text-sky-600">314</span>
-            </span>
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-6 py-16">
+      <main className="max-w-3xl mx-auto px-6 pt-28 pb-16">
         {/* Page Title */}
         <div className="mb-12 border-b border-slate-200 pb-8">
           <h1 className="text-3xl font-semibold text-slate-900 mb-2">
