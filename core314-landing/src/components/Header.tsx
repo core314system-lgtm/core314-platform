@@ -1,19 +1,73 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 
-const navLinks = [
+interface DropdownItem {
+  to: string;
+  label: string;
+}
+
+interface NavLink {
+  to: string;
+  label: string;
+  dropdown?: DropdownItem[];
+}
+
+const navLinks: NavLink[] = [
   { to: '/about', label: 'About' },
-  { to: '/products', label: 'Products' },
+  {
+    to: '/solutions',
+    label: 'Solutions',
+    dropdown: [
+      { to: '/solutions/decision-support', label: 'Intelligent Decision Support' },
+      { to: '/solutions/operational-intelligence', label: 'Operational Visibility & Insight' },
+      { to: '/solutions/process-automation', label: 'Process & Compliance Automation' },
+      { to: '/solutions/custom-systems', label: 'Custom Operational Systems' },
+    ],
+  },
+  {
+    to: '/products',
+    label: 'Products',
+    dropdown: [
+      { to: '/products/procuvex', label: 'Procuvex' },
+    ],
+  },
   { to: '/enterprise', label: 'Enterprise' },
-  { to: '/partners', label: 'Partners' },
-  { to: '/contact', label: 'Contact' },
+  { to: '/industries', label: 'Industries' },
+  { to: '/innovation', label: 'Innovation' },
 ];
+
+function Dropdown({ items, isOpen, parentTo }: { items: DropdownItem[]; isOpen: boolean; parentTo: string }) {
+  if (!isOpen) return null;
+  return (
+    <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50">
+      {items.map((item) => (
+        <Link
+          key={item.to}
+          to={item.to}
+          className="block px-4 py-2.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+        >
+          {item.label}
+        </Link>
+      ))}
+      <div className="border-t border-slate-100 mt-1 pt-1">
+        <Link
+          to={parentTo}
+          className="block px-4 py-2.5 text-sm font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 transition-colors"
+        >
+          View All &rarr;
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const location = useLocation();
+  const dropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -37,7 +91,21 @@ export default function Header() {
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setOpenDropdown(null);
   }, [location.pathname]);
+
+  const handleMouseEnter = (label: string) => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+    }
+    setOpenDropdown(label);
+  };
+
+  const handleMouseLeave = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setOpenDropdown(null);
+    }, 150);
+  };
 
   return (
     <header
@@ -61,19 +129,33 @@ export default function Header() {
             </div>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-0.5">
             {navLinks.map((link) => (
-              <Link
+              <div
                 key={link.to}
-                to={link.to}
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  location.pathname === link.to || location.pathname.startsWith(link.to + '/')
-                    ? 'text-sky-600'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                className="relative"
+                onMouseEnter={() => link.dropdown && handleMouseEnter(link.label)}
+                onMouseLeave={() => link.dropdown && handleMouseLeave()}
               >
-                {link.label}
-              </Link>
+                <Link
+                  to={link.to}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors inline-flex items-center gap-1 ${
+                    location.pathname === link.to || location.pathname.startsWith(link.to + '/')
+                      ? 'text-sky-600'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  {link.label}
+                  {link.dropdown && <ChevronDown className="h-3.5 w-3.5" />}
+                </Link>
+                {link.dropdown && (
+                  <Dropdown
+                    items={link.dropdown}
+                    isOpen={openDropdown === link.label}
+                    parentTo={link.to}
+                  />
+                )}
+              </div>
             ))}
           </nav>
 
@@ -82,7 +164,7 @@ export default function Header() {
               to="/contact"
               className="px-4 py-2 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
             >
-              Get in Touch
+              Contact Us
             </Link>
           </div>
 
@@ -104,27 +186,41 @@ export default function Header() {
             onClick={() => setMobileMenuOpen(false)}
             aria-hidden="true"
           />
-          <div className="lg:hidden absolute top-full left-0 right-0 bg-white border-b border-slate-200 shadow-lg z-50">
+          <div className="lg:hidden absolute top-full left-0 right-0 bg-white border-b border-slate-200 shadow-lg z-50 max-h-[80vh] overflow-y-auto">
             <nav className="flex flex-col px-4 py-3 space-y-1">
               {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
-                    location.pathname === link.to
-                      ? 'text-sky-600 bg-sky-50'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  {link.label}
-                </Link>
+                <div key={link.to}>
+                  <Link
+                    to={link.to}
+                    className={`px-3 py-2.5 text-sm font-medium rounded-md transition-colors block ${
+                      location.pathname === link.to || location.pathname.startsWith(link.to + '/')
+                        ? 'text-sky-600 bg-sky-50'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                  {link.dropdown && (
+                    <div className="ml-4 mt-1 mb-2 space-y-0.5">
+                      {link.dropdown.map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className="block px-3 py-2 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-md"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
               <div className="pt-3 mt-2 border-t border-slate-100 space-y-2">
                 <Link
                   to="/contact"
                   className="block w-full py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg text-center"
                 >
-                  Get in Touch
+                  Contact Us
                 </Link>
               </div>
             </nav>

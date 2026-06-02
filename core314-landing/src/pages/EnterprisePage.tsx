@@ -1,50 +1,7 @@
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Shield, Cpu, Headphones, Lock, Settings, BarChart3 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const stagger = {
-  visible: { transition: { staggerChildren: 0.08 } },
-};
-
-const features = [
-  {
-    icon: Cpu,
-    title: 'Custom AI Models',
-    desc: 'Purpose-built AI models trained on your operational data and tailored to your specific industry and use cases.',
-  },
-  {
-    icon: Settings,
-    title: 'Custom Integrations',
-    desc: 'Connect to proprietary systems, internal databases, and specialized tools that your organization relies on.',
-  },
-  {
-    icon: Shield,
-    title: 'SLA Guarantees',
-    desc: 'Committed uptime, response time, and performance guarantees backed by service level agreements.',
-  },
-  {
-    icon: Headphones,
-    title: 'Dedicated Onboarding',
-    desc: 'Hands-on implementation support with a dedicated team to ensure successful deployment and adoption.',
-  },
-  {
-    icon: Lock,
-    title: 'Advanced Security',
-    desc: 'SSO, custom data retention policies, audit logging, and compliance certifications for regulated industries.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Executive Reporting',
-    desc: 'Custom dashboards and reporting tailored to your leadership team and board requirements.',
-  },
-];
 
 export default function EnterprisePage() {
   return (
@@ -52,153 +9,172 @@ export default function EnterprisePage() {
       <Header />
 
       {/* Hero */}
-      <section className="pt-28 pb-16 lg:pt-36 lg:pb-24 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-3"
-            >
-              Enterprise Solutions
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6"
-            >
-              Custom Intelligence for{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600">
-                Large Organizations
-              </span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-slate-600 leading-relaxed mb-8"
-            >
-              We partner with enterprise organizations to build tailored intelligence
-              solutions that address their unique operational challenges at scale.
-            </motion.p>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                Contact Our Enterprise Team
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
+      <section className="pt-28 pb-16 lg:pt-36 lg:pb-20 bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
+            Enterprise Technology Solutions
+          </h1>
+          <p className="mt-6 text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
+            For organizations whose operational complexity exceeds what off-the-shelf
+            software can address, Core314 Technologies designs and builds proprietary
+            systems using our proven technology and operational methodology.
+          </p>
+        </div>
+      </section>
+
+      {/* What We Build */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            Systems We Build
+          </h2>
+          <p className="text-lg text-slate-600 mb-10 max-w-3xl">
+            We don&apos;t build generic software. We design operational systems for
+            organizations with real complexity.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'Operational Command Centers',
+                desc: 'Centralized operational visibility with real-time status, alerts, and coordination across departments.',
+              },
+              {
+                title: 'Executive Dashboards & Reporting',
+                desc: 'Leadership-level insight platforms with automated narrative generation and health scoring.',
+              },
+              {
+                title: 'Procurement Intelligence Platforms',
+                desc: 'End-to-end procurement systems with bid analysis, compliance tracking, and vendor management.',
+              },
+              {
+                title: 'Compliance Management Systems',
+                desc: 'Automated compliance monitoring, audit trails, and regulatory requirement mapping.',
+              },
+              {
+                title: 'Workflow Automation Engines',
+                desc: 'Custom process automation with approval routing, task orchestration, and exception handling.',
+              },
+              {
+                title: 'Data Integration Platforms',
+                desc: 'Cross-system data consolidation, identity resolution, and unified operational data layers.',
+              },
+              {
+                title: 'Decision Support Platforms',
+                desc: 'Intelligent systems that consolidate information and surface recommendations for action.',
+              },
+              {
+                title: 'Business Intelligence Solutions',
+                desc: 'Operational analytics with custom metrics, trend analysis, and performance tracking.',
+              },
+              {
+                title: 'Custom SaaS Applications',
+                desc: 'Purpose-built multi-tenant platforms designed for specific operational domains.',
+              },
+              {
+                title: 'Industry-Specific Operational Systems',
+                desc: 'Platforms designed for the unique requirements of specific industries and regulatory environments.',
+              },
+            ].map((system) => (
+              <div key={system.title} className="p-6 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+                <h3 className="text-base font-semibold text-slate-900 mb-2">{system.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{system.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="text-center mb-16"
-          >
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
-              Enterprise-Grade Capabilities
-            </motion.h2>
-            <motion.p variants={fadeUp} className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Everything in our standard products, plus dedicated resources and custom capabilities
-              built specifically for your organization.
-            </motion.p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {features.map((feature) => (
-              <motion.div
-                key={feature.title}
-                variants={fadeUp}
-                className="bg-white border border-slate-200 rounded-xl p-6"
-              >
-                <div className="p-2.5 bg-sky-50 rounded-lg w-fit mb-4">
-                  <feature.icon className="h-6 w-6 text-sky-600" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{feature.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{feature.desc}</p>
-              </motion.div>
+      {/* How We're Different */}
+      <section className="py-16 lg:py-20 bg-slate-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8">
+            How We&apos;re Different
+          </h2>
+          <div className="space-y-6">
+            {[
+              {
+                title: 'Built on Our Technology Stack',
+                desc: 'Enterprise engagements leverage the same proprietary AI, data pipelines, and platform architecture that powers our product portfolio. You benefit from proven technology, not prototype code.',
+              },
+              {
+                title: 'We Operate What We Build',
+                desc: 'Unlike agencies that hand off and disappear, Core314 maintains and evolves the systems we create. Ongoing operation, not project delivery.',
+              },
+              {
+                title: 'Technology Transfer, Not Labor Transfer',
+                desc: 'The value is in our proprietary methodology and platform components, not billable developer hours.',
+              },
+              {
+                title: 'Selective Engagements',
+                desc: 'We take on a limited number of enterprise engagements annually to maintain the development quality our systems demand.',
+              },
+            ].map((diff) => (
+              <div key={diff.title} className="p-6 rounded-xl border border-slate-200 bg-white">
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{diff.title}</h3>
+                <p className="text-slate-600 leading-relaxed">{diff.desc}</p>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Process */}
-      <section className="py-20 lg:py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={stagger}
-            >
-              <motion.h2 variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-8 text-center">
-                How We Work With Enterprise Clients
-              </motion.h2>
-              <div className="space-y-6">
-                {[
-                  { step: '01', title: 'Discovery', desc: 'We start by understanding your operational landscape, pain points, and goals.' },
-                  { step: '02', title: 'Architecture', desc: 'We design a solution architecture that fits your existing infrastructure and security requirements.' },
-                  { step: '03', title: 'Implementation', desc: 'Our team builds and deploys the solution with dedicated onboarding and change management support.' },
-                  { step: '04', title: 'Optimization', desc: 'Ongoing tuning, monitoring, and optimization to ensure the solution delivers measurable results.' },
-                ].map((item) => (
-                  <motion.div
-                    key={item.step}
-                    variants={fadeUp}
-                    className="flex gap-6 bg-white border border-slate-200 rounded-xl p-6"
-                  >
-                    <div className="text-2xl font-extrabold text-sky-600/20">{item.step}</div>
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 mb-1">{item.title}</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </motion.div>
-                ))}
+      {/* Engagement Process */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-10 text-center">
+            Engagement Process
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                step: '01',
+                title: 'Discovery',
+                desc: 'Understand your operational reality, challenges, and requirements.',
+              },
+              {
+                step: '02',
+                title: 'Architecture',
+                desc: 'Design a system around how your organization actually works.',
+              },
+              {
+                step: '03',
+                title: 'Development',
+                desc: 'Build using our proven platform technology and methodology.',
+              },
+              {
+                step: '04',
+                title: 'Operation',
+                desc: 'Ongoing operation, monitoring, evolution, and support.',
+              },
+            ].map((phase) => (
+              <div key={phase.step} className="text-center p-6">
+                <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-sky-50 text-sky-600 font-bold text-lg mb-4">
+                  {phase.step}
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{phase.title}</h3>
+                <p className="text-sm text-slate-600">{phase.desc}</p>
               </div>
-            </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-slate-900 rounded-2xl p-10 lg:p-16 text-center">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-              Let Us Build Something Together
-            </h2>
-            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-8">
-              Tell us about your operational challenges and we will show you how
-              Core314 Technologies can help.
-            </p>
-            <Link
-              to="/contact"
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-slate-900 bg-white hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              Schedule a Consultation
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+      <section className="py-16 lg:py-20 bg-slate-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            Discuss Your Requirements
+          </h2>
+          <p className="text-lg text-slate-600 mb-8">
+            Tell us about your operational challenges. We&apos;ll determine whether a
+            custom system is the right solution.
+          </p>
+          <Link
+            to="/contact"
+            className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
+          >
+            Start a Conversation <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </section>
 

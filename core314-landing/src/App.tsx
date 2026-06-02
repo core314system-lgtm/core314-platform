@@ -2,9 +2,16 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { useEffect } from 'react';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
+import SolutionsPage from './pages/SolutionsPage';
+import DecisionSupportPage from './pages/solutions/DecisionSupportPage';
+import OperationalIntelligencePage from './pages/solutions/OperationalIntelligencePage';
+import ProcessAutomationPage from './pages/solutions/ProcessAutomationPage';
+import CustomSystemsPage from './pages/solutions/CustomSystemsPage';
 import ProductsPage from './pages/ProductsPage';
 import ProcuvexPage from './pages/ProcuvexPage';
 import EnterprisePage from './pages/EnterprisePage';
+import IndustriesPage from './pages/IndustriesPage';
+import InnovationPage from './pages/InnovationPage';
 import ContactPage from './pages/ContactPage';
 import PartnersPage from './pages/PartnersPage';
 import AffiliatePage from './pages/AffiliatePage';
@@ -30,9 +37,16 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/solutions" element={<SolutionsPage />} />
+        <Route path="/solutions/decision-support" element={<DecisionSupportPage />} />
+        <Route path="/solutions/operational-intelligence" element={<OperationalIntelligencePage />} />
+        <Route path="/solutions/process-automation" element={<ProcessAutomationPage />} />
+        <Route path="/solutions/custom-systems" element={<CustomSystemsPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/procuvex" element={<ProcuvexPage />} />
         <Route path="/enterprise" element={<EnterprisePage />} />
+        <Route path="/industries" element={<IndustriesPage />} />
+        <Route path="/innovation" element={<InnovationPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/partners" element={<PartnersPage />} />
         <Route path="/affiliate" element={<AffiliatePage />} />

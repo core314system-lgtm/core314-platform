@@ -1,39 +1,7 @@
-import { motion } from 'framer-motion';
-import { Target, Lightbulb, Shield, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const stagger = {
-  visible: { transition: { staggerChildren: 0.08 } },
-};
-
-const values = [
-  {
-    icon: Target,
-    title: 'Precision',
-    desc: 'We build software that does one thing exceptionally well. No feature bloat. No distractions. Every product solves a specific, high-value problem.',
-  },
-  {
-    icon: Lightbulb,
-    title: 'Intelligence',
-    desc: 'Our platforms do not just collect data — they interpret it. AI-powered analysis transforms raw information into clear, actionable recommendations.',
-  },
-  {
-    icon: Shield,
-    title: 'Trust',
-    desc: 'Enterprise-grade security is not an add-on. Every product is built with encryption, access controls, and audit trails from day one.',
-  },
-  {
-    icon: Users,
-    title: 'Accountability',
-    desc: 'We stand behind what we build. Our customers have direct access to the team that designs and ships the product.',
-  },
-];
 
 export default function AboutPage() {
   return (
@@ -41,140 +9,156 @@ export default function AboutPage() {
       <Header />
 
       {/* Hero */}
-      <section className="pt-28 pb-16 lg:pt-36 lg:pb-24 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-3"
-            >
-              About Us
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6"
-            >
-              Building the Future of{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600">
-                Business Intelligence
-              </span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-slate-600 leading-relaxed"
-            >
-              Core314 Technologies LLC is a software company focused on building
-              AI-powered platforms that help organizations make better decisions, faster.
-            </motion.p>
+      <section className="pt-28 pb-16 lg:pt-36 lg:pb-20 bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
+            About Core314 Technologies
+          </h1>
+          <p className="mt-6 text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            A technology company building intelligent systems for organizations
+            that demand more than off-the-shelf software.
+          </p>
+        </div>
+      </section>
+
+      {/* Why We Exist */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8">
+            Why Core314 Technologies Exists
+          </h2>
+          <div className="space-y-5 text-slate-600 text-lg leading-relaxed">
+            <p>
+              Many software products fail because they are designed without understanding
+              the environments in which they operate. Developers build tools based on
+              theoretical workflows — not the reality of how organizations function day to day.
+            </p>
+            <p>
+              Core314 Technologies was founded to bridge the gap between operational reality
+              and technology. By combining real-world operational experience with modern
+              software development, we create systems designed around how organizations
+              actually function — not how a product team imagines they should.
+            </p>
+            <p>
+              The mission is not to build software. The mission is to solve operational
+              problems through technology.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Story */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={stagger}
-            >
-              <motion.h2 variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-6">
-                Our Story
-              </motion.h2>
-              <motion.div variants={fadeUp} className="space-y-4 text-slate-600 leading-relaxed">
-                <p>
-                  Core314 Technologies was founded on a simple observation: modern businesses generate
-                  enormous amounts of operational data, but very few have the tools to turn that data
-                  into timely, actionable intelligence.
-                </p>
-                <p>
-                  Leadership teams rely on scattered dashboards, manual reports, and gut instinct
-                  to make decisions that shape the future of their organizations. We believe they
-                  deserve better.
-                </p>
-                <p>
-                  Our mission is to build purpose-built software products that connect to the systems
-                  businesses already use, analyze the data flowing through them, and deliver clear
-                  intelligence that drives confident decision-making.
-                </p>
-                <p>
-                  Every product we ship is designed with the same principles: security first, AI-powered
-                  analysis, seamless integration, and zero disruption to existing workflows.
-                </p>
-              </motion.div>
-            </motion.div>
+      {/* Our Story */}
+      <section className="py-16 lg:py-20 bg-slate-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8">
+            Our Story
+          </h2>
+          <div className="space-y-5 text-slate-600 text-lg leading-relaxed">
+            <p>
+              Core314 Technologies started where most enterprise software fails: in the
+              field. After years of managing complex operations across government
+              contracting, facilities, and enterprise services — and watching software
+              consistently fall short — we decided to build something better.
+            </p>
+            <p>
+              Not a generic platform configured to approximate operational needs. Not
+              another SaaS tool that forces organizations to change how they work.
+              Instead, proprietary technology built from the inside out — systems
+              designed by people who have lived the challenges they solve.
+            </p>
+            <p>
+              What began as solving our own operational problems evolved into a technology
+              company with a growing portfolio of platforms — each addressing a distinct
+              operational domain, each built from direct experience.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Values */}
-      <section className="py-20 lg:py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="text-center mb-16"
-          >
-            <motion.p variants={fadeUp} className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-3">
-              What We Stand For
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
-              Our Values
-            </motion.h2>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="grid sm:grid-cols-2 gap-8 max-w-4xl mx-auto"
-          >
-            {values.map((val) => (
-              <motion.div
-                key={val.title}
-                variants={fadeUp}
-                className="bg-white border border-slate-200 rounded-xl p-6"
-              >
-                <div className="p-2.5 bg-sky-50 rounded-lg w-fit mb-4">
-                  <val.icon className="h-6 w-6 text-sky-600" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{val.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{val.desc}</p>
-              </motion.div>
+      {/* What We Believe */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-10 text-center">
+            What We Believe
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {[
+              {
+                title: 'Operations First',
+                description: 'Technology should serve operational reality, not the other way around. Systems must be designed around how organizations actually work.',
+              },
+              {
+                title: 'Own What We Build',
+                description: 'We develop and operate proprietary platforms. Not one-off projects. Not white-label reselling. Technology assets we stand behind.',
+              },
+              {
+                title: 'Ship Real Systems',
+                description: 'Production-grade from day one. No prototypes disguised as products. No MVPs that never mature. Systems built to run real operations.',
+              },
+              {
+                title: 'Long-Term Investment',
+                description: 'We build technology assets with compounding value — not short-term solutions that need replacement in three years.',
+              },
+            ].map((belief) => (
+              <div key={belief.title} className="p-6 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900 mb-3">{belief.title}</h3>
+                <p className="text-slate-600 leading-relaxed">{belief.description}</p>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Patent Pending */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={stagger}
+      {/* Our Approach */}
+      <section className="py-16 lg:py-20 bg-slate-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8">
+            Our Approach
+          </h2>
+          <ul className="space-y-4">
+            {[
+              'Patent-pending methodologies in operational intelligence',
+              'Full-stack platform development — frontend, backend, AI, and infrastructure',
+              'All development is in-house — no outsourced engineering',
+              'Systems designed for production from day one, not scaled-up prototypes',
+              'Security and compliance built into architecture, not added later',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3">
+                <div className="h-2 w-2 rounded-full bg-sky-500 mt-2.5 flex-shrink-0" />
+                <p className="text-lg text-slate-600">{item}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* Long-Term Vision */}
+      <section className="py-16 lg:py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8">
+            Long-Term Vision
+          </h2>
+          <div className="space-y-5 text-slate-600 text-lg leading-relaxed">
+            <p>
+              Core314 Technologies is building a portfolio of operational technology
+              platforms that serve organizations across industries. Each platform
+              addresses a distinct domain. Each is built to operate independently.
+              Each is informed by real-world operational experience.
+            </p>
+            <p>
+              Our vision is not to become the largest technology company. It is to
+              build the most operationally grounded one — a company whose technology
+              is trusted precisely because it was built by people who understand the
+              environments it serves.
+            </p>
+          </div>
+          <div className="mt-10">
+            <Link
+              to="/products"
+              className="inline-flex items-center gap-2 text-base font-medium text-sky-600 hover:text-sky-700 transition-colors"
             >
-              <motion.h2 variants={fadeUp} className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-4">
-                Patent-Pending Technology
-              </motion.h2>
-              <motion.p variants={fadeUp} className="text-lg text-slate-600 leading-relaxed">
-                Core314 Technologies develops proprietary AI and data intelligence systems.
-                Our core technology is protected by pending patent applications, reflecting
-                our commitment to innovation and building defensible products.
-              </motion.p>
-            </motion.div>
+              View Our Product Portfolio <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>

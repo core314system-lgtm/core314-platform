@@ -1,255 +1,411 @@
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Shield, Cpu, BarChart3, Layers, Rocket } from 'lucide-react';
+import { ArrowRight, Eye, Brain, Zap, Shield, BarChart3, Target } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const stagger = {
-  visible: { transition: { staggerChildren: 0.1 } },
-};
-
-const products = [
-  {
-    name: 'Procuvex',
-    tagline: 'Government Procurement Intelligence',
-    description:
-      'AI-powered task order intelligence for government contractors. Streamline compliance, accelerate bid decisions, and win more contracts.',
-    icon: Shield,
-    color: 'sky',
-    link: '/products/procuvex',
-    status: 'Available',
-  },
-  {
-    name: 'Coming Soon',
-    tagline: 'More Products in Development',
-    description:
-      'We are building the next generation of intelligent business software. New products will be announced as they become available.',
-    icon: Rocket,
-    color: 'slate',
-    link: '/products',
-    status: 'In Development',
-  },
-];
-
-const capabilities = [
-  {
-    icon: Cpu,
-    title: 'Artificial Intelligence',
-    desc: 'Proprietary AI models that understand business operations, detect patterns, and surface actionable intelligence.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Operational Analytics',
-    desc: 'Transform raw data from your business systems into clear, decision-ready insights for leadership teams.',
-  },
-  {
-    icon: Layers,
-    title: 'System Integration',
-    desc: 'Secure, read-only connections to the tools your business already uses. No workflow changes required.',
-  },
-  {
-    icon: Shield,
-    title: 'Enterprise Security',
-    desc: 'SOC 2-ready architecture with end-to-end encryption, role-based access control, and full audit trails.',
-  },
-];
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
 
-      {/* Hero */}
-      <section className="pt-28 pb-20 lg:pt-40 lg:pb-32 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-4"
+      {/* SECTION 1: HERO — THE OPERATOR STORY */}
+      <section className="pt-28 pb-20 lg:pt-36 lg:pb-28 bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-tight">
+            Technology Built from{' '}
+            <span className="text-sky-600">Operational Experience</span>
+          </h1>
+          <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+            Core314 Technologies develops proprietary software platforms and intelligent
+            systems informed by decades of real-world operational experience. We build
+            technology designed around how organizations actually operate.
+          </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              to="/solutions"
+              className="inline-flex items-center gap-2 px-6 py-3.5 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
             >
-              Core314 Technologies LLC
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6"
+              Explore Solutions
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to="/enterprise"
+              className="inline-flex items-center gap-2 px-6 py-3.5 text-base font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 rounded-lg transition-colors"
             >
-              Intelligent Software for{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600">
-                Modern Business
-              </span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto mb-10"
-            >
-              We build AI-powered platforms that help organizations operate smarter,
-              make faster decisions, and scale with confidence.
-            </motion.p>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            >
-              <Link
-                to="/products"
-                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                Explore Our Products
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-              >
-                Contact Us
-              </Link>
-            </motion.div>
+              Enterprise Systems
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Products */}
-      <section className="py-20 lg:py-28">
+      {/* SECTION 2: BUSINESS OUTCOMES */}
+      <section className="py-20 lg:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="text-center mb-16"
-          >
-            <motion.p variants={fadeUp} className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-3">
-              Our Products
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
-              Purpose-Built Software Solutions
-            </motion.h2>
-            <motion.p variants={fadeUp} className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Each product is designed to solve a specific, high-impact business problem with precision and intelligence.
-            </motion.p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto"
-          >
-            {products.map((product) => (
-              <motion.div key={product.name} variants={fadeUp}>
-                <Link
-                  to={product.link}
-                  className="block h-full bg-white border border-slate-200 rounded-xl p-8 hover:border-sky-300 hover:shadow-lg transition-all group"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-2.5 rounded-lg ${product.color === 'sky' ? 'bg-sky-50' : 'bg-slate-50'}`}>
-                      <product.icon className={`h-6 w-6 ${product.color === 'sky' ? 'text-sky-600' : 'text-slate-400'}`} />
-                    </div>
-                    <span className={`text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                      product.status === 'Available'
-                        ? 'bg-emerald-50 text-emerald-600'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {product.status}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-1 group-hover:text-sky-600 transition-colors">
-                    {product.name}
-                  </h3>
-                  <p className="text-sm font-medium text-sky-600 mb-3">{product.tagline}</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">{product.description}</p>
-                  <div className="mt-4 flex items-center gap-1.5 text-sm font-medium text-sky-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Learn more <ArrowRight className="h-3.5 w-3.5" />
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Capabilities */}
-      <section className="py-20 lg:py-28 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="text-center mb-16"
-          >
-            <motion.p variants={fadeUp} className="text-sky-600 text-sm font-semibold uppercase tracking-wider mb-3">
-              Core Capabilities
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
-              Technology That Drives Results
-            </motion.h2>
-            <motion.p variants={fadeUp} className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Every product we build is powered by the same foundational technology platform.
-            </motion.p>
-          </motion.div>
-
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8"
-          >
-            {capabilities.map((cap) => (
-              <motion.div
-                key={cap.title}
-                variants={fadeUp}
-                className="bg-white border border-slate-200 rounded-xl p-6"
-              >
-                <div className="p-2.5 bg-sky-50 rounded-lg w-fit mb-4">
-                  <cap.icon className="h-6 w-6 text-sky-600" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-2">{cap.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{cap.desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 lg:py-28">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-slate-900 rounded-2xl p-10 lg:p-16 text-center">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
-              Ready to Get Started?
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+              What Changes When Your Systems Are Built by Operators
             </h2>
-            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-8">
-              Whether you need a product demo, enterprise consultation, or just want to learn more — we are here to help.
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              Technology informed by operational reality delivers measurable outcomes.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Eye,
+                title: 'Visibility',
+                description: 'See across systems, teams, and operations in real time. No blind spots.',
+              },
+              {
+                icon: Brain,
+                title: 'Better Decisions',
+                description: 'Act on real intelligence, not gut feel or incomplete data.',
+              },
+              {
+                icon: Zap,
+                title: 'Reduced Friction',
+                description: 'Remove the manual processes and workarounds that slow your operations every day.',
+              },
+              {
+                icon: Shield,
+                title: 'Built-In Compliance',
+                description: 'Governance and compliance woven into system architecture, not bolted on as checklists.',
+              },
+              {
+                icon: BarChart3,
+                title: 'Actionable Intelligence',
+                description: 'Turn fragmented data into insight that drives action.',
+              },
+              {
+                icon: Target,
+                title: 'Faster Execution',
+                description: 'Move from identifying problems to solving them in less time.',
+              },
+            ].map((outcome) => (
+              <div key={outcome.title} className="p-6 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+                <outcome.icon className="h-8 w-8 text-sky-600 mb-4" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{outcome.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{outcome.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: OUR SOLUTIONS */}
+      <section className="py-20 lg:py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+              Systems That Solve Operational Challenges
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              We develop technology across four core domains — each driven by real operational needs.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {[
+              {
+                title: 'Intelligent Decision Support',
+                problem: 'When decisions depend on data scattered across systems, teams, and formats.',
+                link: '/solutions/decision-support',
+              },
+              {
+                title: 'Operational Visibility & Insight',
+                problem: 'When leadership lacks real-time visibility into operational health across the organization.',
+                link: '/solutions/operational-intelligence',
+              },
+              {
+                title: 'Process & Compliance Automation',
+                problem: 'When manual processes, compliance gaps, and workflow friction drain time and introduce risk.',
+                link: '/solutions/process-automation',
+              },
+              {
+                title: 'Custom Operational Systems',
+                problem: 'When off-the-shelf software doesn\'t match how your organization actually operates.',
+                link: '/solutions/custom-systems',
+              },
+            ].map((solution) => (
               <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-slate-900 bg-white hover:bg-slate-100 rounded-lg transition-colors"
+                key={solution.title}
+                to={solution.link}
+                className="group p-8 bg-white rounded-xl border border-slate-200 hover:border-sky-200 hover:shadow-md transition-all"
               >
-                Contact Our Team
-                <ArrowRight className="h-4 w-4" />
+                <h3 className="text-xl font-semibold text-slate-900 mb-3 group-hover:text-sky-600 transition-colors">
+                  {solution.title}
+                </h3>
+                <p className="text-slate-600 leading-relaxed mb-4">{solution.problem}</p>
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600">
+                  Explore <ArrowRight className="h-3.5 w-3.5" />
+                </span>
               </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: PRODUCT PORTFOLIO */}
+      <section className="py-20 lg:py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+              Platforms We Build and Operate
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              Each product is born from direct operational experience in its target domain.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Procuvex */}
+            <div className="p-8 rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center">
+                  <span className="text-sky-600 font-bold text-sm">Px</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Procuvex</h3>
+              </div>
+              <p className="text-slate-600 leading-relaxed mb-4">
+                AI-powered procurement intelligence for government contractors and enterprise
+                procurement teams. Task order analysis, bid intelligence, and compliance
+                automation — built from direct experience in government contracting operations.
+              </p>
               <Link
-                to="/products"
-                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white border border-slate-600 hover:border-slate-400 rounded-lg transition-colors"
+                to="/products/procuvex"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 transition-colors"
               >
-                View Products
+                Learn More <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
+
+            {/* Portfolio Pipeline */}
+            <div className="p-8 rounded-xl border border-slate-200 bg-slate-50">
+              <h3 className="text-xl font-bold text-slate-900 mb-4">Technology Under Development</h3>
+              <p className="text-slate-600 leading-relaxed mb-5">
+                Core314 Technologies develops multiple platforms addressing distinct
+                operational domains. New platforms are announced at production readiness.
+              </p>
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-slate-700">Active development areas:</p>
+                <ul className="space-y-2">
+                  {[
+                    'Operational Intelligence',
+                    'Decision Support Systems',
+                    'Data Intelligence Platforms',
+                    'Workflow Automation Technologies',
+                  ].map((area) => (
+                    <li key={area} className="flex items-center gap-2 text-sm text-slate-600">
+                      <div className="h-1.5 w-1.5 rounded-full bg-sky-500 flex-shrink-0" />
+                      {area}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="text-center mt-10">
+            <Link
+              to="/products"
+              className="inline-flex items-center gap-2 text-sm font-medium text-sky-600 hover:text-sky-700 transition-colors"
+            >
+              View Full Portfolio <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5: ENTERPRISE SOLUTIONS */}
+      <section className="py-20 lg:py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+              Systems We Build for Complex Organizations
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">
+              For organizations whose operational complexity exceeds what off-the-shelf
+              software can address, we design and build proprietary systems using our
+              proven technology and operational methodology.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[
+              'Operational Command Centers',
+              'Executive Dashboards',
+              'Procurement Intelligence',
+              'Compliance Management',
+              'Data Integration Platforms',
+              'Workflow Automation',
+              'Decision Support Platforms',
+              'Custom SaaS Applications',
+              'Business Intelligence',
+              'Industry-Specific Systems',
+            ].map((system) => (
+              <div
+                key={system}
+                className="p-4 bg-white rounded-lg border border-slate-200 text-center"
+              >
+                <p className="text-sm font-medium text-slate-700">{system}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-10">
+            <Link
+              to="/enterprise"
+              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              Discuss Your Requirements
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 6: INDUSTRY EXPERTISE */}
+      <section className="py-20 lg:py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+              Operational Experience Across Industries
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">
+              Our technology is informed by direct experience in complex, regulated,
+              and high-stakes environments.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'Government Contracting',
+                details: 'Task orders, compliance, proposals, subcontractor management',
+              },
+              {
+                title: 'Facilities Management',
+                details: 'Multi-site operations, workforce coordination, asset management',
+              },
+              {
+                title: 'Infrastructure & Logistics',
+                details: 'Supply chain, fleet management, field operations, asset tracking',
+              },
+              {
+                title: 'Operations Management',
+                details: 'Planning, resource allocation, cross-team coordination, performance',
+              },
+              {
+                title: 'Enterprise Services',
+                details: 'Large-scale service delivery, SLA management, operational reporting',
+              },
+              {
+                title: 'Professional Services',
+                details: 'Project delivery, resource planning, utilization, managed services',
+              },
+            ].map((industry) => (
+              <div key={industry.title} className="p-6 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{industry.title}</h3>
+                <p className="text-sm text-slate-600">{industry.details}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center mt-8 text-sm text-slate-500 max-w-2xl mx-auto">
+            These industries represent areas where Core314 Technologies has significant operational
+            experience. Our technology principles apply across many sectors.
+          </p>
+          <div className="text-center mt-6">
+            <Link
+              to="/industries"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 transition-colors"
+            >
+              Learn More <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 7: WHY CORE314 TECHNOLOGIES */}
+      <section className="py-20 lg:py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">
+              Why Organizations Choose Core314 Technologies
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {[
+              {
+                vs: 'Software Development Agencies',
+                them: 'Agencies build projects.',
+                us: 'We build technology assets.',
+              },
+              {
+                vs: 'Consulting Firms',
+                them: 'Consultants provide recommendations.',
+                us: 'We develop systems that execute.',
+              },
+              {
+                vs: 'Traditional SaaS Vendors',
+                them: 'Most SaaS products force businesses to adapt.',
+                us: 'We build systems around operational reality.',
+              },
+              {
+                vs: 'Systems Integrators',
+                them: 'Integrators connect existing tools.',
+                us: 'We create new capabilities through proprietary technology.',
+              },
+            ].map((diff) => (
+              <div key={diff.vs} className="p-6 bg-white rounded-xl border border-slate-200">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  vs. {diff.vs}
+                </p>
+                <p className="text-sm text-slate-500 mb-2">{diff.them}</p>
+                <p className="text-base font-semibold text-slate-900">{diff.us}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-5xl mx-auto">
+            {[
+              'Operationally Informed',
+              'Proprietary Platforms',
+              'Product Ownership',
+              'Selective Engagements',
+              'Long-Term Investment',
+              'In-House Development',
+            ].map((point) => (
+              <div key={point} className="text-center p-3">
+                <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">{point}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 8: CREDIBILITY */}
+      <section className="py-16 lg:py-20 bg-white border-t border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+            <div>
+              <p className="text-lg font-bold text-slate-900">Patent Pending</p>
+              <p className="text-sm text-slate-600 mt-1">
+                Proprietary methodology in operational intelligence technology
+              </p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-slate-900">Operational Origins</p>
+              <p className="text-sm text-slate-600 mt-1">
+                Every system built from real-world operational experience
+              </p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-slate-900">Multiple Platforms</p>
+              <p className="text-sm text-slate-600 mt-1">
+                Active product portfolio with ongoing development
+              </p>
+            </div>
+          </div>
+          <div className="text-center mt-10">
+            <Link
+              to="/about"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 transition-colors"
+            >
+              About Core314 Technologies <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
       </section>

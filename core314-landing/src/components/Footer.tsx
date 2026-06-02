@@ -1,15 +1,22 @@
 import { Link } from 'react-router-dom';
 
 const footerLinks = {
+  solutions: [
+    { label: 'Decision Support', to: '/solutions/decision-support' },
+    { label: 'Operational Visibility', to: '/solutions/operational-intelligence' },
+    { label: 'Process Automation', to: '/solutions/process-automation' },
+    { label: 'Custom Systems', to: '/solutions/custom-systems' },
+  ],
   products: [
     { label: 'All Products', to: '/products' },
     { label: 'Procuvex', to: '/products/procuvex' },
-    { label: 'Enterprise Solutions', to: '/enterprise' },
   ],
   company: [
     { label: 'About', to: '/about' },
+    { label: 'Enterprise', to: '/enterprise' },
+    { label: 'Industries', to: '/industries' },
+    { label: 'Innovation', to: '/innovation' },
     { label: 'Partners', to: '/partners' },
-    { label: 'Affiliate Program', to: '/affiliate' },
     { label: 'Contact', to: '/contact' },
   ],
   legal: [
@@ -27,7 +34,7 @@ export default function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-400">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2.5 mb-4">
@@ -42,8 +49,27 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm leading-relaxed">
-              Building intelligent software for modern businesses. Patent Pending.
+              Technology built from operational experience.
             </p>
+          </div>
+
+          {/* Solutions */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-4">
+              Solutions
+            </h3>
+            <ul className="space-y-2.5">
+              {footerLinks.solutions.map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="text-sm hover:text-white transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Products */}
