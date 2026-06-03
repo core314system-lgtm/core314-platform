@@ -376,6 +376,42 @@ export interface SowQuote {
   subcontractor?: Subcontractor
 }
 
+// Modification / Amendment tracking
+export interface Modification {
+  id: string
+  task_order_id: string
+  modification_number: string
+  title: string
+  description: string | null
+  affected_sow_ids: string[]
+  effective_date: string | null
+  notification_status: 'pending' | 'partial' | 'sent' | 'acknowledged'
+  created_by: string
+  created_at: string
+}
+
+// Government Q&A pair
+export interface GovtQAPair {
+  question_number: string | null
+  question_text: string
+  answer_text: string
+  section_reference: string | null
+}
+
+// Incumbent intelligence from portal self-report
+export interface IncumbentIntel {
+  id: string
+  subcontractor_id: string
+  task_order_id: string
+  sow_item_id: string | null
+  is_incumbent: boolean
+  incumbent_locations: string | null
+  contract_info: string | null
+  years_experience: string | null
+  source: 'portal_self_report' | 'admin' | 'ai_detected'
+  created_at: string
+}
+
 // Storage keys for AI outputs in Supabase Storage
 export function aiOutputPath(taskOrderId: string, outputType: string): string {
   return `${taskOrderId}/ai_outputs/${outputType}.json`

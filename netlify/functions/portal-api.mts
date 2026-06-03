@@ -112,7 +112,7 @@ async function handleGet(url: URL) {
     .from("documents")
     .select("id, file_name, file_path, file_type, file_size, category")
     .eq("task_order_id", tokenData.task_order_id)
-    .in("category", ["sow", "flowdown", "pricing_sheet", "exhibit", "site_info", "amendment"])
+    .in("category", ["sow", "flowdown", "pricing_sheet", "exhibit", "site_info", "amendment", "qa_response"])
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
   const documents = (rawDocs || [])
@@ -183,13 +183,80 @@ async function handlePost(req: Request) {
     return handleBatchQuestionSubmission(tokenData, body)
   } else if (action === "decline") {
     return handleDecline(tokenData, body)
+  } else if (action === "save_incumbent_status") {
+    return handleIncumbentStatus(tokenData, body)
   }
 
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: corsHeaders })
 }
 
+async function handleIncumbentStatus(tokenData: any, body: any) {
+  const { incumbent_data } = body
+  if (!incumbent_data) {
+    return new Response(JSON.stringify({ error: "Incumbent data required" }), { status: 400, headers: corsHeaders })
+  }
+
+  // Update the subcontractor's incumbent status
+  const updateData: Record<string, any> = {
+    incumbent_status: incumbent_data.is_incumbent ? "known" : "not_incumbent",
+    updated_at: new Date().toISOString(),
+  }
+
+  await supabase
+    .from("subcontractors")
+    .update(updateData)
+    .eq("id", tokenData.subcontractor_id)
+
+  // Store detailed incumbent intel
+  await supabase.from("incumbent_intel").insert({
+    subcontractor_id: tokenData.subcontractor_id,
+    task_order_id: tokenData.task_order_id,
+    sow_item_id: tokenData.sow_item_id,
+    is_incumbent: incumbent_data.is_incumbent,
+    incumbent_locations: incumbent_data.incumbent_locations,
+    contract_info: incumbent_data.incumbent_contract_info,
+    years_experience: incumbent_data.incumbent_years,
+    source: "portal_self_report",
+  }).catch(() => {
+    // Table may not exist yet, that's OK — the subcontractors update above still captures the status
+  })
+
+  // Update the sow_subcontractors record
+  await supabase
+    .from("sow_subcontractors")
+    .update({
+      incumbent_status: incumbent_data.is_incumbent ? "known" : "not_incumbent",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tokenData.sow_subcontractor_id)
+    .catch(() => {})
+
+  // Log communication
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "quote_received",
+    direction: "inbound",
+    subject: "Incumbent status submitted via portal",
+    body: `Self-reported: ${incumbent_data.is_incumbent ? "Yes, incumbent" : "Not incumbent"}${incumbent_data.incumbent_locations ? `. Locations: ${incumbent_data.incumbent_locations}` : ""}`,
+  }).catch(() => {})
+
+  return new Response(JSON.stringify({ success: true }), { headers: corsHeaders })
+}
+
 async function handleQuoteSubmission(tokenData: any, body: any) {
-  const { quote_data, custom_fields } = body
+  const { quote_data, custom_fields, incumbent_data, is_revision } = body
+
+  // If incumbent data is provided alongside the quote, save it
+  if (incumbent_data) {
+    await supabase
+      .from("subcontractors")
+      .update({
+        incumbent_status: incumbent_data.is_incumbent ? "known" : "not_incumbent",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", tokenData.subcontractor_id)
+      .catch(() => {})
+  }
 
   // Insert into sow_quotes
   const quoteRecord: Record<string, any> = {
@@ -198,6 +265,7 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     subcontractor_id: tokenData.subcontractor_id,
     status: "received",
     submitted_at: new Date().toISOString(),
+    is_revision: is_revision || false,
   }
 
   // Map standard fields

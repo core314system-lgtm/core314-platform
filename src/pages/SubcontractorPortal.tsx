@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain, Plus, Trash2 } from 'lucide-react'
+import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain, Plus, Trash2, MapPin, RefreshCw, Shield } from 'lucide-react'
 
 interface PortalData {
   task_order: {
@@ -97,6 +97,13 @@ export default function SubcontractorPortal() {
   const [batchResults, setBatchResults] = useState<Array<{ status: string; ai_analysis?: { answer_text?: string; confidence_score?: number; source_references?: SourceRef[]; question_category?: string } }> | null>(null)
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
+  const [incumbentStatus, setIncumbentStatus] = useState<'yes' | 'no' | ''>('')
+  const [incumbentLocations, setIncumbentLocations] = useState('')
+  const [incumbentContractInfo, setIncumbentContractInfo] = useState('')
+  const [incumbentYears, setIncumbentYears] = useState('')
+  const [incumbentSaved, setIncumbentSaved] = useState(false)
+  const [savingIncumbent, setSavingIncumbent] = useState(false)
+  const [showReviseQuote, setShowReviseQuote] = useState(false)
 
   useEffect(() => {
     if (!token) return
@@ -163,6 +170,13 @@ export default function SubcontractorPortal() {
           action: 'submit_quote',
           quote_data: quoteData,
           custom_fields: customFields,
+          incumbent_data: incumbentStatus ? {
+            is_incumbent: incumbentStatus === 'yes',
+            incumbent_locations: incumbentLocations.trim() || null,
+            incumbent_contract_info: incumbentContractInfo.trim() || null,
+            incumbent_years: incumbentYears.trim() || null,
+          } : undefined,
+          is_revision: showReviseQuote,
         }),
       })
 
@@ -173,10 +187,37 @@ export default function SubcontractorPortal() {
       }
 
       setSubmitted(true)
+      setShowReviseQuote(false)
     } catch {
       setError('Failed to submit quote. Please try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleSaveIncumbentStatus() {
+    if (!token || !incumbentStatus) return
+    setSavingIncumbent(true)
+    try {
+      await fetch('/api/portal-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          action: 'save_incumbent_status',
+          incumbent_data: {
+            is_incumbent: incumbentStatus === 'yes',
+            incumbent_locations: incumbentLocations.trim() || null,
+            incumbent_contract_info: incumbentContractInfo.trim() || null,
+            incumbent_years: incumbentYears.trim() || null,
+          },
+        }),
+      })
+      setIncumbentSaved(true)
+    } catch {
+      // silent
+    } finally {
+      setSavingIncumbent(false)
     }
   }
 
@@ -337,10 +378,93 @@ export default function SubcontractorPortal() {
           )}
         </div>
 
+        {/* Incumbent Status Section */}
+        {!incumbentSaved && (
+          <div className="bg-white rounded-xl shadow-sm border border-amber-200 p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-5 h-5 text-amber-600" />
+              <h2 className="text-lg font-bold text-gray-900">Incumbent Status</h2>
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Important</span>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">Are you currently the incumbent contractor for this type of work at this location or similar locations? This information is critical for the evaluation process.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Are you the incumbent for this work at this location? *</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="incumbent" value="yes" checked={incumbentStatus === 'yes'} onChange={() => setIncumbentStatus('yes')} className="text-amber-600 focus:ring-amber-500" />
+                    <span className="text-sm text-gray-700">Yes, we are the incumbent</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="incumbent" value="no" checked={incumbentStatus === 'no'} onChange={() => setIncumbentStatus('no')} className="text-amber-600 focus:ring-amber-500" />
+                    <span className="text-sm text-gray-700">No</span>
+                  </label>
+                </div>
+              </div>
+
+              {incumbentStatus === 'yes' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current/Previous Locations for Similar Work</label>
+                    <textarea
+                      value={incumbentLocations}
+                      onChange={e => setIncumbentLocations(e.target.value)}
+                      placeholder="List locations where you are performing or have performed similar work (e.g., 'Atlanta P&DC, Memphis P&DC, Nashville Annex')..."
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contract/Reference Information</label>
+                    <textarea
+                      value={incumbentContractInfo}
+                      onChange={e => setIncumbentContractInfo(e.target.value)}
+                      placeholder="Contract numbers, agency names, or reference details for your incumbent projects..."
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience at Current Locations</label>
+                    <input
+                      type="text"
+                      value={incumbentYears}
+                      onChange={e => setIncumbentYears(e.target.value)}
+                      placeholder="e.g., 5 years at Atlanta P&DC, 3 years at Memphis P&DC"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSaveIncumbentStatus}
+                  disabled={!incumbentStatus || savingIncumbent}
+                  className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {savingIncumbent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                  Save Incumbent Status
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {incumbentSaved && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-800">Incumbent status saved{incumbentStatus === 'yes' ? ' — Yes, incumbent' : ' — Not incumbent'}</p>
+              {incumbentStatus === 'yes' && incumbentLocations && <p className="text-xs text-green-700">Locations: {incumbentLocations}</p>}
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-1 mb-4 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
           {[
-            { key: 'quote' as const, label: 'Submit Quote', icon: FileText },
+            { key: 'quote' as const, label: submitted ? 'Quote Submitted' : 'Submit Quote', icon: FileText },
             { key: 'questions' as const, label: `Questions${(data.ai_questions?.length || data.questions.length) ? ` (${data.ai_questions?.length || data.questions.length})` : ''}`, icon: MessageSquare },
             { key: 'documents' as const, label: `Documents${data.documents.length ? ` (${data.documents.length})` : ''}`, icon: FileText },
           ].map(tab => (
@@ -360,7 +484,7 @@ export default function SubcontractorPortal() {
         {/* Quote Form Tab */}
         {activeTab === 'quote' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            {submitted ? (
+            {submitted && !showReviseQuote ? (
               <div className="text-center py-8">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Submitted!</h2>
@@ -374,11 +498,26 @@ export default function SubcontractorPortal() {
                     </div>
                   </div>
                 )}
+                <div className="mt-6">
+                  <button
+                    onClick={() => { setShowReviseQuote(true); setSubmitted(false); setFormValues({}) }}
+                    className="flex items-center gap-2 mx-auto bg-amber-50 text-amber-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-100 border border-amber-200"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Submit Revised Quote
+                  </button>
+                  <p className="text-xs text-gray-400 mt-2">If there have been amendments or changes, you can submit an updated quote.</p>
+                </div>
               </div>
             ) : (
               <>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Quote Details</h2>
-                <p className="text-sm text-gray-500 mb-6">Complete the fields below to submit your quote. Required fields are marked with *</p>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">
+                  {showReviseQuote ? '📝 Revised Quote' : 'Quote Details'}
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">
+                  {showReviseQuote
+                    ? 'Submit your updated quote below. This will be recorded as a revision to your original submission.'
+                    : 'Complete the fields below to submit your quote. Required fields are marked with *'}
+                </p>
 
                 {error && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
@@ -732,7 +871,8 @@ export default function SubcontractorPortal() {
       {/* Footer */}
       <div className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
         <p>Procuvex — AI-Powered Procurement Intelligence | A product of Core314 Technologies LLC</p>
-        <p className="mt-1">This portal is unique to your organization. Please do not share this link.</p>
+        <p className="mt-1">This portal is unique to your organization and remains active for the duration of this project.</p>
+        <p className="mt-1">Bookmark this page to return at any time for updates, revised quotes, or new questions.</p>
       </div>
     </div>
   )
