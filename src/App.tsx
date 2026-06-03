@@ -53,8 +53,6 @@ import OpportunityDiscovery from './pages/OpportunityDiscovery'
 import SystemHealth from './pages/SystemHealth'
 import DocumentLibrary from './pages/DocumentLibrary'
 import AiAuditLog from './pages/AiAuditLog'
-import AiAccuracyDashboard from './pages/AiAccuracyDashboard'
-import AiUsageMetrics from './pages/AiUsageMetrics'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -225,8 +223,6 @@ export default function App() {
 
           {/* AI Compliance */}
           <Route path="/ai-audit" element={<ProtectedRoute><AiAuditLog /></ProtectedRoute>} />
-          <Route path="/ai-accuracy" element={<ProtectedRoute><AiAccuracyDashboard /></ProtectedRoute>} />
-          <Route path="/ai-usage" element={<ProtectedRoute><AiUsageMetrics /></ProtectedRoute>} />
 
           {/* Compliance Matrices (cross-project view) */}
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />

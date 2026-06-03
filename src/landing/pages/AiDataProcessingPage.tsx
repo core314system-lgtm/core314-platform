@@ -12,7 +12,7 @@ export default function AiDataProcessingPage() {
 
         <div className="bg-white border border-slate-200 rounded-2xl p-8 md:p-12 shadow-sm">
           <h1 className="text-4xl font-bold mb-2 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>AI Data Processing</h1>
-          <p className="text-lg text-slate-500 mb-8" style={{ fontFamily: 'Inter, sans-serif' }}>How Procuvex processes your data with AI — transparency documentation for IM3.0 compliance</p>
+          <p className="text-lg text-slate-500 mb-8" style={{ fontFamily: 'Inter, sans-serif' }}>How Procuvex processes your data with AI — transparency and compliance documentation</p>
 
           <div className="prose prose-slate max-w-none space-y-6 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
             <p className="text-sm text-slate-500">Last Updated: May 14, 2026</p>
@@ -124,7 +124,7 @@ export default function AiDataProcessingPage() {
                 <li>Success/failure status</li>
                 <li>Project context (which project and documents were analyzed)</li>
               </ul>
-              <p className="mt-4">The audit log can be exported as CSV for compliance review. This satisfies IM3.0 Section E.6 monitoring requirements.</p>
+              <p className="mt-4">The audit log can be exported as CSV for compliance review and regulatory audit purposes.</p>
             </section>
 
             <section>

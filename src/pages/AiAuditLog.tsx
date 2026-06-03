@@ -105,7 +105,7 @@ export default function AiAuditLog() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">AI Activity Log</h1>
-        <p className="text-sm text-gray-500 mt-1">Complete audit trail of all AI operations — IM3.0 Section E.6 compliance</p>
+        <p className="text-sm text-gray-500 mt-1">Complete audit trail of all AI operations</p>
       </div>
 
       {/* Stats Cards */}
@@ -268,10 +268,10 @@ export default function AiAuditLog() {
         </div>
       )}
 
-      {/* IM3.0 Compliance Note */}
+      {/* Compliance Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-        <h3 className="font-semibold mb-1">IM3.0 AI Policy Compliance — Section E.6</h3>
-        <p>This audit log records every AI interaction including prompts, models used, token consumption, and response metadata. Versar Global Solutions retains the right to monitor all AI-generated content. All data is stored in Supabase with row-level security and encrypted at rest. No AI outputs are used for autonomous decision-making — all AI features are advisory with human review required.</p>
+        <h3 className="font-semibold mb-1">AI Compliance — Activity Monitoring</h3>
+        <p>This audit log records every AI interaction including prompts, models used, token consumption, and response metadata. All data is stored in Supabase with row-level security and encrypted at rest. No AI outputs are used for autonomous decision-making — all AI features are advisory with human review required.</p>
       </div>
     </div>
   )

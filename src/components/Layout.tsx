@@ -33,7 +33,6 @@ import {
   ShieldCheck,
   FolderOpen,
   ScanSearch,
-  Target,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -96,11 +95,9 @@ const navGroups: NavGroup[] = [
   {
     id: 'ai_compliance',
     label: 'AI Compliance',
-    icon: Brain,
+    icon: ShieldCheck,
     items: [
       { path: '/ai-audit', label: 'AI Activity Log', icon: ScanSearch },
-      { path: '/ai-accuracy', label: 'AI Accuracy', icon: Target },
-      { path: '/ai-usage', label: 'Usage & ROI', icon: BarChart3 },
     ],
   },
   {
