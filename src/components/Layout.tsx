@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   FolderOpen,
   ScanSearch,
+  Database,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
     icon: Network,
     items: [
       { path: '/subcontractors', label: 'Subcontractors', icon: Users },
+      { path: '/master-subs', label: 'Master Sub Database', icon: Database },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
       { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
       { path: '/teaming', label: 'Teaming & JVs', icon: Users },

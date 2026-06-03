@@ -53,6 +53,8 @@ import OpportunityDiscovery from './pages/OpportunityDiscovery'
 import SystemHealth from './pages/SystemHealth'
 import DocumentLibrary from './pages/DocumentLibrary'
 import AiAuditLog from './pages/AiAuditLog'
+import MasterSubDatabase from './pages/MasterSubDatabase'
+import SubProfilePublic from './pages/SubProfilePublic'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -185,6 +187,9 @@ export default function App() {
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
+          {/* Public Subcontractor Profile */}
+          <Route path="/sub/:slug" element={<SubProfilePublic />} />
+
           {/* Dashboard (authenticated home) */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
@@ -248,6 +253,7 @@ export default function App() {
           {/* Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
+          <Route path="/master-subs" element={<ProtectedRoute><MasterSubDatabase /></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
           <Route path="/teaming" element={<ProtectedRoute><TeamingTracker /></ProtectedRoute>} />
