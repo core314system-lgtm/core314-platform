@@ -118,3 +118,4 @@ export async function fetchAiStats(): Promise<{
 
   return { totalCalls, totalTokens, avgLatency, errorRate, byRequestType, recentTrend }
 }
+
