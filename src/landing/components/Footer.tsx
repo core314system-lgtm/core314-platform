@@ -107,6 +107,7 @@ export default function Footer() {
           <div className="flex items-center gap-4 text-xs text-slate-500">
             <Link to="/cookies" className="hover:text-slate-300 transition-colors">Cookies</Link>
             <Link to="/dpa" className="hover:text-slate-300 transition-colors">DPA</Link>
+            <Link to="/ai-data-processing" className="hover:text-slate-300 transition-colors">AI Data Processing</Link>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText,
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
 import { fetchAIProxy } from '../lib/api'
+import { logAiCall } from '../lib/aiAuditLog'
 import { loadIntelligence, loadAllDebriefs } from '../lib/debriefStorage'
 import { getWorkflowStage } from '../lib/projectTypes'
 
@@ -660,6 +661,7 @@ ${SMART_NOTES_PROMPT}
 ACCOUNT DATA (live snapshot):
 ${freshContext}`
 
+      const chatStart = Date.now()
       const data = await fetchAIProxy({
         model: 'gpt-4o-mini',
         messages: [
@@ -671,6 +673,19 @@ ${freshContext}`
       })
 
       const reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.'
+      const chatUsage = data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+      const { data: { user: chatUser } } = await supabase.auth.getUser()
+      logAiCall({
+        user_id: chatUser?.id || 'anonymous',
+        request_type: 'global_chat',
+        model: data.model || 'gpt-4o-mini',
+        prompt_tokens: chatUsage.prompt_tokens,
+        completion_tokens: chatUsage.completion_tokens,
+        total_tokens: chatUsage.total_tokens,
+        response_summary: reply.slice(0, 200),
+        latency_ms: Date.now() - chatStart,
+        status: 'success',
+      })
 
       // Check if response needs escalation
       const needsEscalation = reply.includes('[NEEDS_ESCALATION]')

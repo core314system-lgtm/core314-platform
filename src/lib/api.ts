@@ -1,4 +1,6 @@
 import { getProjectType } from './projectTypes'
+import { logAiCall } from './aiAuditLog'
+import { supabase } from './supabase'
 
 const MODEL = 'gpt-4o-mini'
 const MAX_CHARS_PER_DOC = 8000
@@ -9,7 +11,7 @@ const MAX_TOTAL_CHARS = 120000
  * The server streams from OpenAI internally and returns the assembled JSON response.
  * Leading whitespace (used to keep connection alive) is trimmed before parsing.
  */
-export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ choices: Array<{ message: { content: string } }>; model?: string }> {
+export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ choices: Array<{ message: { content: string } }>; model?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
   const MAX_RETRIES = 2
   const TIMEOUT_MS = 90000 // 90 second timeout
 
@@ -87,20 +89,78 @@ function truncateText(text: string, maxChars: number): string {
   return text.slice(0, half) + '\n\n[... content truncated for analysis ...]\n\n' + text.slice(-half)
 }
 
-async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<Record<string, unknown>> {
-  const data = await fetchAIProxy({
-    model: MODEL,
-    messages: [
-      { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    response_format: { type: 'json_object' },
-    temperature: 0.1,
-    max_tokens: 4096,
-  })
+interface AiCallContext {
+  requestType: string
+  taskOrderId?: string
+  taskOrderTitle?: string
+  documentContext?: string
+}
 
-  const content = data.choices?.[0]?.message?.content || '{}'
-  return JSON.parse(content)
+async function callOpenAI(systemPrompt: string, userPrompt: string, context?: AiCallContext): Promise<Record<string, unknown>> {
+  const start = Date.now()
+
+  try {
+    const data = await fetchAIProxy({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: TRUTH_DIRECTIVE + systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.1,
+      max_tokens: 4096,
+    })
+
+    const content = data.choices?.[0]?.message?.content || '{}'
+    const result = JSON.parse(content)
+    const latency = Date.now() - start
+    const usage = data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+
+    // Log to audit trail (non-blocking)
+    if (context) {
+      const { data: { user } } = await supabase.auth.getUser()
+      logAiCall({
+        user_id: user?.id || 'anonymous',
+        request_type: context.requestType,
+        model: data.model || MODEL,
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens,
+        task_order_id: context.taskOrderId || null,
+        task_order_title: context.taskOrderTitle || null,
+        document_context: context.documentContext || null,
+        response_summary: content.slice(0, 200),
+        latency_ms: latency,
+        status: 'success',
+      })
+    }
+
+    return result
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    const latency = Date.now() - start
+
+    if (context) {
+      const { data: { user } } = await supabase.auth.getUser()
+      logAiCall({
+        user_id: user?.id || 'anonymous',
+        request_type: context.requestType,
+        model: MODEL,
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+        task_order_id: context.taskOrderId || null,
+        task_order_title: context.taskOrderTitle || null,
+        document_context: context.documentContext || null,
+        response_summary: null,
+        latency_ms: latency,
+        status: 'error',
+        error_message: errorMessage,
+      })
+    }
+
+    throw err
+  }
 }
 
 function buildDocsText(documentTexts: string[], documentNames: string[]): string {
@@ -135,7 +195,7 @@ Return JSON with these keys:
 - summary: string — concise factual overview including full PoP structure (base + options)`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'document_analysis', taskOrderTitle, documentContext: documentNames.join(', ') })
 }
 
 export async function generateComplianceMatrix(
@@ -164,7 +224,7 @@ Return a JSON object with key "items", an array of objects with:
 - notes: flag any missing information or ambiguity found in the documents. Do NOT fill gaps with assumptions.`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'compliance_matrix', taskOrderTitle, documentContext: documentNames.join(', ') })
 }
 
 export async function generateRfqPackages(
@@ -197,7 +257,7 @@ Return a JSON object with key "packages", an array of objects with:
 - partnership_language: note about seeking long-term preferred partners for multiple task orders (no guarantee of award)`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'rfq_packages', taskOrderTitle, documentContext: documentNames.join(', ') })
 }
 
 export async function generateClarificationQuestions(
@@ -243,7 +303,7 @@ Return a JSON object with key "questions", an array of objects with:
 Format questions in a professional style suitable for submission to the contracting officer. Each question MUST reference specific SOW language.`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'clarification_questions', taskOrderTitle, documentContext: documentNames.join(', ') })
 }
 
 export async function generatePricingRisks(
@@ -271,7 +331,7 @@ Return a JSON object with key "risks", an array of objects with:
 - financial_impact: describe the impact based ONLY on what the documents reveal. Do NOT estimate dollar amounts unless the documents provide enough data to calculate them.`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'pricing_risks', taskOrderTitle, documentContext: documentNames.join(', ') })
 }
 
 export async function generateExecutiveSummary(
@@ -310,7 +370,7 @@ Return a JSON object with:
 - action_items: array of {action, owner, deadline_note, priority}`
 
   const userPrompt = `Project: ${taskOrderTitle}\nSite/Location: ${siteName || 'Not specified'}\n\nDOCUMENTS:\n${docsText}`
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'executive_summary', taskOrderTitle, documentContext: documentNames.join(', ') })
 }
 
 export interface SubMatch {
@@ -595,5 +655,5 @@ Return a JSON object with:
   const priorText = priorTexts.map(t => truncateText(t, MAX_CHARS_PER_DOC)).join('\n\n')
   const userPrompt = `CURRENT PROJECT: ${currentTitle}\n${currentText}\n\nPRIOR PROJECT: ${priorTitle}\n${priorText}`
 
-  return callOpenAI(systemPrompt, userPrompt)
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'project_comparison', taskOrderTitle: currentTitle })
 }
