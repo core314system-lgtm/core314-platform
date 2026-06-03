@@ -7,7 +7,7 @@ import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors, matchSubcontractorsPerRequirement, discoverSubsForRequirements } from '../lib/api'
 import type { SubMatch, RequirementMatch, RequirementDiscovery, DiscoveredBusiness } from '../lib/api'
-import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack, Search, Globe, Database, Plus, Star, ExternalLink } from 'lucide-react'
+import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack, Search, Globe, Database, Plus, Star, ExternalLink, X } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
 import WorkflowBar from '../components/WorkflowBar'
@@ -63,6 +63,10 @@ export default function TaskOrderDetail() {
   const [auditKey, setAuditKey] = useState(0)
   const [contractName, setContractName] = useState<string | null>(null)
   const [generatingSingle, setGeneratingSingle] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewName, setPreviewName] = useState('')
+  const [previewType, setPreviewType] = useState('')
+  const [bulkDownloading, setBulkDownloading] = useState(false)
   const [projectSubs, setProjectSubs] = useState<ProjectSubcontractor[]>([])
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [projectSubsTableExists, setProjectSubsTableExists] = useState(true)
@@ -78,10 +82,55 @@ export default function TaskOrderDetail() {
         .createSignedUrl(doc.file_path, 3600)
       if (error) throw error
       if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank')
+        // Track in recently viewed
+        try {
+          const recent: string[] = JSON.parse(localStorage.getItem('procuvex_recent_docs') || '[]')
+          const updated = [doc.id, ...recent.filter(id => id !== doc.id)].slice(0, 10)
+          localStorage.setItem('procuvex_recent_docs', JSON.stringify(updated))
+        } catch { /* ignore */ }
+
+        const ext = doc.file_name.split('.').pop()?.toLowerCase() || ''
+        const isPreviewable = ['pdf'].includes(ext) ||
+          (doc.file_type || '').startsWith('image/') ||
+          ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)
+
+        if (isPreviewable) {
+          setPreviewUrl(data.signedUrl)
+          setPreviewName(doc.file_name)
+          setPreviewType(doc.file_type || '')
+        } else {
+          window.open(data.signedUrl, '_blank')
+        }
       }
     } catch (err) {
       alert('Failed to open document: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
+  }
+
+  async function handleBulkDownload() {
+    if (documents.length === 0) return
+    setBulkDownloading(true)
+    try {
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      for (const doc of documents) {
+        try {
+          const { data, error } = await supabase.storage.from('task-order-documents').download(doc.file_path)
+          if (error || !data) continue
+          zip.file(doc.file_name, data)
+        } catch { /* skip */ }
+      }
+      const blob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${taskOrder?.title || 'project'}-documents.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      alert('Failed to create ZIP: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
+      setBulkDownloading(false)
     }
   }
 
@@ -984,6 +1033,19 @@ export default function TaskOrderDetail() {
 
             {groupedDocs.length > 0 && (
               <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Link to="/documents" className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    View all in Document Library →
+                  </Link>
+                  <button
+                    onClick={handleBulkDownload}
+                    disabled={bulkDownloading || documents.length === 0}
+                    className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-blue-600 font-medium disabled:opacity-50"
+                  >
+                    <FileStack size={14} />
+                    {bulkDownloading ? 'Creating ZIP...' : `Download All (${documents.length})`}
+                  </button>
+                </div>
                 {groupedDocs.map(group => (
                   <div key={group.value}>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">{group.label} ({group.docs.length})</h4>
@@ -1683,6 +1745,46 @@ export default function TaskOrderDetail() {
         taskOrderTitle={taskOrder.title}
         analysisResult={analysisResult as Record<string, unknown> | null}
       />
+
+      {/* Inline Document Preview Modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText size={20} className="text-blue-600" />
+                <h3 className="font-semibold text-gray-900 truncate">{previewName}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <ExternalLink size={14} /> Open in new tab
+                </a>
+                <button onClick={() => setPreviewUrl(null)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto min-h-0">
+              {previewType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(previewName.split('.').pop()?.toLowerCase() || '') ? (
+                <div className="flex items-center justify-center p-8">
+                  <img src={previewUrl} alt={previewName} className="max-w-full max-h-[70vh] object-contain rounded-lg" />
+                </div>
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full min-h-[70vh]"
+                  title={previewName}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

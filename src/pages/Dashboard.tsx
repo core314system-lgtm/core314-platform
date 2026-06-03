@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import ResourceCapacity from '../components/ResourceCapacity'
 import OnboardingGuide from '../components/OnboardingGuide'
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showWelcome, setShowWelcome] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [recentDocs, setRecentDocs] = useState<{ id: string; file_name: string; project_title: string; task_order_id: string }[]>([])
 
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
@@ -37,6 +38,23 @@ export default function Dashboard() {
       setSubCount(subRes.count || 0)
       setDocCount(docRes.count || 0)
       setLoading(false)
+
+      // Load recently viewed documents
+      try {
+        const recentIds: string[] = JSON.parse(localStorage.getItem('procuvex_recent_docs') || '[]')
+        if (recentIds.length > 0) {
+          supabase.from('documents').select('id, file_name, task_order_id').in('id', recentIds.slice(0, 5)).then(({ data: rdocs }) => {
+            if (rdocs) {
+              const projMap = new Map((toRes.data || []).map((p: any) => [p.id, p.title]))
+              const ordered = recentIds
+                .map(rid => rdocs.find((d: any) => d.id === rid))
+                .filter((d): d is any => !!d)
+                .map(d => ({ id: d.id, file_name: d.file_name, task_order_id: d.task_order_id, project_title: projMap.get(d.task_order_id) || 'Unknown Project' }))
+              setRecentDocs(ordered)
+            }
+          })
+        }
+      } catch { /* ignore */ }
     })
   }, [])
 
@@ -185,6 +203,33 @@ export default function Dashboard() {
 
       {/* Resource Capacity */}
       <ResourceCapacity />
+
+      {/* Recently Viewed Documents */}
+      {recentDocs.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Clock size={14} /> Recently Viewed Documents
+            </h3>
+            <Link to="/documents" className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+              <FolderOpen size={12} /> Document Library →
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {recentDocs.map(doc => (
+              <Link
+                key={doc.id}
+                to={`/projects/${doc.task_order_id}`}
+                className="flex items-center gap-2 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors min-w-0 shrink-0"
+              >
+                <FileText size={14} className="text-blue-500" />
+                <span className="truncate max-w-[180px] text-gray-700">{doc.file_name}</span>
+                <span className="text-xs text-gray-400 shrink-0">{doc.project_title}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

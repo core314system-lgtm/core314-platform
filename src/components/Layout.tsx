@@ -31,6 +31,7 @@ import {
   BarChart2,
   Wrench,
   ShieldCheck,
+  FolderOpen,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
       { path: '/projects', label: 'Projects', icon: ClipboardList },
       { path: '/pipeline', label: 'Pipeline', icon: Kanban },
       { path: '/contracts', label: 'Contracts', icon: FileStack },
+      { path: '/documents', label: 'Document Library', icon: FolderOpen },
     ],
   },
   {
