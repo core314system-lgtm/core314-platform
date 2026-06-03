@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js"
  *
  * Uses SAM.gov Entity Management API v3 to search for registered entities.
  * API docs: https://open.gsa.gov/api/entity-api/
- * Free API key required: https://sam.gov/content/entity-information
+ * Requires SAM_GOV_API_KEY env var (free from https://sam.gov/content/entity-information)
  *
  * POST /api/sam-entity-import
  * Body: {
@@ -17,8 +17,6 @@ import { createClient } from "@supabase/supabase-js"
  *   size?: number,             // Page size (max 100)
  *   dryRun?: boolean,          // If true, don't insert, just return preview
  * }
- *
- * Uses the SAM.gov public website API as fallback (no key needed).
  */
 
 const SUPABASE_URL = process.env.TASKORDER_SUPABASE_URL || process.env.SUPABASE_URL || ""
@@ -109,64 +107,75 @@ async function searchSamEntities(params: {
 }): Promise<{ entities: any[]; totalRecords: number }> {
   const { naicsCodes, state, page = 0, size = 100 } = params
 
-  // Use SAM.gov public website search API (no key required)
-  const searchUrl = new URL("https://sam.gov/api/prod/sgs/v1/search/")
-  searchUrl.searchParams.set("index", "ent")
-  searchUrl.searchParams.set("mode", "search")
-  searchUrl.searchParams.set("responseType", "json")
-  searchUrl.searchParams.set("size", String(Math.min(size, 100)))
-  searchUrl.searchParams.set("page", String(page))
+  if (!SAM_API_KEY) {
+    throw new Error(
+      'SAM_GOV_API_KEY is not configured. Get a free API key from https://sam.gov/content/entity-information and add it as a Netlify environment variable.'
+    )
+  }
 
-  let q = "isActive:true AND entityType:Entity"
-  if (naicsCodes && naicsCodes.length > 0) {
-    q += ` AND naicsCode:(${naicsCodes.join(' OR ')})`
-  }
+  // Use official SAM.gov Entity Management API v3
+  const searchUrl = new URL('https://api.sam.gov/entity-information/v3/entities')
+  searchUrl.searchParams.set('api_key', SAM_API_KEY)
+  searchUrl.searchParams.set('registrationStatus', 'A')
+  searchUrl.searchParams.set('samExtractCode', 'A')
+  searchUrl.searchParams.set('includeSections', 'entityRegistration,coreData')
+  searchUrl.searchParams.set('page', String(page))
+  searchUrl.searchParams.set('size', String(Math.min(size, 100)))
+
   if (state) {
-    q += ` AND samAddress.stateOrProvince:${state}`
+    searchUrl.searchParams.set('physicalAddress.stateOrProvinceCode', state)
   }
-  searchUrl.searchParams.set("q", q)
+  if (naicsCodes && naicsCodes.length > 0) {
+    searchUrl.searchParams.set('naicsCode', naicsCodes.join('~'))
+  }
 
   const res = await fetch(searchUrl.toString(), {
-    headers: { Accept: "application/json" },
+    headers: { Accept: 'application/json' },
   })
 
   if (!res.ok) {
     const errText = await res.text()
-    throw new Error(`SAM.gov search failed (${res.status}): ${errText}`)
+    throw new Error(`SAM.gov Entity API failed (${res.status}): ${errText}`)
   }
 
   const data = await res.json()
-  const results = data?._embedded?.results || []
-  const totalRecords = data?.page?.totalElements || 0
+  const entities = data?.entityData || []
+  const totalRecords = data?.totalRecords || entities.length
 
-  return { entities: results, totalRecords }
+  return { entities, totalRecords }
 }
 
 function entityToRecord(entity: any, existingSlugs: Set<string>): any | null {
-  const name = entity?.legalBusinessName || entity?.entityName || ''
+  // SAM.gov Entity Management API v3 wraps data in entityRegistration + coreData
+  const reg = entity?.entityRegistration || entity
+  const core = entity?.coreData || entity
+  const entityInfo = core?.entityInformation || {}
+  const pocData = entity?.pointsOfContact || {}
+
+  const name = reg?.legalBusinessName || reg?.entityName || ''
   if (!name) return null
 
-  // Extract email from POC if available
-  const poc = entity?.pointsOfContact?.governmentBusinessPOC ||
-              entity?.pointsOfContact?.electronicBusinessPOC || {}
+  // Extract POC (public data includes name/address but NOT email/phone — those are FOUO)
+  const poc = pocData?.governmentBusinessPOC || pocData?.electronicBusinessPOC || {}
   const email = poc?.email || null
   const contactName = [poc?.firstName, poc?.lastName].filter(Boolean).join(' ') || null
   const phone = poc?.USPhone || poc?.nonUSPhone || null
 
-  // Extract address
-  const addr = entity?.samAddress || entity?.physicalAddress || {}
+  // Extract address from coreData.physicalAddress
+  const addr = core?.physicalAddress || core?.samAddress || {}
   const city = addr?.city || null
-  const stateCode = addr?.stateOrProvince || null
+  const stateCode = addr?.stateOrProvinceCode || addr?.stateOrProvince || null
   const zip = addr?.zipCode || addr?.zip || null
   const addressLine = [addr?.addressLine1, addr?.addressLine2].filter(Boolean).join(', ') || null
 
-  // Extract NAICS codes
-  const naicsList = entity?.naics || entity?.naicsList || []
+  // Extract NAICS codes from coreData.naics.naicsList
+  const naicsSection = core?.naics || {}
+  const naicsList = naicsSection?.naicsList || core?.naicsList || []
   const naicsCodes = naicsList.map((n: any) => n?.naicsCode || n?.code || '').filter(Boolean)
 
-  // Extract SAM identifiers
-  const uei = entity?.ueiSAM || entity?.uniqueEntityId || entity?.UEI || null
-  const cage = entity?.cageCode || null
+  // Extract SAM identifiers from entityRegistration
+  const uei = reg?.ueiSAM || reg?.uniqueEntityId || null
+  const cage = reg?.cageCode || null
 
   // Skip if no UEI
   if (!uei) return null
@@ -184,12 +193,12 @@ function entityToRecord(entity: any, existingSlugs: Set<string>): any | null {
   // Map to trade categories
   const trades = naicsToTrades(naicsCodes)
 
-  // Small business types
-  const smallBizTypes = extractSmallBizTypes(entity)
+  // Small business types from coreData.businessTypes
+  const smallBizTypes = extractSmallBizTypes(core)
 
-  // Entity description
-  const entityUrl = entity?.entityURL || null
-  const regStatus = entity?.registrationStatus || entity?.samRegistrationStatus || 'Active'
+  // Entity URL and registration status
+  const entityUrl = entityInfo?.entityURL || reg?.entityURL || null
+  const regStatus = reg?.registrationStatus || 'Active'
 
   return {
     company_name: name,
@@ -202,7 +211,7 @@ function entityToRecord(entity: any, existingSlugs: Set<string>): any | null {
     city,
     state: stateCode,
     zip_code: zip,
-    description: entity?.entityDescription || null,
+    description: entityInfo?.entityDescription || reg?.entityDescription || null,
     sam_uei: uei,
     cage_code: cage,
     naics_codes: naicsCodes,
@@ -212,14 +221,14 @@ function entityToRecord(entity: any, existingSlugs: Set<string>): any | null {
     small_business: smallBizTypes.length > 0,
     small_business_types: smallBizTypes,
     sam_registration_status: regStatus,
-    entity_type: entity?.entityType || 'Business',
+    entity_type: reg?.entityType || reg?.purposeOfRegistration || 'Business',
     verification_status: 'unverified',
     data_source: 'sam_gov',
     source_id: uei,
     profile_completeness: calculateCompleteness({
       company_name: name, contact_email: email, contact_phone: phone,
       city, state: stateCode, naics_codes: naicsCodes, website: entityUrl,
-      description: entity?.entityDescription,
+      description: entityInfo?.entityDescription,
     }),
   }
 }
