@@ -51,6 +51,7 @@ import BetaThankYou from './pages/BetaThankYou'
 import BetaFeedback from './pages/BetaFeedback'
 import OpportunityDiscovery from './pages/OpportunityDiscovery'
 import SystemHealth from './pages/SystemHealth'
+import DocumentLibrary from './pages/DocumentLibrary'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -213,6 +214,9 @@ export default function App() {
           <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />
           <Route path="/contracts/new" element={<ProtectedRoute><NewContract /></ProtectedRoute>} />
           <Route path="/contracts/:id" element={<ProtectedRoute><ContractDetail /></ProtectedRoute>} />
+
+          {/* Document Library */}
+          <Route path="/documents" element={<ProtectedRoute><DocumentLibrary /></ProtectedRoute>} />
 
           {/* Compliance Matrices (cross-project view) */}
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />
