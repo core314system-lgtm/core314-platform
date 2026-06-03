@@ -18,6 +18,8 @@ import BidReadiness from '../components/BidReadiness'
 import SmartRecommendations from '../components/SmartRecommendations'
 import QAManagement from '../components/QAManagement'
 import ModificationTracker from '../components/ModificationTracker'
+import PiiWarningModal from '../components/PiiWarningModal'
+import { scanForPii, type PiiMatch } from '../lib/piiDetector'
 import GovtQAProcessor from '../components/GovtQAProcessor'
 import { getProjectType, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
@@ -73,6 +75,7 @@ export default function TaskOrderDetail() {
   const [selfPerformReqs, setSelfPerformReqs] = useState<string[]>([])
   const [searchingGap, setSearchingGap] = useState<string | null>(null)
   const [sowCoverage, setSowCoverage] = useState<SowCoverageItem[]>([])
+  const [piiWarning, setPiiWarning] = useState<{ matches: PiiMatch[]; texts: string[]; names: string[] } | null>(null)
 
 
   async function handleViewDocument(doc: Doc) {
@@ -582,6 +585,16 @@ export default function TaskOrderDetail() {
         throw new Error('Could not read any documents. Please check that documents are uploaded correctly.')
       }
 
+      // PII detection — scan extracted text before sending to AI
+      const allText = texts.join('\n')
+      const piiMatches = scanForPii(allText)
+      if (piiMatches.length > 0) {
+        setPiiWarning({ matches: piiMatches, texts, names })
+        setAnalyzing(false)
+        setAnalysisProgress('')
+        return
+      }
+
       setAnalysisProgress(`Analyzing ${texts.length} documents with AI (this may take 15-30 seconds)...`)
       const result = await analyzeDocuments(texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined) as unknown as AnalysisResult
       await saveAiOutput(id, 'analysis', result)
@@ -610,6 +623,45 @@ export default function TaskOrderDetail() {
 
       setAnalysisProgress('Matching subcontractors...')
       // Auto-run database matching after analysis
+      await runSubcontractorMatch('database', result as unknown as Record<string, unknown>)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      alert('Analysis failed: ' + msg)
+    } finally {
+      setAnalyzing(false)
+      setAnalysisProgress('')
+    }
+  }
+
+  async function proceedWithAnalysis(texts: string[], names: string[]) {
+    if (!id || !taskOrder) return
+    setAnalyzing(true)
+    setPiiWarning(null)
+    try {
+      setAnalysisProgress(`Analyzing ${texts.length} documents with AI (this may take 15-30 seconds)...`)
+      const result = await analyzeDocuments(texts, names, taskOrder.title, taskOrder.site_name, taskOrder.project_type ?? undefined) as unknown as AnalysisResult
+      await saveAiOutput(id, 'analysis', result)
+      setAnalysisResult(result)
+      setAiStatus(prev => ({ ...prev, analysis: true }))
+      const meta = result.task_order_metadata
+      if (meta) {
+        const updates: Record<string, string | null> = {}
+        if (meta.title && !taskOrder.title) updates.title = meta.title
+        if (meta.solicitation_number && !taskOrder.solicitation_number) updates.solicitation_number = meta.solicitation_number
+        if (meta.task_order_number && !taskOrder.task_order_number) updates.task_order_number = meta.task_order_number
+        if (meta.site_name && !taskOrder.site_name) updates.site_name = meta.site_name
+        if (meta.location_city && !taskOrder.location_city) updates.location_city = meta.location_city
+        if (meta.location_state && !taskOrder.location_state) updates.location_state = meta.location_state
+        if (meta.contracting_officer) updates.contracting_officer = meta.contracting_officer
+        if (meta.co_email) updates.co_email = meta.co_email
+        if (meta.co_phone) updates.co_phone = meta.co_phone
+        if (meta.response_due_date && !taskOrder.due_date) updates.due_date = meta.response_due_date
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('task_orders').update(updates).eq('id', id)
+          fetchTaskOrder()
+        }
+      }
+      setAnalysisProgress('Matching subcontractors...')
       await runSubcontractorMatch('database', result as unknown as Record<string, unknown>)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -858,6 +910,15 @@ export default function TaskOrderDetail() {
 
   return (
     <div className="space-y-6">
+      {/* PII Warning Modal */}
+      {piiWarning && (
+        <PiiWarningModal
+          matches={piiWarning.matches}
+          onProceed={() => proceedWithAnalysis(piiWarning.texts, piiWarning.names)}
+          onCancel={() => setPiiWarning(null)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

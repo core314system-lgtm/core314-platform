@@ -32,6 +32,8 @@ import {
   Wrench,
   ShieldCheck,
   FolderOpen,
+  ScanSearch,
+  Target,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -89,6 +91,16 @@ const navGroups: NavGroup[] = [
       { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
       { path: '/analytics', label: 'Analytics', icon: BarChart3 },
       { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
+    ],
+  },
+  {
+    id: 'ai_compliance',
+    label: 'AI Compliance',
+    icon: Brain,
+    items: [
+      { path: '/ai-audit', label: 'AI Activity Log', icon: ScanSearch },
+      { path: '/ai-accuracy', label: 'AI Accuracy', icon: Target },
+      { path: '/ai-usage', label: 'Usage & ROI', icon: BarChart3 },
     ],
   },
   {

@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCi
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
 import { fetchAIProxy } from '../lib/api'
+import { logAiCall } from '../lib/aiAuditLog'
 
 
 
@@ -232,6 +233,7 @@ ${SMART_NOTES_PROMPT}
 TASK ORDER DATA:
 ${context}`
 
+      const tocStart = Date.now()
       const data = await fetchAIProxy({
         model: 'gpt-4o-mini',
         messages: [
@@ -243,6 +245,21 @@ ${context}`
       })
 
       const reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.'
+      const tocUsage = data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+      const { data: { user: tocUser } } = await supabase.auth.getUser()
+      logAiCall({
+        user_id: tocUser?.id || 'anonymous',
+        request_type: 'project_chat',
+        model: data.model || 'gpt-4o-mini',
+        prompt_tokens: tocUsage.prompt_tokens,
+        completion_tokens: tocUsage.completion_tokens,
+        total_tokens: tocUsage.total_tokens,
+        task_order_id: taskOrderId,
+        task_order_title: taskOrderTitle,
+        response_summary: reply.slice(0, 200),
+        latency_ms: Date.now() - tocStart,
+        status: 'success',
+      })
 
       // Check if response contains proposed changes
       const proposedChanges = parseSmartNotesResponse(reply)

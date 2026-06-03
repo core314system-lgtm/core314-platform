@@ -52,6 +52,9 @@ import BetaFeedback from './pages/BetaFeedback'
 import OpportunityDiscovery from './pages/OpportunityDiscovery'
 import SystemHealth from './pages/SystemHealth'
 import DocumentLibrary from './pages/DocumentLibrary'
+import AiAuditLog from './pages/AiAuditLog'
+import AiAccuracyDashboard from './pages/AiAccuracyDashboard'
+import AiUsageMetrics from './pages/AiUsageMetrics'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -66,6 +69,7 @@ import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
+import AiDataProcessingPage from './landing/pages/AiDataProcessingPage'
 import AboutPage from './landing/pages/AboutPage'
 import SLAPage from './landing/pages/SLAPage'
 import SecurityPage from './landing/pages/SecurityPage'
@@ -157,6 +161,7 @@ export default function App() {
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/dpa" element={<DPAPage />} />
           <Route path="/ai-disclaimer" element={<AIDisclaimerPage />} />
+          <Route path="/ai-data-processing" element={<AiDataProcessingPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/sla" element={<SLAPage />} />
           <Route path="/security" element={<SecurityPage />} />
@@ -217,6 +222,11 @@ export default function App() {
 
           {/* Document Library */}
           <Route path="/documents" element={<ProtectedRoute><DocumentLibrary /></ProtectedRoute>} />
+
+          {/* AI Compliance */}
+          <Route path="/ai-audit" element={<ProtectedRoute><AiAuditLog /></ProtectedRoute>} />
+          <Route path="/ai-accuracy" element={<ProtectedRoute><AiAccuracyDashboard /></ProtectedRoute>} />
+          <Route path="/ai-usage" element={<ProtectedRoute><AiUsageMetrics /></ProtectedRoute>} />
 
           {/* Compliance Matrices (cross-project view) */}
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />

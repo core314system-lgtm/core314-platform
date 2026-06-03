@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { fetchAIProxy } from '../lib/api'
+import { logAiCall } from '../lib/aiAuditLog'
 import type { TaskOrder } from '../lib/types'
 import { Brain, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Target, Users, DollarSign, Shield, Calendar, ArrowLeft, Loader2 } from 'lucide-react'
 
@@ -149,6 +150,7 @@ Respond with ONLY valid JSON matching this structure:
 
 Include factors for: Capability Alignment, Geographic Proximity, Workforce Capacity, Competitive Position, Risk Profile, Timeline Feasibility, Financial Viability, Past Performance Relevance. Be honest and data-driven.`
 
+      const bidStart = Date.now()
       const resp = await fetchAIProxy({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
@@ -159,6 +161,22 @@ Include factors for: Capability Alignment, Geographic Proximity, Workforce Capac
       const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
       const parsed: BidDecision = JSON.parse(cleaned)
       setDecision(parsed)
+
+      const bidUsage = resp.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+      const { data: { user: bidUser } } = await supabase.auth.getUser()
+      logAiCall({
+        user_id: bidUser?.id || 'anonymous',
+        request_type: 'bid_decision',
+        model: resp.model || 'gpt-4o-mini',
+        prompt_tokens: bidUsage.prompt_tokens,
+        completion_tokens: bidUsage.completion_tokens,
+        total_tokens: bidUsage.total_tokens,
+        task_order_id: id || null,
+        task_order_title: taskOrder?.title || null,
+        response_summary: content.slice(0, 200),
+        latency_ms: Date.now() - bidStart,
+        status: 'success',
+      })
 
       // Save to DB
       await supabase.from('ai_outputs').upsert({
