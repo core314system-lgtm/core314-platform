@@ -17,6 +17,8 @@ import ProjectTeam from '../components/ProjectTeam'
 import BidReadiness from '../components/BidReadiness'
 import SmartRecommendations from '../components/SmartRecommendations'
 import QAManagement from '../components/QAManagement'
+import ModificationTracker from '../components/ModificationTracker'
+import GovtQAProcessor from '../components/GovtQAProcessor'
 import { getProjectType, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
 const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] = [
@@ -1660,6 +1662,12 @@ export default function TaskOrderDetail() {
           </div>
         )}
       </div>
+
+      {/* Modification / Amendment Tracking */}
+      <ModificationTracker taskOrderId={id!} taskOrderTitle={taskOrder.title} />
+
+      {/* Government Q&A Response Processing */}
+      <GovtQAProcessor taskOrderId={id!} taskOrderTitle={taskOrder.title} />
 
       {/* Notes */}
       {taskOrder.notes && (

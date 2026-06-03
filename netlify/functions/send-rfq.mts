@@ -113,7 +113,7 @@ export default async (req: Request, _context: Context) => {
       // Generate unique token for portal access
       const token = generateToken()
       const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 90) // 90 day expiry
+      expiresAt.setDate(expiresAt.getDate() + 365) // 365 day expiry — portal stays active for project lifetime
 
       // Store token
       const { error: tokenErr } = await supabase.from("rfq_tokens").insert({
@@ -243,8 +243,8 @@ export default async (req: Request, _context: Context) => {
             </div>
             
             <p style="font-size: 13px; color: #6b7280;">
-              This link is unique to your organization. Please do not share it.<br/>
-              If you have questions, you can submit them through the portal above or reply to this email.
+              This link is unique to your organization and will remain active for the duration of this project.<br/>
+              Use this portal at any time to: submit or revise your quote, ask questions, view updated documents, and track amendment notices.
             </p>
             
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
