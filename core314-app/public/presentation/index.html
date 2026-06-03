@@ -65,6 +65,37 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0e1
 .timeline .event h4{color:#93c5fd;margin-bottom:4px}
 .timeline .event p{color:#94a3b8;font-size:0.95em}
 .scroll-slide{overflow-y:auto;justify-content:flex-start;padding-top:40px;padding-bottom:100px}
+.email-mockup{max-width:520px;border-radius:10px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.5);margin:12px 0;font-size:0.85em}
+.email-mockup .email-header{padding:20px 24px;color:#fff}
+.email-mockup .email-body{background:#fff;color:#1f2937;padding:20px 24px;font-size:0.95em;line-height:1.6}
+.email-mockup .email-body p{color:#374151;margin-bottom:10px;max-width:none}
+.email-mockup .email-body .email-highlight{border-radius:6px;padding:14px;margin:12px 0}
+.email-mockup .email-body .email-btn{display:inline-block;padding:12px 28px;border-radius:6px;color:#fff;text-decoration:none;font-weight:700;font-size:0.95em}
+.email-mockup .email-footer{background:#f9fafb;color:#9ca3af;padding:12px 24px;font-size:0.8em;border-top:1px solid #e5e7eb}
+.portal-mockup{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.5);margin:12px 0;max-width:520px}
+.portal-mockup .portal-header{background:linear-gradient(135deg,#1e40af,#3b82f6);padding:16px 24px;color:#fff}
+.portal-mockup .portal-body{padding:20px 24px;color:#1f2937}
+.portal-mockup .portal-field{margin:10px 0}
+.portal-mockup .portal-field label{display:block;font-size:0.85em;font-weight:600;color:#374151;margin-bottom:4px}
+.portal-mockup .portal-field .field-input{width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;background:#f9fafb;font-size:0.9em;color:#6b7280}
+.portal-mockup .portal-field .radio-group{display:flex;gap:16px;padding:6px 0}
+.portal-mockup .portal-field .radio-option{display:flex;align-items:center;gap:6px;font-size:0.9em;color:#374151}
+.portal-mockup .portal-btn{display:inline-block;background:#1e40af;color:#fff;padding:10px 24px;border-radius:6px;font-weight:600;font-size:0.9em;margin-top:12px;cursor:pointer;border:none}
+.admin-mockup{background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid #334155;border-radius:12px;padding:20px;margin:12px 0}
+.admin-mockup .admin-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0f172a;border:1px solid #1e293b;border-radius:8px;margin:8px 0;font-size:0.9em}
+.admin-mockup .admin-row .status-badge{padding:3px 10px;border-radius:12px;font-size:0.8em;font-weight:600}
+.admin-mockup .admin-row .status-pending{background:#fef3c7;color:#92400e}
+.admin-mockup .admin-row .status-sent{background:#d1fae5;color:#065f46}
+.admin-mockup .admin-row .status-high{background:#fee2e2;color:#991b1b}
+.confidence-bar{height:6px;border-radius:3px;background:#1e293b;overflow:hidden;margin:4px 0}
+.confidence-bar .fill{height:100%;border-radius:3px}
+.field-manager-mockup{background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.4);max-width:520px;margin:12px 0}
+.field-manager-mockup .fm-header{background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+.field-manager-mockup .fm-row{display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid #f1f5f9;font-size:0.85em;color:#374151}
+.field-manager-mockup .fm-row .grip{color:#cbd5e1;cursor:grab}
+.field-manager-mockup .fm-row .field-type{background:#eff6ff;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:0.8em;font-weight:600}
+.field-manager-mockup .fm-row .req-badge{background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:0.75em;font-weight:600}
+.field-manager-mockup .fm-row .opt-badge{background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:4px;font-size:0.75em}
 </style>
 </head>
 <body>
@@ -541,15 +572,402 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 22: Section Divider - Compliance -->
+<!-- SLIDE 22: Section Divider - SOW Modifications -->
 <div class="slide section-divider" id="slide-22">
+<div class="section-icon">&#9888;&#65039;</div>
+<h1>SOW Modification &amp; Amendment Tracking</h1>
+<p>When the government modifies a Statement of Work, Procuvex tracks every change, identifies affected subcontractors, and sends targeted amendment notices with portal links.</p>
+</div>
+
+<!-- SLIDE 23: Modification Tracker Detail -->
+<div class="slide scroll-slide" id="slide-23">
+<h2>Modification Tracker - Complete Amendment Management</h2>
+<p class="subtitle">Record modifications, identify affected scopes, and notify subcontractors in one workflow.</p>
+<div class="two-col">
+<div>
+<h3>How It Works</h3>
+<div class="flow-step"><div class="step-num">1</div><div class="step-text"><strong>Record Modification</strong> - Enter the modification number (e.g., Mod 003), title, description, and effective date</div></div>
+<div class="flow-step"><div class="step-num">2</div><div class="step-text"><strong>Select Affected SOWs</strong> - Choose which scopes of work are impacted by this amendment (e.g., HVAC, Electrical)</div></div>
+<div class="flow-step"><div class="step-num">3</div><div class="step-text"><strong>Auto-Detect Affected Subs</strong> - System identifies every subcontractor assigned to those scopes who needs to know</div></div>
+<div class="flow-step"><div class="step-num">4</div><div class="step-text"><strong>Send Amendment Notices</strong> - One click sends targeted emails to all affected subs with modification details and portal link</div></div>
+<div class="flow-step"><div class="step-num">5</div><div class="step-text"><strong>Track Acknowledgment</strong> - Monitor which subs have opened the notice, viewed changes, and submitted revised quotes</div></div>
+<div class="admin-mockup">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<h4 style="color:#93c5fd;margin:0;font-size:0.95em">&#9888;&#65039; SOW Modifications (3)</h4>
+<span style="color:#60a5fa;font-size:0.8em;cursor:pointer">+ Record Modification</span>
+</div>
+<div class="admin-row">
+<span style="color:#f59e0b;font-weight:700">Mod 003</span>
+<span style="flex:1;color:#e2e8f0">Updated HVAC frequencies per Amendment 3</span>
+<span class="status-badge status-sent">Sent</span>
+</div>
+<div class="admin-row">
+<span style="color:#f59e0b;font-weight:700">Mod 002</span>
+<span style="flex:1;color:#e2e8f0">Added Fire Alarm testing requirements</span>
+<span class="status-badge status-sent">Acknowledged</span>
+</div>
+<div class="admin-row">
+<span style="color:#f59e0b;font-weight:700">Mod 001</span>
+<span style="flex:1;color:#e2e8f0">Revised wage determination for all trades</span>
+<span class="status-badge status-pending">Pending</span>
+</div>
+</div>
+</div>
+<div>
+<h3>Key Benefits</h3>
+<ul>
+<li><strong>Never Miss an Amendment</strong> - Every modification is formally logged with its number, description, effective date, and affected scopes. No more relying on email chains to track what changed.</li>
+<li><strong>Targeted Notifications</strong> - Only subcontractors whose scope is affected receive the notice. An electrical amendment doesn't bother the HVAC sub.</li>
+<li><strong>Audit Trail</strong> - Complete record of who was notified, when, and whether they acknowledged the change. Essential for compliance and dispute resolution.</li>
+<li><strong>Quote Revision Requests</strong> - Each notice includes a request to revise their quote if the modification impacts pricing, with a direct link to their portal.</li>
+<li><strong>Modification Timeline</strong> - Chronological view of Original SOW &rarr; Mod 1 &rarr; Mod 2 &rarr; notifications &rarr; revised quotes. One glance shows the full history.</li>
+</ul>
+<div class="roi-box">
+<h3>Time Saved</h3>
+<p>Without Procuvex, a single SOW amendment requires manually emailing each affected subcontractor, tracking who received it, following up for acknowledgment, and re-collecting quotes. This typically takes <strong>4-8 hours per modification</strong>. With Procuvex: <strong>under 5 minutes</strong>.</p>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 24: Amendment Notice Email -->
+<div class="slide scroll-slide" id="slide-24">
+<h2>Amendment Notice Email - What Subcontractors Receive</h2>
+<p class="subtitle">Professional, branded amendment notifications sent automatically to affected subcontractors.</p>
+<div class="two-col">
+<div>
+<div class="email-mockup">
+<div class="email-header" style="background:#d97706">
+<div style="font-size:1.2em;font-weight:700">&#9888;&#65039; Amendment Notice</div>
+<div style="opacity:0.9;font-size:0.9em;margin-top:4px">Midwest Regional Facility Services</div>
+</div>
+<div class="email-body">
+<p>Dear ABC Mechanical Services,</p>
+<p>A modification has been issued for the project you are quoting on. Please review the details below:</p>
+<div class="email-highlight" style="background:#fffbeb;border:1px solid #fbbf24">
+<div style="font-weight:700;color:#92400e;margin-bottom:6px">Mod 003: Updated HVAC Inspection Frequencies</div>
+<div style="font-size:0.9em;color:#78350f;margin-bottom:8px">Monthly HVAC inspections changed to bi-weekly for all rooftop units per government direction.</div>
+<table style="width:100%;font-size:0.9em">
+<tr><td style="color:#92400e;padding:2px 0">Effective:</td><td style="font-weight:700">June 15, 2026</td></tr>
+<tr><td style="color:#92400e;padding:2px 0">Affected Scope:</td><td>HVAC Maintenance, Preventive Maintenance</td></tr>
+</table>
+</div>
+<div class="email-highlight" style="background:#eff6ff;border-left:4px solid #1e40af;border:none;border-left:4px solid #1e40af">
+<strong>Action Required:</strong> Please review the updated documents on your portal and revise your quote if this modification affects your pricing or scope.
+</div>
+<div style="text-align:center;margin:16px 0">
+<span class="email-btn" style="background:#d97706">Review Amendment &amp; Update Quote</span>
+</div>
+<p style="font-size:0.85em;color:#6b7280;text-align:center">Your portal link remains active for all updates, questions, and quote revisions.</p>
+</div>
+<div class="email-footer">Delivered on behalf of Core314 Technologies &bull; Powered by Procuvex</div>
+</div>
+</div>
+<div>
+<h3>Email Design Details</h3>
+<ul>
+<li><strong>Amber Header</strong> - Immediately signals this is an amendment (distinct from the blue RFQ emails) so it stands out in the subcontractor's inbox</li>
+<li><strong>Modification Details Box</strong> - Shows the mod number, title, description, effective date, and exactly which scopes are affected</li>
+<li><strong>Clear Action Required</strong> - Tells the sub exactly what they need to do: review updated docs and revise their quote if pricing changed</li>
+<li><strong>Portal Link Button</strong> - One click takes them directly to their portal where they can see all updated documents and submit a revised quote</li>
+<li><strong>Persistent Portal Access</strong> - Reminder that their portal link stays active for the life of the project (365 days)</li>
+</ul>
+<h3>Every Email Drives Back to the Portal</h3>
+<p>This is a critical design principle across all Procuvex communications. Whether it's the initial RFQ, an amendment notice, or a Q&A response &mdash; every email includes the subcontractor's unique portal link. This creates a <span class="highlight">single source of truth</span> where all project interactions happen, reducing email back-and-forth and ensuring nothing falls through the cracks.</p>
+<div class="stat-row">
+<div class="stat"><div class="number">1</div><div class="label">Click to Portal</div></div>
+<div class="stat"><div class="number">365</div><div class="label">Days Active</div></div>
+<div class="stat"><div class="number">100%</div><div class="label">Emails Link Back</div></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 25: Section Divider - Government Q&A Processing -->
+<div class="slide section-divider" id="slide-25">
+<div class="section-icon">&#128202;</div>
+<h1>Government Q&A Response Processing</h1>
+<p>Upload the government's official Q&A response document. AI matches answers to each subcontractor's specific questions. Only relevant answers are sent to each sub.</p>
+</div>
+
+<!-- SLIDE 26: Government Q&A Processing Detail -->
+<div class="slide scroll-slide" id="slide-26">
+<h2>Government Q&A Processing - 4-Step Intelligent Workflow</h2>
+<p class="subtitle">From government response document to targeted subcontractor notifications in minutes, not hours.</p>
+<div class="two-col">
+<div>
+<h3>The Complete Workflow</h3>
+<div class="flow-step" style="border-left-color:#3b82f6"><div class="step-num" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">1</div><div class="step-text"><strong>Upload Government Q&A Document</strong> - Excel (.xlsx, .csv), PDF, Word, or plain text. The system auto-detects columns: Question #, Question, Answer, Section Reference.</div></div>
+<div class="flow-step" style="border-left-color:#8b5cf6"><div class="step-num" style="background:linear-gradient(135deg,#8b5cf6,#a855f7)">2</div><div class="step-text"><strong>Review Parsed Q&A Pairs</strong> - See all extracted question-answer pairs. Edit, delete, or add entries manually before AI matching begins.</div></div>
+<div class="flow-step" style="border-left-color:#f59e0b"><div class="step-num" style="background:linear-gradient(135deg,#f59e0b,#d97706)">3</div><div class="step-text"><strong>AI Matches to Sub Questions</strong> - AI cross-references government answers with questions each subcontractor submitted. Each match gets a confidence score and reason.</div></div>
+<div class="flow-step" style="border-left-color:#10b981"><div class="step-num" style="background:linear-gradient(135deg,#10b981,#059669)">4</div><div class="step-text"><strong>Admin Review &amp; Distribute</strong> - Approve/reject matches, add notes, then send targeted responses. Each sub only receives answers to <em>their</em> questions.</div></div>
+<h3 style="margin-top:20px">Excel Column Auto-Detection</h3>
+<p>The system intelligently identifies columns by scanning headers for keywords like "question," "answer," "response," "number," "section," and "reference." If headers aren't standard, it falls back to positional detection (Column A = #, B = Question, C = Answer). Supports <span class="badge">Excel .xlsx</span> <span class="badge">CSV</span> <span class="badge">Plain Text</span></p>
+</div>
+<div>
+<h3>AI Matching Intelligence</h3>
+<div class="admin-mockup">
+<div style="margin-bottom:12px"><h4 style="color:#93c5fd;margin:0;font-size:0.95em">&#129302; AI Match Results (12 government answers matched)</h4></div>
+<div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+<div style="display:flex;width:100%;justify-content:space-between;align-items:center">
+<span style="color:#60a5fa;font-weight:600;font-size:0.85em">Gov Q&A #7: HVAC inspection frequency?</span>
+<span style="color:#34d399;font-weight:700;font-size:0.85em">94% match</span>
+</div>
+<div style="font-size:0.8em;color:#94a3b8">&rarr; Matched to ABC Mechanical's question: "How often do rooftop units need inspection?"</div>
+<div class="confidence-bar" style="width:100%"><div class="fill" style="width:94%;background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
+</div>
+<div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+<div style="display:flex;width:100%;justify-content:space-between;align-items:center">
+<span style="color:#60a5fa;font-weight:600;font-size:0.85em">Gov Q&A #12: Equipment replacement schedule?</span>
+<span style="color:#f59e0b;font-weight:700;font-size:0.85em">72% match</span>
+</div>
+<div style="font-size:0.8em;color:#94a3b8">&rarr; Partial match to Johnson Electric's question about equipment lifecycle</div>
+<div class="confidence-bar" style="width:100%"><div class="fill" style="width:72%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div>
+</div>
+<div class="admin-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+<div style="display:flex;width:100%;justify-content:space-between;align-items:center">
+<span style="color:#60a5fa;font-weight:600;font-size:0.85em">Gov Q&A #3: Mobilization timeline?</span>
+<span style="color:#ef4444;font-weight:700;font-size:0.85em">No match</span>
+</div>
+<div style="font-size:0.8em;color:#94a3b8">&rarr; No subcontractor asked about this topic (competitive intelligence stored)</div>
+</div>
+</div>
+<div class="roi-box">
+<h3>Why This Matters</h3>
+<p>Government Q&A documents often contain 30-50+ question-answer pairs. Manually finding which answers apply to which subcontractor takes hours. With AI matching, the entire process takes <strong>minutes</strong> and ensures no relevant answer is missed.</p>
+<p style="margin-bottom:0"><strong>Competitive Intelligence Bonus:</strong> Unmatched government Q&A pairs (questions from other primes) are stored as competitive intelligence, revealing what competitors are focused on.</p>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 27: Q&A Response Email -->
+<div class="slide scroll-slide" id="slide-27">
+<h2>Targeted Q&A Response Email - What Each Sub Receives</h2>
+<p class="subtitle">Each subcontractor receives only the government answers relevant to their specific questions.</p>
+<div class="two-col">
+<div>
+<div class="email-mockup">
+<div class="email-header" style="background:#1e40af">
+<div style="font-size:1.2em;font-weight:700">&#128203; Government Q&A Response</div>
+<div style="opacity:0.9;font-size:0.9em;margin-top:4px">Midwest Regional Facility Services</div>
+</div>
+<div class="email-body">
+<p>Dear ABC Mechanical Services,</p>
+<p>The government has issued responses to questions submitted for this project. Below are the answers relevant to <strong>your</strong> questions:</p>
+<div style="border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin:10px 0;background:#f9fafb">
+<div style="font-weight:700;color:#1f2937;font-size:0.95em;margin-bottom:6px">Q7: What is the required HVAC inspection frequency?</div>
+<div style="background:#ecfdf5;border-left:4px solid #10b981;padding:8px 12px;border-radius:4px">
+<span style="color:#065f46;font-size:0.95em">Bi-weekly inspections are required for all rooftop units. Monthly inspections for split systems.</span>
+</div>
+</div>
+<div style="border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin:10px 0;background:#f9fafb">
+<div style="font-weight:700;color:#1f2937;font-size:0.95em;margin-bottom:6px">Q12: Are spare parts to be provided by the contractor?</div>
+<div style="background:#ecfdf5;border-left:4px solid #10b981;padding:8px 12px;border-radius:4px">
+<span style="color:#065f46;font-size:0.95em">Yes, the contractor shall maintain an on-site inventory of common spare parts as outlined in Attachment D.</span>
+</div>
+<div style="margin-top:6px;font-size:0.85em;color:#6b7280"><em>Note from team: This may affect your materials pricing. Please revise if needed.</em></div>
+</div>
+<div class="email-highlight" style="background:#eff6ff;border-left:4px solid #1e40af;border:none;border-left:4px solid #1e40af">
+<strong>Action:</strong> Please review these responses carefully. If any answers affect your pricing or scope, you may submit a revised quote through your portal.
+</div>
+<div style="text-align:center;margin:16px 0">
+<span class="email-btn" style="background:#1e40af">View on Your Portal</span>
+</div>
+<p style="font-size:0.85em;color:#6b7280;text-align:center">Your portal link remains active for all updates, questions, and quote revisions.</p>
+</div>
+<div class="email-footer">Delivered on behalf of Core314 Technologies &bull; Powered by Procuvex</div>
+</div>
+</div>
+<div>
+<h3>Targeted Distribution Benefits</h3>
+<ul>
+<li><strong>Only Relevant Answers</strong> - ABC Mechanical sees only the Q&A pairs matched to their submitted questions. They don't receive 50 answers about trades they're not involved in.</li>
+<li><strong>Admin Notes Included</strong> - The project manager can add context to any answer (e.g., "This changes our original scope &mdash; please revise"). These notes appear directly in the email.</li>
+<li><strong>Portal Link for Follow-Up</strong> - If the answer raises new questions, the sub can immediately go to their portal and submit a follow-up.</li>
+<li><strong>Quote Revision Prompt</strong> - Clear call-to-action reminding subs to revise their quote if the government's answers change the scope or requirements.</li>
+</ul>
+<h3>Admin Control Before Distribution</h3>
+<p>Before any email is sent, the admin reviews every AI match:</p>
+<ul>
+<li>&#9989; Approve high-confidence matches (send as-is)</li>
+<li>&#9997;&#65039; Edit or add context notes to medium-confidence matches</li>
+<li>&#10060; Reject low-confidence matches (don't distribute)</li>
+<li>&#128221; Add manual pairings the AI may have missed</li>
+</ul>
+<p>Nothing goes to a subcontractor without explicit admin approval. This preserves competitive positioning and ensures accuracy.</p>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 28: Incumbent Status Capture -->
+<div class="slide scroll-slide" id="slide-28">
+<h2>Incumbent Status Capture on the Subcontractor Portal</h2>
+<p class="subtitle">Automatically capture whether each subcontractor is the incumbent, where they perform similar work, and their experience level.</p>
+<div class="two-col">
+<div>
+<div class="portal-mockup">
+<div class="portal-header">
+<div style="font-size:1.1em;font-weight:700">&#128205; Incumbent Status</div>
+<div style="font-size:0.85em;opacity:0.9;margin-top:4px">Your experience matters for the evaluation process</div>
+</div>
+<div class="portal-body">
+<p style="font-size:0.85em;color:#6b7280;margin-bottom:12px">Are you currently the incumbent contractor for this type of work at this location or similar locations? This information is critical for the evaluation process.</p>
+<div class="portal-field">
+<label>Are you the incumbent for this work at this location? *</label>
+<div class="radio-group">
+<div class="radio-option"><span style="color:#f59e0b">&#9679;</span> Yes, we are the incumbent</div>
+<div class="radio-option"><span style="color:#d1d5db">&#9675;</span> No</div>
+</div>
+</div>
+<div class="portal-field">
+<label>Locations where you perform similar work</label>
+<div class="field-input">Fort Belvoir, VA; Pentagon, Arlington VA; Joint Base Andrews, MD</div>
+</div>
+<div class="portal-field">
+<label>Current/recent contract details</label>
+<div class="field-input">FA8732-22-C-0045 - HVAC maintenance at Joint Base Andrews, $2.4M annual, since 2022</div>
+</div>
+<div class="portal-field">
+<label>Years of experience with similar work</label>
+<div class="field-input">12 years</div>
+</div>
+<button class="portal-btn">&#128190; Save Incumbent Status</button>
+</div>
+</div>
+</div>
+<div>
+<h3>Why Incumbent Data Matters</h3>
+<ul>
+<li><strong>Bid Strategy Intelligence</strong> - Knowing whether your subcontractor is the incumbent dramatically affects your pricing strategy, technical approach, and teaming decisions</li>
+<li><strong>Self-Reported Accuracy</strong> - Rather than guessing or manually researching, the data comes directly from the subcontractor themselves at the time they're quoting</li>
+<li><strong>Location Intelligence</strong> - Capture where they perform similar work across multiple locations. If Sub A is incumbent at Fort Belvoir for HVAC, that's valuable data for future bids at the same location.</li>
+<li><strong>Contract History</strong> - Actual contract numbers, values, and durations provide hard evidence for past performance volumes</li>
+</ul>
+<h3>How the AI Uses This Data</h3>
+<div class="card">
+<p>Incumbent data feeds directly into Procuvex's AI learning systems:</p>
+<ul>
+<li><strong>Match Scoring</strong> - Incumbents receive 5-10 additional points in the AI match scoring algorithm for similar work at the same location</li>
+<li><strong>Cross-Project Intelligence</strong> - If ABC Mechanical reports they're incumbent at Location X for Project A, that data automatically surfaces when you're evaluating Project B at the same location</li>
+<li><strong>Institutional Knowledge</strong> - Over time, your organization builds a rich database of who is incumbent where across all your projects &mdash; knowledge that would otherwise live in scattered emails and personal contacts</li>
+</ul>
+</div>
+<div class="roi-box">
+<h3>Data Maturity Impact</h3>
+<p>After 6-12 months of collecting incumbent data, your organization has a comprehensive map of who performs what work where. This transforms bid strategy from guesswork into data-driven decisions.</p>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 29: Portal Lifetime Extension & Revised Quotes -->
+<div class="slide scroll-slide" id="slide-29">
+<h2>Extended Portal Access &amp; Revised Quote Submissions</h2>
+<p class="subtitle">The subcontractor portal stays active for 365 days &mdash; supporting ongoing communication, amendments, and quote revisions throughout the project lifecycle.</p>
+<div class="two-col">
+<div>
+<h3>Portal as a Living Communication Channel</h3>
+<p>The subcontractor portal is not a one-time form. It's an ongoing communication channel that stays active for the entire project lifecycle:</p>
+<ul>
+<li><strong>365-Day Active Links</strong> - Portal tokens are valid for a full year (previously 90 days), ensuring subs can always access their portal regardless of how long the procurement process takes</li>
+<li><strong>Revised Quote Submission</strong> - After an amendment or Q&A response, subs can submit updated quotes through the same portal. The system tracks Original Quote &rarr; Revision 1 &rarr; Revision 2 with timestamps.</li>
+<li><strong>Follow-Up Questions</strong> - Subs can submit additional questions at any time through the portal, even after their initial bid</li>
+<li><strong>Document Access</strong> - All updated project documents, amendments, and Q&A responses are available through the portal</li>
+</ul>
+<div class="stat-row" style="margin:20px 0">
+<div class="stat"><div class="number">365</div><div class="label">Days Portal Active</div></div>
+<div class="stat"><div class="number">&#8734;</div><div class="label">Quote Revisions</div></div>
+<div class="stat"><div class="number">24/7</div><div class="label">Portal Access</div></div>
+</div>
+</div>
+<div>
+<h3>The Revised Quote Workflow</h3>
+<div class="flow-step"><div class="step-num">1</div><div class="step-text"><strong>Amendment Issued</strong> - Government modifies SOW, changing requirements for HVAC trade</div></div>
+<div class="flow-step"><div class="step-num">2</div><div class="step-text"><strong>Sub Notified</strong> - Amendment email sent with portal link and request to revise</div></div>
+<div class="flow-step"><div class="step-num">3</div><div class="step-text"><strong>Sub Clicks Portal</strong> - Opens their existing portal with the new "Submit Revised Quote" button</div></div>
+<div class="flow-step"><div class="step-num">4</div><div class="step-text"><strong>Revised Quote Submitted</strong> - New pricing entered, tagged as revision tied to Mod 003</div></div>
+<div class="flow-step"><div class="step-num">5</div><div class="step-text"><strong>Admin Sees Both Versions</strong> - Original quote and revision side-by-side with change diff</div></div>
+<div class="roi-box">
+<h3>Why 365 Days?</h3>
+<p>Government procurement cycles are long. A bid that starts in January may not award until September. With 90-day tokens, subs would lose portal access mid-procurement &mdash; exactly when amendments and Q&A rounds are most active. Extending to 365 days ensures the portal remains the single source of truth for the entire lifecycle.</p>
+</div>
+<h3>All Emails &rarr; Portal</h3>
+<p>Every communication Procuvex sends to subcontractors includes their unique portal link:</p>
+<p><span class="badge">Initial RFQ</span> <span class="badge badge-amber">Amendment Notices</span> <span class="badge" style="background:linear-gradient(135deg,#1e40af,#3b82f6)">Q&A Responses</span></p>
+<p>This ensures subcontractors always know where to go for the latest project information, reducing confusion, missed updates, and email back-and-forth.</p>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 30: Organization Default Portal Template -->
+<div class="slide scroll-slide" id="slide-30">
+<h2>Organization Default Portal Template</h2>
+<p class="subtitle">Configure the default form fields that every subcontractor portal will use across all projects. Customize once, apply everywhere.</p>
+<div class="two-col">
+<div>
+<div class="field-manager-mockup">
+<div class="fm-header">
+<div style="font-weight:700;color:#1f2937;font-size:0.95em">&#9881;&#65039; Organization Default Quote Form</div>
+<div style="display:flex;gap:8px">
+<span style="background:#3b82f6;color:#fff;padding:4px 12px;border-radius:4px;font-size:0.8em;font-weight:600;cursor:pointer">+ Add Field</span>
+<span style="background:#10b981;color:#fff;padding:4px 12px;border-radius:4px;font-size:0.8em;font-weight:600;cursor:pointer">Save</span>
+</div>
+</div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Total Quote Amount</span><span class="field-type">Currency</span><span class="req-badge">Required</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Monthly Amount</span><span class="field-type">Currency</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Labor Cost</span><span class="field-type">Currency</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Materials Cost</span><span class="field-type">Currency</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Equipment Cost</span><span class="field-type">Currency</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Scope Inclusions</span><span class="field-type">Text Area</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Scope Exclusions</span><span class="field-type">Text Area</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Assumptions</span><span class="field-type">Text Area</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600">Payment Terms</span><span class="field-type">Text</span><span class="opt-badge">Optional</span></div>
+<div class="fm-row" style="background:#eff6ff;border:1px solid #3b82f6"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600;color:#1e40af">Safety Certifications &#9733;</span><span class="field-type">File Upload</span><span class="req-badge">Required</span></div>
+<div class="fm-row" style="background:#eff6ff;border:1px solid #3b82f6"><span class="grip">&#9776;</span><span style="flex:1;font-weight:600;color:#1e40af">Insurance Certificate &#9733;</span><span class="field-type">File Upload</span><span class="req-badge">Required</span></div>
+</div>
+<p style="font-size:0.85em;color:#64748b;margin-top:8px">&#9733; Custom fields added by admin (highlighted in blue). Drag to reorder. 10 field types supported.</p>
+</div>
+<div>
+<h3>How It Works</h3>
+<ul>
+<li><strong>Set Once, Apply to All Projects</strong> - Define your organization's default quote form fields in Settings &rarr; Portal Form. Every new project automatically uses this template.</li>
+<li><strong>Drag-and-Drop Reordering</strong> - Arrange fields in the order you want subcontractors to see them</li>
+<li><strong>10 Field Types</strong> - Text, Text Area, Number, Currency, Email, Phone, Date, Dropdown, Checkbox, File Upload</li>
+<li><strong>Required vs. Optional</strong> - Mark which fields are mandatory for quote submission</li>
+<li><strong>Custom Fields</strong> - Add organization-specific fields like "Safety Certifications," "Union Status," "OSHA Training Hours," etc.</li>
+<li><strong>Per-Project Overrides</strong> - Individual projects can still customize their portal form using the per-project Form Builder &mdash; the org template just sets the starting point</li>
+</ul>
+<h3>Supported Field Types</h3>
+<p>
+<span class="badge">Text</span>
+<span class="badge">Text Area</span>
+<span class="badge">Number</span>
+<span class="badge">Currency ($)</span>
+<span class="badge">Email</span>
+<span class="badge">Phone</span>
+<span class="badge">Date</span>
+<span class="badge">Dropdown</span>
+<span class="badge">Checkbox</span>
+<span class="badge">File Upload</span>
+</p>
+<div class="roi-box">
+<h3>Consistency &amp; Efficiency</h3>
+<p>Without an org-level template, every new project requires manually setting up the portal form from scratch. With the default template, portal setup takes <strong>zero minutes</strong> for standard projects. Admins only need to intervene for projects with unique requirements.</p>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 40: Section Divider - Compliance -->
+<div class="slide section-divider" id="slide-31">
 <div class="section-icon">&#9989;</div>
 <h1>Compliance Matrix Generation</h1>
 <p>Auto-generated compliance matrices that ensure every requirement in the SOW is tracked, assigned, and addressed.</p>
 </div>
 
-<!-- SLIDE 23: Compliance Matrix Detail -->
-<div class="slide scroll-slide" id="slide-23">
+<!-- SLIDE 32: Compliance Matrix Detail -->
+<div class="slide scroll-slide" id="slide-32">
 <h2>Compliance Matrix - Every Requirement Tracked</h2>
 <div class="two-col">
 <div>
@@ -582,15 +1000,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 24: Section Divider - Pipeline -->
-<div class="slide section-divider" id="slide-24">
+<!-- SLIDE 33: Section Divider - Pipeline -->
+<div class="slide section-divider" id="slide-33">
 <div class="section-icon">&#128200;</div>
 <h1>Pipeline & Workflow Management</h1>
 <p>Visual kanban board tracking every project through its bid lifecycle stages.</p>
 </div>
 
-<!-- SLIDE 25: Pipeline Detail -->
-<div class="slide scroll-slide" id="slide-25">
+<!-- SLIDE 34: Pipeline Detail -->
+<div class="slide scroll-slide" id="slide-34">
 <h2>Pipeline - Visual Bid Tracking</h2>
 <div class="two-col">
 <div>
@@ -616,15 +1034,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 26: Section Divider - Subcontractors -->
-<div class="slide section-divider" id="slide-26">
+<!-- SLIDE 35: Section Divider - Subcontractors -->
+<div class="slide section-divider" id="slide-35">
 <div class="section-icon">&#128101;</div>
 <h1>Subcontractor Network</h1>
 <p>Build, manage, and leverage your subcontractor database. Import from Excel, discover new subs with AI, and track performance.</p>
 </div>
 
-<!-- SLIDE 27: Subcontractor Database -->
-<div class="slide scroll-slide" id="slide-27">
+<!-- SLIDE 36: Subcontractor Database -->
+<div class="slide scroll-slide" id="slide-36">
 <h2>Master Subcontractor Database</h2>
 <div class="two-col">
 <div>
@@ -654,8 +1072,8 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 28: Procuvex Capture -->
-<div class="slide scroll-slide" id="slide-28">
+<!-- SLIDE 37: Procuvex Capture -->
+<div class="slide scroll-slide" id="slide-37">
 <h2>Procuvex Capture - AI Subcontractor Discovery</h2>
 <div class="two-col">
 <div>
@@ -685,8 +1103,8 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 29: Vendor Intelligence & Teaming -->
-<div class="slide" id="slide-29">
+<!-- SLIDE 38: Vendor Intelligence & Teaming -->
+<div class="slide" id="slide-38">
 <h2>Vendor Intelligence & Teaming</h2>
 <p class="subtitle">Track competitors, identify teaming partners, and build joint venture relationships.</p>
 <div class="two-col">
@@ -715,15 +1133,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 30: Section Divider - Analytics -->
-<div class="slide section-divider" id="slide-30">
+<!-- SLIDE 39: Section Divider - Analytics -->
+<div class="slide section-divider" id="slide-39">
 <div class="section-icon">&#128202;</div>
 <h1>Analytics & Business Intelligence</h1>
 <p>Cross-project metrics, win rates, competitor landscape, and actionable insights that get smarter over time.</p>
 </div>
 
-<!-- SLIDE 31: Analytics Detail -->
-<div class="slide scroll-slide" id="slide-31">
+<!-- SLIDE 40: Analytics Detail -->
+<div class="slide scroll-slide" id="slide-40">
 <h2>Analytics & Intelligence Dashboard</h2>
 <div class="two-col">
 <div>
@@ -748,15 +1166,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 32: Section Divider - AI Learning -->
-<div class="slide section-divider" id="slide-32">
+<!-- SLIDE 41: Section Divider - AI Learning -->
+<div class="slide section-divider" id="slide-41">
 <div class="section-icon">&#129504;</div>
 <h1>How Procuvex Learns Over Time</h1>
 <p>The more you use the platform, the smarter it gets. Six distinct learning mechanisms continuously improve your results.</p>
 </div>
 
-<!-- SLIDE 33: AI Learning Mechanisms -->
-<div class="slide scroll-slide" id="slide-33">
+<!-- SLIDE 42: AI Learning Mechanisms -->
+<div class="slide scroll-slide" id="slide-42">
 <h2>6 Ways Procuvex Gets Smarter</h2>
 <div class="three-col">
 <div class="card">
@@ -786,8 +1204,8 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 34: AI Learning Impact -->
-<div class="slide" id="slide-34">
+<!-- SLIDE 43: AI Learning Impact -->
+<div class="slide" id="slide-43">
 <h2>The Compounding Value of AI Learning</h2>
 <p class="subtitle">Your data becomes your competitive advantage.</p>
 <div class="two-col">
@@ -812,15 +1230,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 35: Section Divider - Contracts -->
-<div class="slide section-divider" id="slide-35">
+<!-- SLIDE 44: Section Divider - Contracts -->
+<div class="slide section-divider" id="slide-44">
 <div class="section-icon">&#128221;</div>
 <h1>Contract & Task Order Tracking</h1>
 <p>Manage parent contracts (IDIQ, BPA, GWAC) and link task orders to maintain full traceability.</p>
 </div>
 
-<!-- SLIDE 36: Contracts -->
-<div class="slide" id="slide-36">
+<!-- SLIDE 45: Contracts -->
+<div class="slide" id="slide-45">
 <h2>Contract Management</h2>
 <p class="subtitle">Link projects to parent contracts for complete traceability and reporting.</p>
 <div class="two-col">
@@ -860,15 +1278,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 37: Section Divider - Compare & Intelligence -->
-<div class="slide section-divider" id="slide-37">
+<!-- SLIDE 46: Section Divider - Compare & Intelligence -->
+<div class="slide section-divider" id="slide-46">
 <div class="section-icon">&#128218;</div>
 <h1>Cross-Project Analysis & Intelligence Library</h1>
 <p>Compare projects side-by-side, access your growing knowledge base, and leverage historical intelligence.</p>
 </div>
 
-<!-- SLIDE 38: Compare & Intelligence -->
-<div class="slide" id="slide-38">
+<!-- SLIDE 47: Compare & Intelligence -->
+<div class="slide" id="slide-47">
 <h2>Compare Projects & Intelligence Library</h2>
 <div class="two-col">
 <div>
@@ -906,15 +1324,15 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 39: Section Divider - Integrations -->
-<div class="slide section-divider" id="slide-39">
+<!-- SLIDE 48: Section Divider - Integrations -->
+<div class="slide section-divider" id="slide-48">
 <div class="section-icon">&#128268;</div>
 <h1>Integrations & Platform Health</h1>
 <p>Connected to SAM.gov, powered by AI, backed by enterprise-grade infrastructure.</p>
 </div>
 
-<!-- SLIDE 40: Integrations & Status -->
-<div class="slide scroll-slide" id="slide-40">
+<!-- SLIDE 49: Integrations & Status -->
+<div class="slide scroll-slide" id="slide-49">
 <h2>Integrations & System Health</h2>
 <div class="two-col">
 <div>
@@ -948,8 +1366,8 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 41: Help Center & Onboarding -->
-<div class="slide scroll-slide" id="slide-41">
+<!-- SLIDE 50: Help Center & Onboarding -->
+<div class="slide scroll-slide" id="slide-50">
 <h2>Help Center & Guided Onboarding</h2>
 <div class="two-col">
 <div>
@@ -982,8 +1400,8 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 42: Pricing & ROI -->
-<div class="slide" id="slide-42">
+<!-- SLIDE 51: Pricing & ROI -->
+<div class="slide" id="slide-51">
 <h2>Investment & Return</h2>
 <p class="subtitle">The ROI case is overwhelming. Here's why.</p>
 <div class="two-col">
@@ -1029,8 +1447,8 @@ The complete platform that transforms how government contractors and commercial 
 </div>
 </div>
 
-<!-- SLIDE 43: Closing -->
-<div class="slide title-slide" id="slide-43">
+<!-- SLIDE 52: Closing -->
+<div class="slide title-slide" id="slide-52">
 <h1>Ready to Transform Your Bidding?</h1>
 <div class="tagline">Start your free trial today at procuvex.com</div>
 <div class="stat-row" style="justify-content:center;margin-top:40px">
@@ -1048,13 +1466,13 @@ The complete platform that transforms how government contractors and commercial 
 <!-- Navigation Bar -->
 <div class="nav-bar">
 <button id="prevBtn" onclick="changeSlide(-1)" disabled>&larr; Previous</button>
-<span class="slide-counter"><span id="currentSlide">1</span> / <span id="totalSlides">43</span></span>
+<span class="slide-counter"><span id="currentSlide">1</span> / <span id="totalSlides">52</span></span>
 <button id="nextBtn" onclick="changeSlide(1)">Next &rarr;</button>
 </div>
 
 <script>
 let current = 1;
-const total = 43;
+const total = 52;
 document.getElementById('totalSlides').textContent = total;
 
 function changeSlide(dir) {
