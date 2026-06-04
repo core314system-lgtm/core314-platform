@@ -89,6 +89,9 @@ export default function MasterSubDatabase() {
   const [outreachPreview, setOutreachPreview] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [enriching, setEnriching] = useState(false)
+  const [enrichProgress, setEnrichProgress] = useState('')
+  const [enrichResult, setEnrichResult] = useState<{ enriched: number; noEmail: number; errors: number } | null>(null)
 
   const PAGE_SIZE = 50
 
@@ -561,6 +564,50 @@ export default function MasterSubDatabase() {
     setShowDeleteConfirm(false)
   }
 
+  async function enrichContacts() {
+    setEnriching(true)
+    setEnrichResult(null)
+    setEnrichProgress('Starting email enrichment...')
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) { setEnriching(false); return }
+
+    let totalEnriched = 0
+    let totalNoEmail = 0
+    let totalErrors = 0
+    let batchNum = 0
+
+    while (true) {
+      batchNum++
+      setEnrichProgress(`Scraping batch ${batchNum}... (${totalEnriched} emails found, ${totalNoEmail} no email)`)
+      try {
+        const res = await fetch('/.netlify/functions/enrich-contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ batchSize: 20 }),
+        })
+        const result = await res.json()
+        if (result.error) {
+          setEnrichProgress(`Error: ${result.error}`)
+          break
+        }
+        totalEnriched += result.enriched || 0
+        totalNoEmail += result.noEmail || 0
+        totalErrors += result.errors || 0
+        if (result.done || result.total === 0) break
+      } catch (err: any) {
+        setEnrichProgress(`Network error: ${err.message}`)
+        break
+      }
+    }
+
+    setEnrichResult({ enriched: totalEnriched, noEmail: totalNoEmail, errors: totalErrors })
+    setEnrichProgress('')
+    setEnriching(false)
+    fetchSubs()
+    fetchStats()
+  }
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   if (authLoading) {
@@ -597,6 +644,11 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
             <Download size={16} /> Export CSV
           </button>
+          <button onClick={enrichContacts} disabled={enriching}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50">
+            {enriching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            {enriching ? 'Enriching...' : 'Enrich Contacts'}
+          </button>
           <button onClick={() => { setShowOutreach(!showOutreach); setShowImport(false) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
             <Mail size={16} /> Send Outreach
@@ -628,6 +680,26 @@ export default function MasterSubDatabase() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Enrichment Progress/Result */}
+      {(enrichProgress || enrichResult) && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          {enrichProgress && (
+            <div className="flex items-center gap-2 text-purple-700 text-sm">
+              <Loader2 size={14} className="animate-spin" />
+              {enrichProgress}
+            </div>
+          )}
+          {enrichResult && (
+            <div className="text-sm text-purple-800">
+              <strong>Enrichment complete:</strong> {enrichResult.enriched} contacts found (via Apollo + scraping), {enrichResult.noEmail} had no contact info, {enrichResult.errors} errors.
+              <button onClick={() => setEnrichResult(null)} className="ml-2 text-purple-500 hover:text-purple-700">
+                <X size={14} className="inline" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
