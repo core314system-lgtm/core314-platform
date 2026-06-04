@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { TRADE_CATEGORIES, naicsToTradeNames, naicsToCategoryIds, generateSlug } from '../lib/naicsTradeMapping'
 import {
   Search, MapPin, Mail, ShieldCheck,
   ChevronDown, ChevronUp, Download, Upload, Star,
   Users, BadgeCheck, Clock, Eye, ExternalLink, Loader2, X,
-  Database, AlertCircle, FileUp,
+  Database, AlertCircle, FileUp, Lock,
 } from 'lucide-react'
 
 interface MasterSub {
@@ -53,6 +54,9 @@ const VERIFICATION_LABELS: Record<string, { label: string; color: string; icon: 
 }
 
 export default function MasterSubDatabase() {
+  const { profile, loading: authLoading } = useAuth()
+  const isAdmin = profile?.is_global_admin === true
+
   const [subs, setSubs] = useState<MasterSub[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -405,6 +409,23 @@ export default function MasterSubDatabase() {
   }
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+
+  if (authLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin" size={32} /></div>
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <Lock size={48} className="text-gray-400" />
+        <h2 className="text-xl font-semibold text-gray-700">Admin Access Required</h2>
+        <p className="text-gray-500 text-center max-w-md">
+          The Master Subcontractor Database admin panel is restricted to global administrators.
+          Contact your organization admin for access.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
