@@ -56,6 +56,7 @@ import AiAuditLog from './pages/AiAuditLog'
 import MasterSubDatabase from './pages/MasterSubDatabase'
 import FindSubcontractors from './pages/FindSubcontractors'
 import ClaimProfile from './pages/ClaimProfile'
+import MySubProfile from './pages/MySubProfile'
 import SubProfilePublic from './pages/SubProfilePublic'
 
 import LandingPage from './landing/pages/LandingPage'
@@ -258,6 +259,7 @@ export default function App() {
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
           <Route path="/master-subs" element={<ProtectedRoute><MasterSubDatabase /></ProtectedRoute>} />
           <Route path="/find-subs" element={<ProtectedRoute><FindSubcontractors /></ProtectedRoute>} />
+          <Route path="/my-sub-profile" element={<ProtectedRoute><MySubProfile /></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
           <Route path="/teaming" element={<ProtectedRoute><TeamingTracker /></ProtectedRoute>} />
