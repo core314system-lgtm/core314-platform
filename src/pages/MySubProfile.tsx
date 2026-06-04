@@ -68,7 +68,9 @@ export default function MySubProfile() {
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const justClaimed = searchParams.get('claimed') === 'true'
+  const justVerified = searchParams.get('verified') === 'success'
   const [showClaimedBanner, setShowClaimedBanner] = useState(justClaimed)
+  const [showVerifiedBanner, setShowVerifiedBanner] = useState(justVerified)
   const [profile, setProfile] = useState<SubProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -264,8 +266,11 @@ export default function MySubProfile() {
     setDocUploading(false)
   }
 
-  async function startVerificationCheckout() {
+  async function saveAndGetVerified() {
     if (!profile) return
+    // Save profile first
+    await handleSave()
+    // Then start checkout
     setVerifyLoading(true)
     const res = await fetch('/.netlify/functions/sub-verification-checkout', {
       method: 'POST',
@@ -327,6 +332,23 @@ export default function MySubProfile() {
         </div>
       )}
 
+      {/* Verified Success Banner */}
+      {showVerifiedBanner && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BadgeCheck size={24} className="text-green-600" />
+            <div>
+              <p className="font-semibold text-green-800">You're Procuvex Verified!</p>
+              <p className="text-sm text-green-700">Your verified badge is now active. You'll appear first in prime contractor searches and receive automatic RFQ matches.</p>
+            </div>
+          </div>
+          <button onClick={() => { setShowVerifiedBanner(false); setSearchParams({}) }}
+            className="text-green-600 hover:text-green-800">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -341,19 +363,42 @@ export default function MySubProfile() {
             <ExternalLink size={14} /> View Public Profile
           </Link>
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save Changes
+            {saved ? 'Saved!' : 'Save Profile'}
           </button>
+          {profile?.verification_status !== 'verified' && (
+            <button onClick={saveAndGetVerified} disabled={saving || verifyLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-sm">
+              {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+              Save & Get Verified
+            </button>
+          )}
         </div>
       </div>
 
       {/* Status Bar */}
+      {profile?.verification_status === 'verified' && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <BadgeCheck size={22} className="text-green-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-green-800 text-sm">Procuvex Verified</p>
+              <p className="text-xs text-green-600">Your profile has priority placement in search results and auto-matching with prime contractors.</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+            <CheckCircle size={12} /> Active
+          </span>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <BadgeCheck size={18} className="text-blue-500" />
-            <span className="text-sm font-medium text-gray-700 capitalize">{profile?.verification_status}</span>
+            <BadgeCheck size={18} className={profile?.verification_status === 'verified' ? 'text-green-500' : 'text-blue-500'} />
+            <span className="text-sm font-medium text-gray-700 capitalize">{profile?.verification_status === 'verified' ? 'Verified' : profile?.verification_status}</span>
           </div>
           {profile?.sam_uei && (
             <span className="text-xs text-gray-400">UEI: {profile.sam_uei}</span>
@@ -587,10 +632,10 @@ export default function MySubProfile() {
             </div>
 
             <div className="flex items-center gap-4">
-              <button onClick={startVerificationCheckout} disabled={verifyLoading || certs.length === 0}
+              <button onClick={saveAndGetVerified} disabled={verifyLoading || saving}
                 className="flex items-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-50 disabled:opacity-60 shadow-md transition">
                 {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
-                {certs.length === 0 ? 'Upload Documents to Get Verified' : 'Get Verified Now — $99/year'}
+                Save & Get Verified — $99/year
               </button>
               <span className="text-xs text-blue-200">Introductory price — will increase. Lock in $99/yr today.</span>
             </div>
