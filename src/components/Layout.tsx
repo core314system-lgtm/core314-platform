@@ -77,6 +77,7 @@ const navGroups: NavGroup[] = [
     icon: Network,
     items: [
       { path: '/subcontractors', label: 'Subcontractors', icon: Users },
+      { path: '/find-subs', label: 'Find Subcontractors', icon: ScanSearch },
       { path: '/master-subs', label: 'Master Sub Database', icon: Database, adminOnly: true },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
       { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
