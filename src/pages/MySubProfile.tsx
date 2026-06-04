@@ -482,6 +482,13 @@ export default function MySubProfile() {
               </span>
             ))}
           </div>
+          {!form.geographic_coverage.includes('Nationwide') && (
+            <button
+              onClick={() => setForm({ ...form, geographic_coverage: ['Nationwide'] })}
+              className="mb-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium hover:bg-blue-100">
+              + Nationwide Coverage
+            </button>
+          )}
           <div className="flex gap-2">
             <select value={newGeo} onChange={e => setNewGeo(e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -545,6 +552,52 @@ export default function MySubProfile() {
         </div>
       </div>
 
+      {/* Verification Upgrade CTA — Prime Position */}
+      {profile?.verification_status !== 'verified' && (
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-xl p-6 text-white shadow-lg">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <BadgeCheck size={20} className="text-yellow-300" />
+              <span className="text-xs font-semibold bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase tracking-wide">Limited Introductory Pricing</span>
+            </div>
+            <h2 className="text-xl font-bold mt-2">Get Procuvex Verified — $99/year</h2>
+            <p className="text-blue-100 text-sm mt-1 mb-4 max-w-xl">
+              Prime contractors search for verified subcontractors first. Without verification, your profile won't appear in priority searches.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Verified badge</strong> — stand out from unverified competitors</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Priority placement</strong> — appear first in search results</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Auto-matching</strong> — get matched to RFQs in your trades automatically</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Expiration alerts</strong> — never miss a certification renewal</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button onClick={startVerificationCheckout} disabled={verifyLoading || certs.length === 0}
+                className="flex items-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-50 disabled:opacity-60 shadow-md transition">
+                {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                {certs.length === 0 ? 'Upload Documents to Get Verified' : 'Get Verified Now — $99/year'}
+              </button>
+              <span className="text-xs text-blue-200">Introductory price — will increase. Lock in $99/yr today.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Verification & Documents */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -557,22 +610,6 @@ export default function MySubProfile() {
             </span>
           )}
         </div>
-
-        {profile?.verification_status !== 'verified' && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-medium text-blue-900 text-sm mb-1">Get Procuvex Verified — $99/year (introductory)</h3>
-            <p className="text-xs text-blue-700 mb-3">
-              Verified badge, priority placement in search, auto-matching with prime contractors, and certification expiration alerts.
-            </p>
-            <div className="flex gap-2">
-              <button onClick={startVerificationCheckout} disabled={verifyLoading || certs.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
-                {verifyLoading ? <Loader2 size={12} className="animate-spin" /> : <BadgeCheck size={12} />}
-                {certs.length === 0 ? 'Upload documents first' : 'Get Verified — $99/year'}
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Uploaded Documents */}
         <div>
