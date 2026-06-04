@@ -190,18 +190,34 @@ export default function MasterSubDatabase() {
   async function handleFileUpload(file: File) {
     setFileUploading(true)
     setFileResult(null)
-    setFileProgress('Reading file...')
+    setFileProgress('Reading file... (large files may take a moment)')
 
     try {
-      const text = await file.text()
-      const lines = text.split('\n').filter(l => l.trim())
+      // Stream large files in chunks to avoid memory issues
+      const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB chunks
+      let text = ''
+      let offset = 0
+      const fileSize = file.size
+
+      while (offset < fileSize) {
+        const chunk = file.slice(offset, offset + CHUNK_SIZE)
+        text += await chunk.text()
+        offset += CHUNK_SIZE
+        if (fileSize > CHUNK_SIZE) {
+          setFileProgress(`Reading file... ${Math.min(100, Math.round(offset / fileSize * 100))}%`)
+        }
+      }
+
+      const lines = text.split(/\r?\n/).filter(l => l.trim())
       setFileProgress(`Parsed ${lines.length.toLocaleString()} lines. Processing...`)
 
       // Skip header if present (check if first field looks like a UEI)
       let startIdx = 0
-      const firstFields = parseSamCsvLine(lines[0])
-      if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.length > 12) {
-        startIdx = 1
+      if (lines.length > 0) {
+        const firstFields = parseSamCsvLine(lines[0])
+        if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.toUpperCase?.().includes('ENTITY') || firstFields[0]?.length > 12) {
+          startIdx = 1
+        }
       }
 
       // Parse records
@@ -211,16 +227,21 @@ export default function MasterSubDatabase() {
       let skippedExpired = 0
 
       for (let i = startIdx; i < lines.length; i++) {
+        if (i % 10000 === 0 && i > 0) {
+          setFileProgress(`Processing... ${i.toLocaleString()} / ${lines.length.toLocaleString()} lines (${records.length} matched)`)
+          await new Promise(r => setTimeout(r, 0)) // yield to UI
+        }
+        if (!lines[i]) continue
         const fields = parseSamCsvLine(lines[i])
-        if (fields.length < 30) continue
+        if (!fields || fields.length < 12) continue
 
-        const country = fields[SAM_COLUMNS.COUNTRY]?.trim()
-        if (country && country !== 'USA' && country !== 'US') {
+        const country = (fields[SAM_COLUMNS.COUNTRY] ?? '').trim()
+        if (country && country !== 'USA' && country !== 'US' && country !== 'UNITED STATES') {
           skippedNonUS++
           continue
         }
 
-        const extractCode = fields[SAM_COLUMNS.EXTRACT_CODE]?.trim()
+        const extractCode = (fields[SAM_COLUMNS.EXTRACT_CODE] ?? '').trim()
         if (extractCode === 'E' || extractCode === '4') {
           skippedExpired++
           continue
@@ -240,10 +261,11 @@ export default function MasterSubDatabase() {
         const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
         const url = (fields[SAM_COLUMNS.URL] || '').trim()
 
-        // NAICS codes
-        const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] || '').trim()
-        const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] || '').trim()
-        const allNaics = [naicsPrimary, ...naicsSecondary.split(/[~,;]/)].filter(n => n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
+        // NAICS codes (defensive — column indices may vary)
+        const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
+        const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] ?? '').trim()
+        const secondaryList = naicsSecondary ? naicsSecondary.split(/[~,;|]/) : []
+        const allNaics = [naicsPrimary, ...secondaryList].filter(n => n && n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
 
         // Filter by state if specified
         if (importState && state !== importState) continue
