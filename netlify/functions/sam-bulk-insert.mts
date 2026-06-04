@@ -86,31 +86,28 @@ export default async function handler(req: Request, _context: Context) {
       .select("id")
 
     if (error) {
-      // Batch failed — try in smaller chunks of 10
-      for (let i = 0; i < batch.length; i += 10) {
-        const subBatch = batch.slice(i, i + 10)
-        const { data: subData, error: subErr } = await supabase
-          .from("master_subcontractors")
-          .upsert(subBatch, { onConflict: "sam_uei", ignoreDuplicates: true })
-          .select("id")
+      console.error("BATCH UPSERT ERROR:", error.code, error.message, error.details)
+      console.error("FIRST RECORD SAMPLE:", JSON.stringify(batch[0]).slice(0, 500))
+      
+      // Batch failed — try first record individually to get exact error
+      const { error: firstErr } = await supabase
+        .from("master_subcontractors")
+        .upsert(batch[0], { onConflict: "sam_uei", ignoreDuplicates: true })
+      
+      if (firstErr) {
+        console.error("SINGLE RECORD ERROR:", firstErr.code, firstErr.message, firstErr.details)
+        errors.push(`DB Error: ${firstErr.code} — ${firstErr.message}${firstErr.details ? ' — ' + firstErr.details : ''}`)
+      }
 
-        if (subErr) {
-          // Try one by one
-          for (const record of subBatch) {
-            const { error: singleErr } = await supabase
-              .from("master_subcontractors")
-              .upsert(record, { onConflict: "sam_uei", ignoreDuplicates: true })
-            if (!singleErr) {
-              imported++
-            } else {
-              skipped++
-              if (errors.length < 5) {
-                errors.push(`${record.company_name}: ${singleErr.message}`)
-              }
-            }
-          }
+      // Try remaining records one by one
+      for (const record of batch) {
+        const { error: singleErr } = await supabase
+          .from("master_subcontractors")
+          .upsert(record, { onConflict: "sam_uei", ignoreDuplicates: true })
+        if (!singleErr) {
+          imported++
         } else {
-          imported += subData?.length || subBatch.length
+          skipped++
         }
       }
     } else {
