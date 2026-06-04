@@ -190,145 +190,167 @@ export default function MasterSubDatabase() {
   async function handleFileUpload(file: File) {
     setFileUploading(true)
     setFileResult(null)
-    setFileProgress('Reading file... (large files may take a moment)')
+    setFileProgress('Reading file... (streaming — large files supported)')
 
     try {
-      // Stream large files in chunks to avoid memory issues
-      const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB chunks
-      let text = ''
-      let offset = 0
-      const fileSize = file.size
-
-      while (offset < fileSize) {
-        const chunk = file.slice(offset, offset + CHUNK_SIZE)
-        text += await chunk.text()
-        offset += CHUNK_SIZE
-        if (fileSize > CHUNK_SIZE) {
-          setFileProgress(`Reading file... ${Math.min(100, Math.round(offset / fileSize * 100))}%`)
-        }
-      }
-
-      const lines = text.split(/\r?\n/).filter(l => l.trim())
-      setFileProgress(`Parsed ${lines.length.toLocaleString()} lines. Processing...`)
-
-      // Skip header if present (check if first field looks like a UEI)
-      let startIdx = 0
-      if (lines.length > 0) {
-        const firstFields = parseSamCsvLine(lines[0])
-        if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.toUpperCase?.().includes('ENTITY') || firstFields[0]?.length > 12) {
-          startIdx = 1
-        }
-      }
-
-      // Parse records
+      // Stream file line-by-line to avoid memory limits on large SAM.gov files (1-2GB)
       const records: any[] = []
       let skippedNonUS = 0
       let skippedNoName = 0
       let skippedExpired = 0
+      let lineCount = 0
+      let isFirstLine = true
+      let leftover = ''
 
-      for (let i = startIdx; i < lines.length; i++) {
-        if (i % 10000 === 0 && i > 0) {
-          setFileProgress(`Processing... ${i.toLocaleString()} / ${lines.length.toLocaleString()} lines (${records.length} matched)`)
-          await new Promise(r => setTimeout(r, 0)) // yield to UI
+      const reader = file.stream().getReader()
+      const decoder = new TextDecoder('utf-8')
+      let bytesRead = 0
+      const fileSize = file.size
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        bytesRead += value?.byteLength || 0
+        const chunkText = decoder.decode(value, { stream: true })
+        const combined = leftover + chunkText
+        const lines = combined.split(/\r?\n/)
+        leftover = lines.pop() || '' // last partial line carries over
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim()
+          if (!line) continue
+          lineCount++
+
+          // Check header on first line
+          if (isFirstLine) {
+            isFirstLine = false
+            const firstFields = parseSamCsvLine(line)
+            if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.toUpperCase?.().includes('ENTITY') || firstFields[0]?.length > 12) {
+              continue
+            }
+          }
+
+          if (lineCount % 20000 === 0) {
+            const pct = Math.round(bytesRead / fileSize * 100)
+            setFileProgress(`Streaming... ${pct}% — ${lineCount.toLocaleString()} lines scanned, ${records.length} matched`)
+            await new Promise(r => setTimeout(r, 0)) // yield to UI
+          }
+
+          const fields = parseSamCsvLine(line)
+          if (!fields || fields.length < 12) continue
+
+          const country = (fields[SAM_COLUMNS.COUNTRY] ?? '').trim()
+          if (country && country !== 'USA' && country !== 'US' && country !== 'UNITED STATES') {
+            skippedNonUS++
+            continue
+          }
+
+          const extractCode = (fields[SAM_COLUMNS.EXTRACT_CODE] ?? '').trim()
+          if (extractCode === 'E' || extractCode === '4') {
+            skippedExpired++
+            continue
+          }
+
+          const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
+          if (!companyName) {
+            skippedNoName++
+            continue
+          }
+
+          const uei = (fields[SAM_COLUMNS.UEI] || '').trim()
+          const cage = (fields[SAM_COLUMNS.CAGE] || '').trim()
+          const state = (fields[SAM_COLUMNS.STATE] || '').trim()
+          const city = (fields[SAM_COLUMNS.CITY] || '').trim()
+          const zip = (fields[SAM_COLUMNS.ZIP] || '').trim()
+          const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
+          const entUrl = (fields[SAM_COLUMNS.URL] || '').trim()
+
+          // NAICS codes (defensive — column indices may vary)
+          const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
+          const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] ?? '').trim()
+          const secondaryList = naicsSecondary ? naicsSecondary.split(/[~,;|]/) : []
+          const allNaics = [naicsPrimary, ...secondaryList].filter(n => n && n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
+
+          // Filter by state if specified
+          if (importState && state !== importState) continue
+
+          // Filter by NAICS if specified
+          if (importNaics) {
+            const filterCodes = importNaics.split(',').map(c => c.trim())
+            const hasMatch = filterCodes.some(fc => allNaics.some(nc => nc.startsWith(fc) || fc.startsWith(nc)))
+            if (!hasMatch) continue
+          }
+
+          const tradeIds = naicsToCategoryIds(allNaics)
+          const tradeNames = naicsToTradeNames(allNaics)
+          const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
+
+          // POC info (may be empty in public extract)
+          const pocFirst = (fields[SAM_COLUMNS.POC_GOV_FIRST] || '').trim()
+          const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
+          const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
+
+          const slug = generateSlug(companyName)
+
+          // Calculate profile completeness
+          let completeness = 30 // base for having name + UEI
+          if (city) completeness += 10
+          if (state) completeness += 10
+          if (entUrl) completeness += 15
+          if (allNaics.length > 0) completeness += 15
+          if (sbaTypes.length > 0) completeness += 10
+          if (contactName) completeness += 10
+          completeness = Math.min(completeness, 100)
+
+          records.push({
+            company_name: companyName,
+            slug,
+            sam_uei: uei || null,
+            cage_code: cage || null,
+            address_line1: addr1 || null,
+            city: city || null,
+            state: state || null,
+            zip_code: zip || null,
+            website: entUrl ? (entUrl.startsWith('http') ? entUrl : `https://${entUrl}`) : null,
+            naics_codes: allNaics,
+            trade_categories: tradeNames,
+            service_categories: tradeIds,
+            small_business: sbaTypes.length > 0,
+            small_business_types: sbaTypes,
+            geographic_coverage: state ? [state] : [],
+            contact_name: contactName,
+            verification_status: 'unverified',
+            data_source: 'sam_gov_extract',
+            profile_completeness: completeness,
+            sam_registration_status: 'active',
+          })
+        } // end for (rawLine of lines)
+      } // end while (true) — streaming chunks
+
+      // Process any remaining leftover line
+      if (leftover.trim()) {
+        const fields = parseSamCsvLine(leftover.trim())
+        if (fields && fields.length >= 12) {
+          const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
+          const state = (fields[SAM_COLUMNS.STATE] || '').trim()
+          const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
+          const allNaics = [naicsPrimary].filter(n => n && /^\d{2,6}$/.test(n.trim()))
+          if (companyName && (!importState || state === importState)) {
+            if (!importNaics || importNaics.split(',').some(fc => allNaics.some(nc => nc.startsWith(fc.trim())))) {
+              lineCount++
+            }
+          }
         }
-        if (!lines[i]) continue
-        const fields = parseSamCsvLine(lines[i])
-        if (!fields || fields.length < 12) continue
-
-        const country = (fields[SAM_COLUMNS.COUNTRY] ?? '').trim()
-        if (country && country !== 'USA' && country !== 'US' && country !== 'UNITED STATES') {
-          skippedNonUS++
-          continue
-        }
-
-        const extractCode = (fields[SAM_COLUMNS.EXTRACT_CODE] ?? '').trim()
-        if (extractCode === 'E' || extractCode === '4') {
-          skippedExpired++
-          continue
-        }
-
-        const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
-        if (!companyName) {
-          skippedNoName++
-          continue
-        }
-
-        const uei = (fields[SAM_COLUMNS.UEI] || '').trim()
-        const cage = (fields[SAM_COLUMNS.CAGE] || '').trim()
-        const state = (fields[SAM_COLUMNS.STATE] || '').trim()
-        const city = (fields[SAM_COLUMNS.CITY] || '').trim()
-        const zip = (fields[SAM_COLUMNS.ZIP] || '').trim()
-        const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
-        const url = (fields[SAM_COLUMNS.URL] || '').trim()
-
-        // NAICS codes (defensive — column indices may vary)
-        const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
-        const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] ?? '').trim()
-        const secondaryList = naicsSecondary ? naicsSecondary.split(/[~,;|]/) : []
-        const allNaics = [naicsPrimary, ...secondaryList].filter(n => n && n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
-
-        // Filter by state if specified
-        if (importState && state !== importState) continue
-
-        // Filter by NAICS if specified
-        if (importNaics) {
-          const filterCodes = importNaics.split(',').map(c => c.trim())
-          const hasMatch = filterCodes.some(fc => allNaics.some(nc => nc.startsWith(fc) || fc.startsWith(nc)))
-          if (!hasMatch) continue
-        }
-
-        const tradeIds = naicsToCategoryIds(allNaics)
-        const tradeNames = naicsToTradeNames(allNaics)
-        const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
-
-        // POC info (may be empty in public extract)
-        const pocFirst = (fields[SAM_COLUMNS.POC_GOV_FIRST] || '').trim()
-        const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
-        const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
-
-        const slug = generateSlug(companyName)
-
-        // Calculate profile completeness
-        let completeness = 30 // base for having name + UEI
-        if (city) completeness += 10
-        if (state) completeness += 10
-        if (url) completeness += 15
-        if (allNaics.length > 0) completeness += 15
-        if (sbaTypes.length > 0) completeness += 10
-        if (contactName) completeness += 10
-        completeness = Math.min(completeness, 100)
-
-        records.push({
-          company_name: companyName,
-          slug,
-          sam_uei: uei || null,
-          cage_code: cage || null,
-          address_line1: addr1 || null,
-          city: city || null,
-          state: state || null,
-          zip_code: zip || null,
-          website: url ? (url.startsWith('http') ? url : `https://${url}`) : null,
-          naics_codes: allNaics,
-          trade_categories: tradeNames,
-          service_categories: tradeIds,
-          small_business: sbaTypes.length > 0,
-          small_business_types: sbaTypes,
-          geographic_coverage: state ? [state] : [],
-          contact_name: contactName,
-          verification_status: 'unverified',
-          data_source: 'sam_gov_extract',
-          profile_completeness: completeness,
-          sam_registration_status: 'active',
-        })
       }
 
-      setFileProgress(`Found ${records.length.toLocaleString()} matching records. Importing in batches...`)
+      setFileProgress(`Found ${records.length.toLocaleString()} matching records from ${lineCount.toLocaleString()} lines. Importing...`)
 
       if (records.length === 0) {
         setFileResult({
           imported: 0,
           skipped: 0,
-          total: lines.length - startIdx,
+          total: lineCount,
           skippedNonUS,
           skippedNoName,
           skippedExpired,
