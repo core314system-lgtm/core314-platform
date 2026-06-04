@@ -322,7 +322,7 @@ export default function MasterSubDatabase() {
             geographic_coverage: state ? [state] : [],
             contact_name: contactName,
             verification_status: 'unverified',
-            data_source: 'sam_gov_extract',
+            data_source: 'sam_gov',
             profile_completeness: completeness,
             sam_registration_status: 'active',
           })
