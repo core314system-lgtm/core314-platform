@@ -370,8 +370,17 @@ export default function MasterSubDatabase() {
       const validRecords = records.filter(r => r.sam_uei)
       const noUeiCount = records.length - validRecords.length
 
-      // Import in batches using upsert to skip duplicates
-      const BATCH_SIZE = 100
+      // Get auth token for server-side insert (bypasses RLS)
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) {
+        setFileResult({ error: 'Not authenticated. Please log in and try again.' })
+        setFileUploading(false)
+        return
+      }
+
+      // Import via serverless function (uses service role key to bypass RLS)
+      const BATCH_SIZE = 200
       let imported = 0
       let skipped = 0
       let errors: string[] = []
@@ -382,30 +391,33 @@ export default function MasterSubDatabase() {
         const totalBatches = Math.ceil(validRecords.length / BATCH_SIZE)
         setFileProgress(`Importing batch ${batchNum} of ${totalBatches}... (${imported} imported, ${skipped} skipped)`)
 
-        // Yield to UI every 10 batches
-        if (batchNum % 10 === 0) await new Promise(r => setTimeout(r, 0))
+        // Yield to UI every 5 batches
+        if (batchNum % 5 === 0) await new Promise(r => setTimeout(r, 0))
 
-        const { data, error } = await supabase
-          .from('master_subcontractors')
-          .upsert(batch, { onConflict: 'sam_uei', ignoreDuplicates: true })
-          .select('id')
+        try {
+          const res = await fetch('/.netlify/functions/sam-bulk-insert', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ records: batch }),
+          })
+          const result = await res.json()
 
-        if (error) {
-          if (errors.length < 10) errors.push(`Batch ${batchNum}: ${error.message}`)
-          // On batch error, try individual records to find which ones work
-          for (const record of batch) {
-            const { error: singleErr } = await supabase
-              .from('master_subcontractors')
-              .upsert(record, { onConflict: 'sam_uei', ignoreDuplicates: true })
-            if (!singleErr) {
-              imported++
-            } else {
-              skipped++
-              if (errors.length < 10) errors.push(`Record ${record.company_name}: ${singleErr.message}`)
+          if (result.error) {
+            if (errors.length < 10) errors.push(`Batch ${batchNum}: ${result.error}`)
+            skipped += batch.length
+          } else {
+            imported += result.imported || 0
+            skipped += result.skipped || 0
+            if (result.errors?.length > 0 && errors.length < 10) {
+              errors.push(...result.errors)
             }
           }
-        } else {
-          imported += data?.length || batch.length
+        } catch (fetchErr: any) {
+          if (errors.length < 10) errors.push(`Batch ${batchNum}: Network error - ${fetchErr.message}`)
+          skipped += batch.length
         }
       }
 
