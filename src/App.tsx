@@ -54,6 +54,7 @@ import SystemHealth from './pages/SystemHealth'
 import DocumentLibrary from './pages/DocumentLibrary'
 import AiAuditLog from './pages/AiAuditLog'
 import MasterSubDatabase from './pages/MasterSubDatabase'
+import FindSubcontractors from './pages/FindSubcontractors'
 import SubProfilePublic from './pages/SubProfilePublic'
 
 import LandingPage from './landing/pages/LandingPage'
@@ -254,6 +255,7 @@ export default function App() {
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
           <Route path="/master-subs" element={<ProtectedRoute><MasterSubDatabase /></ProtectedRoute>} />
+          <Route path="/find-subs" element={<ProtectedRoute><FindSubcontractors /></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
           <Route path="/teaming" element={<ProtectedRoute><TeamingTracker /></ProtectedRoute>} />
