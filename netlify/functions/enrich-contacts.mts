@@ -209,14 +209,57 @@ export default async function handler(req: Request, _context: Context) {
     const body = await req.json()
     const batchSize = Math.min(body.batchSize || 10, 20)
 
-    // Get records with website but not yet enriched
-    const { data: records, error: fetchError } = await supabase
+    // Priority NAICS codes — Tier 1 (highest demand) enriched first
+    const TIER1_NAICS = ['238210', '238220', '236220', '238160', '238110', '238320', '238910']
+    const TIER2_NAICS = ['541512', '541519', '561720', '561730', '561612', '541330', '238290', '238310', '238340', '238350']
+
+    // Try Tier 1 first, then Tier 2, then everything else
+    let records: any[] | null = null
+    let fetchError: any = null
+
+    // Tier 1: high-demand construction trades
+    const { data: tier1Records, error: tier1Err } = await supabase
       .from("master_subcontractors")
-      .select("id, company_name, website")
+      .select("id, company_name, website, naics_codes")
       .not("website", "is", null)
       .is("contact_email", null)
       .is("profile_updated_at", null)
+      .overlaps("naics_codes", TIER1_NAICS)
       .limit(batchSize)
+
+    if (tier1Err) {
+      fetchError = tier1Err
+    } else if (tier1Records && tier1Records.length > 0) {
+      records = tier1Records
+    } else {
+      // Tier 2: IT, janitorial, security, engineering
+      const { data: tier2Records, error: tier2Err } = await supabase
+        .from("master_subcontractors")
+        .select("id, company_name, website, naics_codes")
+        .not("website", "is", null)
+        .is("contact_email", null)
+        .is("profile_updated_at", null)
+        .overlaps("naics_codes", TIER2_NAICS)
+        .limit(batchSize)
+
+      if (tier2Err) {
+        fetchError = tier2Err
+      } else if (tier2Records && tier2Records.length > 0) {
+        records = tier2Records
+      } else {
+        // All remaining records
+        const { data: remainingRecords, error: remainErr } = await supabase
+          .from("master_subcontractors")
+          .select("id, company_name, website, naics_codes")
+          .not("website", "is", null)
+          .is("contact_email", null)
+          .is("profile_updated_at", null)
+          .limit(batchSize)
+
+        if (remainErr) fetchError = remainErr
+        else records = remainingRecords
+      }
+    }
 
     if (fetchError) {
       return new Response(JSON.stringify({ error: fetchError.message }), {
@@ -308,21 +351,42 @@ export default async function handler(req: Request, _context: Context) {
       }
     }
 
-    // Check remaining
-    const { count: remaining } = await supabase
+    // Check remaining by tier
+    const { count: remainT1 } = await supabase
+      .from("master_subcontractors")
+      .select("id", { count: "exact", head: true })
+      .not("website", "is", null)
+      .is("contact_email", null)
+      .is("profile_updated_at", null)
+      .overlaps("naics_codes", TIER1_NAICS)
+
+    const { count: remainT2 } = await supabase
+      .from("master_subcontractors")
+      .select("id", { count: "exact", head: true })
+      .not("website", "is", null)
+      .is("contact_email", null)
+      .is("profile_updated_at", null)
+      .overlaps("naics_codes", TIER2_NAICS)
+
+    const { count: remainAll } = await supabase
       .from("master_subcontractors")
       .select("id", { count: "exact", head: true })
       .not("website", "is", null)
       .is("contact_email", null)
       .is("profile_updated_at", null)
 
+    const currentTier = (remainT1 || 0) > 0 ? 'tier1' : (remainT2 || 0) > 0 ? 'tier2' : 'other'
+
     return new Response(JSON.stringify({
       enriched,
       noContact,
       errors,
       total: records.length,
-      remaining: remaining || 0,
-      done: (remaining || 0) === 0,
+      remaining: remainAll || 0,
+      remainingTier1: remainT1 || 0,
+      remainingTier2: remainT2 || 0,
+      currentTier,
+      done: (remainAll || 0) === 0,
     }), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     })

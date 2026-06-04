@@ -45,6 +45,32 @@ const US_STATES = [
   'VT','VA','WA','WV','WI','WY',
 ]
 
+// High-demand subcontractor trades for federal/government contracting
+const HIGH_DEMAND_TIER1 = [
+  '238210', // Electrical
+  '238220', // Plumbing, HVAC, Mechanical
+  '236220', // Commercial/Institutional Building Construction
+  '238160', // Roofing
+  '238110', // Concrete
+  '238320', // Painting & Wall Covering
+  '238910', // Site Preparation / Excavation
+]
+
+const HIGH_DEMAND_TIER2 = [
+  '541512', // Computer Systems Design (Cybersecurity)
+  '541519', // Other Computer Related Services
+  '561720', // Janitorial Services
+  '561730', // Landscaping Services
+  '561612', // Security Guards & Patrol Services
+  '541330', // Engineering Services
+  '238290', // Other Building Equipment (Elevators, etc.)
+  '238310', // Drywall & Insulation
+  '238340', // Tile & Terrazzo
+  '238350', // Finish Carpentry
+]
+
+const ALL_HIGH_DEMAND = [...HIGH_DEMAND_TIER1, ...HIGH_DEMAND_TIER2]
+
 const VERIFICATION_LABELS: Record<string, { label: string; color: string; icon: typeof ShieldCheck }> = {
   unverified: { label: 'Unverified', color: 'bg-gray-100 text-gray-600', icon: Clock },
   claimed: { label: 'Claimed', color: 'bg-blue-100 text-blue-700', icon: Users },
@@ -567,7 +593,7 @@ export default function MasterSubDatabase() {
   async function enrichContacts() {
     setEnriching(true)
     setEnrichResult(null)
-    setEnrichProgress('Starting email enrichment...')
+    setEnrichProgress('Starting contact enrichment (high-demand trades first)...')
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
     if (!token) { setEnriching(false); return }
@@ -577,9 +603,15 @@ export default function MasterSubDatabase() {
     let totalErrors = 0
     let batchNum = 0
 
+    const tierLabels: Record<string, string> = {
+      tier1: '⚡ Tier 1 (Electrical, HVAC, Construction)',
+      tier2: '🔧 Tier 2 (IT, Janitorial, Security, Engineering)',
+      other: '📋 Other trades',
+    }
+
     while (true) {
       batchNum++
-      setEnrichProgress(`Scraping batch ${batchNum}... (${totalEnriched} emails found, ${totalNoEmail} no email)`)
+      setEnrichProgress(`Enriching batch ${batchNum}... (${totalEnriched} contacts found, ${totalNoEmail} no contact)`)
       try {
         const res = await fetch('/.netlify/functions/enrich-contacts', {
           method: 'POST',
@@ -592,8 +624,13 @@ export default function MasterSubDatabase() {
           break
         }
         totalEnriched += result.enriched || 0
-        totalNoEmail += result.noEmail || 0
+        totalNoEmail += result.noContact || 0
         totalErrors += result.errors || 0
+
+        const tierLabel = tierLabels[result.currentTier] || 'Processing'
+        const remaining = result.remaining || 0
+        setEnrichProgress(`${tierLabel} — batch ${batchNum} (${totalEnriched} contacts found, ${remaining} remaining)`)
+
         if (result.done || result.total === 0) break
       } catch (err: any) {
         setEnrichProgress(`Network error: ${err.message}`)
@@ -860,6 +897,14 @@ export default function MasterSubDatabase() {
                     <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
                       placeholder="e.g. 238220, 238210, 561720"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    <div className="flex gap-1 mt-1">
+                      <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
+                        className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
+                      <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
+                        className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
+                      <button type="button" onClick={() => setImportNaics('')}
+                        className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -926,6 +971,14 @@ export default function MasterSubDatabase() {
                   <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
                     placeholder="e.g. 238220, 238210, 561720"
                     className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" />
+                  <div className="flex gap-1 mt-1">
+                    <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
+                      className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
+                    <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
+                      className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
+                    <button type="button" onClick={() => setImportNaics('')}
+                      className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
