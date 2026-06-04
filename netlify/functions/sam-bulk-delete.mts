@@ -67,19 +67,26 @@ export default async function handler(req: Request, _context: Context) {
     let deleted = 0
 
     if (deleteAll === true) {
-      // Delete all records
-      const { error, count } = await supabase
-        .from("master_subcontractors")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000") // match all (neq impossible value)
-        .select("id")
+      // Delete all records in batches (Supabase limits to 1000 rows per request)
+      let totalDeleted = 0
+      while (true) {
+        const { data, error } = await supabase
+          .from("master_subcontractors")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000")
+          .select("id")
+          .limit(1000)
 
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
-        })
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message, deleted: totalDeleted }), {
+            status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
+          })
+        }
+        const batchCount = data?.length || 0
+        totalDeleted += batchCount
+        if (batchCount === 0) break
       }
-      deleted = count || 0
+      deleted = totalDeleted
     } else if (ids && Array.isArray(ids) && ids.length > 0) {
       // Delete specific records
       const { data, error } = await supabase
