@@ -266,11 +266,10 @@ export default function MasterSubDatabase() {
           const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
           const entUrl = (fields[SAM_COLUMNS.URL] || '').trim()
 
-          // NAICS codes (defensive — column indices may vary)
+          // NAICS codes — only use primary (position 33 is a count field, not secondary codes)
           const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
-          const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] ?? '').trim()
-          const secondaryList = naicsSecondary ? naicsSecondary.split(/[~,;|]/) : []
-          const allNaics = [naicsPrimary, ...secondaryList].filter(n => n && n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
+          // Only accept valid NAICS codes (start with 1-9, not '0000' or count fields like '0001')
+          const allNaics = [naicsPrimary].filter(n => n && /^[1-9]\d{1,5}$/.test(n.trim())).map(n => n.trim())
 
           // Filter by state if specified
           if (importState && state !== importState) continue
@@ -286,10 +285,12 @@ export default function MasterSubDatabase() {
           const tradeNames = naicsToTradeNames(allNaics)
           const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
 
-          // POC info (may be empty in public extract)
-          const pocFirst = (fields[SAM_COLUMNS.POC_GOV_FIRST] || '').trim()
-          const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
-          const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
+          // POC columns in public extract are misaligned (contain country codes, not names)
+          // Skip POC parsing — contact info will be enriched via web scraping
+          const contactName: string | null = null
+
+          // Skip records without a website (can't contact or scrape without one)
+          if (!entUrl) continue
 
           // Slug must be unique — append UEI to guarantee no collisions
           const slug = generateSlug(`${companyName} ${uei}`)
