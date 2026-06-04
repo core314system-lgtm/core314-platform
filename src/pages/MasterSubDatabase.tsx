@@ -7,7 +7,7 @@ import {
   Search, MapPin, Mail, ShieldCheck,
   ChevronDown, ChevronUp, Download, Upload, Star,
   Users, BadgeCheck, Clock, Eye, ExternalLink, Loader2, X,
-  Database, AlertCircle, FileUp, Lock,
+  Database, AlertCircle, FileUp, Lock, Trash2,
 } from 'lucide-react'
 
 interface MasterSub {
@@ -87,6 +87,8 @@ export default function MasterSubDatabase() {
   const [outreachSending, setOutreachSending] = useState(false)
   const [outreachResult, setOutreachResult] = useState<any>(null)
   const [outreachPreview, setOutreachPreview] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const PAGE_SIZE = 50
 
@@ -516,6 +518,49 @@ export default function MasterSubDatabase() {
     fetchStats()
   }
 
+  async function deleteSub(id: string) {
+    if (!confirm('Delete this subcontractor permanently?')) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return
+    try {
+      const res = await fetch('/.netlify/functions/sam-bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ids: [id] }),
+      })
+      const result = await res.json()
+      if (result.deleted) {
+        fetchSubs()
+        fetchStats()
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  async function deleteAll() {
+    setDeleting(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) { setDeleting(false); return }
+    try {
+      const res = await fetch('/.netlify/functions/sam-bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ deleteAll: true }),
+      })
+      const result = await res.json()
+      if (result.error) {
+        alert(`Error: ${result.error}`)
+      } else {
+        alert(`Deleted ${result.deleted} records.`)
+        fetchSubs()
+        fetchStats()
+      }
+    } catch (err) { console.error(err) }
+    setDeleting(false)
+    setShowDeleteConfirm(false)
+  }
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   if (authLoading) {
@@ -544,6 +589,10 @@ export default function MasterSubDatabase() {
           <p className="text-sm text-gray-500 mt-1">Procuvex verified network of subcontractors across all trades</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50">
+            <Trash2 size={16} /> Delete All
+          </button>
           <button onClick={exportCSV}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
             <Download size={16} /> Export CSV
@@ -558,6 +607,29 @@ export default function MasterSubDatabase() {
           </button>
         </div>
       </div>
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-red-700 mb-2">Delete Entire Database?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This will permanently delete <strong>all {stats.total.toLocaleString()} subcontractor records</strong> from the database. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={deleteAll} disabled={deleting}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2">
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                {deleting ? 'Deleting...' : 'Yes, Delete All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
@@ -1005,8 +1077,12 @@ export default function MasterSubDatabase() {
                       <span>Added: {new Date(sub.created_at).toLocaleDateString()}</span>
                       <span>Source: {sub.data_source === 'sam_gov' ? 'SAM.gov' : sub.data_source}</span>
                       <span>Matches: {sub.match_count}</span>
+                      <button onClick={(e) => { e.stopPropagation(); deleteSub(sub.id) }}
+                        className="ml-auto text-red-500 hover:text-red-700 flex items-center gap-1">
+                        <Trash2 size={12} /> Delete
+                      </button>
                       <Link to={`/sub/${sub.slug}`} target="_blank"
-                        className="ml-auto text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                        className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         <ExternalLink size={12} /> View Public Profile
                       </Link>
                     </div>
