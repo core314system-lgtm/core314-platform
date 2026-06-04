@@ -27,6 +27,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Unique index on sam_uei (required for bulk import upsert de-duplication)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_master_sub_sam_uei ON master_subcontractors(sam_uei) WHERE sam_uei IS NOT NULL;
+
 -- Index for verified subs (used in priority search)
 CREATE INDEX IF NOT EXISTS idx_master_sub_verified ON master_subcontractors(verification_status, profile_completeness DESC) WHERE verification_status = 'verified';
 

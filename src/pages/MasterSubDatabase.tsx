@@ -360,15 +360,24 @@ export default function MasterSubDatabase() {
         return
       }
 
-      // Import in batches of 50, using upsert to skip duplicates
-      const BATCH_SIZE = 50
+      // Filter out records without a UEI (can't upsert without conflict key)
+      const validRecords = records.filter(r => r.sam_uei)
+      const noUeiCount = records.length - validRecords.length
+
+      // Import in batches using upsert to skip duplicates
+      const BATCH_SIZE = 100
       let imported = 0
       let skipped = 0
       let errors: string[] = []
 
-      for (let i = 0; i < records.length; i += BATCH_SIZE) {
-        const batch = records.slice(i, i + BATCH_SIZE)
-        setFileProgress(`Importing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(records.length / BATCH_SIZE)}... (${imported} imported so far)`)
+      for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
+        const batch = validRecords.slice(i, i + BATCH_SIZE)
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1
+        const totalBatches = Math.ceil(validRecords.length / BATCH_SIZE)
+        setFileProgress(`Importing batch ${batchNum} of ${totalBatches}... (${imported} imported, ${skipped} skipped)`)
+
+        // Yield to UI every 10 batches
+        if (batchNum % 10 === 0) await new Promise(r => setTimeout(r, 0))
 
         const { data, error } = await supabase
           .from('master_subcontractors')
@@ -376,18 +385,27 @@ export default function MasterSubDatabase() {
           .select('id')
 
         if (error) {
-          errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
-          // Try individual inserts for this batch
-          for (const record of batch) {
-            const { error: singleErr } = await supabase
+          if (errors.length < 5) errors.push(`Batch ${batchNum}: ${error.message}`)
+          // On batch error, try smaller sub-batches of 10
+          for (let j = 0; j < batch.length; j += 10) {
+            const subBatch = batch.slice(j, j + 10)
+            const { data: subData, error: subErr } = await supabase
               .from('master_subcontractors')
-              .upsert(record, { onConflict: 'sam_uei', ignoreDuplicates: true })
-            if (!singleErr) imported++
-            else skipped++
+              .upsert(subBatch, { onConflict: 'sam_uei', ignoreDuplicates: true })
+              .select('id')
+            if (!subErr) {
+              imported += subData?.length || subBatch.length
+            } else {
+              skipped += subBatch.length
+            }
           }
         } else {
           imported += data?.length || batch.length
         }
+      }
+
+      if (noUeiCount > 0) {
+        errors.push(`${noUeiCount} records skipped (no SAM UEI — required for de-duplication)`)
       }
 
       setFileResult({
