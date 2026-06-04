@@ -291,7 +291,13 @@ export default function MasterSubDatabase() {
           const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
           const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
 
-          const slug = generateSlug(companyName)
+          // Make slug unique by appending city/state to avoid conflicts
+          let slug = generateSlug(companyName)
+          if (city && state) {
+            slug = generateSlug(`${companyName} ${city} ${state}`)
+          } else if (state) {
+            slug = generateSlug(`${companyName} ${state}`)
+          }
 
           // Calculate profile completeness
           let completeness = 30 // base for having name + UEI
@@ -385,18 +391,17 @@ export default function MasterSubDatabase() {
           .select('id')
 
         if (error) {
-          if (errors.length < 5) errors.push(`Batch ${batchNum}: ${error.message}`)
-          // On batch error, try smaller sub-batches of 10
-          for (let j = 0; j < batch.length; j += 10) {
-            const subBatch = batch.slice(j, j + 10)
-            const { data: subData, error: subErr } = await supabase
+          if (errors.length < 10) errors.push(`Batch ${batchNum}: ${error.message}`)
+          // On batch error, try individual records to find which ones work
+          for (const record of batch) {
+            const { error: singleErr } = await supabase
               .from('master_subcontractors')
-              .upsert(subBatch, { onConflict: 'sam_uei', ignoreDuplicates: true })
-              .select('id')
-            if (!subErr) {
-              imported += subData?.length || subBatch.length
+              .upsert(record, { onConflict: 'sam_uei', ignoreDuplicates: true })
+            if (!singleErr) {
+              imported++
             } else {
-              skipped += subBatch.length
+              skipped++
+              if (errors.length < 10) errors.push(`Record ${record.company_name}: ${singleErr.message}`)
             }
           }
         } else {
