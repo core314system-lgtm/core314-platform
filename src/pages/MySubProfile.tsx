@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
@@ -66,6 +66,9 @@ const DOC_TYPES = [
 
 export default function MySubProfile() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const justClaimed = searchParams.get('claimed') === 'true'
+  const [showClaimedBanner, setShowClaimedBanner] = useState(justClaimed)
   const [profile, setProfile] = useState<SubProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -307,6 +310,23 @@ export default function MySubProfile() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Claimed Success Banner */}
+      {showClaimedBanner && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={24} className="text-green-600" />
+            <div>
+              <p className="font-semibold text-green-800">Profile Claimed Successfully!</p>
+              <p className="text-sm text-green-700">Complete your profile below to increase visibility and get matched with prime contractors.</p>
+            </div>
+          </div>
+          <button onClick={() => { setShowClaimedBanner(false); setSearchParams({}) }}
+            className="text-green-600 hover:text-green-800">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

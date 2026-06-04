@@ -95,7 +95,7 @@ export default function ClaimProfile() {
       setError(updateError.message)
       setStep('error')
     } else {
-      setStep('success')
+      navigate('/my-sub-profile?claimed=true')
     }
   }
 
@@ -153,7 +153,7 @@ export default function ClaimProfile() {
       setError(updateError.message)
       setStep('error')
     } else {
-      setStep('success')
+      navigate('/my-sub-profile?claimed=true')
     }
     setSubmitting(false)
   }
