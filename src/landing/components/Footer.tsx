@@ -4,6 +4,7 @@ const footerLinks = {
   product: [
     { label: 'Product', to: '/product' },
     { label: 'How It Works', to: '/how-it-works' },
+    { label: 'Subcontractor Network', to: '/for-subcontractors' },
     { label: 'Integrations', to: '/integrations-overview' },
     { label: 'Pricing', to: '/pricing' },
   ],

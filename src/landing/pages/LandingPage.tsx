@@ -292,8 +292,187 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* BENEFITS */}
+      {/* SUBCONTRACTOR NETWORK — THE DIFFERENTIATOR */}
+      <section className="py-20 lg:py-28 bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 text-white relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0">
+          <div className="absolute top-10 left-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 right-10 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
+          {/* Network grid */}
+          <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="landing-grid" width="80" height="80" patternUnits="userSpaceOnUse">
+                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="white" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#landing-grid)" />
+          </svg>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-6">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-sm text-blue-200 mb-6">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" /></span>
+              Our #1 Competitive Advantage
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              The Verified Subcontractor Network
+            </h2>
+            <p className="text-lg text-blue-200 max-w-3xl mx-auto leading-relaxed">
+              No other platform connects prime contractors with a verified database of 18,000+ subcontractors. This is the feature that changes how government teams are built.
+            </p>
+          </motion.div>
+
+          {/* Animated Stats */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto my-12">
+            {[
+              { value: '18,000+', label: 'Subcontractors' },
+              { value: '200+', label: 'Trade Categories' },
+              { value: '50', label: 'States Covered' },
+              { value: 'Real-Time', label: 'Auto-Matching' },
+            ].map((stat, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="text-center">
+                <div className="text-3xl md:text-4xl font-extrabold text-white">{stat.value}</div>
+                <div className="text-sm text-blue-300 mt-1">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Two-sided value prop */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mt-14">
+            <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
+                <Building2 className="h-6 w-6 text-blue-300" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">For Prime Contractors</h3>
+              <ul className="space-y-3">
+                {['Search verified subs by trade, location & certification', 'AI auto-matches subs to your RFQ requirements', 'One-click RFQ distribution to qualified subs', 'Build winning teams in minutes, not weeks'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-blue-100 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/pricing" className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 bg-white text-blue-900 rounded-lg font-semibold text-sm hover:bg-blue-50 transition-colors">
+                Start Free Trial <ArrowRight className="h-4 w-4" />
+              </Link>
+            </motion.div>
+
+            <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center mb-4">
+                <HardHat className="h-6 w-6 text-green-300" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">For Subcontractors</h3>
+              <ul className="space-y-3">
+                {['Get discovered by primes actively looking to team', 'Verified badge builds trust and credibility', 'Auto-matched to relevant RFQ opportunities', 'Certification expiration alerts keep you compliant'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-blue-100 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/for-subcontractors" className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 bg-green-500 text-white rounded-lg font-semibold text-sm hover:bg-green-600 transition-colors">
+                Check Your Listing <ArrowRight className="h-4 w-4" />
+              </Link>
+            </motion.div>
+          </motion.div>
+
+          {/* Animated Workflow */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} transition={{ duration: 0.6, delay: 0.3 }} className="mt-16 max-w-5xl mx-auto">
+            <h3 className="text-center text-xl font-bold mb-8 text-blue-200">How Auto-Matching Works</h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+              {[
+                { step: '1', label: 'Prime posts RFQ', icon: '📋' },
+                { step: '→', label: '', icon: '' },
+                { step: '2', label: 'AI matches subs', icon: '🤖' },
+                { step: '→', label: '', icon: '' },
+                { step: '3', label: 'Team assembled', icon: '🤝' },
+              ].map((s, i) => (
+                s.icon ? (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: i * 0.15 }}
+                    className="text-center bg-white/5 border border-white/10 rounded-xl p-4"
+                  >
+                    <div className="text-3xl mb-2">{s.icon}</div>
+                    <div className="text-sm font-medium text-white">{s.label}</div>
+                  </motion.div>
+                ) : (
+                  <div key={i} className="hidden md:flex items-center justify-center">
+                    <ArrowRight className="h-6 w-6 text-blue-400 animate-pulse" />
+                  </div>
+                )
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* COMPETITIVE ADVANTAGE */}
       <section className="py-20 lg:py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-14">
+            <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">Why We Win</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              What No Other Platform Offers
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              Competitors help you manage bids. Only Procuvex helps you build winning teams.
+            </p>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="max-w-4xl mx-auto overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="text-left px-6 py-4 font-bold text-slate-900">Feature</th>
+                  <th className="text-center px-6 py-4 font-bold text-blue-600">Procuvex</th>
+                  <th className="text-center px-6 py-4 font-bold text-slate-500">Competitors</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { feature: 'Verified Subcontractor Database', us: true, them: false },
+                  { feature: 'AI Auto-Matching (Primes ↔ Subs)', us: true, them: false },
+                  { feature: 'Two-Sided Network (Primes + Subs)', us: true, them: false },
+                  { feature: 'Sub Verification & Badges', us: true, them: false },
+                  { feature: 'AI Document Analysis', us: true, them: true },
+                  { feature: 'Compliance Tracking', us: true, them: true },
+                  { feature: 'Pipeline Management', us: true, them: true },
+                  { feature: 'Certification Expiration Alerts', us: true, them: false },
+                ].map((row, i) => (
+                  <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td className="px-6 py-3 text-slate-800 font-medium">{row.feature}</td>
+                    <td className="text-center px-6 py-3">
+                      <CheckCircle className="h-5 w-5 text-green-500 inline" />
+                    </td>
+                    <td className="text-center px-6 py-3">
+                      {row.them ? (
+                        <CheckCircle className="h-5 w-5 text-slate-300 inline" />
+                      ) : (
+                        <span className="text-red-400 font-bold text-lg">✗</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+
+          <div className="mt-10 text-center">
+            <Link to="/for-subcontractors" className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all">
+              Explore the Network <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* BENEFITS */}
+      <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-14">
             <p className="text-blue-600 text-sm font-bold uppercase tracking-wider mb-3">How Procuvex Helps</p>
