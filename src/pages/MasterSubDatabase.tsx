@@ -80,6 +80,13 @@ export default function MasterSubDatabase() {
   const [fileProgress, setFileProgress] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [stats, setStats] = useState({ total: 0, verified: 0, claimed: 0, withEmail: 0 })
+  const [showOutreach, setShowOutreach] = useState(false)
+  const [outreachState, setOutreachState] = useState('')
+  const [outreachTrade, setOutreachTrade] = useState('')
+  const [outreachLimit, setOutreachLimit] = useState(50)
+  const [outreachSending, setOutreachSending] = useState(false)
+  const [outreachResult, setOutreachResult] = useState<any>(null)
+  const [outreachPreview, setOutreachPreview] = useState<any>(null)
 
   const PAGE_SIZE = 50
 
@@ -408,6 +415,32 @@ export default function MasterSubDatabase() {
     URL.revokeObjectURL(url)
   }
 
+  async function previewOutreach() {
+    setOutreachResult(null)
+    const res = await fetch('/.netlify/functions/sub-outreach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': profile?.id || '' },
+      body: JSON.stringify({ action: 'preview', state: outreachState, trade: outreachTrade, limit: outreachLimit }),
+    })
+    const data = await res.json()
+    setOutreachPreview(data)
+  }
+
+  async function sendOutreach() {
+    setOutreachSending(true)
+    setOutreachResult(null)
+    const res = await fetch('/.netlify/functions/sub-outreach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': profile?.id || '' },
+      body: JSON.stringify({ action: 'send-outreach', state: outreachState, trade: outreachTrade, limit: outreachLimit }),
+    })
+    const data = await res.json()
+    setOutreachResult(data)
+    setOutreachSending(false)
+    setOutreachPreview(null)
+    fetchStats()
+  }
+
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   if (authLoading) {
@@ -440,7 +473,11 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
             <Download size={16} /> Export CSV
           </button>
-          <button onClick={() => setShowImport(!showImport)}
+          <button onClick={() => { setShowOutreach(!showOutreach); setShowImport(false) }}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
+            <Mail size={16} /> Send Outreach
+          </button>
+          <button onClick={() => { setShowImport(!showImport); setShowOutreach(false) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Upload size={16} /> Import from SAM.gov
           </button>
@@ -467,6 +504,88 @@ export default function MasterSubDatabase() {
           <div className="text-2xl font-bold text-green-600">{stats.verified.toLocaleString()}</div>
         </div>
       </div>
+
+      {/* Outreach Panel */}
+      {showOutreach && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-green-900">Send Claim Outreach Emails</h3>
+            <button onClick={() => setShowOutreach(false)} className="text-green-400 hover:text-green-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-green-700">
+            Send claim invitation emails to unclaimed subcontractors with email addresses.
+            Each email contains a unique claim link valid for 90 days.
+          </p>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">State (optional)</label>
+              <select value={outreachState} onChange={e => setOutreachState(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">All States</option>
+                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Trade (optional)</label>
+              <select value={outreachTrade} onChange={e => setOutreachTrade(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">All Trades</option>
+                {TRADE_CATEGORIES.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Batch Size</label>
+              <select value={outreachLimit} onChange={e => setOutreachLimit(Number(e.target.value))}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={previewOutreach}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-100">
+              <Eye size={14} /> Preview Recipients
+            </button>
+            <button onClick={sendOutreach} disabled={outreachSending}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+              {outreachSending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+              Send Emails
+            </button>
+          </div>
+
+          {outreachPreview && (
+            <div className="bg-white border border-green-200 rounded-lg p-3 text-sm">
+              <p className="font-medium text-green-800 mb-2">{outreachPreview.total} eligible recipients found</p>
+              {outreachPreview.targets?.slice(0, 5).map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-700">{t.company_name}</span>
+                  <span className="text-gray-400 text-xs">{t.contact_email} • {t.state}</span>
+                </div>
+              ))}
+              {outreachPreview.total > 5 && <p className="text-xs text-gray-400 mt-1">...and {outreachPreview.total - 5} more</p>}
+            </div>
+          )}
+
+          {outreachResult && (
+            <div className={`p-3 rounded-lg text-sm ${outreachResult.error ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-100 border border-green-300 text-green-800'}`}>
+              {outreachResult.error ? (
+                <p>{outreachResult.error}</p>
+              ) : (
+                <p>
+                  <strong>{outreachResult.sent}</strong> emails sent successfully
+                  {outreachResult.failed > 0 && <>, <strong>{outreachResult.failed}</strong> failed</>}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Import Panel */}
       {showImport && (

@@ -55,6 +55,7 @@ import DocumentLibrary from './pages/DocumentLibrary'
 import AiAuditLog from './pages/AiAuditLog'
 import MasterSubDatabase from './pages/MasterSubDatabase'
 import FindSubcontractors from './pages/FindSubcontractors'
+import ClaimProfile from './pages/ClaimProfile'
 import SubProfilePublic from './pages/SubProfilePublic'
 
 import LandingPage from './landing/pages/LandingPage'
@@ -190,6 +191,7 @@ export default function App() {
 
           {/* Public Subcontractor Profile */}
           <Route path="/sub/:slug" element={<SubProfilePublic />} />
+          <Route path="/claim/:token" element={<ClaimProfile />} />
 
           {/* Dashboard (authenticated home) */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

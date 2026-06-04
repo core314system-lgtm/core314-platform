@@ -338,7 +338,7 @@ export default function SubProfilePublic() {
                 <p className="text-sm text-gray-600 mb-4">
                   Claim your profile to update information, upload certifications, and get matched with prime contractors.
                 </p>
-                <a href={`mailto:admin@core314.com?subject=Claim Profile: ${profile.company_name}&body=I would like to claim the Procuvex profile for ${profile.company_name} (UEI: ${profile.sam_uei || 'N/A'}).`}
+                <a href={`mailto:team@procuvex.com?subject=Claim Profile: ${profile.company_name}&body=I would like to claim the Procuvex profile for ${profile.company_name} (UEI: ${profile.sam_uei || 'N/A'}). Please send me a claim link.`}
                   className="inline-block px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm">
                   Claim This Profile
                 </a>
