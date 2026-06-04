@@ -291,13 +291,8 @@ export default function MasterSubDatabase() {
           const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
           const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
 
-          // Make slug unique by appending city/state to avoid conflicts
-          let slug = generateSlug(companyName)
-          if (city && state) {
-            slug = generateSlug(`${companyName} ${city} ${state}`)
-          } else if (state) {
-            slug = generateSlug(`${companyName} ${state}`)
-          }
+          // Slug must be unique — append UEI to guarantee no collisions
+          const slug = generateSlug(`${companyName} ${uei}`)
 
           // Calculate profile completeness
           let completeness = 30 // base for having name + UEI
