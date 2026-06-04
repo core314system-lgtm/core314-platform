@@ -56,12 +56,12 @@ export default function OrgDefaultTemplate() {
 
   useEffect(() => {
     async function loadOrgTemplate() {
-      if (!profile?.org_id) { setLoading(false); return }
+      if (!profile?.current_org_id) { setLoading(false); return }
 
       const { data: template } = await supabase
         .from('org_default_templates')
         .select('*')
-        .eq('org_id', profile.org_id)
+        .eq('org_id', profile.current_org_id)
         .eq('template_type', 'quote_form')
         .single()
 
@@ -73,7 +73,7 @@ export default function OrgDefaultTemplate() {
       setLoading(false)
     }
     loadOrgTemplate()
-  }, [profile?.org_id])
+  }, [profile?.current_org_id])
 
   function addCustomField() {
     const newField: TemplateField = {
@@ -112,7 +112,7 @@ export default function OrgDefaultTemplate() {
   }
 
   async function saveTemplate() {
-    if (!profile?.org_id) return
+    if (!profile?.current_org_id) return
     setSaving(true)
     setSaved(false)
 
@@ -127,7 +127,7 @@ export default function OrgDefaultTemplate() {
       const { error } = await supabase
         .from('org_default_templates')
         .upsert({
-          org_id: profile.org_id,
+          org_id: profile.current_org_id,
           template_type: 'quote_form',
           name: templateName,
           fields: cleanFields,
@@ -138,7 +138,7 @@ export default function OrgDefaultTemplate() {
       if (error) {
         // Table may not exist yet — try insert instead
         await supabase.from('org_default_templates').insert({
-          org_id: profile.org_id,
+          org_id: profile.current_org_id,
           template_type: 'quote_form',
           name: templateName,
           fields: cleanFields,

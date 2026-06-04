@@ -33,6 +33,7 @@ import {
   ShieldCheck,
   FolderOpen,
   ScanSearch,
+  Database,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
     icon: Network,
     items: [
       { path: '/subcontractors', label: 'Subcontractors', icon: Users },
+      { path: '/master-subs', label: 'Master Sub Database', icon: Database, adminOnly: true },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
       { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
       { path: '/teaming', label: 'Teaming & JVs', icon: Users },
@@ -265,7 +267,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                   {isExpanded && (
                     <div className="mt-0.5 mb-1 space-y-0.5">
-                      {group.items.map(item => {
+                      {group.items.filter(item => !item.adminOnly || profile?.is_global_admin).map(item => {
                         const isActive = item.path === '/dashboard'
                           ? location.pathname === '/dashboard'
                           : location.pathname.startsWith(item.path)

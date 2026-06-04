@@ -154,7 +154,7 @@ export default function ModificationTracker({ taskOrderId }: Props) {
 
     const subMap = new Map<string, SubNotification>()
     for (const ss of sowSubs) {
-      const sub = (ss as Record<string, Record<string, string>>).subcontractors
+      const sub = (ss as unknown as Record<string, Record<string, string>>).subcontractors
       if (!sub) continue
       const existing = subMap.get(ss.subcontractor_id)
       const sowItem = sowItems.find(s => s.id === ss.sow_item_id)
