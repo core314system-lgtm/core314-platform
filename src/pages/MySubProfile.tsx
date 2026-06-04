@@ -44,6 +44,26 @@ const SB_TYPES = [
   'SDB', 'SDVOSB', 'WOSB', 'EDWOSB', 'HUBZone', '8(a)', 'VOSB', 'ANT', 'IndTrb', 'NHO', 'ANC',
 ]
 
+interface Certification {
+  id: string
+  cert_type: string
+  cert_name: string
+  file_url: string | null
+  expiration_date: string | null
+  status: string
+  uploaded_at: string
+}
+
+const DOC_TYPES = [
+  { value: 'coi', label: 'Certificate of Insurance (COI)' },
+  { value: 'license', label: 'Business/Trade License' },
+  { value: 'w9', label: 'W-9 Form' },
+  { value: 'bonding', label: 'Bonding Certificate' },
+  { value: 'safety', label: 'Safety Certification (OSHA, etc.)' },
+  { value: 'quality', label: 'Quality Certification (ISO, etc.)' },
+  { value: 'other', label: 'Other Document' },
+]
+
 export default function MySubProfile() {
   const { user } = useAuth()
   const [profile, setProfile] = useState<SubProfile | null>(null)
@@ -52,6 +72,13 @@ export default function MySubProfile() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [noProfile, setNoProfile] = useState(false)
+  const [certs, setCerts] = useState<Certification[]>([])
+  const [showDocUpload, setShowDocUpload] = useState(false)
+  const [docType, setDocType] = useState('')
+  const [docName, setDocName] = useState('')
+  const [docExpDate, setDocExpDate] = useState('')
+  const [docUploading, setDocUploading] = useState(false)
+  const [verifyLoading, setVerifyLoading] = useState(false)
 
   // Editable form state
   const [form, setForm] = useState({
@@ -92,6 +119,15 @@ export default function MySubProfile() {
     }
 
     setProfile(data)
+
+    // Fetch certifications
+    const { data: certData } = await supabase
+      .from('master_sub_certifications')
+      .select('*')
+      .eq('master_sub_id', data.id)
+      .order('uploaded_at', { ascending: false })
+    setCerts(certData || [])
+
     setForm({
       company_name: data.company_name || '',
       contact_name: data.contact_name || '',
@@ -193,6 +229,58 @@ export default function MySubProfile() {
       ? form.small_business_types.filter(x => x !== t)
       : [...form.small_business_types, t]
     setForm({ ...form, small_business_types: types, small_business: types.length > 0 })
+  }
+
+  async function uploadDocument() {
+    if (!profile || !docType || !docName) return
+    setDocUploading(true)
+    setError('')
+
+    const res = await fetch('/.netlify/functions/sub-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': user!.id },
+      body: JSON.stringify({
+        action: 'upload-doc',
+        sub_id: profile.id,
+        doc_type: docType,
+        doc_name: docName,
+        file_url: null, // URL would come from Supabase Storage upload
+        expiration_date: docExpDate || null,
+      }),
+    })
+    const data = await res.json()
+    if (data.error) {
+      setError(data.error)
+    } else {
+      setCerts([data.certification, ...certs])
+      setShowDocUpload(false)
+      setDocType('')
+      setDocName('')
+      setDocExpDate('')
+    }
+    setDocUploading(false)
+  }
+
+  async function startVerificationCheckout() {
+    if (!profile) return
+    setVerifyLoading(true)
+    const res = await fetch('/.netlify/functions/sub-verification-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': user!.id },
+      body: JSON.stringify({
+        sub_id: profile.id,
+        user_id: user!.id,
+        user_email: user!.email,
+        plan: 'annual_intro',
+      }),
+    })
+    const data = await res.json()
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url
+    } else {
+      setError(data.error || 'Failed to start checkout')
+    }
+    setVerifyLoading(false)
   }
 
   if (loading) {
@@ -434,6 +522,109 @@ export default function MySubProfile() {
               {type}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Verification & Documents */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <BadgeCheck size={16} /> Verification & Documents
+          </h2>
+          {profile?.verification_status === 'verified' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              <CheckCircle size={12} /> Verified
+            </span>
+          )}
+        </div>
+
+        {profile?.verification_status !== 'verified' && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-medium text-blue-900 text-sm mb-1">Get Procuvex Verified — $99/year (introductory)</h3>
+            <p className="text-xs text-blue-700 mb-3">
+              Verified badge, priority placement in search, auto-matching with prime contractors, and certification expiration alerts.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={startVerificationCheckout} disabled={verifyLoading || certs.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
+                {verifyLoading ? <Loader2 size={12} className="animate-spin" /> : <BadgeCheck size={12} />}
+                {certs.length === 0 ? 'Upload documents first' : 'Get Verified — $99/year'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Uploaded Documents */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Documents ({certs.length})</span>
+            <button onClick={() => setShowDocUpload(!showDocUpload)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+              <Plus size={12} /> Add Document
+            </button>
+          </div>
+
+          {showDocUpload && (
+            <div className="border border-gray-200 rounded-lg p-4 mb-3 space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Document Type</label>
+                  <select value={docType} onChange={e => setDocType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+                    <option value="">Select type...</option>
+                    {DOC_TYPES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Document Name</label>
+                  <input type="text" value={docName} onChange={e => setDocName(e.target.value)}
+                    placeholder="e.g. General Liability COI"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Expiration Date</label>
+                  <input type="date" value={docExpDate} onChange={e => setDocExpDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={uploadDocument} disabled={docUploading || !docType || !docName}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
+                  {docUploading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                  Add
+                </button>
+                <button onClick={() => setShowDocUpload(false)}
+                  className="px-3 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {certs.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No documents uploaded yet. Add COI, licenses, or certifications to get verified.</p>
+          ) : (
+            <div className="space-y-2">
+              {certs.map(cert => (
+                <div key={cert.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">{cert.cert_name}</p>
+                    <p className="text-xs text-gray-500">
+                      {DOC_TYPES.find(d => d.value === cert.cert_type)?.label || cert.cert_type}
+                      {cert.expiration_date && <> · Expires: {new Date(cert.expiration_date).toLocaleDateString()}</>}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    cert.status === 'verified' ? 'bg-green-100 text-green-700' :
+                    cert.status === 'pending_review' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {cert.status === 'verified' ? 'Verified' : cert.status === 'pending_review' ? 'Pending' : cert.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
