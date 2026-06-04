@@ -64,12 +64,12 @@ export default async function handler(req: Request, _context: Context) {
 
     // Check admin status
     const { data: profile } = await supabase
-      .from("profiles")
+      .from("user_profiles")
       .select("role")
       .eq("id", user.id)
       .single()
 
-    if (!profile || profile.role !== "global_admin") {
+    if (!profile || profile.role !== "admin") {
       return new Response(JSON.stringify({ error: "Admin access required" }), {
         status: 403, headers: { "Content-Type": "application/json", ...corsHeaders },
       })
