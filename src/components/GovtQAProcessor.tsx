@@ -216,7 +216,7 @@ export default function GovtQAProcessor({ taskOrderId }: Props) {
       if (result.success) {
         const enrichedMatches: MatchResult[] = (result.matches || []).map((m: Partial<MatchResult>) => ({
           ...m,
-          approved: m.confidence >= 70 && m.matched_sub_question !== null,
+          approved: (m.confidence ?? 0) >= 70 && m.matched_sub_question !== null,
           admin_note: '',
         }))
         setMatches(enrichedMatches)
@@ -259,8 +259,8 @@ export default function GovtQAProcessor({ taskOrderId }: Props) {
           task_order_id: taskOrderId,
           distributions: Array.from(subGroups.entries()).map(([subId, group]) => ({
             subcontractor_id: subId,
-            company_name: group.sub.company_name,
-            contact_email: group.sub.contact_email,
+            company_name: group.sub?.company_name,
+            contact_email: group.sub?.contact_email,
             qa_pairs: group.qa_pairs,
           })),
         }),

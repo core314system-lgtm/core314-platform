@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
+import { TRADE_CATEGORIES, naicsToTradeNames, naicsToCategoryIds, generateSlug } from '../lib/naicsTradeMapping'
 import {
   Search, MapPin, Mail, ShieldCheck,
   ChevronDown, ChevronUp, Download, Upload, Star,
   Users, BadgeCheck, Clock, Eye, ExternalLink, Loader2, X,
-  Database, AlertCircle,
+  Database, AlertCircle, FileUp,
 } from 'lucide-react'
 
 interface MasterSub {
@@ -70,6 +70,11 @@ export default function MasterSubDatabase() {
   const [importResult, setImportResult] = useState<any>(null)
   const [importState, setImportState] = useState('')
   const [importNaics, setImportNaics] = useState('')
+  const [importMode, setImportMode] = useState<'api' | 'file'>('file')
+  const [fileUploading, setFileUploading] = useState(false)
+  const [fileResult, setFileResult] = useState<any>(null)
+  const [fileProgress, setFileProgress] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [stats, setStats] = useState({ total: 0, verified: 0, claimed: 0, withEmail: 0 })
 
   const PAGE_SIZE = 50
@@ -122,6 +127,233 @@ export default function MasterSubDatabase() {
   }, [search, filterState, filterTrade, filterVerification, filterSmallBiz, sortBy, sortDir, page])
 
   useEffect(() => { fetchSubs(); fetchStats() }, [fetchSubs, fetchStats])
+
+  // SAM.gov Public V2 Extract columns (pipe-delimited)
+  // See: https://open.gsa.gov/api/sam-entity-extracts-api/v1/SAM_Entity_Management_Public_V2_Extract_Layout.pdf
+  const SAM_COLUMNS = {
+    UEI: 0,          // UNIQUE ENTITY IDENTIFIER (SAM)
+    CAGE: 3,         // CAGE CODE
+    EXTRACT_CODE: 5, // SAM EXTRACT CODE
+    REG_DATE: 7,     // INITIAL REGISTRATION DATE
+    EXPIRY_DATE: 8,  // REGISTRATION EXPIRATION DATE
+    LAST_UPDATE: 9,  // LAST UPDATE DATE
+    ACTIVATION_DATE: 10, // ACTIVATION DATE
+    LEGAL_NAME: 11,  // LEGAL BUSINESS NAME
+    DBA_NAME: 12,    // DBA NAME
+    ADDR1: 15,       // PHYSICAL ADDRESS LINE 1
+    ADDR2: 16,       // PHYSICAL ADDRESS LINE 2
+    CITY: 17,        // PHYSICAL ADDRESS CITY
+    STATE: 18,       // PHYSICAL ADDRESS PROVINCE OR STATE
+    ZIP: 19,         // PHYSICAL ADDRESS ZIP
+    COUNTRY: 21,     // PHYSICAL ADDRESS COUNTRY CODE
+    URL: 26,         // ENTITY URL
+    NAICS_PRIMARY: 32, // PRIMARY NAICS
+    NAICS_SECONDARY: 33, // NAICS CODE STRING (pipe-separated within field, or ~-delimited)
+    SBA_BIZ_TYPES: 40, // SBA BUSINESS TYPES STRING
+    POC_GOV_FIRST: 77,  // GOVT BUSINESS POC FIRST NAME
+    POC_GOV_LAST: 79,   // GOVT BUSINESS POC LAST NAME
+    POC_GOV_PHONE: 85,  // GOVT BUSINESS POC PHONE
+    POC_GOV_EMAIL: 86,  // GOVT BUSINESS POC EMAIL (public extract may not include this)
+    POC_ALT_FIRST: 88,  // ALT GOVT BUSINESS POC FIRST NAME
+    POC_ALT_LAST: 90,   // ALT GOVT BUSINESS POC LAST NAME
+  }
+
+  function parseSamCsvLine(line: string): string[] {
+    // SAM files are pipe-delimited
+    return line.split('|')
+  }
+
+  function parseSbaTypes(sbaStr: string): string[] {
+    if (!sbaStr?.trim()) return []
+    const types: string[] = []
+    const str = sbaStr.toUpperCase()
+    if (str.includes('SDB') || str.includes('SMALL DISADVANTAGED')) types.push('SDB')
+    if (str.includes('8(A)') || str.includes('8A')) types.push('8(a)')
+    if (str.includes('HUBZONE') || str.includes('HUB ZONE')) types.push('HUBZone')
+    if (str.includes('WOSB') || str.includes('WOMEN')) types.push('WOSB')
+    if (str.includes('SDVOSB') || str.includes('SERVICE-DISABLED') || str.includes('SERVICE DISABLED VETERAN')) types.push('SDVOSB')
+    if (str.includes('VOSB') && !str.includes('SDVOSB')) types.push('VOSB')
+    return types
+  }
+
+  async function handleFileUpload(file: File) {
+    setFileUploading(true)
+    setFileResult(null)
+    setFileProgress('Reading file...')
+
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').filter(l => l.trim())
+      setFileProgress(`Parsed ${lines.length.toLocaleString()} lines. Processing...`)
+
+      // Skip header if present (check if first field looks like a UEI)
+      let startIdx = 0
+      const firstFields = parseSamCsvLine(lines[0])
+      if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.length > 12) {
+        startIdx = 1
+      }
+
+      // Parse records
+      const records: any[] = []
+      let skippedNonUS = 0
+      let skippedNoName = 0
+      let skippedExpired = 0
+
+      for (let i = startIdx; i < lines.length; i++) {
+        const fields = parseSamCsvLine(lines[i])
+        if (fields.length < 30) continue
+
+        const country = fields[SAM_COLUMNS.COUNTRY]?.trim()
+        if (country && country !== 'USA' && country !== 'US') {
+          skippedNonUS++
+          continue
+        }
+
+        const extractCode = fields[SAM_COLUMNS.EXTRACT_CODE]?.trim()
+        if (extractCode === 'E' || extractCode === '4') {
+          skippedExpired++
+          continue
+        }
+
+        const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
+        if (!companyName) {
+          skippedNoName++
+          continue
+        }
+
+        const uei = (fields[SAM_COLUMNS.UEI] || '').trim()
+        const cage = (fields[SAM_COLUMNS.CAGE] || '').trim()
+        const state = (fields[SAM_COLUMNS.STATE] || '').trim()
+        const city = (fields[SAM_COLUMNS.CITY] || '').trim()
+        const zip = (fields[SAM_COLUMNS.ZIP] || '').trim()
+        const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
+        const url = (fields[SAM_COLUMNS.URL] || '').trim()
+
+        // NAICS codes
+        const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] || '').trim()
+        const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] || '').trim()
+        const allNaics = [naicsPrimary, ...naicsSecondary.split(/[~,;]/)].filter(n => n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
+
+        // Filter by state if specified
+        if (importState && state !== importState) continue
+
+        // Filter by NAICS if specified
+        if (importNaics) {
+          const filterCodes = importNaics.split(',').map(c => c.trim())
+          const hasMatch = filterCodes.some(fc => allNaics.some(nc => nc.startsWith(fc) || fc.startsWith(nc)))
+          if (!hasMatch) continue
+        }
+
+        const tradeIds = naicsToCategoryIds(allNaics)
+        const tradeNames = naicsToTradeNames(allNaics)
+        const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
+
+        // POC info (may be empty in public extract)
+        const pocFirst = (fields[SAM_COLUMNS.POC_GOV_FIRST] || '').trim()
+        const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
+        const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
+
+        const slug = generateSlug(companyName)
+
+        // Calculate profile completeness
+        let completeness = 30 // base for having name + UEI
+        if (city) completeness += 10
+        if (state) completeness += 10
+        if (url) completeness += 15
+        if (allNaics.length > 0) completeness += 15
+        if (sbaTypes.length > 0) completeness += 10
+        if (contactName) completeness += 10
+        completeness = Math.min(completeness, 100)
+
+        records.push({
+          company_name: companyName,
+          slug,
+          sam_uei: uei || null,
+          cage_code: cage || null,
+          address_line1: addr1 || null,
+          city: city || null,
+          state: state || null,
+          zip_code: zip || null,
+          website: url ? (url.startsWith('http') ? url : `https://${url}`) : null,
+          naics_codes: allNaics,
+          trade_categories: tradeNames,
+          service_categories: tradeIds,
+          small_business: sbaTypes.length > 0,
+          small_business_types: sbaTypes,
+          geographic_coverage: state ? [state] : [],
+          contact_name: contactName,
+          verification_status: 'unverified',
+          data_source: 'sam_gov_extract',
+          profile_completeness: completeness,
+          sam_registration_status: 'active',
+        })
+      }
+
+      setFileProgress(`Found ${records.length.toLocaleString()} matching records. Importing in batches...`)
+
+      if (records.length === 0) {
+        setFileResult({
+          imported: 0,
+          skipped: 0,
+          total: lines.length - startIdx,
+          skippedNonUS,
+          skippedNoName,
+          skippedExpired,
+          message: 'No matching records found. Try adjusting state/NAICS filters.'
+        })
+        setFileUploading(false)
+        return
+      }
+
+      // Import in batches of 50, using upsert to skip duplicates
+      const BATCH_SIZE = 50
+      let imported = 0
+      let skipped = 0
+      let errors: string[] = []
+
+      for (let i = 0; i < records.length; i += BATCH_SIZE) {
+        const batch = records.slice(i, i + BATCH_SIZE)
+        setFileProgress(`Importing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(records.length / BATCH_SIZE)}... (${imported} imported so far)`)
+
+        const { data, error } = await supabase
+          .from('master_subcontractors')
+          .upsert(batch, { onConflict: 'sam_uei', ignoreDuplicates: true })
+          .select('id')
+
+        if (error) {
+          errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
+          // Try individual inserts for this batch
+          for (const record of batch) {
+            const { error: singleErr } = await supabase
+              .from('master_subcontractors')
+              .upsert(record, { onConflict: 'sam_uei', ignoreDuplicates: true })
+            if (!singleErr) imported++
+            else skipped++
+          }
+        } else {
+          imported += data?.length || batch.length
+        }
+      }
+
+      setFileResult({
+        imported,
+        skipped,
+        total: records.length,
+        skippedNonUS,
+        skippedNoName,
+        skippedExpired,
+        errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
+      })
+
+      // Refresh data
+      fetchSubs()
+      fetchStats()
+    } catch (err: any) {
+      setFileResult({ error: err.message || String(err) })
+    }
+    setFileUploading(false)
+    setFileProgress('')
+  }
 
   async function handleImport(dryRun: boolean) {
     setImporting(true)
@@ -226,52 +458,152 @@ export default function MasterSubDatabase() {
             Import registered entities from SAM.gov into the master database. Filter by state and/or NAICS codes.
             Duplicates (matching SAM UEI) are automatically skipped.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-blue-800 mb-1">State Filter (optional)</label>
-              <select value={importState} onChange={e => setImportState(e.target.value)}
-                className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white">
-                <option value="">All States</option>
-                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-blue-800 mb-1">NAICS Codes (comma-separated, optional)</label>
-              <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
-                placeholder="e.g. 238220, 238210, 561720"
-                className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => handleImport(true)} disabled={importing}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-blue-400 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">
-              {importing ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
-              Preview Import
+
+          {/* Mode Tabs */}
+          <div className="flex gap-1 bg-blue-100 p-1 rounded-lg">
+            <button onClick={() => setImportMode('file')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                importMode === 'file' ? 'bg-white text-blue-900 shadow-sm font-medium' : 'text-blue-600 hover:text-blue-800'
+              }`}>
+              <FileUp size={14} /> Upload Data File
             </button>
-            <button onClick={() => handleImport(false)} disabled={importing}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {importing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
-              Import Now
+            <button onClick={() => setImportMode('api')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                importMode === 'api' ? 'bg-white text-blue-900 shadow-sm font-medium' : 'text-blue-600 hover:text-blue-800'
+              }`}>
+              <Database size={14} /> API Import
             </button>
           </div>
-          {importResult && (
-            <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-              {importResult.error ? (
-                <p>Error: {importResult.error}</p>
-              ) : (
+
+          {importMode === 'file' ? (
+            <div className="space-y-3">
+              <div className="bg-white border border-blue-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm text-gray-700">
+                  Upload a SAM.gov Public Entity Extract file. Download from:{' '}
+                  <a href="https://sam.gov/data-services/Entity%20Registration/Public%20V2" target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 underline hover:text-blue-800">SAM.gov Data Services</a>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Supported format: SAM Public V2 extract (pipe-delimited .dat or .csv file inside the ZIP).
+                  Monthly files contain all active entities. You can filter by state and NAICS below before importing.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">State Filter (optional)</label>
+                    <select value={importState} onChange={e => setImportState(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                      <option value="">All States (large!)</option>
+                      {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">NAICS Codes (comma-separated, optional)</label>
+                    <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
+                      placeholder="e.g. 238220, 238210, 561720"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                </div>
                 <div>
-                  <p><strong>{importResult.imported}</strong> imported, <strong>{importResult.skipped}</strong> skipped (duplicates), <strong>{importResult.totalRecords?.toLocaleString()}</strong> total available</p>
-                  {importResult.errors?.length > 0 && (
-                    <p className="text-yellow-700 mt-1">Warnings: {importResult.errors.join('; ')}</p>
-                  )}
-                  {importResult.preview && (
-                    <div className="mt-2 max-h-48 overflow-y-auto">
-                      <p className="font-medium mb-1">Preview (first 10):</p>
-                      {importResult.preview.map((p: any, i: number) => (
-                        <div key={i} className="text-xs py-1 border-t border-green-200">
-                          {p.company_name} — {p.city}, {p.state} — {(p.trade_categories || []).join(', ') || 'No trades mapped'} {p.contact_email ? '✉' : ''}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".dat,.csv,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file)
+                    }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={fileUploading}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full justify-center">
+                    {fileUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                    {fileUploading ? 'Processing...' : 'Select SAM.gov Extract File'}
+                  </button>
+                </div>
+                {fileProgress && (
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
+                    <Loader2 size={14} className="animate-spin" />
+                    {fileProgress}
+                  </div>
+                )}
+              </div>
+              {fileResult && (
+                <div className={`p-3 rounded-lg text-sm ${fileResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                  {fileResult.error ? (
+                    <p>Error: {fileResult.error}</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p><strong>{fileResult.imported?.toLocaleString()}</strong> companies imported successfully</p>
+                      {fileResult.skipped > 0 && <p>{fileResult.skipped.toLocaleString()} skipped (duplicates or errors)</p>}
+                      {fileResult.skippedNonUS > 0 && <p className="text-gray-500">{fileResult.skippedNonUS.toLocaleString()} skipped (non-US)</p>}
+                      {fileResult.skippedExpired > 0 && <p className="text-gray-500">{fileResult.skippedExpired.toLocaleString()} skipped (expired)</p>}
+                      {fileResult.message && <p className="text-yellow-700">{fileResult.message}</p>}
+                      {fileResult.errors?.length > 0 && (
+                        <div className="text-yellow-700 mt-1">
+                          <p>Warnings:</p>
+                          {fileResult.errors.map((e: string, i: number) => <p key={i} className="text-xs">{e}</p>)}
                         </div>
-                      ))}
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-blue-800 mb-1">State Filter (optional)</label>
+                  <select value={importState} onChange={e => setImportState(e.target.value)}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white">
+                    <option value="">All States</option>
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-blue-800 mb-1">NAICS Codes (comma-separated, optional)</label>
+                  <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
+                    placeholder="e.g. 238220, 238210, 561720"
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleImport(true)} disabled={importing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm border border-blue-400 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">
+                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+                  Preview Import
+                </button>
+                <button onClick={() => handleImport(false)} disabled={importing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
+                  Import Now
+                </button>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-800">Note: API import may not work from cloud infrastructure due to SAM.gov IP restrictions. Use "Upload Data File" tab for reliable imports.</p>
+              </div>
+              {importResult && (
+                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                  {importResult.error ? (
+                    <p>Error: {importResult.error}</p>
+                  ) : (
+                    <div>
+                      <p><strong>{importResult.imported}</strong> imported, <strong>{importResult.skipped}</strong> skipped (duplicates), <strong>{importResult.totalRecords?.toLocaleString()}</strong> total available</p>
+                      {importResult.errors?.length > 0 && (
+                        <p className="text-yellow-700 mt-1">Warnings: {importResult.errors.join('; ')}</p>
+                      )}
+                      {importResult.preview && (
+                        <div className="mt-2 max-h-48 overflow-y-auto">
+                          <p className="font-medium mb-1">Preview (first 10):</p>
+                          {importResult.preview.map((p: any, i: number) => (
+                            <div key={i} className="text-xs py-1 border-t border-green-200">
+                              {p.company_name} — {p.city}, {p.state} — {(p.trade_categories || []).join(', ') || 'No trades mapped'} {p.contact_email ? '✉' : ''}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
