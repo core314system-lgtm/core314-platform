@@ -79,39 +79,24 @@ export default async function handler(req: Request, _context: Context) {
     let skipped = 0
     const errors: string[] = []
 
-    // Try batch upsert first
-    const { data, error } = await supabase
-      .from("master_subcontractors")
-      .upsert(batch, { onConflict: "sam_uei", ignoreDuplicates: true })
-      .select("id")
-
-    if (error) {
-      console.error("BATCH UPSERT ERROR:", error.code, error.message, error.details)
-      console.error("FIRST RECORD SAMPLE:", JSON.stringify(batch[0]).slice(0, 500))
-      
-      // Batch failed — try first record individually to get exact error
-      const { error: firstErr } = await supabase
+    // PostgREST's upsert (ON CONFLICT) is broken when the table has multiple unique constraints
+    // (sam_uei + slug). Instead: plain INSERT each record, treat 23505 (duplicate) as "skip".
+    for (const record of batch) {
+      const { error: insertErr } = await supabase
         .from("master_subcontractors")
-        .upsert(batch[0], { onConflict: "sam_uei", ignoreDuplicates: true })
-      
-      if (firstErr) {
-        console.error("SINGLE RECORD ERROR:", firstErr.code, firstErr.message, firstErr.details)
-        errors.push(`DB Error: ${firstErr.code} — ${firstErr.message}${firstErr.details ? ' — ' + firstErr.details : ''}`)
-      }
+        .insert(record)
 
-      // Try remaining records one by one
-      for (const record of batch) {
-        const { error: singleErr } = await supabase
-          .from("master_subcontractors")
-          .upsert(record, { onConflict: "sam_uei", ignoreDuplicates: true })
-        if (!singleErr) {
-          imported++
-        } else {
-          skipped++
+      if (!insertErr) {
+        imported++
+      } else if (insertErr.code === "23505") {
+        // Duplicate key (sam_uei or slug already exists) — skip silently
+        skipped++
+      } else {
+        skipped++
+        if (errors.length < 5) {
+          errors.push(`${record.company_name}: [${insertErr.code}] ${insertErr.message}`)
         }
       }
-    } else {
-      imported = data?.length || batch.length
     }
 
     return new Response(JSON.stringify({ imported, skipped, errors }), {
