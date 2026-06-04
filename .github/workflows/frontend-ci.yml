@@ -61,7 +61,7 @@ jobs:
           node-version: '22'
 
       - name: Validate Integration Readiness
-        run: node scripts/validate-integration-readiness.js
+        run: node scripts/validate-integration-readiness.cjs
 
   validate-core-navigation:
     name: Validate Core Navigation
@@ -77,7 +77,7 @@ jobs:
           node-version: '22'
 
       - name: Validate Core Navigation
-        run: node scripts/validate-core-navigation.js
+        run: node scripts/validate-core-navigation.cjs
 
   validate-deploy-readiness:
     name: Build & Secret Scan
