@@ -293,13 +293,15 @@ export default function PricingMatrix() {
 
       // Past performance: check if sub has a past_performance_rating in Subcontractor
       const subRecord = allSubs.get(sub.subId)
-      const perfScore = (subRecord as Record<string, unknown>)?.past_performance_rating
-        ? Number((subRecord as Record<string, unknown>).past_performance_rating)
+      const subFields = subRecord as unknown as Record<string, unknown> | undefined
+      const perfScore = subFields?.past_performance_rating
+        ? Number(subFields.past_performance_rating)
         : 70 // default baseline
 
       // Certifications: check if sub has certifications
-      const certCount = (subRecord as Record<string, unknown>)?.certifications
-        ? (Array.isArray((subRecord as Record<string, unknown>).certifications) ? ((subRecord as Record<string, unknown>).certifications as unknown[]).length : 1)
+      const rawCerts = subFields?.certifications
+      const certCount = rawCerts
+        ? (Array.isArray(rawCerts) ? rawCerts.length : 1)
         : 0
       const certScore = Math.min(certCount * 25, 100)
 
@@ -458,7 +460,8 @@ export default function PricingMatrix() {
     })
 
     // Table 2: Weighted Scoring
-    const finalY = (doc as Record<string, unknown>).lastAutoTable ? ((doc as Record<string, unknown>).lastAutoTable as Record<string, number>).finalY + 20 : 300
+    const docAny = doc as unknown as Record<string, unknown>
+    const finalY = docAny.lastAutoTable ? (docAny.lastAutoTable as Record<string, number>).finalY + 20 : 300
     doc.setFontSize(12)
     doc.text('Weighted Scoring Summary', 40, finalY)
 
@@ -737,8 +740,8 @@ export default function PricingMatrix() {
                                   <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${score >= 90 ? 'bg-green-100 text-green-800' : score >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                                     {score}%
                                   </div>
-                                  {analysis?.missing_requirements && (analysis.missing_requirements as unknown[]).length > 0 && (
-                                    <div className="text-xs text-red-500 mt-1">{(analysis.missing_requirements as unknown[]).length} gap{(analysis.missing_requirements as unknown[]).length !== 1 ? 's' : ''}</div>
+                                  {analysis?.missing_requirements && Array.isArray(analysis.missing_requirements) && analysis.missing_requirements.length > 0 && (
+                                    <div className="text-xs text-red-500 mt-1">{analysis.missing_requirements.length} gap{analysis.missing_requirements.length !== 1 ? 's' : ''}</div>
                                   )}
                                 </div>
                               ) : q ? (
@@ -844,8 +847,10 @@ export default function PricingMatrix() {
                     const maxT = Math.max(...allTotals, 0)
                     const priceScore = maxT > minT && sub.totalQuoted > 0 ? Math.round(100 - ((sub.totalQuoted - minT) / (maxT - minT)) * 100) : sub.totalQuoted > 0 ? 100 : 0
                     const subRecord = allSubs.get(sub.subId)
-                    const perfScore = (subRecord as Record<string, unknown>)?.past_performance_rating ? Number((subRecord as Record<string, unknown>).past_performance_rating) : 70
-                    const certCount = (subRecord as Record<string, unknown>)?.certifications ? (Array.isArray((subRecord as Record<string, unknown>).certifications) ? ((subRecord as Record<string, unknown>).certifications as unknown[]).length : 1) : 0
+                    const subF = subRecord as unknown as Record<string, unknown> | undefined
+                    const perfScore = subF?.past_performance_rating ? Number(subF.past_performance_rating) : 70
+                    const rawC = subF?.certifications
+                    const certCount = rawC ? (Array.isArray(rawC) ? rawC.length : 1) : 0
                     const certScore = Math.min(certCount * 25, 100)
 
                     return (
