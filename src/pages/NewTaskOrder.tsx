@@ -4,9 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useOrg } from '../contexts/OrgContext'
 import type { Contract } from '../lib/types'
-import { ArrowLeft, Upload, FileText, Info, Building2, Landmark, HardHat, Server, Briefcase, FileStack } from 'lucide-react'
+import { ArrowLeft, Upload, FileText, Info, Building2, Landmark, HardHat, Server, Briefcase, FileStack, AlertTriangle, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PROJECT_TYPES, getProjectType } from '../lib/projectTypes'
+import { useTier } from '../hooks/useTier'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
@@ -27,8 +28,10 @@ export default function NewTaskOrder() {
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const { currentOrg, isMultiTenantEnabled } = useOrg()
+  const { getLimit, isEnterprise } = useTier()
   const [loading, setLoading] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [projectCount, setProjectCount] = useState(0)
   const [selectedContractId, setSelectedContractId] = useState(searchParams.get('contract_id') || '')
   const [form, setForm] = useState({
     title: '',
@@ -49,8 +52,15 @@ export default function NewTaskOrder() {
       supabase.from('contracts').select('id, title, contract_number, contract_type')
         .eq('org_id', currentOrg.id).eq('status', 'active').order('title')
         .then(({ data }) => setContracts(data as Contract[] || []))
+      // Count existing projects for limit check
+      supabase.from('task_orders').select('id', { count: 'exact', head: true })
+        .eq('org_id', currentOrg.id)
+        .then(({ count }) => setProjectCount(count || 0))
     }
   }, [currentOrg?.id])
+
+  const projectLimit = getLimit('max_projects')
+  const atLimit = !isEnterprise && projectCount >= projectLimit
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -125,6 +135,21 @@ export default function NewTaskOrder() {
           <p className="text-sm text-gray-500">Set up a new procurement project for analysis</p>
         </div>
       </div>
+
+      {atLimit && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+          <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Project limit reached ({projectCount}/{projectLimit})</p>
+            <p className="text-xs text-amber-600 mt-1">
+              Your Growth plan allows up to {projectLimit} active projects. Upgrade to Enterprise for unlimited projects.
+            </p>
+            <Link to="/billing" className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
+              <Sparkles size={12} /> Upgrade Plan
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Workflow Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">

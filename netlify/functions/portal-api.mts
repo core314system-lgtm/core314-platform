@@ -14,6 +14,22 @@ const corsHeaders = {
   "Content-Type": "application/json",
 }
 
+async function createNotification(orgId: string, type: string, title: string, message: string, link?: string) {
+  try {
+    await supabase.from("notifications").insert({
+      org_id: orgId,
+      type,
+      title,
+      message,
+      link: link || null,
+      read: false,
+      metadata: {},
+    })
+  } catch {
+    // Non-critical — don't fail the main operation
+  }
+}
+
 async function validateToken(token: string) {
   const { data, error } = await supabase
     .from("rfq_tokens")
@@ -342,6 +358,21 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     body: JSON.stringify({ quote_id: quote.id, auto_email: true }),
   }).catch(() => {})
 
+  // Create in-app notification
+  const taskOrderId = tokenData.task_order_id
+  const orgId = tokenData.task_orders?.org_id
+  const subName = sub?.company_name || "A subcontractor"
+  const projectTitle = tokenData.task_orders?.title || "a project"
+  if (orgId) {
+    createNotification(
+      orgId,
+      "quote_received",
+      `${subName} submitted a quote`,
+      `Quote of $${quoteRecord.total_amount || "N/A"} received for ${projectTitle}`,
+      `/projects/${taskOrderId}/sow-tracker`
+    )
+  }
+
   return new Response(
     JSON.stringify({ success: true, quote_id: quote.id }),
     { headers: corsHeaders }
@@ -435,6 +466,20 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
     subject: `Question from portal${cleanSection ? `: ${cleanSection}` : ""}`,
     body: cleanQuestion,
   })
+
+  // Create in-app notification for question
+  const qOrgId = tokenData.task_orders?.org_id
+  const qSubName = tokenData.subcontractors?.company_name || "A subcontractor"
+  const qProjectTitle = tokenData.task_orders?.title || "a project"
+  if (qOrgId) {
+    createNotification(
+      qOrgId,
+      "question_asked",
+      `${qSubName} asked a question`,
+      `New question about ${qProjectTitle}${cleanSection ? ` (${cleanSection})` : ""}`,
+      `/projects/${tokenData.task_order_id}`
+    )
+  }
 
   return new Response(
     JSON.stringify({ success: true, question_id: question.id }),

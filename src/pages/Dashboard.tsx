@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen, AlertTriangle } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import ResourceCapacity from '../components/ResourceCapacity'
 import OnboardingGuide from '../components/OnboardingGuide'
@@ -64,6 +64,14 @@ export default function Dashboard() {
     const days = (new Date(t.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     return days > 0 && days <= 14
   }).length
+
+  const urgentProjects = taskOrders
+    .filter(t => {
+      if (!t.due_date) return false
+      const days = (new Date(t.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      return days > 0 && days <= 7 && !['awarded', 'not_awarded', 'submitted'].includes(t.status)
+    })
+    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
 
   if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>
 
@@ -200,6 +208,34 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Deadline Alerts */}
+      {urgentProjects.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-red-800 flex items-center gap-2 mb-3">
+            <AlertTriangle size={16} className="text-red-500" />
+            Upcoming Deadlines ({urgentProjects.length} project{urgentProjects.length !== 1 ? 's' : ''} due within 7 days)
+          </h3>
+          <div className="space-y-2">
+            {urgentProjects.map(p => {
+              const daysLeft = Math.ceil((new Date(p.due_date!).getTime() - Date.now()) / 86400000)
+              return (
+                <Link key={p.id} to={`/projects/${p.id}`} className="flex items-center justify-between p-2 rounded-lg hover:bg-red-100/60 transition-colors">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{p.title}</p>
+                    <p className="text-xs text-gray-500">Due {new Date(p.due_date!).toLocaleDateString()}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    daysLeft <= 1 ? 'bg-red-200 text-red-800' : daysLeft <= 3 ? 'bg-amber-200 text-amber-800' : 'bg-yellow-200 text-yellow-800'
+                  }`}>
+                    {daysLeft <= 1 ? 'TOMORROW' : `${daysLeft} days`}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Resource Capacity */}
       <ResourceCapacity />

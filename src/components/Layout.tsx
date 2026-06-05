@@ -38,16 +38,19 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
+import NotificationCenter from './NotificationCenter'
 import OnboardingGuide from './OnboardingGuide'
 import OnboardingChecklist from './OnboardingChecklist'
 import { getOnboardingState, saveOnboardingState, resetOnboarding, markStepComplete } from '../lib/onboarding'
 import { useOrg } from '../contexts/OrgContext'
+import { useTier } from '../hooks/useTier'
 
 interface NavItem {
   path: string
   label: string
   icon: React.ElementType
   adminOnly?: boolean
+  enterpriseOnly?: boolean
 }
 
 interface NavGroup {
@@ -83,8 +86,8 @@ const navGroups: NavGroup[] = [
       { path: '/verification-review', label: 'Verification Review', icon: ShieldCheck, adminOnly: true },
       { path: '/master-subs', label: 'Master Sub Database', icon: Database, adminOnly: true },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
-      { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building },
-      { path: '/teaming', label: 'Teaming & JVs', icon: Users },
+      { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building, enterpriseOnly: true },
+      { path: '/teaming', label: 'Teaming & JVs', icon: Users, enterpriseOnly: true },
     ],
   },
   {
@@ -95,7 +98,7 @@ const navGroups: NavGroup[] = [
       { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
       { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
       { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-      { path: '/intelligence', label: 'Intelligence Library', icon: Brain },
+      { path: '/intelligence', label: 'Intelligence Library', icon: Brain, enterpriseOnly: true },
     ],
   },
   {
@@ -147,6 +150,7 @@ function findActiveGroup(pathname: string): string {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { signOut, profile } = useAuth()
   const { currentOrg, isMultiTenantEnabled } = useOrg()
+  const { isEnterprise } = useTier()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
@@ -283,11 +287,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             className={`flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                               isActive
                                 ? 'bg-blue-50 text-blue-700'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                : item.enterpriseOnly && !isEnterprise
+                                  ? 'text-gray-400 hover:bg-gray-50 hover:text-gray-500'
+                                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                             }`}
                           >
                             <item.icon size={16} />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {item.enterpriseOnly && !isEnterprise && (
+                              <span className="text-[10px] font-bold text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">ENT</span>
+                            )}
                           </Link>
                         )
                       })}
@@ -329,7 +338,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button onClick={() => setSidebarOpen(true)} className="text-gray-600">
             <Menu size={20} />
           </button>
-          <span className="font-semibold text-gray-900 text-sm">Procuvex</span>
+          <span className="font-semibold text-gray-900 text-sm flex-1">Procuvex</span>
+          <NotificationCenter />
+        </div>
+        <div className="hidden lg:flex items-center justify-end px-6 py-2 bg-white border-b border-gray-200">
+          <NotificationCenter />
         </div>
         <div className="p-6 max-w-7xl mx-auto">
           <OnboardingChecklist onLaunchGuide={handleLaunchGuide} />

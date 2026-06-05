@@ -81,6 +81,23 @@ export default async (req: Request, _context: Context) => {
       `,
     })
 
+    // Also create in-app notification (for all org owners — uses a general approach)
+    // Get all orgs to notify (admin sees all claims)
+    const { data: orgs } = await supabase.from("organizations").select("id").limit(10)
+    if (orgs) {
+      for (const org of orgs) {
+        await supabase.from("notifications").insert({
+          org_id: org.id,
+          type: "profile_claimed",
+          title: `${sub.company_name} claimed their profile`,
+          message: `${location} · Trades: ${trades}`,
+          link: "/master-subs",
+          read: false,
+          metadata: {},
+        }).catch(() => {})
+      }
+    }
+
     return new Response(JSON.stringify({ sent: true }), { headers })
   } catch (err: any) {
     console.error("Notification email error:", err.message)
