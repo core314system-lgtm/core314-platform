@@ -351,11 +351,29 @@ export default function MySubProfile() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Company Profile</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Update your profile to increase visibility and get matched with prime contractors
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900">My Company Profile</h1>
+              {profile?.verification_status === 'verified' && (
+                <div className="relative group">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-md">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L14.4 4.4L17.6 3.6L18.4 6.8L21.6 7.6L20.8 10.8L23.2 12.8L21.2 15.2L22 18.4L18.8 19.2L18 22.4L14.8 21.6L12 24L9.2 21.6L6 22.4L5.2 19.2L2 18.4L2.8 15.2L0.8 12.8L3.2 10.8L2.4 7.6L5.6 6.8L6.4 3.6L9.6 4.4L12 2Z" fill="white" fillOpacity="0.3"/>
+                      <path d="M9 12L11 14L15 10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className="text-white text-xs font-bold tracking-wide uppercase">Verified</span>
+                  </div>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                    Procuvex Verified — Priority search &amp; auto-matching active
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Update your profile to increase visibility and get matched with prime contractors
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Link to={`/sub/${profile?.slug}`} target="_blank"

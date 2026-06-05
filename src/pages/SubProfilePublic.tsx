@@ -149,8 +149,8 @@ export default function SubProfilePublic() {
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">{profile.company_name}</h1>
                 {isVerified && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
-                    <BadgeCheck size={16} /> Verified
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md">
+                    <BadgeCheck size={16} /> Procuvex Verified
                   </span>
                 )}
                 {!isVerified && isClaimed && (
