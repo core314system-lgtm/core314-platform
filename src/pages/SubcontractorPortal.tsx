@@ -378,6 +378,22 @@ export default function SubcontractorPortal() {
           )}
         </div>
 
+        {/* AI Compliance Notice */}
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <Brain className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold text-indigo-900">AI-Verified Quote Compliance</h3>
+              <p className="text-xs text-indigo-700 mt-1">
+                All quotes submitted through this portal are automatically reviewed by our AI compliance system against the 
+                Statement of Work requirements. If your quote does not explicitly address all SOW requirements, you will receive 
+                an email identifying specific gaps so you can submit a revised, fully compliant quote. <strong>Tip:</strong> Ensure 
+                your quote clearly addresses every requirement listed in the scope description above.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Incumbent Status Section */}
         {!incumbentSaved && (
           <div className="bg-white rounded-xl shadow-sm border border-amber-200 p-6 mb-6">
