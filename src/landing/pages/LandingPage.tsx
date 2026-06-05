@@ -444,6 +444,7 @@ export default function LandingPage() {
                   { feature: 'Compliance Tracking', us: true, them: true },
                   { feature: 'Pipeline Management', us: true, them: true },
                   { feature: 'AI Quote Compliance Analysis', us: true, them: false },
+                  { feature: 'Pricing Decision Matrix with Best Value Scoring', us: true, them: false },
                   { feature: 'Certification Expiration Alerts', us: true, them: false },
                 ].map((row, i) => (
                   <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
@@ -603,6 +604,141 @@ export default function LandingPage() {
               <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="text-center">
                 <div className="text-2xl md:text-3xl font-extrabold text-white">{stat.value}</div>
                 <div className="text-sm text-purple-300 mt-1">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* PRICING DECISION MATRIX */}
+      <section className="py-20 lg:py-28 bg-gradient-to-b from-slate-900 via-blue-950 to-indigo-950 text-white relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(8)].map((_, i) => (
+            <motion.div key={i} className="absolute w-2 h-2 rounded-full bg-blue-400/20" style={{ left: `${12 + i * 12}%`, top: `${15 + (i % 3) * 30}%` }} animate={{ y: [0, -20, 0], opacity: [0.2, 0.5, 0.2] }} transition={{ duration: 4 + i * 0.5, repeat: Infinity, ease: 'easeInOut' }} />
+          ))}
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-14">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/20 text-blue-300 text-sm font-bold uppercase tracking-wider mb-5">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+              Source Selection Intelligence
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Pricing Decision Matrix
+            </h2>
+            <p className="text-lg text-blue-200 max-w-3xl mx-auto leading-relaxed">
+              Compare every subcontractor quote side by side. AI-powered weighted scoring ranks subs by best value — not just lowest price. Export to Excel for source selection boards.
+            </p>
+          </motion.div>
+
+          {/* Matrix Visual */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-14">
+            {/* Left: Matrix mockup */}
+            <motion.div variants={fadeUp} className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 p-6 overflow-hidden">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-3 h-3 rounded-full bg-red-400" />
+                <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                <div className="w-3 h-3 rounded-full bg-green-400" />
+                <span className="text-xs text-blue-300 ml-2">Pricing Decision Matrix — Side-by-Side Comparison</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-white/20">
+                      <th className="text-left py-2 px-2 text-blue-300 font-semibold">SOW Line Item</th>
+                      <th className="text-center py-2 px-2 text-blue-300 font-semibold">Sub A</th>
+                      <th className="text-center py-2 px-2 text-blue-300 font-semibold">Sub B</th>
+                      <th className="text-center py-2 px-2 text-blue-300 font-semibold">Sub C</th>
+                      <th className="text-center py-2 px-2 text-gray-400 font-semibold">Avg</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { name: 'HVAC Maintenance', a: '$142,000', b: '$158,000', c: '$135,000', avg: '$145,000', low: 2 },
+                      { name: 'Fire Protection', a: '$89,000', b: '$94,500', c: '$91,200', avg: '$91,567', low: 0 },
+                      { name: 'Janitorial Services', a: '$67,500', b: '$61,000', c: '$72,400', avg: '$66,967', low: 1 },
+                      { name: 'Electrical Systems', a: '$112,000', b: '$108,500', c: '$119,800', avg: '$113,433', low: 1 },
+                    ].map((row, i) => (
+                      <tr key={i} className="border-b border-white/10">
+                        <td className="py-2 px-2 text-white font-medium">{row.name}</td>
+                        <td className={`py-2 px-2 text-center ${row.low === 0 ? 'text-green-400 font-bold' : 'text-white'}`}>{row.a}</td>
+                        <td className={`py-2 px-2 text-center ${row.low === 1 ? 'text-green-400 font-bold' : 'text-white'}`}>{row.b}</td>
+                        <td className={`py-2 px-2 text-center ${row.low === 2 ? 'text-green-400 font-bold' : 'text-white'}`}>{row.c}</td>
+                        <td className="py-2 px-2 text-center text-gray-400">{row.avg}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-blue-400/50 font-bold">
+                      <td className="py-2 px-2 text-blue-300">TOTAL</td>
+                      <td className="py-2 px-2 text-center text-white">$410,500</td>
+                      <td className="py-2 px-2 text-center text-green-400">$422,000</td>
+                      <td className="py-2 px-2 text-center text-white">$418,400</td>
+                      <td className="py-2 px-2 text-center text-gray-400">$416,967</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+
+            {/* Right: Weighted Scoring */}
+            <motion.div variants={fadeUp} className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 p-6">
+              <h4 className="text-sm font-bold text-blue-300 mb-4">Weighted Best Value Scoring</h4>
+              {[
+                { name: 'Sub B — Apex Mechanical', score: 87, rank: 1, price: 85, compliance: 92, perf: 88, cert: 75 },
+                { name: 'Sub C — ProServ FM', score: 79, rank: 2, price: 78, compliance: 85, perf: 70, cert: 100 },
+                { name: 'Sub A — First Coast', score: 74, rank: 3, price: 92, compliance: 68, perf: 65, cert: 50 },
+              ].map((sub) => (
+                <div key={sub.rank} className="mb-4 last:mb-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${sub.rank === 1 ? 'bg-yellow-400 text-yellow-900' : sub.rank === 2 ? 'bg-gray-300 text-gray-700' : 'bg-amber-600 text-white'}`}>{sub.rank}</span>
+                      <span className="text-sm text-white font-medium">{sub.name}</span>
+                    </div>
+                    <span className={`text-lg font-bold ${sub.score >= 80 ? 'text-green-400' : 'text-yellow-400'}`}>{sub.score}/100</span>
+                  </div>
+                  <div className="h-3 bg-white/10 rounded-full overflow-hidden mb-1">
+                    <div className={`h-full rounded-full ${sub.score >= 80 ? 'bg-gradient-to-r from-green-400 to-emerald-400' : 'bg-gradient-to-r from-yellow-400 to-amber-400'}`} style={{ width: `${sub.score}%` }} />
+                  </div>
+                  <div className="flex gap-3 text-xs text-blue-300/70">
+                    <span>Price: {sub.price}</span>
+                    <span>Compliance: {sub.compliance}</span>
+                    <span>Perf: {sub.perf}</span>
+                    <span>Certs: {sub.cert}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="mt-4 pt-3 border-t border-white/20 text-xs text-blue-300/80">
+                Weights: Price 40% | Compliance 30% | Past Perf. 20% | Certs 10% (FAR 15.101-1)
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Feature highlights */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+            {[
+              { icon: '📊', title: 'Side-by-Side', desc: 'Every sub, every SOW line item, one grid' },
+              { icon: '🧠', title: 'AI Compliance Overlay', desc: 'Compliance scores integrated per quote' },
+              { icon: '⚖️', title: 'Weighted Scoring', desc: 'FAR 15.101-1 best value evaluation' },
+              { icon: '📥', title: 'Excel & PDF Export', desc: 'Source selection board-ready formats' },
+            ].map((feat, i) => (
+              <motion.div key={i} variants={fadeUp} className="bg-white/5 rounded-xl border border-white/10 p-4 text-center">
+                <div className="text-2xl mb-2">{feat.icon}</div>
+                <div className="text-sm font-bold text-white mb-1">{feat.title}</div>
+                <div className="text-xs text-blue-300/80">{feat.desc}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Metrics */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="flex justify-center gap-12 md:gap-20">
+            {[
+              { value: '4 Sheets', label: 'Excel Export' },
+              { value: 'FAR', label: 'Compliant Scoring' },
+              { value: 'Instant', label: 'Quote Comparison' },
+              { value: 'PDF + XLSX', label: 'Export Formats' },
+            ].map((stat, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="text-center">
+                <div className="text-2xl md:text-3xl font-extrabold text-white">{stat.value}</div>
+                <div className="text-sm text-blue-300 mt-1">{stat.label}</div>
               </motion.div>
             ))}
           </motion.div>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   FileText, Brain, Shield, Users, DollarSign, ClipboardCheck,
   Target, Kanban, BarChart3, Zap, Building2, ArrowRight,
-  Upload, CheckCircle, FileCheck,
+  Upload, CheckCircle, FileCheck, Scale,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -61,6 +61,12 @@ const modules = [
     features: ['Automatic SOW compliance analysis', 'Compliance score (0–100%) per quote', 'Gap identification & pricing analysis', 'Automated email notifications to subs', 'One-click re-analysis after revisions'],
   },
   {
+    icon: Scale,
+    title: 'Pricing Decision Matrix',
+    desc: 'Compare every subcontractor quote side by side across all SOW line items. AI-powered weighted scoring ranks subs by best value using FAR 15.101-1 criteria. Export to Excel or PDF for source selection boards.',
+    features: ['Side-by-side quote comparison grid', 'Weighted scoring (Price, Compliance, Past Performance, Certs)', 'AI compliance score overlay per quote', 'Excel workbook & PDF export', 'Markup profiles & option year projections'],
+  },
+  {
     icon: Kanban,
     title: 'Pipeline & Workflow Engine',
     desc: 'Customizable workflow stages per project type. Kanban board view shows every bid in your pipeline at a glance.',
@@ -105,7 +111,7 @@ export default function ProductPage() {
               Every Tool Your <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Bid Team</span> Needs
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              13 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
+              14 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
             </motion.p>
           </div>
         </div>
