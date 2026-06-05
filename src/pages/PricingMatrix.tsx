@@ -1,10 +1,33 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { TaskOrder, SowItem, SowQuote, Subcontractor } from '../lib/types'
-import { ArrowLeft, DollarSign, Percent, TrendingUp, CheckCircle2, AlertTriangle, Calculator, Save, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, DollarSign, Percent, TrendingUp, CheckCircle2, AlertTriangle, Calculator, Save, RotateCcw, ChevronDown, ChevronUp, Download, FileSpreadsheet, Table2, Scale, Brain, Award, Shield, Printer } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // ========== Types ==========
+type ActiveTab = 'pricing' | 'comparison' | 'scoring'
+
+interface WeightConfig {
+  price: number
+  compliance: number
+  pastPerformance: number
+  certifications: number
+}
+
+interface SubSummary {
+  subId: string
+  subName: string
+  totalQuoted: number
+  sowsCovered: number
+  avgComplianceScore: number | null
+  quotesBySow: Map<string, SowQuote & { subcontractor_name: string }>
+  weightedScore: number | null
+}
+
 interface MarkupProfile {
   name: string
   type: 'percentage' | 'dollar' | 'none'
@@ -66,6 +89,9 @@ export default function PricingMatrix() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [popYears, setPopYears] = useState({ base: 2, options: [2, 2] })
+  const [activeTab, setActiveTab] = useState<ActiveTab>('comparison')
+  const [weights, setWeights] = useState<WeightConfig>({ price: 40, compliance: 30, pastPerformance: 20, certifications: 10 })
+  const [allSubs, setAllSubs] = useState<Map<string, Subcontractor>>(new Map())
 
   useEffect(() => {
     if (taskOrderId) fetchData()
@@ -81,6 +107,7 @@ export default function PricingMatrix() {
     setTaskOrder(toRes.data)
     const sMap = new Map<string, Subcontractor>()
     for (const s of (subsRes.data || [])) sMap.set(s.id, s)
+    setAllSubs(sMap)
 
     const newRows: SowPricingRow[] = []
     for (const sow of (sowRes.data || [])) {
@@ -217,6 +244,245 @@ export default function PricingMatrix() {
     return { totalSubCost, totalSupplier, totalMarkup, marginPct, totalAdditional, sowsWithQuotes, sowsWithSelection, baseYearTotal, optionYear1, optionYear2, basePeriodTotal, opt1Total, opt2Total, totalContractValue }
   }, [rows, globalEscalation, customEscalation, popYears])
 
+  // ========== Side-by-Side Comparison Data ==========
+  const comparisonData = useMemo(() => {
+    const subMap = new Map<string, SubSummary>()
+
+    for (const row of rows) {
+      for (const q of row.quotes) {
+        if (!subMap.has(q.subcontractor_id)) {
+          subMap.set(q.subcontractor_id, {
+            subId: q.subcontractor_id,
+            subName: q.subcontractor_name,
+            totalQuoted: 0,
+            sowsCovered: 0,
+            avgComplianceScore: null,
+            quotesBySow: new Map(),
+            weightedScore: null,
+          })
+        }
+        const entry = subMap.get(q.subcontractor_id)!
+        entry.quotesBySow.set(row.sow.id, q)
+        entry.totalQuoted += q.total_amount || 0
+        entry.sowsCovered += 1
+      }
+    }
+
+    // Calculate average compliance scores
+    for (const [, sub] of subMap) {
+      const scores: number[] = []
+      for (const [, q] of sub.quotesBySow) {
+        if (q.ai_compliance_score != null) scores.push(q.ai_compliance_score)
+      }
+      sub.avgComplianceScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+    }
+
+    // Calculate weighted scores
+    const allTotals = Array.from(subMap.values()).map(s => s.totalQuoted).filter(t => t > 0)
+    const minTotal = Math.min(...allTotals, Infinity)
+    const maxTotal = Math.max(...allTotals, 0)
+
+    for (const [, sub] of subMap) {
+      // Price score: lowest = 100, highest = 0 (linear scale)
+      const priceScore = maxTotal > minTotal && sub.totalQuoted > 0
+        ? Math.round(100 - ((sub.totalQuoted - minTotal) / (maxTotal - minTotal)) * 100)
+        : sub.totalQuoted > 0 ? 100 : 0
+
+      // Compliance score from AI
+      const complianceScore = sub.avgComplianceScore ?? 0
+
+      // Past performance: check if sub has a past_performance_rating in Subcontractor
+      const subRecord = allSubs.get(sub.subId)
+      const perfScore = (subRecord as Record<string, unknown>)?.past_performance_rating
+        ? Number((subRecord as Record<string, unknown>).past_performance_rating)
+        : 70 // default baseline
+
+      // Certifications: check if sub has certifications
+      const certCount = (subRecord as Record<string, unknown>)?.certifications
+        ? (Array.isArray((subRecord as Record<string, unknown>).certifications) ? ((subRecord as Record<string, unknown>).certifications as unknown[]).length : 1)
+        : 0
+      const certScore = Math.min(certCount * 25, 100)
+
+      sub.weightedScore = Math.round(
+        (priceScore * weights.price / 100) +
+        (complianceScore * weights.compliance / 100) +
+        (perfScore * weights.pastPerformance / 100) +
+        (certScore * weights.certifications / 100)
+      )
+    }
+
+    return Array.from(subMap.values()).sort((a, b) => (b.weightedScore ?? 0) - (a.weightedScore ?? 0))
+  }, [rows, weights, allSubs])
+
+  // Stats per SOW
+  const sowStats = useMemo(() => {
+    const stats = new Map<string, { min: number; max: number; avg: number; median: number; count: number }>()
+    for (const row of rows) {
+      const amounts = row.quotes.map(q => q.total_amount || 0).filter(a => a > 0).sort((a, b) => a - b)
+      if (amounts.length === 0) continue
+      const sum = amounts.reduce((a, b) => a + b, 0)
+      const mid = Math.floor(amounts.length / 2)
+      stats.set(row.sow.id, {
+        min: amounts[0],
+        max: amounts[amounts.length - 1],
+        avg: Math.round(sum / amounts.length),
+        median: amounts.length % 2 === 0 ? Math.round((amounts[mid - 1] + amounts[mid]) / 2) : amounts[mid],
+        count: amounts.length,
+      })
+    }
+    return stats
+  }, [rows])
+
+  // ========== Export Functions ==========
+  const exportToExcel = useCallback(() => {
+    if (!taskOrder) return
+    const wb = XLSX.utils.book_new()
+
+    // Sheet 1: Side-by-Side Comparison
+    const compHeaders = ['SOW / Line Item', 'Category', ...comparisonData.map(s => s.subName), 'Lowest', 'Highest', 'Average']
+    const compRows: (string | number)[][] = []
+    for (const row of rows) {
+      const r: (string | number)[] = [row.sow.sow_name, row.sow.service_category]
+      for (const sub of comparisonData) {
+        const q = sub.quotesBySow.get(row.sow.id)
+        r.push(q?.total_amount ?? 'No Quote')
+      }
+      const st = sowStats.get(row.sow.id)
+      r.push(st?.min ?? '—', st?.max ?? '—', st?.avg ?? '—')
+      compRows.push(r)
+    }
+    // Totals row
+    const totalsRow: (string | number)[] = ['TOTAL', '']
+    for (const sub of comparisonData) totalsRow.push(sub.totalQuoted)
+    totalsRow.push('', '', '')
+    compRows.push(totalsRow)
+
+    const ws1 = XLSX.utils.aoa_to_sheet([compHeaders, ...compRows])
+    ws1['!cols'] = compHeaders.map((_, i) => ({ wch: i === 0 ? 35 : i === 1 ? 18 : 18 }))
+    XLSX.utils.book_append_sheet(wb, ws1, 'Quote Comparison')
+
+    // Sheet 2: Weighted Scoring
+    const scoreHeaders = ['Subcontractor', 'Total Quoted', 'SOWs Covered', 'Avg Compliance', 'Price Score', 'Compliance Score', 'Weighted Score', 'Rank']
+    const scoreRows = comparisonData.map((s, i) => [
+      s.subName,
+      s.totalQuoted,
+      `${s.sowsCovered} / ${rows.length}`,
+      s.avgComplianceScore != null ? `${s.avgComplianceScore}%` : 'N/A',
+      '', // Price score embedded in weighted
+      s.avgComplianceScore != null ? `${s.avgComplianceScore}%` : 'N/A',
+      s.weightedScore ?? 'N/A',
+      `#${i + 1}`,
+    ])
+    const ws2 = XLSX.utils.aoa_to_sheet([scoreHeaders, ...scoreRows])
+    ws2['!cols'] = scoreHeaders.map(() => ({ wch: 18 }))
+    XLSX.utils.book_append_sheet(wb, ws2, 'Weighted Scoring')
+
+    // Sheet 3: Compliance Detail
+    const complianceHeaders = ['SOW', 'Subcontractor', 'Compliance Score', 'Missing Requirements', 'Pricing Gaps', 'Status']
+    const complianceRows: (string | number)[][] = []
+    for (const row of rows) {
+      for (const q of row.quotes) {
+        const analysis = q.ai_compliance_analysis as Record<string, unknown> | null
+        complianceRows.push([
+          row.sow.sow_name,
+          q.subcontractor_name,
+          q.ai_compliance_score != null ? `${q.ai_compliance_score}%` : 'Not Analyzed',
+          analysis?.missing_requirements ? String((analysis.missing_requirements as unknown[]).length) : '—',
+          analysis?.pricing_gaps ? String((analysis.pricing_gaps as unknown[]).length) : '—',
+          q.status,
+        ])
+      }
+    }
+    const ws3 = XLSX.utils.aoa_to_sheet([complianceHeaders, ...complianceRows])
+    ws3['!cols'] = complianceHeaders.map((_, i) => ({ wch: i === 0 ? 30 : 20 }))
+    XLSX.utils.book_append_sheet(wb, ws3, 'AI Compliance Detail')
+
+    // Sheet 4: Pricing Builder (existing markup data)
+    const pricingHeaders = ['SOW', 'Selected Sub', 'Sub Cost', 'Markup', 'Additional Costs', 'Supplier Total', 'Margin %']
+    const pricingRows = rows.map(r => {
+      const selectedSub = r.quotes.find(q => q.id === r.selectedQuoteId)
+      const margin = r.supplierTotal > 0 ? ((r.supplierTotal - r.subCost) / r.supplierTotal) * 100 : 0
+      return [
+        r.sow.sow_name,
+        selectedSub?.subcontractor_name || 'None',
+        r.subCost,
+        r.markupType === 'percentage' ? `${r.markupValue}%` : r.markupType === 'dollar' ? r.markupValue : 'Manual',
+        r.additionalCosts,
+        r.supplierTotal,
+        `${margin.toFixed(1)}%`,
+      ]
+    })
+    const ws4 = XLSX.utils.aoa_to_sheet([pricingHeaders, ...pricingRows])
+    ws4['!cols'] = pricingHeaders.map((_, i) => ({ wch: i === 0 ? 30 : 18 }))
+    XLSX.utils.book_append_sheet(wb, ws4, 'Pricing Builder')
+
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    saveAs(blob, `PDM_${taskOrder.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'project'}_${new Date().toISOString().split('T')[0]}.xlsx`)
+  }, [taskOrder, rows, comparisonData, sowStats])
+
+  const exportToPDF = useCallback(() => {
+    if (!taskOrder) return
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' })
+
+    // Title
+    doc.setFontSize(16)
+    doc.text('Pricing Decision Matrix', 40, 40)
+    doc.setFontSize(10)
+    doc.text(`${taskOrder.title} — ${taskOrder.site_name || ''}`, 40, 58)
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 40, 72)
+    doc.setFontSize(8)
+    doc.text(`Weights: Price ${weights.price}% | Compliance ${weights.compliance}% | Past Performance ${weights.pastPerformance}% | Certifications ${weights.certifications}%`, 40, 86)
+
+    // Table 1: Side-by-Side
+    const subNames = comparisonData.map(s => s.subName)
+    const head1 = [['SOW / Line Item', ...subNames, 'Low', 'High', 'Avg']]
+    const body1 = rows.map(row => {
+      const cells: string[] = [row.sow.sow_name]
+      for (const sub of comparisonData) {
+        const q = sub.quotesBySow.get(row.sow.id)
+        cells.push(q?.total_amount ? formatCurrency(q.total_amount) : '—')
+      }
+      const st = sowStats.get(row.sow.id)
+      cells.push(st ? formatCurrency(st.min) : '—', st ? formatCurrency(st.max) : '—', st ? formatCurrency(st.avg) : '—')
+      return cells
+    })
+
+    autoTable(doc, {
+      head: head1,
+      body: body1,
+      startY: 100,
+      styles: { fontSize: 7, cellPadding: 3 },
+      headStyles: { fillColor: [49, 46, 129], fontSize: 7 },
+      alternateRowStyles: { fillColor: [245, 245, 255] },
+    })
+
+    // Table 2: Weighted Scoring
+    const finalY = (doc as Record<string, unknown>).lastAutoTable ? ((doc as Record<string, unknown>).lastAutoTable as Record<string, number>).finalY + 20 : 300
+    doc.setFontSize(12)
+    doc.text('Weighted Scoring Summary', 40, finalY)
+
+    const head2 = [['Rank', 'Subcontractor', 'Total Quoted', 'SOWs', 'Compliance', 'Weighted Score']]
+    const body2 = comparisonData.map((s, i) => [
+      `#${i + 1}`,
+      s.subName,
+      formatCurrency(s.totalQuoted),
+      `${s.sowsCovered}/${rows.length}`,
+      s.avgComplianceScore != null ? `${s.avgComplianceScore}%` : 'N/A',
+      s.weightedScore != null ? `${s.weightedScore}/100` : 'N/A',
+    ])
+
+    autoTable(doc, {
+      head: head2,
+      body: body2,
+      startY: finalY + 10,
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [88, 28, 135], fontSize: 8 },
+    })
+
+    doc.save(`PDM_${taskOrder.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'project'}_${new Date().toISOString().split('T')[0]}.pdf`)
+  }, [taskOrder, rows, comparisonData, sowStats, weights])
+
   async function handleSave() {
     for (const r of rows) {
       if (r.selectedSubId && r.selectedQuoteId) {
@@ -257,11 +523,406 @@ export default function PricingMatrix() {
           <button onClick={() => fetchData()} className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
             <RotateCcw size={14} /> Refresh
           </button>
-          <button onClick={handleSave} className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
-            <Save size={14} /> {saved ? 'Saved!' : 'Save Selections'}
-          </button>
+          <div className="relative group">
+            <button className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
+              <Download size={14} /> Export
+            </button>
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 hidden group-hover:block min-w-[180px]">
+              <button onClick={exportToExcel} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                <FileSpreadsheet size={14} className="text-green-600" /> Excel Workbook (.xlsx)
+              </button>
+              <button onClick={exportToPDF} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                <Printer size={14} className="text-red-600" /> PDF Report
+              </button>
+            </div>
+          </div>
+          {activeTab === 'pricing' && (
+            <button onClick={handleSave} className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
+              <Save size={14} /> {saved ? 'Saved!' : 'Save Selections'}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <button
+          onClick={() => setActiveTab('comparison')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === 'comparison' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-600 hover:text-gray-800'}`}
+        >
+          <Table2 size={16} /> Quote Comparison
+        </button>
+        <button
+          onClick={() => setActiveTab('scoring')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === 'scoring' ? 'bg-white shadow-sm text-purple-700' : 'text-gray-600 hover:text-gray-800'}`}
+        >
+          <Scale size={16} /> Weighted Scoring
+        </button>
+        <button
+          onClick={() => setActiveTab('pricing')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === 'pricing' ? 'bg-white shadow-sm text-blue-700' : 'text-gray-600 hover:text-gray-800'}`}
+        >
+          <Calculator size={16} /> Pricing Builder
+        </button>
+      </div>
+
+      {/* ==================== COMPARISON TAB ==================== */}
+      {activeTab === 'comparison' && (
+        <div className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="text-xs text-gray-500 mb-1">Subcontractors</div>
+              <div className="text-xl font-bold text-gray-900">{comparisonData.length}</div>
+              <div className="text-xs text-gray-400">submitted quotes</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="text-xs text-gray-500 mb-1">SOW Line Items</div>
+              <div className="text-xl font-bold text-gray-900">{rows.length}</div>
+              <div className="text-xs text-gray-400">requiring quotes</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="text-xs text-gray-500 mb-1">Total Quotes</div>
+              <div className="text-xl font-bold text-indigo-700">{rows.reduce((sum, r) => sum + r.quotes.length, 0)}</div>
+              <div className="text-xs text-gray-400">received</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="text-xs text-gray-500 mb-1">Lowest Total Bid</div>
+              <div className="text-xl font-bold text-green-700">
+                {comparisonData.length > 0 ? formatCurrency(Math.min(...comparisonData.map(s => s.totalQuoted).filter(t => t > 0))) : '—'}
+              </div>
+              <div className="text-xs text-gray-400">{comparisonData.length > 0 ? comparisonData.reduce((best, s) => s.totalQuoted < best.totalQuoted && s.totalQuoted > 0 ? s : best, comparisonData[0])?.subName : ''}</div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="text-xs text-gray-500 mb-1">Best Value</div>
+              <div className="text-xl font-bold text-purple-700">
+                {comparisonData.length > 0 && comparisonData[0].weightedScore != null ? `${comparisonData[0].weightedScore}/100` : '—'}
+              </div>
+              <div className="text-xs text-gray-400">{comparisonData.length > 0 ? comparisonData[0].subName : ''}</div>
+            </div>
+          </div>
+
+          {/* Side-by-Side Comparison Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2"><Table2 size={16} className="text-indigo-600" /> Side-by-Side Quote Comparison</h3>
+              <p className="text-xs text-gray-500 mt-0.5">All subcontractor quotes compared across every SOW line item. Green = lowest price, Red = highest.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700 sticky left-0 bg-gray-50 min-w-[220px] z-10">SOW / Line Item</th>
+                    {comparisonData.map((sub, idx) => (
+                      <th key={sub.subId} className="text-center py-3 px-3 font-semibold min-w-[140px]">
+                        <div className="text-gray-700 text-xs">{sub.subName}</div>
+                        {sub.avgComplianceScore != null && (
+                          <div className={`inline-flex items-center gap-1 mt-1 text-xs px-2 py-0.5 rounded-full ${sub.avgComplianceScore >= 80 ? 'bg-green-100 text-green-700' : sub.avgComplianceScore >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                            <Brain size={10} /> {sub.avgComplianceScore}%
+                          </div>
+                        )}
+                        {idx === 0 && comparisonData.length > 1 && (
+                          <div className="inline-flex items-center gap-1 mt-1 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 ml-1">
+                            <Award size={10} /> Best Value
+                          </div>
+                        )}
+                      </th>
+                    ))}
+                    <th className="text-center py-3 px-3 font-semibold text-gray-500 min-w-[90px] bg-gray-100">Low</th>
+                    <th className="text-center py-3 px-3 font-semibold text-gray-500 min-w-[90px] bg-gray-100">High</th>
+                    <th className="text-center py-3 px-3 font-semibold text-gray-500 min-w-[90px] bg-gray-100">Avg</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const st = sowStats.get(row.sow.id)
+                    return (
+                      <tr key={row.sow.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 sticky left-0 bg-white z-10">
+                          <div className="font-medium text-gray-900 text-xs">{row.sow.sow_name}</div>
+                          <div className="text-xs text-gray-400">{row.sow.service_category}</div>
+                        </td>
+                        {comparisonData.map(sub => {
+                          const q = sub.quotesBySow.get(row.sow.id)
+                          const amt = q?.total_amount || 0
+                          const isLowest = st && amt > 0 && amt === st.min
+                          const isHighest = st && amt > 0 && amt === st.max && st.count > 1
+                          return (
+                            <td key={sub.subId} className={`py-3 px-3 text-center ${isLowest ? 'bg-green-50' : isHighest ? 'bg-red-50' : ''}`}>
+                              {q ? (
+                                <div>
+                                  <div className={`font-medium ${isLowest ? 'text-green-700' : isHighest ? 'text-red-600' : 'text-gray-900'}`}>
+                                    {formatCurrency(q.total_amount)}
+                                  </div>
+                                  {q.ai_compliance_score != null && (
+                                    <div className={`text-xs mt-0.5 ${q.ai_compliance_score >= 80 ? 'text-green-600' : q.ai_compliance_score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      {q.ai_compliance_score}% compliant
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-300 text-xs">No Quote</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="py-3 px-3 text-center bg-gray-50 font-medium text-green-700 text-xs">{st ? formatCurrency(st.min) : '—'}</td>
+                        <td className="py-3 px-3 text-center bg-gray-50 font-medium text-red-600 text-xs">{st ? formatCurrency(st.max) : '—'}</td>
+                        <td className="py-3 px-3 text-center bg-gray-50 font-medium text-gray-700 text-xs">{st ? formatCurrency(st.avg) : '—'}</td>
+                      </tr>
+                    )
+                  })}
+                  {/* Totals Row */}
+                  <tr className="bg-indigo-50 font-bold border-t-2 border-indigo-200">
+                    <td className="py-3 px-4 sticky left-0 bg-indigo-50 z-10 text-indigo-900">TOTAL</td>
+                    {comparisonData.map(sub => (
+                      <td key={sub.subId} className="py-3 px-3 text-center text-indigo-900">{formatCurrency(sub.totalQuoted)}</td>
+                    ))}
+                    <td className="py-3 px-3 text-center bg-indigo-100 text-green-700">
+                      {comparisonData.length > 0 ? formatCurrency(Math.min(...comparisonData.map(s => s.totalQuoted).filter(t => t > 0))) : '—'}
+                    </td>
+                    <td className="py-3 px-3 text-center bg-indigo-100 text-red-600">
+                      {comparisonData.length > 0 ? formatCurrency(Math.max(...comparisonData.map(s => s.totalQuoted))) : '—'}
+                    </td>
+                    <td className="py-3 px-3 text-center bg-indigo-100 text-gray-700">
+                      {comparisonData.length > 0 ? formatCurrency(Math.round(comparisonData.reduce((s, c) => s + c.totalQuoted, 0) / comparisonData.length)) : '—'}
+                    </td>
+                  </tr>
+                  {/* Coverage Row */}
+                  <tr className="bg-gray-50 text-xs text-gray-500">
+                    <td className="py-2 px-4 sticky left-0 bg-gray-50 z-10">SOW Coverage</td>
+                    {comparisonData.map(sub => (
+                      <td key={sub.subId} className="py-2 px-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full ${sub.sowsCovered === rows.length ? 'bg-green-100 text-green-700' : sub.sowsCovered >= rows.length * 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
+                          {sub.sowsCovered}/{rows.length}
+                        </span>
+                      </td>
+                    ))}
+                    <td colSpan={3}></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* AI Compliance Overlay */}
+          {rows.some(r => r.quotes.some(q => q.ai_compliance_score != null)) && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2"><Brain size={16} className="text-green-600" /> AI Compliance Score Overlay</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Compliance scores from AI analysis of each quote against SOW requirements.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 min-w-[220px]">SOW / Line Item</th>
+                      {comparisonData.map(sub => (
+                        <th key={sub.subId} className="text-center py-3 px-3 font-semibold text-gray-700 min-w-[140px] text-xs">{sub.subName}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(row => (
+                      <tr key={row.sow.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 font-medium text-gray-900 text-xs">{row.sow.sow_name}</td>
+                        {comparisonData.map(sub => {
+                          const q = sub.quotesBySow.get(row.sow.id)
+                          const score = q?.ai_compliance_score
+                          const analysis = q?.ai_compliance_analysis as Record<string, unknown> | null
+                          return (
+                            <td key={sub.subId} className="py-3 px-3 text-center">
+                              {score != null ? (
+                                <div>
+                                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${score >= 90 ? 'bg-green-100 text-green-800' : score >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                    {score}%
+                                  </div>
+                                  {analysis?.missing_requirements && (analysis.missing_requirements as unknown[]).length > 0 && (
+                                    <div className="text-xs text-red-500 mt-1">{(analysis.missing_requirements as unknown[]).length} gap{(analysis.missing_requirements as unknown[]).length !== 1 ? 's' : ''}</div>
+                                  )}
+                                </div>
+                              ) : q ? (
+                                <span className="text-xs text-gray-400">Not Analyzed</span>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                    {/* Average Row */}
+                    <tr className="bg-green-50 font-bold border-t-2 border-green-200">
+                      <td className="py-3 px-4 text-green-900">Average Compliance</td>
+                      {comparisonData.map(sub => (
+                        <td key={sub.subId} className="py-3 px-3 text-center">
+                          {sub.avgComplianceScore != null ? (
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${sub.avgComplianceScore >= 80 ? 'bg-green-200 text-green-800' : sub.avgComplianceScore >= 60 ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'}`}>
+                              {sub.avgComplianceScore}%
+                            </span>
+                          ) : <span className="text-gray-400 text-xs">N/A</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================== SCORING TAB ==================== */}
+      {activeTab === 'scoring' && (
+        <div className="space-y-6">
+          {/* Weight Configuration */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><Scale size={16} className="text-purple-600" /> Evaluation Weights (must total 100%)</h3>
+            <p className="text-xs text-gray-500 mb-4">Adjust weights per FAR 15.101-1 Best Value evaluation criteria. Industry default: Price 40%, Technical/Compliance 30%, Past Performance 20%, Certifications 10%.</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1 mb-1"><DollarSign size={12} /> Price Weight</label>
+                <div className="flex items-center gap-2">
+                  <input type="range" min={0} max={100} value={weights.price} onChange={(e) => setWeights(w => ({ ...w, price: Number(e.target.value) }))} className="flex-1 accent-blue-600" />
+                  <span className="text-sm font-bold text-blue-700 w-10 text-right">{weights.price}%</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1 mb-1"><Brain size={12} /> Compliance Weight</label>
+                <div className="flex items-center gap-2">
+                  <input type="range" min={0} max={100} value={weights.compliance} onChange={(e) => setWeights(w => ({ ...w, compliance: Number(e.target.value) }))} className="flex-1 accent-green-600" />
+                  <span className="text-sm font-bold text-green-700 w-10 text-right">{weights.compliance}%</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1 mb-1"><Award size={12} /> Past Performance</label>
+                <div className="flex items-center gap-2">
+                  <input type="range" min={0} max={100} value={weights.pastPerformance} onChange={(e) => setWeights(w => ({ ...w, pastPerformance: Number(e.target.value) }))} className="flex-1 accent-amber-600" />
+                  <span className="text-sm font-bold text-amber-700 w-10 text-right">{weights.pastPerformance}%</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 flex items-center gap-1 mb-1"><Shield size={12} /> Certifications</label>
+                <div className="flex items-center gap-2">
+                  <input type="range" min={0} max={100} value={weights.certifications} onChange={(e) => setWeights(w => ({ ...w, certifications: Number(e.target.value) }))} className="flex-1 accent-purple-600" />
+                  <span className="text-sm font-bold text-purple-700 w-10 text-right">{weights.certifications}%</span>
+                </div>
+              </div>
+            </div>
+            {weights.price + weights.compliance + weights.pastPerformance + weights.certifications !== 100 && (
+              <div className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 flex items-center gap-1">
+                <AlertTriangle size={12} /> Weights total {weights.price + weights.compliance + weights.pastPerformance + weights.certifications}% — should equal 100%
+              </div>
+            )}
+          </div>
+
+          {/* Ranking Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+              <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2"><Award size={16} className="text-purple-600" /> Best Value Ranking</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Subcontractors ranked by weighted composite score. Higher = better value.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="text-center py-3 px-3 font-semibold text-gray-700 w-16">Rank</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Subcontractor</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Total Quoted</th>
+                    <th className="text-center py-3 px-3 font-semibold text-gray-700">SOW Coverage</th>
+                    <th className="text-center py-3 px-3 font-semibold text-blue-700">Price Score<br /><span className="text-xs font-normal text-gray-400">({weights.price}%)</span></th>
+                    <th className="text-center py-3 px-3 font-semibold text-green-700">Compliance<br /><span className="text-xs font-normal text-gray-400">({weights.compliance}%)</span></th>
+                    <th className="text-center py-3 px-3 font-semibold text-amber-700">Past Perf.<br /><span className="text-xs font-normal text-gray-400">({weights.pastPerformance}%)</span></th>
+                    <th className="text-center py-3 px-3 font-semibold text-purple-700">Certs<br /><span className="text-xs font-normal text-gray-400">({weights.certifications}%)</span></th>
+                    <th className="text-center py-3 px-3 font-semibold text-indigo-700">Weighted<br />Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonData.map((sub, idx) => {
+                    const allTotals = comparisonData.map(s => s.totalQuoted).filter(t => t > 0)
+                    const minT = Math.min(...allTotals, Infinity)
+                    const maxT = Math.max(...allTotals, 0)
+                    const priceScore = maxT > minT && sub.totalQuoted > 0 ? Math.round(100 - ((sub.totalQuoted - minT) / (maxT - minT)) * 100) : sub.totalQuoted > 0 ? 100 : 0
+                    const subRecord = allSubs.get(sub.subId)
+                    const perfScore = (subRecord as Record<string, unknown>)?.past_performance_rating ? Number((subRecord as Record<string, unknown>).past_performance_rating) : 70
+                    const certCount = (subRecord as Record<string, unknown>)?.certifications ? (Array.isArray((subRecord as Record<string, unknown>).certifications) ? ((subRecord as Record<string, unknown>).certifications as unknown[]).length : 1) : 0
+                    const certScore = Math.min(certCount * 25, 100)
+
+                    return (
+                      <tr key={sub.subId} className={`border-b hover:bg-gray-50 ${idx === 0 ? 'bg-purple-50' : ''}`}>
+                        <td className="py-3 px-3 text-center">
+                          {idx === 0 ? (
+                            <span className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-full font-bold text-sm shadow-sm">1</span>
+                          ) : idx === 1 ? (
+                            <span className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-gray-300 to-gray-400 text-white rounded-full font-bold text-sm">2</span>
+                          ) : idx === 2 ? (
+                            <span className="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-amber-600 to-amber-700 text-white rounded-full font-bold text-sm">3</span>
+                          ) : (
+                            <span className="text-gray-500 font-medium">{idx + 1}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-gray-900">{sub.subName}</div>
+                          {idx === 0 && <div className="text-xs text-purple-600 font-medium mt-0.5">Recommended — Best Value</div>}
+                        </td>
+                        <td className="py-3 px-4 text-right font-medium text-gray-900">{formatCurrency(sub.totalQuoted)}</td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${sub.sowsCovered === rows.length ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {sub.sowsCovered}/{rows.length}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex items-center gap-1">
+                            <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${priceScore}%` }} /></div>
+                            <span className="text-xs font-medium text-gray-600">{priceScore}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex items-center gap-1">
+                            <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-green-500 rounded-full" style={{ width: `${sub.avgComplianceScore ?? 0}%` }} /></div>
+                            <span className="text-xs font-medium text-gray-600">{sub.avgComplianceScore ?? 'N/A'}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex items-center gap-1">
+                            <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-amber-500 rounded-full" style={{ width: `${perfScore}%` }} /></div>
+                            <span className="text-xs font-medium text-gray-600">{perfScore}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <div className="inline-flex items-center gap-1">
+                            <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden"><div className="h-full bg-purple-500 rounded-full" style={{ width: `${certScore}%` }} /></div>
+                            <span className="text-xs font-medium text-gray-600">{certScore}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <span className={`inline-flex items-center justify-center w-12 h-12 rounded-full text-sm font-bold ${(sub.weightedScore ?? 0) >= 75 ? 'bg-green-100 text-green-800 ring-2 ring-green-300' : (sub.weightedScore ?? 0) >= 50 ? 'bg-yellow-100 text-yellow-800 ring-2 ring-yellow-300' : 'bg-red-100 text-red-800 ring-2 ring-red-300'}`}>
+                            {sub.weightedScore ?? '—'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Weight Explanation */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-4">
+            <h3 className="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2"><TrendingUp size={16} /> How Scoring Works (FAR 15.101-1)</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-amber-700">
+              <div><strong>Price ({weights.price}%):</strong> Lowest total bid = 100 points. Highest = 0. Linear interpolation between.</div>
+              <div><strong>Compliance ({weights.compliance}%):</strong> AI-generated compliance score from quote analysis against SOW requirements (0-100).</div>
+              <div><strong>Past Performance ({weights.pastPerformance}%):</strong> Historical performance rating from subcontractor profile (default: 70 if unrated).</div>
+              <div><strong>Certifications ({weights.certifications}%):</strong> Each relevant certification earns 25 points (max 100).</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== PRICING TAB ==================== */}
+      {activeTab === 'pricing' && (<div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -743,6 +1404,7 @@ export default function PricingMatrix() {
           </tbody>
         </table>
       </div>
+    </div>)}
     </div>
   )
 }
