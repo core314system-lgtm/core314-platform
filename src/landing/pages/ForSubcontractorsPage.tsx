@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, BadgeCheck, Zap, Shield, Globe, ArrowRight,
   CheckCircle, Building2, HardHat, Wrench, ChevronDown, ChevronUp,
-  Star, TrendingUp, Send,
+  Star, TrendingUp, Send, Brain, FileCheck, Mail,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -466,6 +466,91 @@ export default function ForSubcontractorsPage() {
                 <p className="text-gray-600 leading-relaxed">{card.desc}</p>
               </motion.div>
             ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* AI Quote Compliance — Sub Benefit */}
+      <section className="py-20 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 right-10 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 left-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={stagger}
+            className="text-center mb-14"
+          >
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-sm text-purple-200 mb-6">
+              <Brain size={16} className="text-purple-300" />
+              AI-Powered Quality Assurance
+            </motion.div>
+            <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold mb-4">
+              Submit Once. Know Exactly Where You Stand.
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-lg text-purple-200 max-w-3xl mx-auto leading-relaxed">
+              Every quote you submit through Procuvex is automatically reviewed by AI against the Statement of Work. If anything is missing, you'll know exactly what — no guessing, no surprises.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={stagger}
+            className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+          >
+            {[
+              {
+                icon: FileCheck,
+                title: 'Instant Compliance Check',
+                desc: 'AI scans your quote against every SOW requirement in seconds. You get a compliance score (0–100%) showing exactly how well your quote covers the scope.',
+                color: 'from-blue-500 to-indigo-500',
+              },
+              {
+                icon: Mail,
+                title: 'Specific Gap Feedback',
+                desc: 'If your quote misses any requirements, you receive a detailed email listing exactly what\'s missing — specific SOW items, pricing gaps, and clear recommendations.',
+                color: 'from-purple-500 to-pink-500',
+              },
+              {
+                icon: CheckCircle,
+                title: 'Revise & Win',
+                desc: 'Fix the gaps, resubmit through the portal, and your revised quote is re-analyzed automatically. Better quotes mean faster awards and more wins.',
+                color: 'from-green-500 to-emerald-500',
+              },
+            ].map((card, i) => (
+              <motion.div
+                key={i}
+                variants={fadeUp}
+                className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:bg-white/15 transition-all"
+              >
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-5 shadow-lg`}>
+                  <card.icon size={28} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{card.title}</h3>
+                <p className="text-purple-200 leading-relaxed">{card.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            className="mt-12 text-center"
+          >
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl">
+              <Brain size={20} className="text-purple-300" />
+              <span className="text-sm text-purple-100">
+                <strong className="text-white">No more guessing.</strong> Our AI tells you exactly what primes need — so you can deliver it.
+              </span>
+            </div>
           </motion.div>
         </div>
       </section>
