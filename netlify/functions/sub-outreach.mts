@@ -20,7 +20,7 @@ function generateToken(): string {
   return token
 }
 
-function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategories: string[]): string {
+function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategories: string[], unsubscribeUrl: string): string {
   const trades = tradeCategories.slice(0, 3).join(", ") || "Government Contracting"
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -32,7 +32,7 @@ function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategori
         <h2 style="color: #111827; margin: 0 0 16px; font-size: 20px;">Your Company Has Been Added to Procuvex</h2>
         <p style="color: #374151; line-height: 1.6; font-size: 15px;">
           We identified <strong>${companyName}</strong> as a qualified subcontractor in <strong>${trades}</strong> 
-          based on your SAM.gov registration.
+          based on your government registrations.
         </p>
         <p style="color: #374151; line-height: 1.6; font-size: 15px;">
           Your company profile has been created in the Procuvex network, where prime contractors 
@@ -57,14 +57,17 @@ function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategori
 
         <p style="color: #6b7280; font-size: 13px; line-height: 1.5; text-align: center;">
           Claiming is free and takes less than 2 minutes. Your profile is already pre-populated 
-          with your SAM.gov registration data.
+          with your registration data.
         </p>
 
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">
           Procuvex &mdash; A product of Core314 Technologies LLC<br/>
-          You received this because your company is registered on SAM.gov.<br/>
           <a href="https://procuvex.com" style="color: #6b7280;">Visit Procuvex</a>
+        </p>
+        <p style="font-size: 11px; color: #d1d5db; text-align: center; margin-top: 12px;">
+          You received this because your company was identified as a qualified government subcontractor.<br/>
+          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> from future emails.
         </p>
       </div>
     </div>
@@ -84,12 +87,33 @@ export default async (req: Request, _context: Context) => {
   const headers = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, x-user-id",
   }
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers })
+  }
+
+  // Handle GET requests (unsubscribe links)
+  if (req.method === "GET") {
+    const url = new URL(req.url)
+    const actionParam = url.searchParams.get("action")
+    const subId = url.searchParams.get("id")
+
+    if (actionParam === "unsubscribe" && subId) {
+      await supabase
+        .from("master_subcontractors")
+        .update({ unsubscribed: true, unsubscribed_at: new Date().toISOString() })
+        .eq("id", subId)
+
+      return new Response(
+        `<html><head><title>Unsubscribed</title></head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:80px 20px;background:#f9fafb;"><div style="max-width:400px;margin:0 auto;background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><h2 style="color:#111827;margin:0 0 12px;">You've been unsubscribed</h2><p style="color:#6b7280;margin:0;">You won't receive any more emails from Procuvex. If this was a mistake, visit <a href="https://procuvex.com/for-subcontractors" style="color:#2563eb;">procuvex.com/for-subcontractors</a> to re-join.</p></div></body></html>`,
+        { status: 200, headers: { "Content-Type": "text/html" } }
+      )
+    }
+
+    return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers })
   }
 
   if (req.method !== "POST") {
@@ -113,7 +137,30 @@ export default async (req: Request, _context: Context) => {
   if (action === "send-outreach") {
     initSendGrid()
     const { state, trade, limit: batchLimit } = body
-    const maxBatch = Math.min(batchLimit || 50, 200) // cap at 200 per batch
+
+    // Daily limit protection — check how many sent today
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const { count: sentToday } = await supabase
+      .from("master_subcontractors")
+      .select("id", { count: "exact", head: true })
+      .gte("outreach_sent_at", todayStart.toISOString())
+
+    // Daily sending limit — start conservative, increase over time
+    // Days 1-3: 50/day, Days 4-7: 100/day, Day 8+: 200/day
+    const dailyLimit = Number(process.env.OUTREACH_DAILY_LIMIT) || 50
+    const remainingToday = Math.max(0, dailyLimit - (sentToday || 0))
+
+    if (remainingToday === 0) {
+      return new Response(JSON.stringify({
+        sent: 0,
+        message: `Daily limit reached (${dailyLimit}/day). ${sentToday} emails sent today. Try again tomorrow or increase OUTREACH_DAILY_LIMIT.`,
+        daily_limit: dailyLimit,
+        sent_today: sentToday,
+      }), { headers })
+    }
+
+    const maxBatch = Math.min(batchLimit || 50, remainingToday, 200)
 
     // Find unclaimed subs with email that haven't been contacted recently
     let query = supabase
@@ -142,11 +189,14 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ sent: 0, message: "No eligible recipients found" }), { headers })
     }
 
+    // Filter out unsubscribed records (column may or may not exist yet)
+    const eligibleTargets = targets.filter((sub: any) => !(sub as any).unsubscribed)
+
     let sent = 0
     let failed = 0
     const errors: string[] = []
 
-    for (const sub of targets) {
+    for (const sub of eligibleTargets) {
       try {
         // Generate claim token
         const token = generateToken()
@@ -164,16 +214,22 @@ export default async (req: Request, _context: Context) => {
           })
           .eq("id", sub.id)
 
-        // Send email
+        // Send email with unsubscribe link
         const claimUrl = `https://procuvex.com/claim/${token}`
-        const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [])
+        const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${token}`
+        const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], unsubscribeUrl)
 
         await sgMail.default.send({
           to: sub.contact_email!,
           from: { email: "team@procuvex.com", name: "Procuvex" },
+          replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `${sub.company_name} — Your Procuvex Profile Is Ready`,
           html,
           customArgs: { email_type: "sub_outreach" },
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         })
 
         // Log the contact
@@ -193,7 +249,15 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
-    return new Response(JSON.stringify({ sent, failed, total: targets.length, errors: errors.slice(0, 5) }), { headers })
+    return new Response(JSON.stringify({
+      sent,
+      failed,
+      total: eligibleTargets.length,
+      daily_limit: dailyLimit,
+      sent_today: (sentToday || 0) + sent,
+      remaining_today: remainingToday - sent,
+      errors: errors.slice(0, 5),
+    }), { headers })
   }
 
   // --- ACTION: generate-tokens ---
