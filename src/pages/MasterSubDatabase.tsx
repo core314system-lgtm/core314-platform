@@ -7,7 +7,8 @@ import {
   Search, MapPin, Mail, ShieldCheck,
   ChevronDown, ChevronUp, Download, Upload, Star,
   Users, BadgeCheck, Clock, Eye, ExternalLink, Loader2, X,
-  Database, AlertCircle, FileUp, Lock,
+  Database, AlertCircle, FileUp, Lock, Trash2,
+  TrendingUp, Activity, Send, RefreshCw,
 } from 'lucide-react'
 
 interface MasterSub {
@@ -44,6 +45,32 @@ const US_STATES = [
   'NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT',
   'VT','VA','WA','WV','WI','WY',
 ]
+
+// High-demand subcontractor trades for federal/government contracting
+const HIGH_DEMAND_TIER1 = [
+  '238210', // Electrical
+  '238220', // Plumbing, HVAC, Mechanical
+  '236220', // Commercial/Institutional Building Construction
+  '238160', // Roofing
+  '238110', // Concrete
+  '238320', // Painting & Wall Covering
+  '238910', // Site Preparation / Excavation
+]
+
+const HIGH_DEMAND_TIER2 = [
+  '541512', // Computer Systems Design (Cybersecurity)
+  '541519', // Other Computer Related Services
+  '561720', // Janitorial Services
+  '561730', // Landscaping Services
+  '561612', // Security Guards & Patrol Services
+  '541330', // Engineering Services
+  '238290', // Other Building Equipment (Elevators, etc.)
+  '238310', // Drywall & Insulation
+  '238340', // Tile & Terrazzo
+  '238350', // Finish Carpentry
+]
+
+const ALL_HIGH_DEMAND = [...HIGH_DEMAND_TIER1, ...HIGH_DEMAND_TIER2]
 
 const VERIFICATION_LABELS: Record<string, { label: string; color: string; icon: typeof ShieldCheck }> = {
   unverified: { label: 'Unverified', color: 'bg-gray-100 text-gray-600', icon: Clock },
@@ -87,6 +114,12 @@ export default function MasterSubDatabase() {
   const [outreachSending, setOutreachSending] = useState(false)
   const [outreachResult, setOutreachResult] = useState<any>(null)
   const [outreachPreview, setOutreachPreview] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [enriching, setEnriching] = useState(false)
+  const [enrichProgress, setEnrichProgress] = useState('')
+  const [enrichResult, setEnrichResult] = useState<{ enriched: number; noEmail: number; errors: number } | null>(null)
+  const [outreachStats, setOutreachStats] = useState<{ totalSent: number; sentToday: number; totalClaimed: number; recentClaims: any[] }>({ totalSent: 0, sentToday: 0, totalClaimed: 0, recentClaims: [] })
 
   const PAGE_SIZE = 50
 
@@ -100,6 +133,45 @@ export default function MasterSubDatabase() {
       verified: verified || 0,
       claimed: claimed || 0,
       withEmail: withEmail || 0,
+    })
+  }, [])
+
+  const fetchOutreachStats = useCallback(async () => {
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+
+    // Total emails sent (any record with outreach_sent_at set)
+    const { count: totalSent } = await supabase
+      .from('master_subcontractors')
+      .select('id', { count: 'exact', head: true })
+      .not('outreach_sent_at', 'is', null)
+
+    // Sent today
+    const { count: sentToday } = await supabase
+      .from('master_subcontractors')
+      .select('id', { count: 'exact', head: true })
+      .gte('outreach_sent_at', todayStart.toISOString())
+
+    // Claimed after outreach (have both outreach_sent_at and claimed_at)
+    const { count: totalClaimed } = await supabase
+      .from('master_subcontractors')
+      .select('id', { count: 'exact', head: true })
+      .not('outreach_sent_at', 'is', null)
+      .not('claimed_at', 'is', null)
+
+    // Recent claims (last 10)
+    const { data: recentClaims } = await supabase
+      .from('master_subcontractors')
+      .select('id, company_name, city, state, trade_categories, claimed_at')
+      .not('claimed_at', 'is', null)
+      .order('claimed_at', { ascending: false })
+      .limit(10)
+
+    setOutreachStats({
+      totalSent: totalSent || 0,
+      sentToday: sentToday || 0,
+      totalClaimed: totalClaimed || 0,
+      recentClaims: recentClaims || [],
     })
   }, [])
 
@@ -137,7 +209,7 @@ export default function MasterSubDatabase() {
     setLoading(false)
   }, [search, filterState, filterTrade, filterVerification, filterSmallBiz, sortBy, sortDir, page])
 
-  useEffect(() => { fetchSubs(); fetchStats() }, [fetchSubs, fetchStats])
+  useEffect(() => { fetchSubs(); fetchStats(); fetchOutreachStats() }, [fetchSubs, fetchStats, fetchOutreachStats])
 
   // SAM.gov Public V2 Extract columns (pipe-delimited)
   // See: https://open.gsa.gov/api/sam-entity-extracts-api/v1/SAM_Entity_Management_Public_V2_Extract_Layout.pdf
@@ -190,123 +262,169 @@ export default function MasterSubDatabase() {
   async function handleFileUpload(file: File) {
     setFileUploading(true)
     setFileResult(null)
-    setFileProgress('Reading file...')
+    setFileProgress('Reading file... (streaming — large files supported)')
 
     try {
-      const text = await file.text()
-      const lines = text.split('\n').filter(l => l.trim())
-      setFileProgress(`Parsed ${lines.length.toLocaleString()} lines. Processing...`)
-
-      // Skip header if present (check if first field looks like a UEI)
-      let startIdx = 0
-      const firstFields = parseSamCsvLine(lines[0])
-      if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.length > 12) {
-        startIdx = 1
-      }
-
-      // Parse records
+      // Stream file line-by-line to avoid memory limits on large SAM.gov files (1-2GB)
       const records: any[] = []
       let skippedNonUS = 0
       let skippedNoName = 0
       let skippedExpired = 0
+      let lineCount = 0
+      let isFirstLine = true
+      let leftover = ''
 
-      for (let i = startIdx; i < lines.length; i++) {
-        const fields = parseSamCsvLine(lines[i])
-        if (fields.length < 30) continue
+      const reader = file.stream().getReader()
+      const decoder = new TextDecoder('utf-8')
+      let bytesRead = 0
+      const fileSize = file.size
 
-        const country = fields[SAM_COLUMNS.COUNTRY]?.trim()
-        if (country && country !== 'USA' && country !== 'US') {
-          skippedNonUS++
-          continue
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        bytesRead += value?.byteLength || 0
+        const chunkText = decoder.decode(value, { stream: true })
+        const combined = leftover + chunkText
+        const lines = combined.split(/\r?\n/)
+        leftover = lines.pop() || '' // last partial line carries over
+
+        for (const rawLine of lines) {
+          const line = rawLine.trim()
+          if (!line) continue
+          lineCount++
+
+          // Check header on first line
+          if (isFirstLine) {
+            isFirstLine = false
+            const firstFields = parseSamCsvLine(line)
+            if (firstFields[0]?.includes('UNIQUE') || firstFields[0]?.includes('UEI') || firstFields[0]?.toUpperCase?.().includes('ENTITY') || firstFields[0]?.length > 12) {
+              continue
+            }
+          }
+
+          if (lineCount % 20000 === 0) {
+            const pct = Math.round(bytesRead / fileSize * 100)
+            setFileProgress(`Streaming... ${pct}% — ${lineCount.toLocaleString()} lines scanned, ${records.length} matched`)
+            await new Promise(r => setTimeout(r, 0)) // yield to UI
+          }
+
+          const fields = parseSamCsvLine(line)
+          if (!fields || fields.length < 12) continue
+
+          const country = (fields[SAM_COLUMNS.COUNTRY] ?? '').trim()
+          if (country && country !== 'USA' && country !== 'US' && country !== 'UNITED STATES') {
+            skippedNonUS++
+            continue
+          }
+
+          const extractCode = (fields[SAM_COLUMNS.EXTRACT_CODE] ?? '').trim()
+          if (extractCode === 'E' || extractCode === '4') {
+            skippedExpired++
+            continue
+          }
+
+          const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
+          if (!companyName) {
+            skippedNoName++
+            continue
+          }
+
+          const uei = (fields[SAM_COLUMNS.UEI] || '').trim()
+          const cage = (fields[SAM_COLUMNS.CAGE] || '').trim()
+          const state = (fields[SAM_COLUMNS.STATE] || '').trim()
+          const city = (fields[SAM_COLUMNS.CITY] || '').trim()
+          const zip = (fields[SAM_COLUMNS.ZIP] || '').trim()
+          const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
+          const entUrl = (fields[SAM_COLUMNS.URL] || '').trim()
+
+          // NAICS codes — only use primary (position 33 is a count field, not secondary codes)
+          const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
+          // Only accept valid NAICS codes (start with 1-9, not '0000' or count fields like '0001')
+          const allNaics = [naicsPrimary].filter(n => n && /^[1-9]\d{1,5}$/.test(n.trim())).map(n => n.trim())
+
+          // Filter by state if specified
+          if (importState && state !== importState) continue
+
+          // Filter by NAICS if specified
+          if (importNaics) {
+            const filterCodes = importNaics.split(',').map(c => c.trim())
+            const hasMatch = filterCodes.some(fc => allNaics.some(nc => nc.startsWith(fc) || fc.startsWith(nc)))
+            if (!hasMatch) continue
+          }
+
+          const tradeIds = naicsToCategoryIds(allNaics)
+          const tradeNames = naicsToTradeNames(allNaics)
+          const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
+
+          // POC columns in public extract are misaligned (contain country codes, not names)
+          // Skip POC parsing — contact info will be enriched via web scraping
+          const contactName: string | null = null
+
+          // Skip records without a website (can't contact or scrape without one)
+          if (!entUrl) continue
+
+          // Slug must be unique — append UEI to guarantee no collisions
+          const slug = generateSlug(`${companyName} ${uei}`)
+
+          // Calculate profile completeness
+          let completeness = 30 // base for having name + UEI
+          if (city) completeness += 10
+          if (state) completeness += 10
+          if (entUrl) completeness += 15
+          if (allNaics.length > 0) completeness += 15
+          if (sbaTypes.length > 0) completeness += 10
+          if (contactName) completeness += 10
+          completeness = Math.min(completeness, 100)
+
+          records.push({
+            company_name: companyName,
+            slug,
+            sam_uei: uei || null,
+            cage_code: cage || null,
+            address_line1: addr1 || null,
+            city: city || null,
+            state: state || null,
+            zip_code: zip || null,
+            website: entUrl ? (entUrl.startsWith('http') ? entUrl : `https://${entUrl}`) : null,
+            naics_codes: allNaics,
+            trade_categories: tradeNames,
+            service_categories: tradeIds,
+            small_business: sbaTypes.length > 0,
+            small_business_types: sbaTypes,
+            geographic_coverage: state ? [state] : [],
+            contact_name: contactName,
+            verification_status: 'unverified',
+            data_source: 'sam_gov',
+            profile_completeness: completeness,
+            sam_registration_status: 'active',
+          })
+        } // end for (rawLine of lines)
+      } // end while (true) — streaming chunks
+
+      // Process any remaining leftover line
+      if (leftover.trim()) {
+        const fields = parseSamCsvLine(leftover.trim())
+        if (fields && fields.length >= 12) {
+          const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
+          const state = (fields[SAM_COLUMNS.STATE] || '').trim()
+          const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] ?? '').trim()
+          const allNaics = [naicsPrimary].filter(n => n && /^\d{2,6}$/.test(n.trim()))
+          if (companyName && (!importState || state === importState)) {
+            if (!importNaics || importNaics.split(',').some(fc => allNaics.some(nc => nc.startsWith(fc.trim())))) {
+              lineCount++
+            }
+          }
         }
-
-        const extractCode = fields[SAM_COLUMNS.EXTRACT_CODE]?.trim()
-        if (extractCode === 'E' || extractCode === '4') {
-          skippedExpired++
-          continue
-        }
-
-        const companyName = (fields[SAM_COLUMNS.LEGAL_NAME] || '').trim()
-        if (!companyName) {
-          skippedNoName++
-          continue
-        }
-
-        const uei = (fields[SAM_COLUMNS.UEI] || '').trim()
-        const cage = (fields[SAM_COLUMNS.CAGE] || '').trim()
-        const state = (fields[SAM_COLUMNS.STATE] || '').trim()
-        const city = (fields[SAM_COLUMNS.CITY] || '').trim()
-        const zip = (fields[SAM_COLUMNS.ZIP] || '').trim()
-        const addr1 = (fields[SAM_COLUMNS.ADDR1] || '').trim()
-        const url = (fields[SAM_COLUMNS.URL] || '').trim()
-
-        // NAICS codes
-        const naicsPrimary = (fields[SAM_COLUMNS.NAICS_PRIMARY] || '').trim()
-        const naicsSecondary = (fields[SAM_COLUMNS.NAICS_SECONDARY] || '').trim()
-        const allNaics = [naicsPrimary, ...naicsSecondary.split(/[~,;]/)].filter(n => n.trim() && /^\d{2,6}$/.test(n.trim())).map(n => n.trim())
-
-        // Filter by state if specified
-        if (importState && state !== importState) continue
-
-        // Filter by NAICS if specified
-        if (importNaics) {
-          const filterCodes = importNaics.split(',').map(c => c.trim())
-          const hasMatch = filterCodes.some(fc => allNaics.some(nc => nc.startsWith(fc) || fc.startsWith(nc)))
-          if (!hasMatch) continue
-        }
-
-        const tradeIds = naicsToCategoryIds(allNaics)
-        const tradeNames = naicsToTradeNames(allNaics)
-        const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
-
-        // POC info (may be empty in public extract)
-        const pocFirst = (fields[SAM_COLUMNS.POC_GOV_FIRST] || '').trim()
-        const pocLast = (fields[SAM_COLUMNS.POC_GOV_LAST] || '').trim()
-        const contactName = [pocFirst, pocLast].filter(Boolean).join(' ') || null
-
-        const slug = generateSlug(companyName)
-
-        // Calculate profile completeness
-        let completeness = 30 // base for having name + UEI
-        if (city) completeness += 10
-        if (state) completeness += 10
-        if (url) completeness += 15
-        if (allNaics.length > 0) completeness += 15
-        if (sbaTypes.length > 0) completeness += 10
-        if (contactName) completeness += 10
-        completeness = Math.min(completeness, 100)
-
-        records.push({
-          company_name: companyName,
-          slug,
-          sam_uei: uei || null,
-          cage_code: cage || null,
-          address_line1: addr1 || null,
-          city: city || null,
-          state: state || null,
-          zip_code: zip || null,
-          website: url ? (url.startsWith('http') ? url : `https://${url}`) : null,
-          naics_codes: allNaics,
-          trade_categories: tradeNames,
-          service_categories: tradeIds,
-          small_business: sbaTypes.length > 0,
-          small_business_types: sbaTypes,
-          geographic_coverage: state ? [state] : [],
-          contact_name: contactName,
-          verification_status: 'unverified',
-          data_source: 'sam_gov_extract',
-          profile_completeness: completeness,
-          sam_registration_status: 'active',
-        })
       }
 
-      setFileProgress(`Found ${records.length.toLocaleString()} matching records. Importing in batches...`)
+      setFileProgress(`Found ${records.length.toLocaleString()} matching records from ${lineCount.toLocaleString()} lines. Importing...`)
 
       if (records.length === 0) {
         setFileResult({
           imported: 0,
           skipped: 0,
-          total: lines.length - startIdx,
+          total: lineCount,
           skippedNonUS,
           skippedNoName,
           skippedExpired,
@@ -316,34 +434,63 @@ export default function MasterSubDatabase() {
         return
       }
 
-      // Import in batches of 50, using upsert to skip duplicates
-      const BATCH_SIZE = 50
+      // Filter out records without a UEI (can't upsert without conflict key)
+      const validRecords = records.filter(r => r.sam_uei)
+      const noUeiCount = records.length - validRecords.length
+
+      // Get auth token for server-side insert (bypasses RLS)
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) {
+        setFileResult({ error: 'Not authenticated. Please log in and try again.' })
+        setFileUploading(false)
+        return
+      }
+
+      // Import via serverless function (uses service role key to bypass RLS)
+      const BATCH_SIZE = 200
       let imported = 0
       let skipped = 0
       let errors: string[] = []
 
-      for (let i = 0; i < records.length; i += BATCH_SIZE) {
-        const batch = records.slice(i, i + BATCH_SIZE)
-        setFileProgress(`Importing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(records.length / BATCH_SIZE)}... (${imported} imported so far)`)
+      for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
+        const batch = validRecords.slice(i, i + BATCH_SIZE)
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1
+        const totalBatches = Math.ceil(validRecords.length / BATCH_SIZE)
+        setFileProgress(`Importing batch ${batchNum} of ${totalBatches}... (${imported} imported, ${skipped} skipped)`)
 
-        const { data, error } = await supabase
-          .from('master_subcontractors')
-          .upsert(batch, { onConflict: 'sam_uei', ignoreDuplicates: true })
-          .select('id')
+        // Yield to UI every 5 batches
+        if (batchNum % 5 === 0) await new Promise(r => setTimeout(r, 0))
 
-        if (error) {
-          errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
-          // Try individual inserts for this batch
-          for (const record of batch) {
-            const { error: singleErr } = await supabase
-              .from('master_subcontractors')
-              .upsert(record, { onConflict: 'sam_uei', ignoreDuplicates: true })
-            if (!singleErr) imported++
-            else skipped++
+        try {
+          const res = await fetch('/.netlify/functions/sam-bulk-insert', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ records: batch }),
+          })
+          const result = await res.json()
+
+          if (result.error) {
+            if (errors.length < 10) errors.push(`Batch ${batchNum}: ${result.error}`)
+            skipped += batch.length
+          } else {
+            imported += result.imported || 0
+            skipped += result.skipped || 0
+            if (result.errors?.length > 0 && errors.length < 10) {
+              errors.push(...result.errors)
+            }
           }
-        } else {
-          imported += data?.length || batch.length
+        } catch (fetchErr: any) {
+          if (errors.length < 10) errors.push(`Batch ${batchNum}: Network error - ${fetchErr.message}`)
+          skipped += batch.length
         }
+      }
+
+      if (noUeiCount > 0) {
+        errors.push(`${noUeiCount} records skipped (no SAM UEI — required for de-duplication)`)
       }
 
       setFileResult({
@@ -439,6 +586,105 @@ export default function MasterSubDatabase() {
     setOutreachSending(false)
     setOutreachPreview(null)
     fetchStats()
+    fetchOutreachStats()
+  }
+
+  async function deleteSub(id: string) {
+    if (!confirm('Delete this subcontractor permanently?')) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return
+    try {
+      const res = await fetch('/.netlify/functions/sam-bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ ids: [id] }),
+      })
+      const result = await res.json()
+      if (result.deleted) {
+        fetchSubs()
+        fetchStats()
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  async function deleteAll() {
+    setDeleting(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) { setDeleting(false); return }
+    try {
+      const res = await fetch('/.netlify/functions/sam-bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ deleteAll: true }),
+      })
+      const result = await res.json()
+      if (result.error) {
+        alert(`Error: ${result.error}`)
+      } else {
+        alert(`Deleted ${result.deleted} records.`)
+        fetchSubs()
+        fetchStats()
+      }
+    } catch (err) { console.error(err) }
+    setDeleting(false)
+    setShowDeleteConfirm(false)
+  }
+
+  async function enrichContacts() {
+    setEnriching(true)
+    setEnrichResult(null)
+    setEnrichProgress('Starting contact enrichment (high-demand trades first)...')
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) { setEnriching(false); return }
+
+    let totalEnriched = 0
+    let totalNoEmail = 0
+    let totalErrors = 0
+    let batchNum = 0
+
+    const tierLabels: Record<string, string> = {
+      tier1: '⚡ Tier 1 (Electrical, HVAC, Construction)',
+      tier2: '🔧 Tier 2 (IT, Janitorial, Security, Engineering)',
+      other: '📋 Other trades',
+    }
+
+    while (true) {
+      batchNum++
+      setEnrichProgress(`Enriching batch ${batchNum}... (${totalEnriched} contacts found, ${totalNoEmail} no contact)`)
+      try {
+        const res = await fetch('/.netlify/functions/enrich-contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ batchSize: 20 }),
+        })
+        const result = await res.json()
+        if (result.error) {
+          setEnrichProgress(`Error: ${result.error}`)
+          break
+        }
+        totalEnriched += result.enriched || 0
+        totalNoEmail += result.noContact || 0
+        totalErrors += result.errors || 0
+
+        const tierLabel = tierLabels[result.currentTier] || 'Processing'
+        const remaining = result.remaining || 0
+        setEnrichProgress(`${tierLabel} — batch ${batchNum} (${totalEnriched} contacts found, ${remaining} remaining)`)
+
+        if (result.done || result.total === 0) break
+      } catch (err: any) {
+        setEnrichProgress(`Network error: ${err.message}`)
+        break
+      }
+    }
+
+    setEnrichResult({ enriched: totalEnriched, noEmail: totalNoEmail, errors: totalErrors })
+    setEnrichProgress('')
+    setEnriching(false)
+    fetchSubs()
+    fetchStats()
   }
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
@@ -469,9 +715,18 @@ export default function MasterSubDatabase() {
           <p className="text-sm text-gray-500 mt-1">Procuvex verified network of subcontractors across all trades</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50">
+            <Trash2 size={16} /> Delete All
+          </button>
           <button onClick={exportCSV}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
             <Download size={16} /> Export CSV
+          </button>
+          <button onClick={enrichContacts} disabled={enriching}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50">
+            {enriching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            {enriching ? 'Enriching...' : 'Enrich Contacts'}
           </button>
           <button onClick={() => { setShowOutreach(!showOutreach); setShowImport(false) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
@@ -483,6 +738,49 @@ export default function MasterSubDatabase() {
           </button>
         </div>
       </div>
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-red-700 mb-2">Delete Entire Database?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This will permanently delete <strong>all {stats.total.toLocaleString()} subcontractor records</strong> from the database. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={deleteAll} disabled={deleting}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2">
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                {deleting ? 'Deleting...' : 'Yes, Delete All'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enrichment Progress/Result */}
+      {(enrichProgress || enrichResult) && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          {enrichProgress && (
+            <div className="flex items-center gap-2 text-purple-700 text-sm">
+              <Loader2 size={14} className="animate-spin" />
+              {enrichProgress}
+            </div>
+          )}
+          {enrichResult && (
+            <div className="text-sm text-purple-800">
+              <strong>Enrichment complete:</strong> {enrichResult.enriched} contacts found (via Apollo + scraping), {enrichResult.noEmail} had no contact info, {enrichResult.errors} errors.
+              <button onClick={() => setEnrichResult(null)} className="ml-2 text-purple-500 hover:text-purple-700">
+                <X size={14} className="inline" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
@@ -504,6 +802,72 @@ export default function MasterSubDatabase() {
           <div className="text-2xl font-bold text-green-600">{stats.verified.toLocaleString()}</div>
         </div>
       </div>
+
+      {/* Outreach Dashboard */}
+      {outreachStats.totalSent > 0 && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity size={18} className="text-indigo-600" />
+              <h3 className="font-semibold text-indigo-900">Outreach Performance</h3>
+            </div>
+            <button onClick={fetchOutreachStats} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-indigo-400 text-xs mb-1"><Send size={12} /> Emails Sent</div>
+              <div className="text-xl font-bold text-indigo-700">{outreachStats.totalSent}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-400 text-xs mb-1"><Clock size={12} /> Sent Today</div>
+              <div className="text-xl font-bold text-blue-700">{outreachStats.sentToday}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-green-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-green-400 text-xs mb-1"><Users size={12} /> Claims</div>
+              <div className="text-xl font-bold text-green-700">{outreachStats.totalClaimed}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-purple-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-purple-400 text-xs mb-1"><TrendingUp size={12} /> Conversion</div>
+              <div className="text-xl font-bold text-purple-700">
+                {outreachStats.totalSent > 0 ? ((outreachStats.totalClaimed / outreachStats.totalSent) * 100).toFixed(1) : '0.0'}%
+              </div>
+            </div>
+          </div>
+
+          {outreachStats.recentClaims.length > 0 && (
+            <div className="bg-white rounded-lg border border-indigo-100 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-2">
+                <Activity size={12} /> Recent Claims
+              </div>
+              <div className="divide-y divide-gray-100">
+                {outreachStats.recentClaims.map((claim: any) => (
+                  <div key={claim.id} className="flex items-center justify-between py-2 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-900">{claim.company_name}</span>
+                      {claim.city && claim.state && (
+                        <span className="text-gray-400 ml-2 text-xs">{claim.city}, {claim.state}</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(claim.claimed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at{' '}
+                      {new Date(claim.claimed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {outreachStats.recentClaims.length === 0 && (
+            <div className="text-center py-3 text-sm text-indigo-400">
+              No claims yet — activity will appear here as subcontractors claim their profiles
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Outreach Panel */}
       {showOutreach && (
@@ -641,6 +1005,14 @@ export default function MasterSubDatabase() {
                     <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
                       placeholder="e.g. 238220, 238210, 561720"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    <div className="flex gap-1 mt-1">
+                      <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
+                        className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
+                      <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
+                        className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
+                      <button type="button" onClick={() => setImportNaics('')}
+                        className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -707,6 +1079,14 @@ export default function MasterSubDatabase() {
                   <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
                     placeholder="e.g. 238220, 238210, 561720"
                     className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" />
+                  <div className="flex gap-1 mt-1">
+                    <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
+                      className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
+                    <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
+                      className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
+                    <button type="button" onClick={() => setImportNaics('')}
+                      className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -930,8 +1310,12 @@ export default function MasterSubDatabase() {
                       <span>Added: {new Date(sub.created_at).toLocaleDateString()}</span>
                       <span>Source: {sub.data_source === 'sam_gov' ? 'SAM.gov' : sub.data_source}</span>
                       <span>Matches: {sub.match_count}</span>
+                      <button onClick={(e) => { e.stopPropagation(); deleteSub(sub.id) }}
+                        className="ml-auto text-red-500 hover:text-red-700 flex items-center gap-1">
+                        <Trash2 size={12} /> Delete
+                      </button>
                       <Link to={`/sub/${sub.slug}`} target="_blank"
-                        className="ml-auto text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                        className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         <ExternalLink size={12} /> View Public Profile
                       </Link>
                     </div>

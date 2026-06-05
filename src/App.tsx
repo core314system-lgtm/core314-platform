@@ -57,7 +57,10 @@ import MasterSubDatabase from './pages/MasterSubDatabase'
 import FindSubcontractors from './pages/FindSubcontractors'
 import ClaimProfile from './pages/ClaimProfile'
 import MySubProfile from './pages/MySubProfile'
+import AdminVerificationReview from './pages/AdminVerificationReview'
 import SubProfilePublic from './pages/SubProfilePublic'
+import ClaimLookup from './pages/ClaimLookup'
+import CreateSubProfile from './pages/CreateSubProfile'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -81,6 +84,7 @@ import ComplianceMatrixGuidePage from './landing/pages/ComplianceMatrixGuidePage
 import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
 import SamGovGuidePage from './landing/pages/SamGovGuidePage'
 import ComparePage from './landing/pages/ComparePage'
+import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -190,9 +194,12 @@ export default function App() {
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
-          {/* Public Subcontractor Profile */}
+          {/* Public Subcontractor Pages */}
+          <Route path="/for-subcontractors" element={<ForSubcontractorsPage />} />
           <Route path="/sub/:slug" element={<SubProfilePublic />} />
           <Route path="/claim/:token" element={<ClaimProfile />} />
+          <Route path="/claim-lookup/:id" element={<ClaimLookup />} />
+          <Route path="/create-sub-profile" element={<CreateSubProfile />} />
 
           {/* Dashboard (authenticated home) */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -260,6 +267,7 @@ export default function App() {
           <Route path="/master-subs" element={<ProtectedRoute><MasterSubDatabase /></ProtectedRoute>} />
           <Route path="/find-subs" element={<ProtectedRoute><FindSubcontractors /></ProtectedRoute>} />
           <Route path="/my-sub-profile" element={<ProtectedRoute><MySubProfile /></ProtectedRoute>} />
+          <Route path="/verification-review" element={<ProtectedRoute><AdminVerificationReview /></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
           <Route path="/teaming" element={<ProtectedRoute><TeamingTracker /></ProtectedRoute>} />

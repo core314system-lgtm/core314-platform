@@ -334,6 +334,14 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     body: `${sub?.company_name || "Subcontractor"} submitted a quote of $${quoteRecord.total_amount || "N/A"} through the subcontractor portal.`,
   })
 
+  // Trigger AI compliance analysis (fire-and-forget)
+  const siteUrl = process.env.URL || "https://procuvex.com"
+  fetch(`${siteUrl}/.netlify/functions/analyze-quote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quote_id: quote.id, auto_email: true }),
+  }).catch(() => {})
+
   return new Response(
     JSON.stringify({ success: true, quote_id: quote.id }),
     { headers: corsHeaders }

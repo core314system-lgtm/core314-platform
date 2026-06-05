@@ -59,9 +59,108 @@ export default async (req: Request, _context: Context) => {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
+      const checkoutType = session.metadata?.type
+      const customerEmail = session.customer_details?.email || session.customer_email
+
+      // --- Sub Verification Checkout ---
+      if (checkoutType === 'sub_verification') {
+        const subId = session.metadata?.sub_id
+        const userId = session.metadata?.user_id
+
+        if (subId) {
+          // Mark subcontractor as verified
+          const { data: subData } = await supabase
+            .from('master_subcontractors')
+            .update({
+              verification_status: 'verified',
+              verified_at: new Date().toISOString(),
+              stripe_subscription_id: session.subscription as string,
+            })
+            .eq('id', subId)
+            .select('company_name, contact_email, trade_categories')
+            .single()
+
+          const companyName = subData?.company_name || 'Your company'
+          const trades = subData?.trade_categories?.slice(0, 3).join(', ') || 'your trades'
+          const subEmail = customerEmail || subData?.contact_email
+
+          // Send verification confirmation email
+          if (subEmail && sendgridKey) {
+            try {
+              await sgMail.default.send({
+                to: subEmail,
+                from: { email: 'team@procuvex.com', name: 'Procuvex' },
+                subject: `${companyName} is Now Procuvex Verified!`,
+                html: `
+                  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); border-radius: 12px 12px 0 0; padding: 32px; text-align: center;">
+                      <div style="width: 64px; height: 64px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 32px;">&#10003;</span>
+                      </div>
+                      <h1 style="color: white; margin: 0; font-size: 24px;">You're Procuvex Verified!</h1>
+                    </div>
+                    <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
+                      <p style="color: #374151; font-size: 15px; line-height: 1.6;">
+                        Congratulations! <strong>${companyName}</strong> now has the Procuvex Verified badge.
+                        Here's what that means for your business:
+                      </p>
+
+                      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                        <div style="margin-bottom: 10px;">
+                          <strong style="color: #166534;">&#9989; Priority Search Placement</strong>
+                          <p style="color: #15803d; margin: 4px 0 0; font-size: 13px;">Your profile now appears first when prime contractors search for ${trades}.</p>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                          <strong style="color: #166534;">&#9989; Auto-Matching Active</strong>
+                          <p style="color: #15803d; margin: 4px 0 0; font-size: 13px;">You'll be automatically matched to RFQ opportunities in your trade areas.</p>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                          <strong style="color: #166534;">&#9989; Verified Badge</strong>
+                          <p style="color: #15803d; margin: 4px 0 0; font-size: 13px;">A green verified badge appears on your public profile, building trust with primes.</p>
+                        </div>
+                        <div>
+                          <strong style="color: #166534;">&#9989; Certification Alerts</strong>
+                          <p style="color: #15803d; margin: 4px 0 0; font-size: 13px;">We'll remind you before your certifications expire so you never miss a renewal.</p>
+                        </div>
+                      </div>
+
+                      <h3 style="color: #111827; font-size: 16px; margin: 24px 0 12px;">What to do next:</h3>
+                      <ol style="color: #374151; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+                        <li><strong>Complete your profile</strong> — add a company description, capability narrative, and geographic coverage to maximize visibility.</li>
+                        <li><strong>Upload documents</strong> — COI, business licenses, and certifications increase your match score.</li>
+                        <li><strong>Share your profile</strong> — send your public Procuvex profile link to prime contractors you work with.</li>
+                      </ol>
+
+                      <div style="text-align: center; margin: 28px 0;">
+                        <a href="https://procuvex.com/my-sub-profile" style="background: linear-gradient(135deg, #059669, #047857); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
+                          Go to Your Profile
+                        </a>
+                      </div>
+
+                      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+                      <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                        Procuvex &mdash; A product of Core314 Technologies LLC<br/>
+                        Your $99/year verification subscription is active. Manage billing at <a href="https://procuvex.com/my-sub-profile" style="color: #6b7280;">your profile</a>.
+                      </p>
+                    </div>
+                  </div>
+                `,
+              })
+              console.log(`Verification confirmation email sent to ${subEmail}`)
+            } catch (emailErr) {
+              console.error('Failed to send verification email:', emailErr)
+            }
+          }
+
+          // TODO: Schedule 24-hour and 7-day follow-up emails
+          // Requires scheduled_emails table — will be added in future migration
+        }
+        break
+      }
+
+      // --- Org/Platform Subscription Checkout ---
       let orgId = session.metadata?.org_id
       const planId = session.metadata?.plan_id || 'growth_monthly'
-      const customerEmail = session.customer_details?.email || session.customer_email
 
       // Auto-confirm the user in Supabase if they haven't confirmed yet
       if (customerEmail) {

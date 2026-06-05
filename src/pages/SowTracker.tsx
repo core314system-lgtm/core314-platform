@@ -7,7 +7,7 @@ import type { TaskOrder, SowItem, SowSubcontractor, SowQuote, SowCommunication, 
 import {
   ArrowLeft, Plus, Send, MessageSquare, DollarSign, ChevronDown, ChevronUp,
   CheckCircle, Clock, AlertTriangle, XCircle, RefreshCw, Search, Filter, X,
-  Package, Mail, Phone, Building, Upload, FileText, Paperclip, Eye, Radar, Settings, Loader2
+  Package, Mail, Phone, Building, Upload, FileText, Paperclip, Eye, Radar, Settings, Loader2, Brain
 } from 'lucide-react'
 import QuestionQueue from '../components/QuestionQueue'
 import FollowUpManager from '../components/FollowUpManager'
@@ -438,6 +438,24 @@ export default function SowTracker() {
   }
 
   const [sendingRfqs, setSendingRfqs] = useState<string | null>(null)
+  const [analyzingQuote, setAnalyzingQuote] = useState<string | null>(null)
+  const [analysisResult, setAnalysisResult] = useState<Record<string, any>>({})
+
+  async function analyzeQuote(quoteId: string) {
+    setAnalyzingQuote(quoteId)
+    try {
+      const res = await fetch('/.netlify/functions/analyze-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quote_id: quoteId, auto_email: true }),
+      })
+      const data = await res.json()
+      if (res.ok && data.analysis) {
+        setAnalysisResult(prev => ({ ...prev, [quoteId]: data.analysis }))
+      }
+    } catch { /* silent */ }
+    setAnalyzingQuote(null)
+  }
   const [rfqMessage, setRfqMessage] = useState('')
   const [showRfqModal, setShowRfqModal] = useState<string | null>(null)
 
@@ -1102,6 +1120,87 @@ export default function SowTracker() {
                                       {q.attachment_path && <div className="text-xs text-blue-600 mt-1 flex items-center gap-1"><FileText size={10} /> Quote document attached</div>}
                                       {q.scope_exclusions && <div className="text-xs text-red-600 mt-1">Exclusions: {q.scope_exclusions}</div>}
                                       {q.scope_inclusions && <div className="text-xs text-green-600 mt-1">Includes: {q.scope_inclusions}</div>}
+
+                                      {/* AI Compliance Analysis */}
+                                      <div className="mt-2 flex items-center gap-2">
+                                        {(q.ai_compliance_score != null || analysisResult[q.id]) ? (
+                                          <div className="flex items-center gap-2">
+                                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                              (analysisResult[q.id]?.overall_score ?? q.ai_compliance_score) >= 80
+                                                ? 'bg-green-100 text-green-700'
+                                                : (analysisResult[q.id]?.overall_score ?? q.ai_compliance_score) >= 60
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-red-100 text-red-700'
+                                            }`}>
+                                              <Brain size={10} />
+                                              AI Compliance: {analysisResult[q.id]?.overall_score ?? q.ai_compliance_score}%
+                                            </span>
+                                            {(analysisResult[q.id]?.requirements_missing?.length > 0 || (q.ai_compliance_analysis as any)?.requirements_missing?.length > 0) && (
+                                              <span className="text-xs text-red-600">
+                                                {(analysisResult[q.id]?.requirements_missing?.length || (q.ai_compliance_analysis as any)?.requirements_missing?.length)} gaps found
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={() => analyzeQuote(q.id)}
+                                            disabled={analyzingQuote === q.id}
+                                            className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded hover:bg-indigo-100 flex items-center gap-1 disabled:opacity-50"
+                                          >
+                                            {analyzingQuote === q.id ? <Loader2 size={10} className="animate-spin" /> : <Brain size={10} />}
+                                            {analyzingQuote === q.id ? 'Analyzing...' : 'AI Compliance Check'}
+                                          </button>
+                                        )}
+                                        {(analysisResult[q.id] || q.ai_compliance_analysis) && (
+                                          <button
+                                            onClick={() => analyzeQuote(q.id)}
+                                            disabled={analyzingQuote === q.id}
+                                            className="text-xs text-gray-400 hover:text-indigo-600 flex items-center gap-1"
+                                          >
+                                            <RefreshCw size={10} /> Re-analyze
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      {/* Analysis Details Expandable */}
+                                      {(analysisResult[q.id] || q.ai_compliance_analysis) && (() => {
+                                        const analysis = analysisResult[q.id] || q.ai_compliance_analysis
+                                        return (
+                                          <div className="mt-2 bg-gray-50 rounded-lg p-3 border border-gray-200 text-xs space-y-2">
+                                            <p className="text-gray-600 italic">{analysis.summary}</p>
+                                            {analysis.requirements_missing?.length > 0 && (
+                                              <div>
+                                                <span className="font-semibold text-red-600">Missing Requirements:</span>
+                                                <ul className="ml-3 mt-0.5 space-y-0.5">
+                                                  {analysis.requirements_missing.map((r: string, i: number) => (
+                                                    <li key={i} className="text-red-600">• {r}</li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                            {analysis.pricing_gaps?.length > 0 && (
+                                              <div>
+                                                <span className="font-semibold text-amber-600">Pricing Gaps:</span>
+                                                <ul className="ml-3 mt-0.5 space-y-0.5">
+                                                  {analysis.pricing_gaps.map((r: string, i: number) => (
+                                                    <li key={i} className="text-amber-600">• {r}</li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                            {analysis.requirements_met?.length > 0 && (
+                                              <div>
+                                                <span className="font-semibold text-green-600">Requirements Met ({analysis.requirements_met.length}):</span>
+                                                <ul className="ml-3 mt-0.5 space-y-0.5">
+                                                  {analysis.requirements_met.map((r: string, i: number) => (
+                                                    <li key={i} className="text-green-600">• {r}</li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                      })()}
                                     </div>
                                   ))}
                                 </div>

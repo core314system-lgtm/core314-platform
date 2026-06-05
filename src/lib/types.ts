@@ -372,6 +372,9 @@ export interface SowQuote {
   submitted_at: string
   reviewed_at: string | null
   created_at: string
+  ai_compliance_score: number | null
+  ai_compliance_analysis: Record<string, unknown> | null
+  ai_analyzed_at: string | null
   // Joined
   subcontractor?: Subcontractor
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
@@ -44,14 +44,46 @@ const SB_TYPES = [
   'SDB', 'SDVOSB', 'WOSB', 'EDWOSB', 'HUBZone', '8(a)', 'VOSB', 'ANT', 'IndTrb', 'NHO', 'ANC',
 ]
 
+interface Certification {
+  id: string
+  cert_type: string
+  cert_name: string
+  file_url: string | null
+  expiration_date: string | null
+  status: string
+  uploaded_at: string
+}
+
+const DOC_TYPES = [
+  { value: 'coi', label: 'Certificate of Insurance (COI)' },
+  { value: 'license', label: 'Business/Trade License' },
+  { value: 'w9', label: 'W-9 Form' },
+  { value: 'bonding', label: 'Bonding Certificate' },
+  { value: 'safety', label: 'Safety Certification (OSHA, etc.)' },
+  { value: 'quality', label: 'Quality Certification (ISO, etc.)' },
+  { value: 'other', label: 'Other Document' },
+]
+
 export default function MySubProfile() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const justClaimed = searchParams.get('claimed') === 'true'
+  const justVerified = searchParams.get('verified') === 'success'
+  const [showClaimedBanner, setShowClaimedBanner] = useState(justClaimed)
+  const [showVerifiedBanner, setShowVerifiedBanner] = useState(justVerified)
   const [profile, setProfile] = useState<SubProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [noProfile, setNoProfile] = useState(false)
+  const [certs, setCerts] = useState<Certification[]>([])
+  const [showDocUpload, setShowDocUpload] = useState(false)
+  const [docType, setDocType] = useState('')
+  const [docName, setDocName] = useState('')
+  const [docExpDate, setDocExpDate] = useState('')
+  const [docUploading, setDocUploading] = useState(false)
+  const [verifyLoading, setVerifyLoading] = useState(false)
 
   // Editable form state
   const [form, setForm] = useState({
@@ -92,6 +124,15 @@ export default function MySubProfile() {
     }
 
     setProfile(data)
+
+    // Fetch certifications
+    const { data: certData } = await supabase
+      .from('master_sub_certifications')
+      .select('*')
+      .eq('master_sub_id', data.id)
+      .order('uploaded_at', { ascending: false })
+    setCerts(certData || [])
+
     setForm({
       company_name: data.company_name || '',
       contact_name: data.contact_name || '',
@@ -195,6 +236,61 @@ export default function MySubProfile() {
     setForm({ ...form, small_business_types: types, small_business: types.length > 0 })
   }
 
+  async function uploadDocument() {
+    if (!profile || !docType || !docName) return
+    setDocUploading(true)
+    setError('')
+
+    const res = await fetch('/.netlify/functions/sub-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': user!.id },
+      body: JSON.stringify({
+        action: 'upload-doc',
+        sub_id: profile.id,
+        doc_type: docType,
+        doc_name: docName,
+        file_url: null, // URL would come from Supabase Storage upload
+        expiration_date: docExpDate || null,
+      }),
+    })
+    const data = await res.json()
+    if (data.error) {
+      setError(data.error)
+    } else {
+      setCerts([data.certification, ...certs])
+      setShowDocUpload(false)
+      setDocType('')
+      setDocName('')
+      setDocExpDate('')
+    }
+    setDocUploading(false)
+  }
+
+  async function saveAndGetVerified() {
+    if (!profile) return
+    // Save profile first
+    await handleSave()
+    // Then start checkout
+    setVerifyLoading(true)
+    const res = await fetch('/.netlify/functions/sub-verification-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': user!.id },
+      body: JSON.stringify({
+        sub_id: profile.id,
+        user_id: user!.id,
+        user_email: user!.email,
+        plan: 'annual_intro',
+      }),
+    })
+    const data = await res.json()
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url
+    } else {
+      setError(data.error || 'Failed to start checkout')
+    }
+    setVerifyLoading(false)
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin" size={32} /></div>
   }
@@ -219,13 +315,65 @@ export default function MySubProfile() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Claimed Success Banner */}
+      {showClaimedBanner && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={24} className="text-green-600" />
+            <div>
+              <p className="font-semibold text-green-800">Profile Claimed Successfully!</p>
+              <p className="text-sm text-green-700">Complete your profile below to increase visibility and get matched with prime contractors.</p>
+            </div>
+          </div>
+          <button onClick={() => { setShowClaimedBanner(false); setSearchParams({}) }}
+            className="text-green-600 hover:text-green-800">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Verified Success Banner */}
+      {showVerifiedBanner && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BadgeCheck size={24} className="text-green-600" />
+            <div>
+              <p className="font-semibold text-green-800">You're Procuvex Verified!</p>
+              <p className="text-sm text-green-700">Your verified badge is now active. You'll appear first in prime contractor searches and receive automatic RFQ matches.</p>
+            </div>
+          </div>
+          <button onClick={() => { setShowVerifiedBanner(false); setSearchParams({}) }}
+            className="text-green-600 hover:text-green-800">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Company Profile</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Update your profile to increase visibility and get matched with prime contractors
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900">My Company Profile</h1>
+              {profile?.verification_status === 'verified' && (
+                <div className="relative group">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full shadow-md">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L14.4 4.4L17.6 3.6L18.4 6.8L21.6 7.6L20.8 10.8L23.2 12.8L21.2 15.2L22 18.4L18.8 19.2L18 22.4L14.8 21.6L12 24L9.2 21.6L6 22.4L5.2 19.2L2 18.4L2.8 15.2L0.8 12.8L3.2 10.8L2.4 7.6L5.6 6.8L6.4 3.6L9.6 4.4L12 2Z" fill="white" fillOpacity="0.3"/>
+                      <path d="M9 12L11 14L15 10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className="text-white text-xs font-bold tracking-wide uppercase">Verified</span>
+                  </div>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                    Procuvex Verified — Priority search &amp; auto-matching active
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Update your profile to increase visibility and get matched with prime contractors
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Link to={`/sub/${profile?.slug}`} target="_blank"
@@ -233,19 +381,42 @@ export default function MySubProfile() {
             <ExternalLink size={14} /> View Public Profile
           </Link>
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Save Changes
+            {saved ? 'Saved!' : 'Save Profile'}
           </button>
+          {profile?.verification_status !== 'verified' && (
+            <button onClick={saveAndGetVerified} disabled={saving || verifyLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-sm">
+              {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+              Save & Get Verified
+            </button>
+          )}
         </div>
       </div>
 
       {/* Status Bar */}
+      {profile?.verification_status === 'verified' && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <BadgeCheck size={22} className="text-green-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-green-800 text-sm">Procuvex Verified</p>
+              <p className="text-xs text-green-600">Your profile has priority placement in search results and auto-matching with prime contractors.</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+            <CheckCircle size={12} /> Active
+          </span>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <BadgeCheck size={18} className="text-blue-500" />
-            <span className="text-sm font-medium text-gray-700 capitalize">{profile?.verification_status}</span>
+            <BadgeCheck size={18} className={profile?.verification_status === 'verified' ? 'text-green-500' : 'text-blue-500'} />
+            <span className="text-sm font-medium text-gray-700 capitalize">{profile?.verification_status === 'verified' ? 'Verified' : profile?.verification_status}</span>
           </div>
           {profile?.sam_uei && (
             <span className="text-xs text-gray-400">UEI: {profile.sam_uei}</span>
@@ -374,6 +545,13 @@ export default function MySubProfile() {
               </span>
             ))}
           </div>
+          {!form.geographic_coverage.includes('Nationwide') && (
+            <button
+              onClick={() => setForm({ ...form, geographic_coverage: ['Nationwide'] })}
+              className="mb-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium hover:bg-blue-100">
+              + Nationwide Coverage
+            </button>
+          )}
           <div className="flex gap-2">
             <select value={newGeo} onChange={e => setNewGeo(e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -434,6 +612,139 @@ export default function MySubProfile() {
               {type}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Verification Upgrade CTA — Prime Position */}
+      {profile?.verification_status !== 'verified' && (
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-xl p-6 text-white shadow-lg">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <BadgeCheck size={20} className="text-yellow-300" />
+              <span className="text-xs font-semibold bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase tracking-wide">Limited Introductory Pricing</span>
+            </div>
+            <h2 className="text-xl font-bold mt-2">Get Procuvex Verified — $99/year</h2>
+            <p className="text-blue-100 text-sm mt-1 mb-4 max-w-xl">
+              Prime contractors search for verified subcontractors first. Without verification, your profile won't appear in priority searches.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Verified badge</strong> — stand out from unverified competitors</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Priority placement</strong> — appear first in search results</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Auto-matching</strong> — get matched to RFQs in your trades automatically</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
+                <span className="text-sm text-blue-50"><strong>Expiration alerts</strong> — never miss a certification renewal</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button onClick={saveAndGetVerified} disabled={verifyLoading || saving}
+                className="flex items-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-50 disabled:opacity-60 shadow-md transition">
+                {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                Save & Get Verified — $99/year
+              </button>
+              <span className="text-xs text-blue-200">Introductory price — will increase. Lock in $99/yr today.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification & Documents */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <BadgeCheck size={16} /> Verification & Documents
+          </h2>
+          {profile?.verification_status === 'verified' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              <CheckCircle size={12} /> Verified
+            </span>
+          )}
+        </div>
+
+        {/* Uploaded Documents */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">Documents ({certs.length})</span>
+            <button onClick={() => setShowDocUpload(!showDocUpload)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
+              <Plus size={12} /> Add Document
+            </button>
+          </div>
+
+          {showDocUpload && (
+            <div className="border border-gray-200 rounded-lg p-4 mb-3 space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Document Type</label>
+                  <select value={docType} onChange={e => setDocType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+                    <option value="">Select type...</option>
+                    {DOC_TYPES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Document Name</label>
+                  <input type="text" value={docName} onChange={e => setDocName(e.target.value)}
+                    placeholder="e.g. General Liability COI"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Expiration Date</label>
+                  <input type="date" value={docExpDate} onChange={e => setDocExpDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={uploadDocument} disabled={docUploading || !docType || !docName}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50">
+                  {docUploading ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                  Add
+                </button>
+                <button onClick={() => setShowDocUpload(false)}
+                  className="px-3 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {certs.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No documents uploaded yet. Add COI, licenses, or certifications to get verified.</p>
+          ) : (
+            <div className="space-y-2">
+              {certs.map(cert => (
+                <div key={cert.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">{cert.cert_name}</p>
+                    <p className="text-xs text-gray-500">
+                      {DOC_TYPES.find(d => d.value === cert.cert_type)?.label || cert.cert_type}
+                      {cert.expiration_date && <> · Expires: {new Date(cert.expiration_date).toLocaleDateString()}</>}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    cert.status === 'verified' ? 'bg-green-100 text-green-700' :
+                    cert.status === 'pending_review' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {cert.status === 'verified' ? 'Verified' : cert.status === 'pending_review' ? 'Pending' : cert.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
