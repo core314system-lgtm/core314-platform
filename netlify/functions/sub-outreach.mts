@@ -138,9 +138,10 @@ export default async (req: Request, _context: Context) => {
     initSendGrid()
     const { state, trade, limit: batchLimit } = body
 
-    // Daily limit protection — check how many sent today
-    const todayStart = new Date()
-    todayStart.setUTCHours(0, 0, 0, 0)
+    // Daily limit protection — check how many sent in the user's local day
+    // Client can pass dayStart (ISO string of their local midnight) to avoid UTC timezone mismatch
+    const todayStart = body.dayStart ? new Date(body.dayStart) : new Date()
+    if (!body.dayStart) todayStart.setUTCHours(0, 0, 0, 0)
     const { count: sentToday } = await supabase
       .from("master_subcontractors")
       .select("id", { count: "exact", head: true })

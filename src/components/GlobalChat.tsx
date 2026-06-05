@@ -610,8 +610,9 @@ export default function GlobalChat() {
       const { count: outreachSent } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('outreach_sent_at', 'is', null)
       const { count: unsubscribed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('unsubscribed', true)
 
+      // Use local midnight (not UTC) so "sent TODAY" matches user's local day
       const todayStart = new Date()
-      todayStart.setUTCHours(0, 0, 0, 0)
+      todayStart.setHours(0, 0, 0, 0)
       const { count: sentToday } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).gte('outreach_sent_at', todayStart.toISOString())
 
       parts.push(`\n=== MASTER SUBCONTRACTOR DATABASE ===`)

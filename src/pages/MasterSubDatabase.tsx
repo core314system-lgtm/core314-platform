@@ -137,8 +137,9 @@ export default function MasterSubDatabase() {
   }, [])
 
   const fetchOutreachStats = useCallback(async () => {
+    // Use local midnight (not UTC) so "Sent Today" matches user's local day
     const todayStart = new Date()
-    todayStart.setUTCHours(0, 0, 0, 0)
+    todayStart.setHours(0, 0, 0, 0)
 
     // Total emails sent (any record with outreach_sent_at set)
     const { count: totalSent } = await supabase
@@ -146,7 +147,7 @@ export default function MasterSubDatabase() {
       .select('id', { count: 'exact', head: true })
       .not('outreach_sent_at', 'is', null)
 
-    // Sent today
+    // Sent today (local day)
     const { count: sentToday } = await supabase
       .from('master_subcontractors')
       .select('id', { count: 'exact', head: true })
@@ -579,7 +580,7 @@ export default function MasterSubDatabase() {
     const res = await fetch('/.netlify/functions/sub-outreach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-user-id': profile?.id || '' },
-      body: JSON.stringify({ action: 'send-outreach', state: outreachState, trade: outreachTrade, limit: outreachLimit }),
+      body: JSON.stringify({ action: 'send-outreach', state: outreachState, trade: outreachTrade, limit: outreachLimit, dayStart: new Date(new Date().setHours(0, 0, 0, 0)).toISOString() }),
     })
     const data = await res.json()
     setOutreachResult(data)
