@@ -5,7 +5,7 @@ import {
   FileText, Brain, Target, BarChart3, Users, Kanban,
   DollarSign, ClipboardCheck, Zap, CheckCircle, Building2,
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
-  Award, Globe, Star, Quote,
+  Award, Globe, Star, Quote, Search, Mail, FileCheck,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
@@ -443,6 +443,7 @@ export default function LandingPage() {
                   { feature: 'AI Document Analysis', us: true, them: true },
                   { feature: 'Compliance Tracking', us: true, them: true },
                   { feature: 'Pipeline Management', us: true, them: true },
+                  { feature: 'AI Quote Compliance Analysis', us: true, them: false },
                   { feature: 'Certification Expiration Alerts', us: true, them: false },
                 ].map((row, i) => (
                   <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
@@ -468,6 +469,143 @@ export default function LandingPage() {
               Explore the Network <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* AI QUOTE COMPLIANCE ENGINE */}
+      <section className="py-20 lg:py-28 bg-gradient-to-b from-indigo-950 via-purple-950 to-slate-900 text-white relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 right-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-6">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-sm text-purple-200 mb-6">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-purple-400" /></span>
+              AI-Powered Quality Assurance
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              AI Quote Compliance Engine
+            </h2>
+            <p className="text-lg text-purple-200 max-w-3xl mx-auto leading-relaxed">
+              Every subcontractor quote is automatically analyzed against your Statement of Work. Gaps are identified instantly. Subcontractors are notified automatically. No manual reviews needed.
+            </p>
+          </motion.div>
+
+          {/* Animated Flow */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} transition={{ duration: 0.6, delay: 0.2 }} className="mt-14 max-w-5xl mx-auto">
+            <h3 className="text-center text-xl font-bold mb-8 text-purple-200">How It Works</h3>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+              {[
+                { step: '1', label: 'Sub submits quote', icon: '📝', desc: 'Via portal' },
+                { step: '→', label: '', icon: '', desc: '' },
+                { step: '2', label: 'AI scans vs SOW', icon: '🤖', desc: 'Every requirement' },
+                { step: '→', label: '', icon: '', desc: '' },
+                { step: '3', label: 'Gaps identified', icon: '🎯', desc: 'Score + details' },
+              ].map((s, i) => (
+                s.icon ? (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: i * 0.15 }}
+                    className="text-center bg-white/5 border border-white/10 rounded-xl p-5"
+                  >
+                    <div className="text-3xl mb-2">{s.icon}</div>
+                    <div className="text-sm font-semibold text-white">{s.label}</div>
+                    <div className="text-xs text-purple-300 mt-1">{s.desc}</div>
+                  </motion.div>
+                ) : (
+                  <div key={i} className="hidden md:flex items-center justify-center">
+                    <ArrowRight className="h-6 w-6 text-purple-400 animate-pulse" />
+                  </div>
+                )
+              ))}
+            </div>
+
+            {/* Second row of flow */}
+            <div className="flex justify-center my-4">
+              <ArrowRight className="h-6 w-6 text-purple-400 animate-pulse rotate-90" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center max-w-3xl mx-auto">
+              {[
+                { label: 'Sub notified of gaps', icon: '📧', desc: 'Automatic email' },
+                { step: '→', label: '', icon: '', desc: '' },
+                { label: 'Revised quote submitted', icon: '✅', desc: 'Fully compliant' },
+              ].map((s, i) => (
+                s.icon ? (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: 0.75 + i * 0.15 }}
+                    className="text-center bg-white/5 border border-white/10 rounded-xl p-5"
+                  >
+                    <div className="text-3xl mb-2">{s.icon}</div>
+                    <div className="text-sm font-semibold text-white">{s.label}</div>
+                    <div className="text-xs text-purple-300 mt-1">{s.desc}</div>
+                  </motion.div>
+                ) : (
+                  <div key={i} className="hidden md:flex items-center justify-center">
+                    <ArrowRight className="h-6 w-6 text-purple-400 animate-pulse" />
+                  </div>
+                )
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Split benefit cards */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
+            <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
+                <Building2 className="h-6 w-6 text-blue-300" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">For Prime Contractors</h3>
+              <ul className="space-y-3">
+                {['Know instantly if a sub\'s quote covers every SOW requirement', 'Compliance score (0–100%) for every quote at a glance', 'See exactly which requirements are met, missing, or underpriced', 'Eliminate days of manual compliance review', 'Re-analyze any quote with one click after revisions'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-purple-100 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            <motion.div variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center mb-4">
+                <HardHat className="h-6 w-6 text-green-300" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">For Subcontractors</h3>
+              <ul className="space-y-3">
+                {['Get specific feedback on exactly what\'s missing from your quote', 'Automated email lists every unaddressed SOW requirement', 'Fix gaps fast — no guessing, no back-and-forth', 'Submit a revised, fully compliant quote through the portal', 'Better quotes mean faster awards and more wins'].map((item, i) => (
+                  <li key={i} className="flex items-center gap-2 text-purple-100 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </motion.div>
+
+          {/* Value metrics */}
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mt-14">
+            {[
+              { value: 'Seconds', label: 'To Analyze a Quote' },
+              { value: '100%', label: 'Requirements Checked' },
+              { value: 'Zero', label: 'Manual Reviews' },
+              { value: 'Automatic', label: 'Gap Notifications' },
+            ].map((stat, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="text-center">
+                <div className="text-2xl md:text-3xl font-extrabold text-white">{stat.value}</div>
+                <div className="text-sm text-purple-300 mt-1">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
