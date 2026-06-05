@@ -740,9 +740,12 @@ export default function PricingMatrix() {
                                   <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${score >= 90 ? 'bg-green-100 text-green-800' : score >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                                     {score}%
                                   </div>
-                                  {analysis?.missing_requirements && Array.isArray(analysis.missing_requirements) && analysis.missing_requirements.length > 0 && (
-                                    <div className="text-xs text-red-500 mt-1">{analysis.missing_requirements.length} gap{analysis.missing_requirements.length !== 1 ? 's' : ''}</div>
-                                  )}
+                                  {(() => {
+                                    const missing = analysis?.missing_requirements
+                                    if (!Array.isArray(missing) || missing.length === 0) return null
+                                    const count = missing.length
+                                    return <div className="text-xs text-red-500 mt-1">{count} gap{count !== 1 ? 's' : ''}</div>
+                                  })()}
                                 </div>
                               ) : q ? (
                                 <span className="text-xs text-gray-400">Not Analyzed</span>
