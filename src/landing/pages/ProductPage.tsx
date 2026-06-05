@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   FileText, Brain, Shield, Users, DollarSign, ClipboardCheck,
   Target, Kanban, BarChart3, Zap, Building2, ArrowRight,
-  Upload, CheckCircle, FileCheck, Mail,
+  Upload, CheckCircle, FileCheck,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'

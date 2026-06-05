@@ -5,7 +5,7 @@ import {
   FileText, Brain, Target, BarChart3, Users, Kanban,
   DollarSign, ClipboardCheck, Zap, CheckCircle, Building2,
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
-  Award, Globe, Star, Quote, Search, Mail, FileCheck,
+  Award, Globe, Star, Quote,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
