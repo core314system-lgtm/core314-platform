@@ -95,6 +95,12 @@ export default function ClaimProfile() {
       setError(updateError.message)
       setStep('error')
     } else {
+      // Notify admin of new claim (fire-and-forget)
+      fetch('/.netlify/functions/sub-claim-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sub_id: subId }),
+      }).catch(() => {})
       navigate('/my-sub-profile?claimed=true')
     }
   }
@@ -153,6 +159,12 @@ export default function ClaimProfile() {
       setError(updateError.message)
       setStep('error')
     } else {
+      // Notify admin of new claim (fire-and-forget)
+      fetch('/.netlify/functions/sub-claim-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sub_id: sub.id }),
+      }).catch(() => {})
       navigate('/my-sub-profile?claimed=true')
     }
     setSubmitting(false)

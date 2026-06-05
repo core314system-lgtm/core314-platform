@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, Download, Upload, Star,
   Users, BadgeCheck, Clock, Eye, ExternalLink, Loader2, X,
   Database, AlertCircle, FileUp, Lock, Trash2,
+  TrendingUp, Activity, Send, RefreshCw,
 } from 'lucide-react'
 
 interface MasterSub {
@@ -118,6 +119,7 @@ export default function MasterSubDatabase() {
   const [enriching, setEnriching] = useState(false)
   const [enrichProgress, setEnrichProgress] = useState('')
   const [enrichResult, setEnrichResult] = useState<{ enriched: number; noEmail: number; errors: number } | null>(null)
+  const [outreachStats, setOutreachStats] = useState<{ totalSent: number; sentToday: number; totalClaimed: number; recentClaims: any[] }>({ totalSent: 0, sentToday: 0, totalClaimed: 0, recentClaims: [] })
 
   const PAGE_SIZE = 50
 
@@ -131,6 +133,45 @@ export default function MasterSubDatabase() {
       verified: verified || 0,
       claimed: claimed || 0,
       withEmail: withEmail || 0,
+    })
+  }, [])
+
+  const fetchOutreachStats = useCallback(async () => {
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+
+    // Total emails sent (any record with outreach_sent_at set)
+    const { count: totalSent } = await supabase
+      .from('master_subcontractors')
+      .select('id', { count: 'exact', head: true })
+      .not('outreach_sent_at', 'is', null)
+
+    // Sent today
+    const { count: sentToday } = await supabase
+      .from('master_subcontractors')
+      .select('id', { count: 'exact', head: true })
+      .gte('outreach_sent_at', todayStart.toISOString())
+
+    // Claimed after outreach (have both outreach_sent_at and claimed_at)
+    const { count: totalClaimed } = await supabase
+      .from('master_subcontractors')
+      .select('id', { count: 'exact', head: true })
+      .not('outreach_sent_at', 'is', null)
+      .not('claimed_at', 'is', null)
+
+    // Recent claims (last 10)
+    const { data: recentClaims } = await supabase
+      .from('master_subcontractors')
+      .select('id, company_name, city, state, trade_categories, claimed_at')
+      .not('claimed_at', 'is', null)
+      .order('claimed_at', { ascending: false })
+      .limit(10)
+
+    setOutreachStats({
+      totalSent: totalSent || 0,
+      sentToday: sentToday || 0,
+      totalClaimed: totalClaimed || 0,
+      recentClaims: recentClaims || [],
     })
   }, [])
 
@@ -168,7 +209,7 @@ export default function MasterSubDatabase() {
     setLoading(false)
   }, [search, filterState, filterTrade, filterVerification, filterSmallBiz, sortBy, sortDir, page])
 
-  useEffect(() => { fetchSubs(); fetchStats() }, [fetchSubs, fetchStats])
+  useEffect(() => { fetchSubs(); fetchStats(); fetchOutreachStats() }, [fetchSubs, fetchStats, fetchOutreachStats])
 
   // SAM.gov Public V2 Extract columns (pipe-delimited)
   // See: https://open.gsa.gov/api/sam-entity-extracts-api/v1/SAM_Entity_Management_Public_V2_Extract_Layout.pdf
@@ -545,6 +586,7 @@ export default function MasterSubDatabase() {
     setOutreachSending(false)
     setOutreachPreview(null)
     fetchStats()
+    fetchOutreachStats()
   }
 
   async function deleteSub(id: string) {
@@ -760,6 +802,72 @@ export default function MasterSubDatabase() {
           <div className="text-2xl font-bold text-green-600">{stats.verified.toLocaleString()}</div>
         </div>
       </div>
+
+      {/* Outreach Dashboard */}
+      {outreachStats.totalSent > 0 && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity size={18} className="text-indigo-600" />
+              <h3 className="font-semibold text-indigo-900">Outreach Performance</h3>
+            </div>
+            <button onClick={fetchOutreachStats} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-indigo-400 text-xs mb-1"><Send size={12} /> Emails Sent</div>
+              <div className="text-xl font-bold text-indigo-700">{outreachStats.totalSent}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-400 text-xs mb-1"><Clock size={12} /> Sent Today</div>
+              <div className="text-xl font-bold text-blue-700">{outreachStats.sentToday}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-green-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-green-400 text-xs mb-1"><Users size={12} /> Claims</div>
+              <div className="text-xl font-bold text-green-700">{outreachStats.totalClaimed}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-purple-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-purple-400 text-xs mb-1"><TrendingUp size={12} /> Conversion</div>
+              <div className="text-xl font-bold text-purple-700">
+                {outreachStats.totalSent > 0 ? ((outreachStats.totalClaimed / outreachStats.totalSent) * 100).toFixed(1) : '0.0'}%
+              </div>
+            </div>
+          </div>
+
+          {outreachStats.recentClaims.length > 0 && (
+            <div className="bg-white rounded-lg border border-indigo-100 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-2">
+                <Activity size={12} /> Recent Claims
+              </div>
+              <div className="divide-y divide-gray-100">
+                {outreachStats.recentClaims.map((claim: any) => (
+                  <div key={claim.id} className="flex items-center justify-between py-2 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-900">{claim.company_name}</span>
+                      {claim.city && claim.state && (
+                        <span className="text-gray-400 ml-2 text-xs">{claim.city}, {claim.state}</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(claim.claimed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at{' '}
+                      {new Date(claim.claimed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {outreachStats.recentClaims.length === 0 && (
+            <div className="text-center py-3 text-sm text-indigo-400">
+              No claims yet — activity will appear here as subcontractors claim their profiles
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Outreach Panel */}
       {showOutreach && (
