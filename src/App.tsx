@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { OrgProvider } from './contexts/OrgContext'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
+import TierGate from './components/TierGate'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -222,7 +223,7 @@ export default function App() {
           <Route path="/projects/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
           <Route path="/projects/:id/debrief" element={<ProtectedRoute><DebriefPage /></ProtectedRoute>} />
           <Route path="/projects/:id/bid-decision" element={<ProtectedRoute><BidDecisionEngine /></ProtectedRoute>} />
-          <Route path="/projects/:id/post-award" element={<ProtectedRoute><PostAward /></ProtectedRoute>} />
+          <Route path="/projects/:id/post-award" element={<ProtectedRoute><TierGate feature="post_award"><PostAward /></TierGate></ProtectedRoute>} />
 
           {/* Backward-compatible redirects for old /task-orders URLs */}
           <Route path="/task-orders" element={<Navigate to="/projects" replace />} />
@@ -270,10 +271,10 @@ export default function App() {
           <Route path="/verification-review" element={<ProtectedRoute><AdminVerificationReview /></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
-          <Route path="/teaming" element={<ProtectedRoute><TeamingTracker /></ProtectedRoute>} />
+          <Route path="/teaming" element={<ProtectedRoute><TierGate feature="teaming_jv"><TeamingTracker /></TierGate></ProtectedRoute>} />
 
           {/* Intelligence & Help */}
-          <Route path="/intelligence" element={<ProtectedRoute><IntelligenceLibrary /></ProtectedRoute>} />
+          <Route path="/intelligence" element={<ProtectedRoute><TierGate feature="intelligence_library"><IntelligenceLibrary /></TierGate></ProtectedRoute>} />
           <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
 
           {/* Organization Settings & Billing */}

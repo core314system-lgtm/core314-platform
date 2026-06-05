@@ -83,7 +83,7 @@ const comparison = [
 ]
 
 const faqs = [
-  { q: 'Is there a free trial?', a: 'Yes. Every plan includes a 7-day free trial with full access to all features. No credit card required to start. After 7 days, you will need to subscribe to continue using the platform.' },
+  { q: 'Is there a free trial?', a: 'Yes. Every plan includes a 7-day free trial with full access to all features. A credit card is required to start your trial but you won\'t be charged until after 7 days. Cancel anytime during the trial at no cost.' },
   { q: 'Can I switch plans later?', a: 'Absolutely. You can upgrade from Growth to Enterprise at any time. Changes take effect immediately with prorated billing.' },
   { q: 'Is there a contract or commitment?', a: 'No long-term contracts required. Pay monthly or save 20% with annual billing. Cancel anytime — your subscription remains active until the end of your billing period.' },
   { q: 'What payment methods do you accept?', a: 'All major credit cards via Stripe. Enterprise customers can also pay by invoice or ACH transfer.' },
