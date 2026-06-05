@@ -22,10 +22,12 @@ interface ChatMessage {
 const SUGGESTED_QUESTIONS = [
   'How many active projects do we have?',
   'Which projects are missing subcontractor quotes?',
-  'How many subcontractors are in our database?',
+  'What is my current subscription plan and status?',
   'What is the total estimated value across all projects?',
-  'Which SOWs across all projects have no quotes?',
+  'Show me quotes with compliance issues.',
+  'How is our outreach campaign performing?',
   'Summarize our subcontractor coverage by service category.',
+  'What quotes need AI compliance review?',
 ]
 
 const SMART_NOTES_SUGGESTIONS = [
@@ -77,6 +79,46 @@ export default function GlobalChat() {
     }
 
     parts.push(`=== CURRENT DATE/TIME: ${now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })} (${todayStr}) ===`)
+
+    // ========== CURRENT USER & ACCOUNT ==========
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (currentUser) {
+        const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', currentUser.id).single()
+        const { data: orgMember } = await supabase.from('organization_members').select('role, org_id, joined_at').eq('user_id', currentUser.id).limit(1).single()
+        parts.push(`=== CURRENT USER ===`)
+        parts.push(`Name: ${profile?.full_name || currentUser.user_metadata?.full_name || 'Not set'}`)
+        parts.push(`Email: ${currentUser.email}`)
+        parts.push(`Role: ${orgMember?.role || 'member'}`)
+        parts.push(`Joined: ${orgMember?.joined_at ? fmtDate(orgMember.joined_at) : 'N/A'}`)
+        parts.push(`User ID: ${currentUser.id}`)
+
+        // Billing / subscription
+        if (orgMember?.org_id) {
+          const { data: org } = await supabase.from('organizations').select('name, subscription_status, subscription_plan, trial_ends_at, subscription_ends_at, stripe_subscription_id').eq('id', orgMember.org_id).single()
+          if (org) {
+            parts.push(`\n=== BILLING & SUBSCRIPTION ===`)
+            parts.push(`Organization: ${org.name}`)
+            parts.push(`Subscription Status: ${org.subscription_status || 'no_subscription'}`)
+            parts.push(`Plan: ${org.subscription_plan || 'None'}`)
+            if (org.trial_ends_at) parts.push(`Trial Ends: ${fmtDate(org.trial_ends_at)}`)
+            if (org.subscription_ends_at) parts.push(`Subscription Ends: ${fmtDate(org.subscription_ends_at)}`)
+            parts.push(`Has Stripe Subscription: ${org.stripe_subscription_id ? 'Yes' : 'No'}`)
+
+            // Tier details
+            if (org.subscription_plan?.includes('growth')) {
+              parts.push(`Tier: Growth ($2,500/mo or $2,000/mo annual)`)
+              parts.push(`Includes: Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix, compliance engine, data export`)
+            } else if (org.subscription_plan?.includes('enterprise')) {
+              parts.push(`Tier: Enterprise ($5,000/mo or $4,000/mo annual)`)
+              parts.push(`Includes: Unlimited projects & users, post-award, teaming, resource capacity, relationship intelligence, API access, 99.9% SLA`)
+            }
+          }
+        }
+      }
+    } catch {
+      // user/org queries may fail — skip silently
+    }
 
     // ========== 0. CONTRACTS ==========
     const { data: contracts } = await supabase
@@ -559,6 +601,92 @@ export default function GlobalChat() {
     parts.push(`RFQ emails sent TODAY: ${rfqsSentToday.length}`)
     parts.push(`RFQ emails sent THIS WEEK: ${rfqsSentThisWeek.length}`)
 
+    // ========== MASTER SUBCONTRACTOR DATABASE ==========
+    try {
+      const { count: masterTotal } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true })
+      const { count: masterVerified } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified')
+      const { count: masterClaimed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed')
+      const { count: masterWithEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null)
+      const { count: outreachSent } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('outreach_sent_at', 'is', null)
+      const { count: unsubscribed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('unsubscribed', true)
+
+      const todayStart = new Date()
+      todayStart.setUTCHours(0, 0, 0, 0)
+      const { count: sentToday } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).gte('outreach_sent_at', todayStart.toISOString())
+
+      parts.push(`\n=== MASTER SUBCONTRACTOR DATABASE ===`)
+      parts.push(`Total master subcontractors: ${masterTotal || 0}`)
+      parts.push(`With email address: ${masterWithEmail || 0}`)
+      parts.push(`Verified (paid): ${masterVerified || 0}`)
+      parts.push(`Claimed (signed up): ${masterClaimed || 0}`)
+      parts.push(`Outreach emails sent (total): ${outreachSent || 0}`)
+      parts.push(`Outreach emails sent TODAY: ${sentToday || 0}`)
+      parts.push(`Unsubscribed: ${unsubscribed || 0}`)
+      if (outreachSent && masterClaimed) {
+        const convRate = ((masterClaimed / outreachSent) * 100).toFixed(1)
+        parts.push(`Outreach conversion rate: ${convRate}% (claimed / sent)`)
+      }
+
+      // Top trades in master DB
+      const { data: masterSample } = await supabase.from('master_subcontractors').select('trade_categories').not('trade_categories', 'is', null).limit(200)
+      if (masterSample && masterSample.length > 0) {
+        const tradeCounts: Record<string, number> = {}
+        for (const ms of masterSample) {
+          const trades = ms.trade_categories as string[] | null
+          if (trades) for (const t of trades) tradeCounts[t] = (tradeCounts[t] || 0) + 1
+        }
+        const topTrades = Object.entries(tradeCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        if (topTrades.length > 0) {
+          parts.push(`Top trades: ${topTrades.map(([t, c]) => `${t} (${c})`).join(', ')}`)
+        }
+      }
+
+      // Recent claims
+      const { data: recentClaims } = await supabase.from('master_subcontractors').select('company_name, city, state, claimed_at').not('claimed_at', 'is', null).order('claimed_at', { ascending: false }).limit(5)
+      if (recentClaims && recentClaims.length > 0) {
+        parts.push(`Recent claims: ${recentClaims.map(c => `${c.company_name} (${c.city}, ${c.state}) on ${fmtDate(c.claimed_at)}`).join('; ')}`)
+      }
+    } catch {
+      // master_subcontractors table may not exist
+    }
+
+    // ========== AI COMPLIANCE ANALYSIS ==========
+    try {
+      const { data: analyzedQuotes } = await supabase
+        .from('sow_quotes')
+        .select('id, sow_item_id, subcontractor_id, total_amount, ai_compliance_score, ai_compliance_analysis, ai_analyzed_at')
+        .not('ai_compliance_score', 'is', null)
+        .order('ai_analyzed_at', { ascending: false })
+        .limit(50)
+
+      if (analyzedQuotes && analyzedQuotes.length > 0) {
+        parts.push(`\n=== AI QUOTE COMPLIANCE ANALYSIS ===`)
+        parts.push(`Quotes analyzed: ${analyzedQuotes.length}`)
+        const avgScore = Math.round(analyzedQuotes.reduce((sum, q) => sum + (q.ai_compliance_score || 0), 0) / analyzedQuotes.length)
+        const passCount = analyzedQuotes.filter(q => (q.ai_compliance_score || 0) >= 80).length
+        const failCount = analyzedQuotes.filter(q => (q.ai_compliance_score || 0) < 60).length
+        parts.push(`Average compliance score: ${avgScore}%`)
+        parts.push(`Passing (≥80%): ${passCount} | Needs review (<60%): ${failCount}`)
+
+        for (const q of analyzedQuotes.slice(0, 10)) {
+          const subName = subLookup[q.subcontractor_id] || 'Unknown'
+          const analysis = q.ai_compliance_analysis as Record<string, unknown> | null
+          let line = `  Quote ${q.id.substring(0, 8)} from ${subName}: Score ${q.ai_compliance_score}%`
+          if (q.total_amount) line += ` | Amount: $${Number(q.total_amount).toLocaleString()}`
+          if (analysis?.missing_requirements && Array.isArray(analysis.missing_requirements)) {
+            line += ` | Missing: ${analysis.missing_requirements.length} requirement(s)`
+            if (analysis.missing_requirements.length > 0) line += ` — ${(analysis.missing_requirements as string[]).slice(0, 3).join(', ')}`
+          }
+          if (analysis?.pricing_gaps && Array.isArray(analysis.pricing_gaps)) {
+            line += ` | Pricing gaps: ${analysis.pricing_gaps.length}`
+          }
+          parts.push(line)
+        }
+      }
+    } catch {
+      // ai_compliance columns may not exist
+    }
+
     // ========== INTEGRATIONS ==========
     parts.push(`\n=== INTEGRATIONS ===`)
     parts.push(`Available integrations: SAM.gov Opportunity Search, CSV/Excel Bulk Import, REST API`)
@@ -629,9 +757,39 @@ PIPELINE & WORKFLOW:
 - The pipeline view shows all projects by stage with deadline tracking.
 
 BILLING & SUBSCRIPTIONS:
-- Growth tier ($2,500/mo): Core features for small contractors.
-- Enterprise tier ($5,000/mo): Advanced analytics, priority support, higher limits.
+- Growth tier ($2,500/mo monthly, $2,000/mo annual): Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix with export, compliance engine, data export, chat support.
+- Enterprise tier ($5,000/mo monthly, $4,000/mo annual): Unlimited projects & users, post-award transition, teaming & JV management, resource capacity tracking, relationship intelligence, REST API access, dedicated onboarding, 99.9% uptime SLA.
 - 7-day free trial with all features.
+- Billing is managed through Stripe. Users can view their subscription status, plan, and manage billing from the /billing page.
+- The Stripe Customer Portal allows users to update payment methods, view invoices, and cancel subscriptions.
+
+PRICING DECISION MATRIX:
+- Located on each project's SOW Bid Management page under a "Pricing Matrix" tab/link.
+- 3 tabs: Quote Comparison (side-by-side grid of subs vs SOW items), Weighted Scoring (configurable weights for Price/Compliance/Performance/Certs following FAR 15.101-1), Pricing Builder (markup, escalation, PoP projections).
+- Export: 4-sheet Excel workbook (Quote Comparison, Weighted Scoring, AI Compliance Detail, Pricing Builder) or PDF report.
+- Color coding: green = lowest price per row, red = highest.
+- Weighted scoring uses: Price 40%, Compliance 30%, Past Performance 20%, Certifications 10% (adjustable via sliders).
+
+AI QUOTE COMPLIANCE ENGINE:
+- Every subcontractor quote can be analyzed against SOW requirements by AI.
+- Generates a compliance score (0-100%), lists requirements met, requirements missing, pricing gaps, and recommendations.
+- If gaps are found, an automated email is sent to the subcontractor listing exactly what SOW requirements their quote didn't address.
+- The prime contractor sees compliance score badges (green/amber/red) with expandable details on the SowTracker.
+- Quotes can be re-analyzed at any time.
+
+MASTER SUBCONTRACTOR DATABASE:
+- A database of 18,000+ subcontractors sourced from SAM.gov bulk data files.
+- Each record includes: company name, UEI, CAGE code, city, state, trade categories, small business status, contact email.
+- Outreach system sends emails to subcontractors inviting them to claim their profile on Procuvex.
+- Claimed subs can edit their profile, upload documents, and optionally pay $99/yr for "Procuvex Verified" status.
+- Verified subs get priority in search results, auto-matching, and a verified badge on their profile.
+- Outreach uses phased sending (50/day initially, ramping to 200+/day) to protect sender reputation.
+- Unsubscribe links are included in all outreach emails (CAN-SPAM compliant).
+
+SUBCONTRACTOR PORTAL:
+- Subcontractors receive RFQ portal links via email to submit quotes, view SOW details, and ask questions.
+- The portal shows SOW requirements, incumbent status (if known), and allows quote submission with detailed pricing breakdowns.
+- An AI compliance banner warns subs that all quotes are automatically reviewed for SOW compliance.
 
 SYSTEM HEALTH:
 - The platform monitors 5 services: Database, Authentication, SAM.gov Feed, AI Engine, and Billing.
