@@ -120,6 +120,9 @@ export default function MasterSubDatabase() {
   const [enrichProgress, setEnrichProgress] = useState('')
   const [enrichResult, setEnrichResult] = useState<{ enriched: number; noEmail: number; errors: number } | null>(null)
   const [outreachStats, setOutreachStats] = useState<{ totalSent: number; sentToday: number; totalClaimed: number; recentClaims: any[] }>({ totalSent: 0, sentToday: 0, totalClaimed: 0, recentClaims: [] })
+  const [emailMetrics, setEmailMetrics] = useState<any>(null)
+  const [emailMetricsLoading, setEmailMetricsLoading] = useState(false)
+  const [showEmailDetails, setShowEmailDetails] = useState(false)
 
   const PAGE_SIZE = 50
 
@@ -174,6 +177,20 @@ export default function MasterSubDatabase() {
       totalClaimed: totalClaimed || 0,
       recentClaims: recentClaims || [],
     })
+  }, [])
+
+  const fetchEmailMetrics = useCallback(async () => {
+    setEmailMetricsLoading(true)
+    try {
+      const res = await fetch('/.netlify/functions/outreach-metrics')
+      if (res.ok) {
+        const data = await res.json()
+        setEmailMetrics(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch email metrics:', err)
+    }
+    setEmailMetricsLoading(false)
   }, [])
 
   const fetchSubs = useCallback(async () => {
@@ -867,6 +884,111 @@ export default function MasterSubDatabase() {
               No claims yet — activity will appear here as subcontractors claim their profiles
             </div>
           )}
+
+          {/* Email Delivery Metrics */}
+          <div className="mt-4 bg-white rounded-lg border border-indigo-100 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Mail size={16} className="text-indigo-600" />
+                <h4 className="font-semibold text-sm text-indigo-900">Email Delivery Metrics</h4>
+              </div>
+              <button onClick={fetchEmailMetrics} disabled={emailMetricsLoading} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors disabled:opacity-50">
+                {emailMetricsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                {emailMetrics ? 'Refresh' : 'Load Metrics'}
+              </button>
+            </div>
+
+            {!emailMetrics && !emailMetricsLoading && (
+              <div className="text-center py-4 text-sm text-gray-400">
+                Click "Load Metrics" to fetch real-time delivery data from SendGrid
+              </div>
+            )}
+
+            {emailMetricsLoading && (
+              <div className="text-center py-4 text-sm text-indigo-500 flex items-center justify-center gap-2">
+                <Loader2 size={14} className="animate-spin" /> Loading delivery metrics from SendGrid...
+              </div>
+            )}
+
+            {emailMetrics && (
+              <>
+                <div className="grid grid-cols-5 gap-2 mb-3">
+                  <div className="bg-green-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-green-600 font-medium">Delivered</div>
+                    <div className="text-lg font-bold text-green-700">{emailMetrics.summary.delivered}</div>
+                    <div className="text-[10px] text-green-500">{emailMetrics.summary.delivery_rate}% rate</div>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-blue-600 font-medium">Opened</div>
+                    <div className="text-lg font-bold text-blue-700">{emailMetrics.summary.opened}</div>
+                    <div className="text-[10px] text-blue-500">{emailMetrics.summary.open_rate}% rate</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-amber-600 font-medium">Clicked</div>
+                    <div className="text-lg font-bold text-amber-700">{emailMetrics.summary.clicked}</div>
+                    <div className="text-[10px] text-amber-500">{emailMetrics.summary.click_rate}% rate</div>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-red-600 font-medium">Bounced</div>
+                    <div className="text-lg font-bold text-red-700">{emailMetrics.summary.not_delivered}</div>
+                    <div className="text-[10px] text-red-500">{emailMetrics.summary.total > 0 ? Math.round((emailMetrics.summary.not_delivered / emailMetrics.summary.total) * 100) : 0}%</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-600 font-medium">Total Opens</div>
+                    <div className="text-lg font-bold text-gray-700">{emailMetrics.summary.total_opens}</div>
+                    <div className="text-[10px] text-gray-500">{emailMetrics.summary.delivered > 0 ? (emailMetrics.summary.total_opens / emailMetrics.summary.delivered).toFixed(1) : '0'} per email</div>
+                  </div>
+                </div>
+
+                <button onClick={() => setShowEmailDetails(!showEmailDetails)} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 mb-2">
+                  {showEmailDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {showEmailDetails ? 'Hide' : 'Show'} individual email details ({emailMetrics.emails.length})
+                </button>
+
+                {showEmailDetails && (
+                  <div className="max-h-[400px] overflow-y-auto border border-gray-100 rounded-lg">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left p-2 font-medium text-gray-600">Recipient</th>
+                          <th className="text-center p-2 font-medium text-gray-600">Status</th>
+                          <th className="text-center p-2 font-medium text-gray-600">Opens</th>
+                          <th className="text-center p-2 font-medium text-gray-600">Clicks</th>
+                          <th className="text-right p-2 font-medium text-gray-600">Last Activity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {emailMetrics.emails.map((email: any, i: number) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="p-2">
+                              <div className="font-medium text-gray-800 truncate max-w-[250px]">{email.subject?.replace(' — Your Procuvex Profile Is Ready', '') || 'N/A'}</div>
+                              <div className="text-gray-400 truncate max-w-[250px]">{email.to}</div>
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                email.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                                email.status === 'not_delivered' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>{email.status === 'not_delivered' ? 'bounced' : email.status}</span>
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={email.opens > 0 ? 'text-blue-700 font-bold' : 'text-gray-300'}>{email.opens}</span>
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={email.clicks > 0 ? 'text-amber-700 font-bold' : 'text-gray-300'}>{email.clicks}</span>
+                            </td>
+                            <td className="p-2 text-right text-gray-400">
+                              {email.lastEvent ? new Date(email.lastEvent).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(email.lastEvent).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
