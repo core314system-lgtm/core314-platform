@@ -2,10 +2,12 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
+import { useTier } from '../hooks/useTier'
+import { useAuth } from '../contexts/AuthContext'
 import {
-  Search, MapPin,
+  Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
-  Database, Building, Globe, Star, Filter,
+  Database, Building, Globe, Star, Filter, Zap, Send, CheckCircle,
 } from 'lucide-react'
 
 interface SubResult {
@@ -22,6 +24,29 @@ interface SubResult {
   website: string | null
   naics_codes: string[]
   geographic_coverage: string[]
+  contact_email?: string | null
+  contact_phone?: string | null
+  contact_name?: string | null
+}
+
+interface ProjectOption {
+  id: string
+  title: string
+  location_state: string
+}
+
+interface AiMatch {
+  sub_id: string
+  company_name: string
+  contact_email: string | null
+  state: string | null
+  city: string | null
+  trade_categories: string[]
+  verification_status: string
+  profile_completeness: number
+  small_business_types: string[]
+  match_score: number
+  match_reasons: string[]
 }
 
 const US_STATES = [
@@ -34,6 +59,8 @@ const US_STATES = [
 const PAGE_SIZE = 20
 
 export default function FindSubcontractors() {
+  const { isEnterprise } = useTier()
+  const { user } = useAuth()
   const [results, setResults] = useState<SubResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
@@ -46,9 +73,31 @@ export default function FindSubcontractors() {
   const [page, setPage] = useState(0)
   const [stats, setStats] = useState({ total: 0, verified: 0, trades: 0 })
 
+  // Enterprise AI Match
+  const [showAiMatch, setShowAiMatch] = useState(false)
+  const [projects, setProjects] = useState<ProjectOption[]>([])
+  const [selectedProject, setSelectedProject] = useState('')
+  const [aiMatches, setAiMatches] = useState<AiMatch[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiSearched, setAiSearched] = useState(false)
+  const [selectedAiSubs, setSelectedAiSubs] = useState<Set<string>>(new Set())
+  const [sendingAiRfqs, setSendingAiRfqs] = useState(false)
+  const [aiRfqResult, setAiRfqResult] = useState<{ sent: number; failed: number } | null>(null)
+
   useEffect(() => {
     fetchStats()
-  }, [])
+    if (isEnterprise) loadProjects()
+  }, [isEnterprise])
+
+  async function loadProjects() {
+    const { data } = await supabase
+      .from('task_orders')
+      .select('id, title, location_state')
+      .in('status', ['draft', 'in_progress', 'under_review'])
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setProjects(data || [])
+  }
 
   async function fetchStats() {
     const { count } = await supabase
@@ -71,7 +120,7 @@ export default function FindSubcontractors() {
 
     let query = supabase
       .from('master_subcontractors')
-      .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage', { count: 'exact' })
+      .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage, contact_email, contact_phone, contact_name', { count: 'exact' })
 
     if (search.trim()) {
       query = query.or(`company_name.ilike.%${search.trim()}%,trade_categories.cs.{${search.trim()}}`)
@@ -208,6 +257,215 @@ export default function FindSubcontractors() {
         </div>
       </form>
 
+      {/* Enterprise AI Match */}
+      {isEnterprise && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap size={18} className="text-purple-600" />
+              <h3 className="font-semibold text-purple-900">AI Project Matching</h3>
+              <span className="text-[10px] font-bold text-purple-500 bg-purple-100 px-1.5 py-0.5 rounded">ENT</span>
+            </div>
+            <button
+              onClick={() => setShowAiMatch(!showAiMatch)}
+              className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+            >
+              {showAiMatch ? 'Hide' : 'Find Subs for a Project'}
+            </button>
+          </div>
+          <p className="text-sm text-purple-700 mb-3">
+            Select a project and the AI will automatically find and rank subcontractors from the master database that match your SOW requirements.
+          </p>
+
+          {showAiMatch && (
+            <div className="space-y-4">
+              <div className="flex gap-3">
+                <select
+                  value={selectedProject}
+                  onChange={e => { setSelectedProject(e.target.value); setAiSearched(false); setAiMatches([]); setAiRfqResult(null) }}
+                  className="flex-1 text-sm border border-purple-300 rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value="">Select a project...</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.title}{p.location_state ? ` (${p.location_state})` : ''}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={async () => {
+                    if (!selectedProject || !user) return
+                    setAiLoading(true)
+                    setAiSearched(true)
+                    setAiRfqResult(null)
+                    try {
+                      const proj = projects.find(p => p.id === selectedProject)
+                      const { data: sowItems } = await supabase
+                        .from('sow_items')
+                        .select('service_category')
+                        .eq('task_order_id', selectedProject)
+                      const trades = [...new Set((sowItems || []).map(s => s.service_category).filter(Boolean))]
+                      if (trades.length === 0) {
+                        setAiMatches([])
+                        setAiLoading(false)
+                        return
+                      }
+                      const res = await fetch('/.netlify/functions/sub-auto-match', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+                        body: JSON.stringify({
+                          action: 'match',
+                          trades,
+                          states: proj?.location_state ? [proj.location_state] : [],
+                          max_results: 50,
+                          include_unclaimed: true,
+                        }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        setAiMatches(data.matches || [])
+                      }
+                    } catch (err) {
+                      console.error('AI match error:', err)
+                    }
+                    setAiLoading(false)
+                  }}
+                  disabled={!selectedProject || aiLoading}
+                  className="bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                  Find Matches
+                </button>
+              </div>
+
+              {aiLoading && (
+                <div className="text-center py-6 text-purple-500 text-sm flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin" /> Analyzing project requirements against 18,000+ subcontractors...
+                </div>
+              )}
+
+              {aiSearched && !aiLoading && aiMatches.length === 0 && (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  No matches found. Make sure the project has SOW items with service categories defined (use "Sync from AI Analysis" on the SOW Tracker).
+                </div>
+              )}
+
+              {aiMatches.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if (selectedAiSubs.size === aiMatches.length) setSelectedAiSubs(new Set())
+                          else setSelectedAiSubs(new Set(aiMatches.map(m => m.sub_id)))
+                        }}
+                        className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                      >
+                        {selectedAiSubs.size === aiMatches.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                      {selectedAiSubs.size > 0 && (
+                        <button
+                          onClick={async () => {
+                            if (!user) return
+                            setSendingAiRfqs(true)
+                            try {
+                              const proj = projects.find(p => p.id === selectedProject)
+                              const res = await fetch('/.netlify/functions/sub-auto-match', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+                                body: JSON.stringify({
+                                  action: 'invite-all',
+                                  sub_ids: Array.from(selectedAiSubs),
+                                  rfq_title: proj?.title || 'RFQ Invitation',
+                                  rfq_description: `Request for Quote for ${proj?.title || 'project'}`,
+                                  prime_company: 'Procuvex Network',
+                                }),
+                              })
+                              if (res.ok) {
+                                const data = await res.json()
+                                setAiRfqResult({ sent: data.sent, failed: data.failed })
+                              }
+                            } catch (err) {
+                              console.error('RFQ send error:', err)
+                            }
+                            setSendingAiRfqs(false)
+                          }}
+                          disabled={sendingAiRfqs}
+                          className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
+                        >
+                          {sendingAiRfqs ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                          Send RFQs ({selectedAiSubs.size})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {aiRfqResult && (
+                    <div className={`rounded-lg p-3 text-sm ${aiRfqResult.failed > 0 ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-green-50 border border-green-200 text-green-800'}`}>
+                      <CheckCircle size={14} className="inline mr-1.5" />
+                      {aiRfqResult.sent} RFQ invitation{aiRfqResult.sent !== 1 ? 's' : ''} sent
+                      {aiRfqResult.failed > 0 && ` (${aiRfqResult.failed} failed — no email on file)`}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {aiMatches.map(match => (
+                      <div
+                        key={match.sub_id}
+                        className={`bg-white rounded-lg border p-3 flex items-start gap-3 transition-colors ${
+                          selectedAiSubs.has(match.sub_id) ? 'border-purple-400 ring-1 ring-purple-200' : 'border-gray-200'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedAiSubs.has(match.sub_id)}
+                          onChange={() => {
+                            setSelectedAiSubs(prev => {
+                              const next = new Set(prev)
+                              if (next.has(match.sub_id)) next.delete(match.sub_id)
+                              else next.add(match.sub_id)
+                              return next
+                            })
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <div className={`flex-shrink-0 w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
+                          match.match_score >= 80 ? 'text-green-700 bg-green-100' :
+                          match.match_score >= 60 ? 'text-amber-700 bg-amber-100' : 'text-gray-700 bg-gray-100'
+                        }`}>
+                          <div className="text-lg font-bold leading-none">{match.match_score}</div>
+                          <div className="text-[8px] uppercase tracking-wider">score</div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-gray-900 text-sm">{match.company_name}</span>
+                            {match.verification_status === 'verified' && (
+                              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">Verified</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 flex-wrap">
+                            {(match.city || match.state) && (
+                              <span className="flex items-center gap-1"><MapPin size={10} /> {[match.city, match.state].filter(Boolean).join(', ')}</span>
+                            )}
+                            {match.contact_email && (
+                              <span className="flex items-center gap-1"><Mail size={10} /> {match.contact_email}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            {match.match_reasons.map((r, i) => (
+                              <span key={i} className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded">{r}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Results */}
       {!searched ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -260,7 +518,7 @@ export default function FindSubcontractors() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
+                  <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500 flex-wrap">
                     {(sub.city || sub.state) && (
                       <span className="flex items-center gap-1">
                         <MapPin size={13} />
@@ -272,6 +530,16 @@ export default function FindSubcontractors() {
                         className="flex items-center gap-1 text-blue-500 hover:text-blue-700">
                         <Globe size={13} /> Website
                       </a>
+                    )}
+                    {isEnterprise && sub.contact_email && (
+                      <span className="flex items-center gap-1 text-gray-600">
+                        <Mail size={13} /> {sub.contact_email}
+                      </span>
+                    )}
+                    {isEnterprise && sub.contact_phone && (
+                      <span className="flex items-center gap-1 text-gray-600">
+                        <Phone size={13} /> {sub.contact_phone}
+                      </span>
                     )}
                   </div>
 

@@ -49,18 +49,25 @@ export default async (req: Request, _context: Context) => {
   // --- ACTION: match ---
   // Find subs matching given criteria (trade, location, certs)
   if (action === "match") {
-    const { trades, states, require_verified, require_small_biz, small_biz_types, max_results } = body
+    const { trades, states, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
     const limit = Math.min(max_results || 50, 200)
 
     if (!trades || !Array.isArray(trades) || trades.length === 0) {
       return new Response(JSON.stringify({ error: "At least one trade required" }), { status: 400, headers })
     }
 
-    // Base query — get all subs that match at least one trade
+    // Base query — get subs that match trades
+    // If include_unclaimed is true (Enterprise feature), also include unclaimed subs with contact emails
     let query = supabase
       .from("master_subcontractors")
       .select("id, company_name, contact_email, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug")
-      .not("claimed_at", "is", null) // only claimed/active subs
+
+    if (!include_unclaimed) {
+      query = query.not("claimed_at", "is", null) // only claimed/active subs
+    } else {
+      // For Enterprise: include all subs that have contact emails OR are claimed
+      query = query.or("claimed_at.not.is.null,contact_email.not.is.null")
+    }
 
     if (require_verified) {
       query = query.eq("verification_status", "verified")

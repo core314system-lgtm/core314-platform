@@ -7,10 +7,12 @@ import type { TaskOrder, SowItem, SowSubcontractor, SowQuote, SowCommunication, 
 import {
   ArrowLeft, Plus, Send, MessageSquare, DollarSign, ChevronDown, ChevronUp,
   CheckCircle, Clock, AlertTriangle, XCircle, RefreshCw, Search, Filter, X,
-  Package, Mail, Phone, Building, Upload, FileText, Paperclip, Eye, Radar, Settings, Loader2, Brain
+  Package, Mail, Phone, Building, Upload, FileText, Paperclip, Eye, Radar, Settings, Loader2, Brain, Database
 } from 'lucide-react'
 import QuestionQueue from '../components/QuestionQueue'
 import FollowUpManager from '../components/FollowUpManager'
+import MasterDbMatchPanel from '../components/MasterDbMatchPanel'
+import { useAuth } from '../contexts/AuthContext'
 
 const SOW_STATUS_CONFIG: Record<SowStatus, { label: string; color: string; bg: string }> = {
   not_started: { label: 'Not Started', color: 'text-gray-600', bg: 'bg-gray-100' },
@@ -42,6 +44,7 @@ interface SowWithDetails extends SowItem {
 
 export default function SowTracker() {
   const { id: taskOrderId } = useParams<{ id: string }>()
+  const { user } = useAuth()
   const [taskOrder, setTaskOrder] = useState<TaskOrder | null>(null)
   const [sowItems, setSowItems] = useState<SowWithDetails[]>([])
   const [allSubcontractors, setAllSubcontractors] = useState<Subcontractor[]>([])
@@ -54,6 +57,7 @@ export default function SowTracker() {
   const [subSearch, setSubSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('')
+  const [showMasterMatch, setShowMasterMatch] = useState<string | null>(null)
   const [quoteFile, setQuoteFile] = useState<File | null>(null)
   const [uploadingQuote, setUploadingQuote] = useState(false)
   const [dragOverSub, setDragOverSub] = useState<string | null>(null)
@@ -772,6 +776,12 @@ export default function SowTracker() {
                       <Settings size={14} /> Configure Quote Form
                     </Link>
                     <button
+                      onClick={() => setShowMasterMatch(showMasterMatch === sow.id ? null : sow.id)}
+                      className="text-sm bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 flex items-center gap-1 border border-emerald-200"
+                    >
+                      <Database size={14} /> Find from Master DB
+                    </button>
+                    <button
                       onClick={() => setShowDocUpload(showDocUpload === sow.id ? null : sow.id)}
                       className="text-sm bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 flex items-center gap-1"
                     >
@@ -827,6 +837,20 @@ export default function SowTracker() {
                         />
                       </label>
                     </div>
+                  )}
+
+                  {/* Master DB Match Panel */}
+                  {showMasterMatch === sow.id && user && (
+                    <MasterDbMatchPanel
+                      sowId={sow.id}
+                      sowName={sow.sow_name}
+                      serviceCategory={sow.service_category}
+                      projectState={taskOrder?.location_state || ''}
+                      existingSubIds={new Set(sow.subcontractors.map(s => s.subcontractor_id))}
+                      onAddSub={(subId) => addSubToSow(sow.id, subId)}
+                      onClose={() => setShowMasterMatch(null)}
+                      userId={user.id}
+                    />
                   )}
 
                   {/* Add Subcontractor Modal */}
