@@ -134,6 +134,13 @@ export default function MasterSubDatabase() {
   const importPanelRef = useRef<HTMLDivElement>(null)
   const sbsImportPanelRef = useRef<HTMLDivElement>(null)
 
+  // GSA eLibrary Scraper state
+  const [showGsaScraper, setShowGsaScraper] = useState(false)
+  const [gsaScraping, setGsaScraping] = useState(false)
+  const [gsaProgress, setGsaProgress] = useState('')
+  const [gsaResult, setGsaResult] = useState<any>(null)
+  const gsaScraperRef = useRef<HTMLDivElement>(null)
+
   const PAGE_SIZE = 50
 
   const fetchStats = useCallback(async () => {
@@ -756,17 +763,21 @@ export default function MasterSubDatabase() {
             {enriching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {enriching ? 'Enriching...' : 'Enrich Contacts'}
           </button>
-          <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); setShowGsaScraper(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
             <Mail size={16} /> Send Outreach
           </button>
-          <button onClick={() => { const opening = !showImport; setShowImport(opening); setShowOutreach(false); setShowSbsImport(false); if (opening) setTimeout(() => importPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showImport; setShowImport(opening); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); if (opening) setTimeout(() => importPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Upload size={16} /> Import from SAM.gov
           </button>
-          <button onClick={() => { const opening = !showSbsImport; setShowSbsImport(opening); setShowImport(false); setShowOutreach(false); if (opening) setTimeout(() => sbsImportPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showSbsImport; setShowSbsImport(opening); setShowImport(false); setShowOutreach(false); setShowGsaScraper(false); if (opening) setTimeout(() => sbsImportPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
             <FileUp size={16} /> Import SBS Data
+          </button>
+          <button onClick={() => { const opening = !showGsaScraper; setShowGsaScraper(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); if (opening) setTimeout(() => gsaScraperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700">
+            <Database size={16} /> Scrape GSA eLibrary
           </button>
         </div>
       </div>
@@ -1175,6 +1186,129 @@ export default function MasterSubDatabase() {
         </div>
       )}
 
+
+      {/* GSA eLibrary Scraper Panel */}
+      {showGsaScraper && (
+        <div ref={gsaScraperRef} className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-amber-900">Scrape GSA eLibrary</h3>
+            <button onClick={() => setShowGsaScraper(false)} className="text-amber-400 hover:text-amber-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-amber-800">
+            Scrape all contractors from <a href="https://www.gsaelibrary.gsa.gov/ElibMain/contractorList.do?contractorListFor=A" target="_blank" rel="noopener" className="underline font-medium">GSA eLibrary</a> (A–Z).
+            Extracts company name, address, phone, email, website, SAM UEI, socio-economic status, GSA schedule categories, and contract details.
+          </p>
+          <p className="text-xs text-amber-700">
+            Rate-limited to ~2 requests/second to respect .gov servers. Full scrape may take 2-4 hours depending on total contractors. Progress is saved continuously — you can close this panel and it will keep running.
+          </p>
+
+          {!gsaScraping && !gsaResult && (
+            <div className="space-y-3">
+              <button
+                onClick={async () => {
+                  setGsaScraping(true)
+                  setGsaProgress('Starting GSA eLibrary scrape...')
+                  setGsaResult(null)
+                  
+                  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+                  let totalScraped = 0
+                  let totalInserted = 0
+                  let totalUpdated = 0
+                  let totalErrors = 0
+                  
+                  for (const letter of letters) {
+                    try {
+                      setGsaProgress(`Fetching contractor list for letter ${letter}...`)
+                      const listRes = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'list', letter })
+                      })
+                      const listData = await listRes.json()
+                      
+                      if (!listData.urls || listData.urls.length === 0) {
+                        setGsaProgress(`Letter ${letter}: No contractors found. Moving to next...`)
+                        continue
+                      }
+                      
+                      const urls = listData.urls
+                      const batchSize = 15
+                      
+                      for (let i = 0; i < urls.length; i += batchSize) {
+                        const batch = urls.slice(i, i + batchSize)
+                        setGsaProgress(`Letter ${letter}: Scraping ${i + 1}-${Math.min(i + batchSize, urls.length)} of ${urls.length} contractors... (Total: ${totalScraped} scraped, ${totalInserted} new, ${totalUpdated} updated)`)
+                        
+                        try {
+                          const scrapeRes = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'scrape', urls: batch })
+                          })
+                          const scrapeData = await scrapeRes.json()
+                          totalScraped += scrapeData.scraped || 0
+                          totalInserted += scrapeData.inserted || 0
+                          totalUpdated += scrapeData.updated || 0
+                          totalErrors += scrapeData.errors || 0
+                        } catch (e) {
+                          totalErrors += batch.length
+                        }
+                      }
+                    } catch (e) {
+                      setGsaProgress(`Error on letter ${letter}, continuing...`)
+                    }
+                  }
+                  
+                  setGsaScraping(false)
+                  setGsaResult({ scraped: totalScraped, inserted: totalInserted, updated: totalUpdated, errors: totalErrors })
+                  setGsaProgress('')
+                  fetchStats()
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium"
+              >
+                <Database size={18} /> Start Full A–Z Scrape
+              </button>
+            </div>
+          )}
+
+          {gsaScraping && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-amber-800 text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                {gsaProgress}
+              </div>
+              <div className="w-full bg-amber-200 rounded-full h-2">
+                <div className="bg-amber-600 h-2 rounded-full transition-all" style={{ width: '50%' }} />
+              </div>
+              <p className="text-xs text-amber-600">Do not close the browser tab. The scrape will continue automatically.</p>
+            </div>
+          )}
+
+          {gsaResult && (
+            <div className="bg-white border border-amber-200 rounded-lg p-4 space-y-2">
+              <h4 className="font-semibold text-amber-900">Scrape Complete</h4>
+              <div className="grid grid-cols-4 gap-3 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-700">{gsaResult.scraped.toLocaleString()}</div>
+                  <div className="text-amber-600">Scraped</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{gsaResult.inserted.toLocaleString()}</div>
+                  <div className="text-green-700">New Added</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{gsaResult.updated.toLocaleString()}</div>
+                  <div className="text-blue-700">Updated</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{gsaResult.errors.toLocaleString()}</div>
+                  <div className="text-red-700">Errors</div>
+                </div>
+              </div>
+              <button onClick={() => { setGsaResult(null) }} className="text-sm text-amber-600 hover:underline mt-2">Run again</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Enrichment Progress/Result */}
       {(enrichProgress || enrichResult) && (
