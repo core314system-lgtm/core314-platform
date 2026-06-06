@@ -124,6 +124,13 @@ export default function MasterSubDatabase() {
   const [emailMetricsLoading, setEmailMetricsLoading] = useState(false)
   const [showEmailDetails, setShowEmailDetails] = useState(false)
 
+  // SBS Import state
+  const [showSbsImport, setShowSbsImport] = useState(false)
+  const [sbsUploading, setSbsUploading] = useState(false)
+  const [sbsProgress, setSbsProgress] = useState('')
+  const [sbsResult, setSbsResult] = useState<any>(null)
+  const sbsFileRef = useRef<HTMLInputElement>(null)
+
   const PAGE_SIZE = 50
 
   const fetchStats = useCallback(async () => {
@@ -750,9 +757,13 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
             <Mail size={16} /> Send Outreach
           </button>
-          <button onClick={() => { setShowImport(!showImport); setShowOutreach(false) }}
+          <button onClick={() => { setShowImport(!showImport); setShowOutreach(false); setShowSbsImport(false) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Upload size={16} /> Import from SAM.gov
+          </button>
+          <button onClick={() => { setShowSbsImport(!showSbsImport); setShowImport(false); setShowOutreach(false) }}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+            <FileUp size={16} /> Import SBS Data
           </button>
         </div>
       </div>
@@ -1248,6 +1259,123 @@ export default function MasterSubDatabase() {
                         </div>
                       )}
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SBS Import Panel */}
+      {showSbsImport && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-emerald-900">Import SBS (Small Business Source) Data</h3>
+            <button onClick={() => setShowSbsImport(false)} className="text-emerald-400 hover:text-emerald-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-emerald-700">
+            Upload an Excel (.xlsx) or CSV file with subcontractor data. Expected columns: Business Name, Capabilities (2 cols), Active SBA, Contact Person, Contact Email, Address Line 1, Address Line 2, City, State, Zipcode.
+          </p>
+          <p className="text-xs text-emerald-600">
+            Duplicates (matching company name + state) will have their contact information merged into existing records. New companies will be added as new entries.
+          </p>
+
+          <input
+            type="file"
+            ref={sbsFileRef}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              setSbsUploading(true)
+              setSbsProgress('Reading file...')
+              setSbsResult(null)
+
+              try {
+                const XLSX = await import('xlsx')
+                const buffer = await file.arrayBuffer()
+                const wb = XLSX.read(buffer, { type: 'array' })
+                const ws = wb.Sheets[wb.SheetNames[0]]
+                const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 })
+
+                // Skip header row
+                const dataRows = rawRows.slice(1).filter(r => r.length > 0 && r[0])
+                setSbsProgress(`Parsed ${dataRows.length.toLocaleString()} rows. Importing...`)
+
+                // Send in batches of 500
+                const batchSize = 500
+                let totalImported = 0
+                let totalUpdated = 0
+                let totalSkipped = 0
+                const errors: string[] = []
+
+                for (let i = 0; i < dataRows.length; i += batchSize) {
+                  const batch = dataRows.slice(i, i + batchSize).map(row =>
+                    row.map((cell: any) => (cell === null || cell === undefined) ? '' : String(cell))
+                  )
+                  setSbsProgress(`Importing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(dataRows.length / batchSize)}... (${i}/${dataRows.length})`)
+
+                  const res = await fetch('/.netlify/functions/sbs-import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows: batch }),
+                  })
+
+                  if (res.ok) {
+                    const data = await res.json()
+                    totalImported += data.imported || 0
+                    totalUpdated += data.updated || 0
+                    totalSkipped += data.skipped || 0
+                    if (data.errors?.length > 0) errors.push(...data.errors)
+                  } else {
+                    const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
+                    errors.push(`Batch ${Math.floor(i / batchSize)}: ${errData.error}`)
+                  }
+                }
+
+                setSbsResult({ imported: totalImported, updated: totalUpdated, skipped: totalSkipped, total: dataRows.length, errors })
+                setSbsProgress('')
+                fetchStats()
+                fetchSubs()
+              } catch (err: any) {
+                setSbsResult({ error: err.message || 'Failed to parse file' })
+                setSbsProgress('')
+              }
+              setSbsUploading(false)
+              if (sbsFileRef.current) sbsFileRef.current.value = ''
+            }}
+          />
+
+          <button
+            onClick={() => sbsFileRef.current?.click()}
+            disabled={sbsUploading}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 w-full justify-center"
+          >
+            {sbsUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+            {sbsUploading ? 'Processing...' : 'Select SBS Excel/CSV File'}
+          </button>
+
+          {sbsProgress && (
+            <div className="flex items-center gap-2 text-sm text-emerald-700">
+              <Loader2 size={14} className="animate-spin" /> {sbsProgress}
+            </div>
+          )}
+
+          {sbsResult && (
+            <div className={`rounded-lg p-4 text-sm ${sbsResult.error ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-emerald-100 border border-emerald-300 text-emerald-900'}`}>
+              {sbsResult.error ? (
+                <p>Error: {sbsResult.error}</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="font-semibold">Import Complete</p>
+                  <p><strong>{sbsResult.imported?.toLocaleString()}</strong> new subcontractors added</p>
+                  <p><strong>{sbsResult.updated?.toLocaleString()}</strong> existing records updated (contact info merged)</p>
+                  <p><strong>{sbsResult.skipped?.toLocaleString()}</strong> rows skipped (no company name)</p>
+                  <p className="text-xs text-emerald-700 mt-1">Total rows processed: {sbsResult.total?.toLocaleString()}</p>
+                  {sbsResult.errors?.length > 0 && (
+                    <p className="text-amber-700 mt-1 text-xs">Warnings: {sbsResult.errors.slice(0, 5).join('; ')}{sbsResult.errors.length > 5 ? ` (+${sbsResult.errors.length - 5} more)` : ''}</p>
                   )}
                 </div>
               )}

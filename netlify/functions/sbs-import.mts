@@ -1,0 +1,454 @@
+import type { Context } from "@netlify/functions"
+import { createClient } from "@supabase/supabase-js"
+
+/**
+ * SBS (Small Business Source) Data Import
+ *
+ * Imports subcontractor data from an SBS Excel/CSV export.
+ * Expected columns (order matters, mapped by index):
+ *   0: Business name
+ *   1: Capabilities 1 (trade/service description)
+ *   2: Capabilities 2 (additional capabilities)
+ *   3: Active SBA designations (e.g., WOSB, SDVOSB, 8(a))
+ *   4: Contact person name
+ *   5: Contact person email
+ *   6: Address line 1
+ *   7: Address line 2
+ *   8: City
+ *   9: State
+ *  10: Zipcode
+ *
+ * POST body: { rows: string[][], dryRun?: boolean }
+ * Client-side parses Excel → sends row arrays to this function in batches.
+ */
+
+const SUPABASE_URL = process.env.TASKORDER_SUPABASE_URL || process.env.SUPABASE_URL || ""
+const SUPABASE_SERVICE_KEY = process.env.TASKORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+
+// Map capability text to trade categories
+const CAPABILITY_TRADE_MAP: Record<string, string[]> = {
+  'hvac': ['HVAC'],
+  'heating': ['HVAC'],
+  'ventilation': ['HVAC'],
+  'air conditioning': ['HVAC'],
+  'electrical': ['Electrical'],
+  'plumbing': ['Plumbing'],
+  'fire': ['Fire & Life Safety'],
+  'sprinkler': ['Fire & Life Safety'],
+  'fire alarm': ['Fire & Life Safety'],
+  'elevator': ['Elevator & Escalator'],
+  'escalator': ['Elevator & Escalator'],
+  'janitorial': ['Janitorial & Custodial'],
+  'custodial': ['Janitorial & Custodial'],
+  'cleaning': ['Janitorial & Custodial'],
+  'landscaping': ['Landscaping & Grounds'],
+  'lawn': ['Landscaping & Grounds'],
+  'grounds': ['Landscaping & Grounds'],
+  'irrigation': ['Landscaping & Grounds'],
+  'snow': ['Snow & Ice Removal'],
+  'ice removal': ['Snow & Ice Removal'],
+  'pest control': ['Pest Control'],
+  'extermination': ['Pest Control'],
+  'roofing': ['Roofing'],
+  'roof': ['Roofing'],
+  'painting': ['Painting & Coatings'],
+  'coatings': ['Painting & Coatings'],
+  'flooring': ['Flooring'],
+  'carpet': ['Flooring'],
+  'tile': ['Flooring'],
+  'security': ['Security Systems'],
+  'cctv': ['Security Systems'],
+  'access control': ['Security Systems'],
+  'surveillance': ['Security Systems'],
+  'guard': ['Security Systems'],
+  'general contractor': ['General Construction'],
+  'construction': ['General Construction'],
+  'demolition': ['Demolition'],
+  'concrete': ['Concrete & Masonry'],
+  'masonry': ['Concrete & Masonry'],
+  'steel': ['Structural Steel'],
+  'fabrication': ['Structural Steel'],
+  'environmental': ['Environmental Services'],
+  'remediation': ['Environmental Services'],
+  'hazmat': ['Environmental Services'],
+  'asbestos': ['Abatement'],
+  'abatement': ['Abatement'],
+  'lead': ['Abatement'],
+  'mold': ['Abatement'],
+  'waste': ['Waste Management'],
+  'trash': ['Waste Management'],
+  'recycling': ['Waste Management'],
+  'it ': ['IT & Telecommunications'],
+  'telecom': ['IT & Telecommunications'],
+  'networking': ['IT & Telecommunications'],
+  'cabling': ['IT & Telecommunications'],
+  'fiber optic': ['IT & Telecommunications'],
+  'building automation': ['Building Automation'],
+  'controls': ['Building Automation'],
+  'generator': ['Emergency Power'],
+  'ups': ['Emergency Power'],
+  'emergency power': ['Emergency Power'],
+  'glass': ['Glass & Glazing'],
+  'glazing': ['Glass & Glazing'],
+  'window': ['Glass & Glazing'],
+  'insulation': ['Insulation'],
+  'drywall': ['Drywall & Framing'],
+  'framing': ['Drywall & Framing'],
+  'ceiling': ['Drywall & Framing'],
+  'mechanical': ['Mechanical Services'],
+  'piping': ['Mechanical Services'],
+  'welding': ['Welding & Metal Work'],
+  'metal work': ['Welding & Metal Work'],
+  'paving': ['Paving & Asphalt'],
+  'asphalt': ['Paving & Asphalt'],
+  'striping': ['Paving & Asphalt'],
+  'parking lot': ['Paving & Asphalt'],
+  'fencing': ['Fencing'],
+  'fence': ['Fencing'],
+  'signage': ['Signage'],
+  'sign': ['Signage'],
+  'food service': ['Food Services'],
+  'catering': ['Food Services'],
+  'cafeteria': ['Food Services'],
+  'vending': ['Food Services'],
+  'moving': ['Moving & Logistics'],
+  'relocation': ['Moving & Logistics'],
+  'logistics': ['Moving & Logistics'],
+  'furniture': ['Furniture & Installation'],
+  'engineering': ['Engineering Services'],
+  'civil': ['Engineering Services'],
+  'structural': ['Engineering Services'],
+  'architect': ['Architectural Services'],
+  'design': ['Architectural Services'],
+  'survey': ['Surveying & Geotechnical'],
+  'geotechnical': ['Surveying & Geotechnical'],
+  'waterproofing': ['Waterproofing'],
+  'sealant': ['Waterproofing'],
+  'caulking': ['Waterproofing'],
+  'solar': ['Electrical'],
+  'photovoltaic': ['Electrical'],
+  'testing': ['Testing & Inspection'],
+  'inspection': ['Testing & Inspection'],
+  'staffing': ['Staffing & Labor'],
+  'labor': ['Staffing & Labor'],
+  'temporary': ['Staffing & Labor'],
+  'training': ['Training'],
+  'consulting': ['Consulting'],
+  'management': ['Consulting'],
+  'helicopter': ['Moving & Logistics'],
+  'charter': ['Moving & Logistics'],
+  'airplane': ['Moving & Logistics'],
+  'aviation': ['Moving & Logistics'],
+}
+
+function capabilitiesToTrades(cap1: string, cap2: string): string[] {
+  const trades = new Set<string>()
+  const combined = `${cap1} ${cap2}`.toLowerCase()
+
+  for (const [keyword, tradeList] of Object.entries(CAPABILITY_TRADE_MAP)) {
+    if (combined.includes(keyword)) {
+      tradeList.forEach(t => trades.add(t))
+    }
+  }
+
+  // If no trades matched, use the raw capabilities as-is
+  if (trades.size === 0 && (cap1.trim() || cap2.trim())) {
+    const raw = [cap1.trim(), cap2.trim()].filter(Boolean)
+    raw.forEach(r => trades.add(r))
+  }
+
+  return [...trades]
+}
+
+function parseSbaTypes(sbaText: string): string[] {
+  if (!sbaText) return []
+  const types: string[] = []
+  const upper = sbaText.toUpperCase().trim()
+  if (upper.includes('WOSB') || upper.includes('WOMAN')) types.push('WOSB')
+  if (upper.includes('SDVOSB') || upper.includes('SERVICE DISABLED')) types.push('SDVOSB')
+  if (upper.includes('VOSB') || upper.includes('VETERAN')) {
+    if (!types.includes('SDVOSB')) types.push('VOSB')
+  }
+  if (upper.includes('8(A)') || upper.includes('8A')) types.push('8(a)')
+  if (upper.includes('HUBZONE') || upper.includes('HUB ZONE')) types.push('HUBZone')
+  if (upper.includes('SDB') || upper.includes('SMALL DISADVANTAGED')) types.push('SDB')
+  if (upper.includes('EDWOSB') || upper.includes('ECONOMICALLY DISADVANTAGED')) types.push('EDWOSB')
+  // If we didn't match any known type but there's text, add it raw
+  if (types.length === 0 && upper.length > 0) {
+    types.push(upper)
+  }
+  return [...new Set(types)]
+}
+
+// Full state name → abbreviation
+const STATE_ABBREV: Record<string, string> = {
+  'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+  'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+  'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+  'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+  'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS',
+  'missouri': 'MO', 'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH',
+  'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC',
+  'north dakota': 'ND', 'ohio': 'OH', 'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA',
+  'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', 'tennessee': 'TN',
+  'texas': 'TX', 'utah': 'UT', 'vermont': 'VT', 'virginia': 'VA', 'washington': 'WA',
+  'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
+  'district of columbia': 'DC', 'puerto rico': 'PR', 'guam': 'GU',
+  'american samoa': 'AS', 'u.s. virgin islands': 'VI', 'northern mariana islands': 'MP',
+}
+
+function normalizeState(raw: string): string {
+  const trimmed = raw.trim()
+  // Already an abbreviation
+  if (trimmed.length === 2) return trimmed.toUpperCase()
+  // Full name lookup
+  return STATE_ABBREV[trimmed.toLowerCase()] || trimmed.toUpperCase().substring(0, 2)
+}
+
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 80)
+}
+
+function calculateCompleteness(fields: Record<string, any>): number {
+  const weights: Record<string, number> = {
+    company_name: 15, contact_email: 15, contact_phone: 10,
+    city: 10, state: 10, trade_categories: 15, website: 10,
+    description: 15,
+  }
+  let score = 0
+  for (const [key, weight] of Object.entries(weights)) {
+    const val = fields[key]
+    if (val && (Array.isArray(val) ? val.length > 0 : String(val).length > 0)) {
+      score += weight
+    }
+  }
+  return score
+}
+
+export default async (req: Request, _context: Context) => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, x-user-id",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  const headers = { "Content-Type": "application/json", ...corsHeaders }
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    return new Response(JSON.stringify({ error: "Server configuration error" }), { status: 500, headers })
+  }
+
+  try {
+    const body = await req.json()
+    const { rows, dryRun, columnMap } = body
+
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      return new Response(JSON.stringify({ error: "No rows provided" }), { status: 400, headers })
+    }
+
+    // Column mapping — default to SBS export format
+    // 0: Business name, 1: Capabilities narrative, 2: Capabilities statement link,
+    // 3: Active SBA certifications, 4: Contact person, 5: Contact email,
+    // 6: Address line 1, 7: Address line 2, 8: City, 9: State, 10: Zipcode
+    const cols = columnMap || {
+      business_name: 0,
+      capabilities_1: 1,
+      capabilities_link: 2,
+      active_sba: 3,
+      contact_person: 4,
+      contact_email: 5,
+      address_line1: 6,
+      address_line2: 7,
+      city: 8,
+      state: 9,
+      zipcode: 10,
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    // Get existing company names + states for dedup (paginate — Supabase default limit is 1000)
+    const existingMap = new Map<string, { id: string; slug: string; contact_email: string | null }>()
+    const existingSlugs = new Set<string>()
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data: batch } = await supabase
+        .from('master_subcontractors')
+        .select('id, company_name, state, slug, contact_email')
+        .range(from, from + pageSize - 1)
+      if (!batch || batch.length === 0) break
+      for (const rec of batch) {
+        const key = `${rec.company_name?.toLowerCase().trim()}|${rec.state?.toUpperCase().trim()}`
+        existingMap.set(key, { id: rec.id, slug: rec.slug, contact_email: rec.contact_email })
+        existingSlugs.add(rec.slug)
+      }
+      if (batch.length < pageSize) break
+      from += pageSize
+    }
+
+    const result = { imported: 0, updated: 0, skipped: 0, total: rows.length, errors: [] as string[] }
+    const newRecords: any[] = []
+    const updateRecords: { id: string; data: any }[] = []
+    const preview: any[] = []
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      const companyName = (row[cols.business_name] || '').trim()
+      if (!companyName) {
+        result.skipped++
+        continue
+      }
+
+      const cap1 = (row[cols.capabilities_1] || '').trim()
+      const capLink = (row[cols.capabilities_link] || '').trim()
+      const sbaText = (row[cols.active_sba] || '').trim()
+      const contactName = (row[cols.contact_person] || '').trim()
+      const contactEmail = (row[cols.contact_email] || '').trim()
+      const addr1 = (row[cols.address_line1] || '').trim()
+      const addr2 = (row[cols.address_line2] || '').trim()
+      const city = (row[cols.city] || '').trim()
+      const state = normalizeState((row[cols.state] || '').trim())
+      const zip = (row[cols.zipcode] || '').toString().trim()
+
+      const trades = capabilitiesToTrades(cap1, '')
+      const sbaTypes = parseSbaTypes(sbaText)
+      const address = [addr1, addr2].filter(Boolean).join(', ')
+
+      const dedupKey = `${companyName.toLowerCase()}|${state}`
+      const existing = existingMap.get(dedupKey)
+
+      if (existing) {
+        // Update existing record — merge contact info if missing
+        const updates: any = {}
+        if (contactEmail && !existing.contact_email) {
+          updates.contact_email = contactEmail
+        }
+        if (contactName) updates.contact_name = contactName
+        if (trades.length > 0) { updates.trade_categories = trades; updates.service_categories = trades }
+        if (sbaTypes.length > 0) {
+          updates.small_business = true
+          updates.small_business_types = sbaTypes
+        }
+        if (address) updates.address_line1 = address
+        if (zip) updates.zip_code = zip
+        updates.data_source = 'sbs_import'
+
+        // Recalculate completeness with merged data
+        updates.profile_completeness = calculateCompleteness({
+          company_name: companyName,
+          contact_email: contactEmail || existing.contact_email,
+          city,
+          state,
+          trade_categories: trades,
+        })
+
+        if (Object.keys(updates).length > 0) {
+          updateRecords.push({ id: existing.id, data: updates })
+        }
+        continue
+      }
+
+      // New record
+      let slug = generateSlug(companyName)
+      let suffix = 1
+      while (existingSlugs.has(slug)) {
+        slug = `${generateSlug(companyName)}-${suffix++}`
+      }
+      existingSlugs.add(slug)
+
+      const record = {
+        company_name: companyName,
+        slug,
+        contact_name: contactName || null,
+        contact_email: contactEmail || null,
+        contact_phone: null,
+        website: null,
+        address_line1: address || null,
+        city: city || null,
+        state: state || null,
+        zip_code: zip || null,
+        description: cap1 || null,
+        website: capLink && capLink.startsWith('http') ? capLink : null,
+        trade_categories: trades,
+        service_categories: trades,
+        geographic_coverage: state ? [state] : [],
+        small_business: sbaTypes.length > 0,
+        small_business_types: sbaTypes,
+        verification_status: 'unverified',
+        data_source: 'sbs_import',
+        profile_completeness: calculateCompleteness({
+          company_name: companyName,
+          contact_email: contactEmail,
+          city,
+          state,
+          trade_categories: trades,
+        }),
+      }
+
+      newRecords.push(record)
+
+      if (dryRun && preview.length < 20) {
+        preview.push(record)
+      }
+    }
+
+    if (dryRun) {
+      return new Response(JSON.stringify({
+        preview,
+        summary: {
+          total: rows.length,
+          new_records: newRecords.length,
+          updates: updateRecords.length,
+          skipped: result.skipped,
+        },
+      }), { status: 200, headers })
+    }
+
+    // Batch insert new records
+    if (newRecords.length > 0) {
+      const batchSize = 50
+      for (let i = 0; i < newRecords.length; i += batchSize) {
+        const batch = newRecords.slice(i, i + batchSize)
+        const { error } = await supabase
+          .from('master_subcontractors')
+          .insert(batch)
+
+        if (error) {
+          result.errors.push(`Insert batch ${Math.floor(i / batchSize)}: ${error.message}`)
+        } else {
+          result.imported += batch.length
+        }
+      }
+    }
+
+    // Batch update existing records
+    if (updateRecords.length > 0) {
+      for (const upd of updateRecords) {
+        const { error } = await supabase
+          .from('master_subcontractors')
+          .update(upd.data)
+          .eq('id', upd.id)
+
+        if (error) {
+          result.errors.push(`Update ${upd.id}: ${error.message}`)
+        } else {
+          result.updated++
+        }
+      }
+    }
+
+    return new Response(JSON.stringify(result), { status: 200, headers })
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message || "Import failed" }), { status: 500, headers })
+  }
+}
