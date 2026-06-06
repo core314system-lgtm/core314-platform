@@ -175,7 +175,7 @@ export default async (req: Request, _context: Context) => {
     const matchedIds = results.map(r => r.sub_id)
     if (matchedIds.length > 0) {
       for (const id of matchedIds) {
-        await supabase.rpc("increment_match_count", { sub_id: id }).catch(() => {})
+        try { await supabase.rpc("increment_match_count", { sub_id: id }) } catch { /* ignore */ }
       }
     }
 
