@@ -180,6 +180,31 @@ function parseSbaTypes(sbaText: string): string[] {
   return [...new Set(types)]
 }
 
+// Full state name → abbreviation
+const STATE_ABBREV: Record<string, string> = {
+  'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+  'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+  'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+  'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+  'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS',
+  'missouri': 'MO', 'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH',
+  'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC',
+  'north dakota': 'ND', 'ohio': 'OH', 'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA',
+  'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', 'tennessee': 'TN',
+  'texas': 'TX', 'utah': 'UT', 'vermont': 'VT', 'virginia': 'VA', 'washington': 'WA',
+  'west virginia': 'WV', 'wisconsin': 'WI', 'wyoming': 'WY',
+  'district of columbia': 'DC', 'puerto rico': 'PR', 'guam': 'GU',
+  'american samoa': 'AS', 'u.s. virgin islands': 'VI', 'northern mariana islands': 'MP',
+}
+
+function normalizeState(raw: string): string {
+  const trimmed = raw.trim()
+  // Already an abbreviation
+  if (trimmed.length === 2) return trimmed.toUpperCase()
+  // Full name lookup
+  return STATE_ABBREV[trimmed.toLowerCase()] || trimmed.toUpperCase().substring(0, 2)
+}
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -231,11 +256,14 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: "No rows provided" }), { status: 400, headers })
     }
 
-    // Column mapping — default to expected SBS format, but allow override
+    // Column mapping — default to SBS export format
+    // 0: Business name, 1: Capabilities narrative, 2: Capabilities statement link,
+    // 3: Active SBA certifications, 4: Contact person, 5: Contact email,
+    // 6: Address line 1, 7: Address line 2, 8: City, 9: State, 10: Zipcode
     const cols = columnMap || {
       business_name: 0,
       capabilities_1: 1,
-      capabilities_2: 2,
+      capabilities_link: 2,
       active_sba: 3,
       contact_person: 4,
       contact_email: 5,
@@ -248,18 +276,24 @@ export default async (req: Request, _context: Context) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    // Get existing company names + states for dedup
-    const { data: existingRecords } = await supabase
-      .from('master_subcontractors')
-      .select('id, company_name, state, slug, contact_email')
-
-    // Build lookup key: normalized company name + state
+    // Get existing company names + states for dedup (paginate — Supabase default limit is 1000)
     const existingMap = new Map<string, { id: string; slug: string; contact_email: string | null }>()
     const existingSlugs = new Set<string>()
-    for (const rec of existingRecords || []) {
-      const key = `${rec.company_name?.toLowerCase().trim()}|${rec.state?.toUpperCase().trim()}`
-      existingMap.set(key, { id: rec.id, slug: rec.slug, contact_email: rec.contact_email })
-      existingSlugs.add(rec.slug)
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data: batch } = await supabase
+        .from('master_subcontractors')
+        .select('id, company_name, state, slug, contact_email')
+        .range(from, from + pageSize - 1)
+      if (!batch || batch.length === 0) break
+      for (const rec of batch) {
+        const key = `${rec.company_name?.toLowerCase().trim()}|${rec.state?.toUpperCase().trim()}`
+        existingMap.set(key, { id: rec.id, slug: rec.slug, contact_email: rec.contact_email })
+        existingSlugs.add(rec.slug)
+      }
+      if (batch.length < pageSize) break
+      from += pageSize
     }
 
     const result = { imported: 0, updated: 0, skipped: 0, total: rows.length, errors: [] as string[] }
@@ -276,17 +310,17 @@ export default async (req: Request, _context: Context) => {
       }
 
       const cap1 = (row[cols.capabilities_1] || '').trim()
-      const cap2 = (row[cols.capabilities_2] || '').trim()
+      const capLink = (row[cols.capabilities_link] || '').trim()
       const sbaText = (row[cols.active_sba] || '').trim()
       const contactName = (row[cols.contact_person] || '').trim()
       const contactEmail = (row[cols.contact_email] || '').trim()
       const addr1 = (row[cols.address_line1] || '').trim()
       const addr2 = (row[cols.address_line2] || '').trim()
       const city = (row[cols.city] || '').trim()
-      const state = (row[cols.state] || '').trim().toUpperCase()
+      const state = normalizeState((row[cols.state] || '').trim())
       const zip = (row[cols.zipcode] || '').toString().trim()
 
-      const trades = capabilitiesToTrades(cap1, cap2)
+      const trades = capabilitiesToTrades(cap1, '')
       const sbaTypes = parseSbaTypes(sbaText)
       const address = [addr1, addr2].filter(Boolean).join(', ')
 
@@ -300,8 +334,7 @@ export default async (req: Request, _context: Context) => {
           updates.contact_email = contactEmail
         }
         if (contactName) updates.contact_name = contactName
-        if (trades.length > 0) updates.trade_categories = trades
-        if (trades.length > 0) updates.service_categories = trades
+        if (trades.length > 0) { updates.trade_categories = trades; updates.service_categories = trades }
         if (sbaTypes.length > 0) {
           updates.small_business = true
           updates.small_business_types = sbaTypes
@@ -344,7 +377,8 @@ export default async (req: Request, _context: Context) => {
         city: city || null,
         state: state || null,
         zip_code: zip || null,
-        description: [cap1, cap2].filter(Boolean).join('; ') || null,
+        description: cap1 || null,
+        website: capLink && capLink.startsWith('http') ? capLink : null,
         trade_categories: trades,
         service_categories: trades,
         geographic_coverage: state ? [state] : [],

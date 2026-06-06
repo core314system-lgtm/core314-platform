@@ -1304,8 +1304,8 @@ export default function MasterSubDatabase() {
                 const dataRows = rawRows.slice(1).filter(r => r.length > 0 && r[0])
                 setSbsProgress(`Parsed ${dataRows.length.toLocaleString()} rows. Importing...`)
 
-                // Send in batches of 200
-                const batchSize = 200
+                // Send in batches of 500
+                const batchSize = 500
                 let totalImported = 0
                 let totalUpdated = 0
                 let totalSkipped = 0
