@@ -496,7 +496,23 @@ export default async (req: Request, _context: Context) => {
     return new Response(JSON.stringify({ error: 'GET or POST required' }), { status: 405, headers })
   }
   
-  const body = await req.json()
+  let body: any = {}
+  try {
+    body = await req.json()
+  } catch {
+    // Empty body from scheduled invocation — treat as cron trigger
+  }
+
+  // Netlify scheduled functions send POST with { next_run: "..." } — process next batch
+  if (body.next_run || Object.keys(body).length === 0) {
+    try {
+      const result = await processNextBatch(supabase)
+      return new Response(JSON.stringify(result), { status: 200, headers })
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers })
+    }
+  }
+
   const { action } = body
   
   try {
