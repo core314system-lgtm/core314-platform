@@ -57,17 +57,20 @@ export default async (req: Request, _context: Context) => {
     }
 
     // Base query — get subs that match trades
-    // If include_unclaimed is true (Enterprise feature), also include unclaimed subs with contact emails
+    // Only return contactable subs (must have email or phone)
     let query = supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_email, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug")
+      .select("id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei")
 
     if (!include_unclaimed) {
       query = query.not("claimed_at", "is", null) // only claimed/active subs
     } else {
-      // For Enterprise: include all subs that have contact emails OR are claimed
-      query = query.or("claimed_at.not.is.null,contact_email.not.is.null")
+      // For Enterprise: include all contactable subs (email or phone) OR claimed
+      query = query.or("claimed_at.not.is.null,contact_email.not.is.null,contact_phone.not.is.null")
     }
+
+    // Ensure all results are contactable
+    query = query.or("contact_email.not.is.null,contact_phone.not.is.null")
 
     if (require_verified) {
       query = query.eq("verification_status", "verified")
@@ -121,8 +124,24 @@ export default async (req: Request, _context: Context) => {
         score += 5
       }
 
-      // Profile completeness bonus (10 points)
-      score += Math.floor((sub.profile_completeness || 0) / 10)
+      // Data completeness bonus (15 points) — more complete data = better match
+      let dataFields = 0
+      if (sub.contact_email) dataFields++
+      if (sub.contact_phone) dataFields++
+      if (sub.contact_name) dataFields++
+      if (sub.address_line1) dataFields++
+      if (sub.city && sub.state) dataFields++
+      if (sub.naics_codes?.length > 0) dataFields++
+      if (sub.description) dataFields++
+      if (sub.website || sub.capability_statement_path) dataFields++
+      score += Math.min(Math.floor(dataFields * 2), 15)
+      if (dataFields >= 6) reasons.push("Rich data profile")
+
+      // NAICS code match bonus (5 points)
+      // If we had project NAICS codes we'd match here — for now just reward having them
+      if (sub.naics_codes?.length > 0) {
+        score += 5
+      }
 
       // Small business type match (10 points)
       if (small_biz_types && small_biz_types.length > 0 && sub.small_business_types) {

@@ -27,6 +27,30 @@ interface SubResult {
   contact_email?: string | null
   contact_phone?: string | null
   contact_name?: string | null
+  description?: string | null
+  capability_statement_path?: string | null
+  address_line1?: string | null
+  sam_uei?: string | null
+}
+
+function computeDataQuality(sub: SubResult): { score: number; label: string; color: string } {
+  let filled = 0
+  const total = 10
+  if (sub.contact_email) filled++
+  if (sub.contact_phone) filled++
+  if (sub.contact_name) filled++
+  if (sub.address_line1) filled++
+  if (sub.city && sub.state) filled++
+  if (sub.trade_categories?.length > 0) filled++
+  if (sub.naics_codes?.length > 0) filled++
+  if (sub.small_business_types?.length > 0) filled++
+  if (sub.description) filled++
+  if (sub.website || sub.capability_statement_path) filled++
+  const score = Math.round((filled / total) * 100)
+  if (score >= 80) return { score, label: 'Excellent', color: 'green' }
+  if (score >= 60) return { score, label: 'Good', color: 'blue' }
+  if (score >= 40) return { score, label: 'Fair', color: 'amber' }
+  return { score, label: 'Basic', color: 'gray' }
 }
 
 interface ProjectOption {
@@ -100,9 +124,11 @@ export default function FindSubcontractors() {
   }
 
   async function fetchStats() {
+    // Only count contactable subs (with email or phone)
     const { count } = await supabase
       .from('master_subcontractors')
       .select('*', { count: 'exact', head: true })
+      .or('contact_email.not.is.null,contact_phone.not.is.null')
     const { count: verifiedCount } = await supabase
       .from('master_subcontractors')
       .select('*', { count: 'exact', head: true })
@@ -120,7 +146,10 @@ export default function FindSubcontractors() {
 
     let query = supabase
       .from('master_subcontractors')
-      .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage, contact_email, contact_phone, contact_name', { count: 'exact' })
+      .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage, contact_email, contact_phone, contact_name, description, capability_statement_path, address_line1, sam_uei', { count: 'exact' })
+
+    // Only return contactable subs (must have email or phone)
+    query = query.or('contact_email.not.is.null,contact_phone.not.is.null')
 
     if (search.trim()) {
       query = query.or(`company_name.ilike.%${search.trim()}%,trade_categories.cs.{${search.trim()}}`)
@@ -141,6 +170,7 @@ export default function FindSubcontractors() {
     query = query
       .order('verification_status', { ascending: false })
       .order('profile_completeness', { ascending: false })
+      .order('contact_email', { ascending: false, nullsFirst: false })
       .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1)
 
     const { data, count, error } = await query
@@ -166,16 +196,16 @@ export default function FindSubcontractors() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Find Subcontractors</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Search the Procuvex network of {stats.total.toLocaleString()} subcontractors across {stats.trades} trade categories
+          Search {stats.total.toLocaleString()} contactable subcontractors across {stats.trades} trade categories
         </p>
       </div>
 
       {/* Stats Banner */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Network Size</div>
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Contactable Subs</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
-          <div className="text-xs text-gray-400">registered companies</div>
+          <div className="text-xs text-gray-400">with email or phone</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><BadgeCheck size={14} /> Verified</div>
@@ -576,10 +606,19 @@ export default function FindSubcontractors() {
                   >
                     <Eye size={14} /> View Profile
                   </Link>
-                  <div className="text-right">
-                    <div className="text-xs text-gray-400">Profile</div>
-                    <div className="text-sm font-semibold text-gray-700">{sub.profile_completeness}%</div>
-                  </div>
+                  {(() => {
+                    const quality = computeDataQuality(sub)
+                    return (
+                      <div className="text-right">
+                        <div className="text-xs text-gray-400">Data Quality</div>
+                        <div className={`text-sm font-semibold ${
+                          quality.color === 'green' ? 'text-green-600' :
+                          quality.color === 'blue' ? 'text-blue-600' :
+                          quality.color === 'amber' ? 'text-amber-600' : 'text-gray-500'
+                        }`}>{quality.score}% {quality.label}</div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
