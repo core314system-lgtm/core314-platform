@@ -272,7 +272,7 @@ function parseContractorDetail(html: string) {
     epls_status: eplsStatus,
     small_business_types: smallBizTypes,
     trade_categories: tradeCategories,
-    source: 'gsa_elibrary',
+    data_source: 'import',
   }
 }
 
@@ -371,21 +371,32 @@ export default async (req: Request, _context: Context) => {
             if (existing && existing.length > 0) existingId = existing[0].id
           }
           
+          // Generate slug
+          const slug = data.company_name.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+            .substring(0, 80) + '-' + Math.random().toString(36).substring(2, 8)
+          
           const record: any = {
             company_name: data.company_name,
+            slug,
             state: data.state || null,
             city: data.city || null,
-            address: data.address || null,
+            address_line1: data.address || null,
             zip_code: data.zip_code || null,
             contact_email: data.contact_email || null,
             contact_name: null,
             contact_phone: data.phone || null,
             website: data.website || null,
             sam_uei: data.sam_uei || null,
-            small_business_types: data.small_business_types.length > 0 ? data.small_business_types : null,
-            trade_categories: data.trade_categories.length > 0 ? data.trade_categories : null,
-            service_description: data.gsa_categories.length > 0 ? data.gsa_categories.join('; ') : null,
-            source: 'gsa_elibrary',
+            small_business: data.small_business_types.length > 0,
+            small_business_types: data.small_business_types.length > 0 ? data.small_business_types : [],
+            trade_categories: data.trade_categories.length > 0 ? data.trade_categories : [],
+            service_categories: data.trade_categories.length > 0 ? data.trade_categories : [],
+            geographic_coverage: data.state ? [data.state] : [],
+            description: data.gsa_categories.length > 0 ? data.gsa_categories.join('; ') : null,
+            data_source: 'import',
+            verification_status: 'unverified',
           }
           
           if (existingId) {
