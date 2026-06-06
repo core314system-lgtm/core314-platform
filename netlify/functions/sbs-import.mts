@@ -276,24 +276,27 @@ export default async (req: Request, _context: Context) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    // Get existing company names + states for dedup (paginate — Supabase default limit is 1000)
+    // Targeted dedup: only query records matching company names in this batch
+    // (instead of loading the entire 70K+ table which times out)
+    const batchNames = [...new Set(
+      rows.map((r: any) => (r[cols.business_name] || '').trim()).filter(Boolean)
+    )]
     const existingMap = new Map<string, { id: string; slug: string; contact_email: string | null }>()
-    const existingSlugs = new Set<string>()
-    let from = 0
-    const pageSize = 1000
-    while (true) {
-      const { data: batch } = await supabase
+
+    // Query in chunks of 50 names (PostgREST URL length limits)
+    for (let ci = 0; ci < batchNames.length; ci += 50) {
+      const nameChunk = batchNames.slice(ci, ci + 50)
+      const { data: matches } = await supabase
         .from('master_subcontractors')
         .select('id, company_name, state, slug, contact_email')
-        .range(from, from + pageSize - 1)
-      if (!batch || batch.length === 0) break
-      for (const rec of batch) {
-        const key = `${rec.company_name?.toLowerCase().trim()}|${rec.state?.toUpperCase().trim()}`
-        existingMap.set(key, { id: rec.id, slug: rec.slug, contact_email: rec.contact_email })
-        existingSlugs.add(rec.slug)
+        .in('company_name', nameChunk)
+        .limit(1000)
+      if (matches) {
+        for (const rec of matches) {
+          const key = `${rec.company_name?.toLowerCase().trim()}|${rec.state?.toUpperCase().trim()}`
+          existingMap.set(key, { id: rec.id, slug: rec.slug, contact_email: rec.contact_email })
+        }
       }
-      if (batch.length < pageSize) break
-      from += pageSize
     }
 
     const result = { imported: 0, updated: 0, skipped: 0, total: rows.length, errors: [] as string[] }
@@ -358,13 +361,9 @@ export default async (req: Request, _context: Context) => {
         continue
       }
 
-      // New record
-      let slug = generateSlug(companyName)
-      let suffix = 1
-      while (existingSlugs.has(slug)) {
-        slug = `${generateSlug(companyName)}-${suffix++}`
-      }
-      existingSlugs.add(slug)
+      // New record — use timestamp-based slug to guarantee uniqueness without loading all slugs
+      const baseSlug = generateSlug(companyName)
+      const slug = `${baseSlug}-${Date.now().toString(36).slice(-4)}${Math.random().toString(36).slice(2, 5)}`
 
       const record = {
         company_name: companyName,
