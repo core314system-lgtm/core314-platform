@@ -20,53 +20,48 @@ function generateToken(): string {
   return token
 }
 
-function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategories: string[], unsubscribeUrl: string): string {
+function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategories: string[], state: string, unsubscribeUrl: string): string {
   const trades = tradeCategories.slice(0, 3).join(", ") || "Government Contracting"
+  const location = state ? ` in ${state}` : ""
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); border-radius: 12px 12px 0 0; padding: 32px; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px;">Procuvex</h1>
-        <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Government Subcontractor Network</p>
+        <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">Contractor Network</p>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
-        <h2 style="color: #111827; margin: 0 0 16px; font-size: 20px;">Your Company Has Been Added to Procuvex</h2>
         <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          We identified <strong>${companyName}</strong> as a qualified subcontractor in <strong>${trades}</strong> 
-          based on your government registrations.
+          Our contractor research team has identified <strong>${companyName}</strong> as a potential subcontractor resource for government and commercial contract opportunities in <strong>${trades}</strong>${location}.
         </p>
         <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          Your company profile has been created in the Procuvex network, where prime contractors 
-          actively search for subcontractors for government contract opportunities.
+          A company profile has been created for your business within the Procuvex Contractor Network. Prime contractors use Procuvex to identify qualified subcontractors when assembling teams for upcoming projects and contract pursuits.
         </p>
-        
-        <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p style="color: #0c4a6e; margin: 0; font-size: 14px; font-weight: 600;">Why claim your profile?</p>
-          <ul style="color: #0c4a6e; margin: 8px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.8;">
-            <li>Get matched with prime contractors looking for your trades</li>
-            <li>Receive RFQ invitations directly from primes</li>
-            <li>Showcase your certifications, insurance, and capabilities</li>
-            <li>Increase visibility in subcontractor searches</li>
-          </ul>
+
+        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <p style="color: #92400e; margin: 0; font-size: 14px; font-weight: 600;">&#9888; Action Required</p>
+          <p style="color: #92400e; margin: 8px 0 0; font-size: 13px; line-height: 1.6;">
+            Companies with incomplete or unverified profiles may be excluded from contractor searches and bid invitation lists.
+          </p>
         </div>
 
         <div style="text-align: center; margin: 28px 0;">
           <a href="${claimUrl}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
-            Claim Your Profile
+            Review My Profile
           </a>
         </div>
 
         <p style="color: #6b7280; font-size: 13px; line-height: 1.5; text-align: center;">
-          Claiming is free and takes less than 2 minutes. Your profile is already pre-populated 
-          with your registration data.
+          There is no cost to review, claim, or update your company profile.
         </p>
 
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-          Procuvex &mdash; A product of Core314 Technologies LLC<br/>
-          <a href="https://procuvex.com" style="color: #6b7280;">Visit Procuvex</a>
+          Procuvex &mdash; Core314 Technologies LLC<br/>
+          1234 Innovation Drive, Jacksonville, FL 32256<br/>
+          <a href="https://procuvex.com" style="color: #6b7280;">procuvex.com</a>
         </p>
         <p style="font-size: 11px; color: #d1d5db; text-align: center; margin-top: 12px;">
-          You received this because your company was identified as a qualified government subcontractor.<br/>
+          You received this because ${companyName} was identified in government contractor registrations.<br/>
           <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> from future emails.
         </p>
       </div>
@@ -166,7 +161,7 @@ export default async (req: Request, _context: Context) => {
     // Find unclaimed subs with email that haven't been contacted recently
     let query = supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_email, slug, trade_categories")
+      .select("id, company_name, contact_email, slug, trade_categories, state, outreach_email_count")
       .is("claimed_at", null)
       .not("contact_email", "is", null)
       .order("created_at", { ascending: true })
@@ -203,28 +198,25 @@ export default async (req: Request, _context: Context) => {
         const token = generateToken()
         const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days
 
-        // Save token to DB
+        // Save token to DB BEFORE sending (needed for claim URL to work)
         await supabase
           .from("master_subcontractors")
           .update({
             claim_token: token,
             claim_token_expires_at: expiresAt.toISOString(),
-            outreach_sent_at: new Date().toISOString(),
-            outreach_email_count: (sub as any).outreach_email_count ? (sub as any).outreach_email_count + 1 : 1,
-            last_outreach_email_at: new Date().toISOString(),
           })
           .eq("id", sub.id)
 
-        // Send email with unsubscribe link
+        // Build and send email
         const claimUrl = `https://procuvex.com/claim/${token}`
         const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${token}`
-        const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], unsubscribeUrl)
+        const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
         await sgMail.default.send({
           to: sub.contact_email!,
           from: { email: "team@procuvex.com", name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
-          subject: `${sub.company_name} — Your Procuvex Profile Is Ready`,
+          subject: `Action needed: Verify ${sub.company_name} on Procuvex before removal`,
           html,
           customArgs: { email_type: "sub_outreach" },
           headers: {
@@ -233,12 +225,22 @@ export default async (req: Request, _context: Context) => {
           },
         })
 
+        // Only mark as sent AFTER email successfully delivered to SendGrid
+        await supabase
+          .from("master_subcontractors")
+          .update({
+            outreach_sent_at: new Date().toISOString(),
+            outreach_email_count: (sub as any).outreach_email_count ? (sub as any).outreach_email_count + 1 : 1,
+            last_outreach_email_at: new Date().toISOString(),
+          })
+          .eq("id", sub.id)
+
         // Log the contact
         await supabase.from("master_sub_contact_log").insert({
           master_sub_id: sub.id,
           contact_type: "outreach_email",
           contact_method: "email",
-          subject: "Profile claim invitation",
+          subject: "Profile verification request",
           notes: `Sent to ${sub.contact_email}`,
           sent_by: callerId,
         })
