@@ -130,6 +130,9 @@ export default function MasterSubDatabase() {
   const [sbsProgress, setSbsProgress] = useState('')
   const [sbsResult, setSbsResult] = useState<any>(null)
   const sbsFileRef = useRef<HTMLInputElement>(null)
+  const outreachPanelRef = useRef<HTMLDivElement>(null)
+  const importPanelRef = useRef<HTMLDivElement>(null)
+  const sbsImportPanelRef = useRef<HTMLDivElement>(null)
 
   const PAGE_SIZE = 50
 
@@ -753,15 +756,15 @@ export default function MasterSubDatabase() {
             {enriching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {enriching ? 'Enriching...' : 'Enrich Contacts'}
           </button>
-          <button onClick={() => { setShowOutreach(!showOutreach); setShowImport(false) }}
+          <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
             <Mail size={16} /> Send Outreach
           </button>
-          <button onClick={() => { setShowImport(!showImport); setShowOutreach(false); setShowSbsImport(false) }}
+          <button onClick={() => { const opening = !showImport; setShowImport(opening); setShowOutreach(false); setShowSbsImport(false); if (opening) setTimeout(() => importPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Upload size={16} /> Import from SAM.gov
           </button>
-          <button onClick={() => { setShowSbsImport(!showSbsImport); setShowImport(false); setShowOutreach(false) }}
+          <button onClick={() => { const opening = !showSbsImport; setShowSbsImport(opening); setShowImport(false); setShowOutreach(false); if (opening) setTimeout(() => sbsImportPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
             <FileUp size={16} /> Import SBS Data
           </button>
@@ -790,6 +793,388 @@ export default function MasterSubDatabase() {
           </div>
         </div>
       )}
+
+      {/* Outreach Panel */}
+      {showOutreach && (
+        <div ref={outreachPanelRef} className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-green-900">Send Claim Outreach Emails</h3>
+            <button onClick={() => setShowOutreach(false)} className="text-green-400 hover:text-green-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-green-700">
+            Send claim invitation emails to unclaimed subcontractors with email addresses.
+            Each email contains a unique claim link valid for 90 days.
+          </p>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">State (optional)</label>
+              <select value={outreachState} onChange={e => setOutreachState(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">All States</option>
+                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Trade (optional)</label>
+              <select value={outreachTrade} onChange={e => setOutreachTrade(e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">All Trades</option>
+                {TRADE_CATEGORIES.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Batch Size</label>
+              <select value={outreachLimit} onChange={e => setOutreachLimit(Number(e.target.value))}
+                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={previewOutreach}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-100">
+              <Eye size={14} /> Preview Recipients
+            </button>
+            <button onClick={sendOutreach} disabled={outreachSending}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+              {outreachSending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+              Send Emails
+            </button>
+          </div>
+
+          {outreachPreview && (
+            <div className="bg-white border border-green-200 rounded-lg p-3 text-sm">
+              <p className="font-medium text-green-800 mb-2">{outreachPreview.total} eligible recipients found</p>
+              {outreachPreview.targets?.slice(0, 5).map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-700">{t.company_name}</span>
+                  <span className="text-gray-400 text-xs">{t.contact_email} • {t.state}</span>
+                </div>
+              ))}
+              {outreachPreview.total > 5 && <p className="text-xs text-gray-400 mt-1">...and {outreachPreview.total - 5} more</p>}
+            </div>
+          )}
+
+          {outreachResult && (
+            <div className={`p-3 rounded-lg text-sm ${outreachResult.error ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-100 border border-green-300 text-green-800'}`}>
+              {outreachResult.error ? (
+                <p>{outreachResult.error}</p>
+              ) : (
+                <p>
+                  <strong>{outreachResult.sent}</strong> emails sent successfully
+                  {outreachResult.failed > 0 && <>, <strong>{outreachResult.failed}</strong> failed</>}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Import Panel */}
+      {showImport && (
+        <div ref={importPanelRef} className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-blue-900">SAM.gov Entity Import</h3>
+            <button onClick={() => setShowImport(false)} className="text-blue-400 hover:text-blue-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-blue-700">
+            Import registered entities from SAM.gov into the master database. Filter by state and/or NAICS codes.
+            Duplicates (matching SAM UEI) are automatically skipped.
+          </p>
+
+          {/* Mode Tabs */}
+          <div className="flex gap-1 bg-blue-100 p-1 rounded-lg">
+            <button onClick={() => setImportMode('file')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                importMode === 'file' ? 'bg-white text-blue-900 shadow-sm font-medium' : 'text-blue-600 hover:text-blue-800'
+              }`}>
+              <FileUp size={14} /> Upload Data File
+            </button>
+            <button onClick={() => setImportMode('api')}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                importMode === 'api' ? 'bg-white text-blue-900 shadow-sm font-medium' : 'text-blue-600 hover:text-blue-800'
+              }`}>
+              <Database size={14} /> API Import
+            </button>
+          </div>
+
+          {importMode === 'file' ? (
+            <div className="space-y-3">
+              <div className="bg-white border border-blue-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm text-gray-700">
+                  Upload a SAM.gov Public Entity Extract file. Download from:{' '}
+                  <a href="https://sam.gov/data-services/Entity%20Registration/Public%20V2" target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 underline hover:text-blue-800">SAM.gov Data Services</a>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Supported format: SAM Public V2 extract (pipe-delimited .dat or .csv file inside the ZIP).
+                  Monthly files contain all active entities. You can filter by state and NAICS below before importing.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">State Filter (optional)</label>
+                    <select value={importState} onChange={e => setImportState(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                      <option value="">All States (large!)</option>
+                      {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">NAICS Codes (comma-separated, optional)</label>
+                    <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
+                      placeholder="e.g. 238220, 238210, 561720"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                    <div className="flex gap-1 mt-1">
+                      <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
+                        className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
+                      <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
+                        className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
+                      <button type="button" onClick={() => setImportNaics('')}
+                        className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".dat,.csv,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file)
+                    }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={fileUploading}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full justify-center">
+                    {fileUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                    {fileUploading ? 'Processing...' : 'Select SAM.gov Extract File'}
+                  </button>
+                </div>
+                {fileProgress && (
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
+                    <Loader2 size={14} className="animate-spin" />
+                    {fileProgress}
+                  </div>
+                )}
+              </div>
+              {fileResult && (
+                <div className={`p-3 rounded-lg text-sm ${fileResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                  {fileResult.error ? (
+                    <p>Error: {fileResult.error}</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p><strong>{fileResult.imported?.toLocaleString()}</strong> companies imported successfully</p>
+                      {fileResult.skipped > 0 && <p>{fileResult.skipped.toLocaleString()} skipped (duplicates or errors)</p>}
+                      {fileResult.skippedNonUS > 0 && <p className="text-gray-500">{fileResult.skippedNonUS.toLocaleString()} skipped (non-US)</p>}
+                      {fileResult.skippedExpired > 0 && <p className="text-gray-500">{fileResult.skippedExpired.toLocaleString()} skipped (expired)</p>}
+                      {fileResult.message && <p className="text-yellow-700">{fileResult.message}</p>}
+                      {fileResult.errors?.length > 0 && (
+                        <div className="text-yellow-700 mt-1">
+                          <p>Warnings:</p>
+                          {fileResult.errors.map((e: string, i: number) => <p key={i} className="text-xs">{e}</p>)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-blue-800 mb-1">State Filter (optional)</label>
+                  <select value={importState} onChange={e => setImportState(e.target.value)}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white">
+                    <option value="">All States</option>
+                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-blue-800 mb-1">NAICS Codes (comma-separated, optional)</label>
+                  <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
+                    placeholder="e.g. 238220, 238210, 561720"
+                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" />
+                  <div className="flex gap-1 mt-1">
+                    <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
+                      className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
+                    <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
+                      className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
+                    <button type="button" onClick={() => setImportNaics('')}
+                      className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleImport(true)} disabled={importing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm border border-blue-400 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">
+                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
+                  Preview Import
+                </button>
+                <button onClick={() => handleImport(false)} disabled={importing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
+                  Import Now
+                </button>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-800">Note: API import may not work from cloud infrastructure due to SAM.gov IP restrictions. Use "Upload Data File" tab for reliable imports.</p>
+              </div>
+              {importResult && (
+                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                  {importResult.error ? (
+                    <p>Error: {importResult.error}</p>
+                  ) : (
+                    <div>
+                      <p><strong>{importResult.imported}</strong> imported, <strong>{importResult.skipped}</strong> skipped (duplicates), <strong>{importResult.totalRecords?.toLocaleString()}</strong> total available</p>
+                      {importResult.errors?.length > 0 && (
+                        <p className="text-yellow-700 mt-1">Warnings: {importResult.errors.join('; ')}</p>
+                      )}
+                      {importResult.preview && (
+                        <div className="mt-2 max-h-48 overflow-y-auto">
+                          <p className="font-medium mb-1">Preview (first 10):</p>
+                          {importResult.preview.map((p: any, i: number) => (
+                            <div key={i} className="text-xs py-1 border-t border-green-200">
+                              {p.company_name} — {p.city}, {p.state} — {(p.trade_categories || []).join(', ') || 'No trades mapped'} {p.contact_email ? '✉' : ''}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SBS Import Panel */}
+      {showSbsImport && (
+        <div ref={sbsImportPanelRef} className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-emerald-900">Import SBS (Small Business Source) Data</h3>
+            <button onClick={() => setShowSbsImport(false)} className="text-emerald-400 hover:text-emerald-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-emerald-700">
+            Upload an Excel (.xlsx) or CSV file with subcontractor data. Expected columns: Business Name, Capabilities (2 cols), Active SBA, Contact Person, Contact Email, Address Line 1, Address Line 2, City, State, Zipcode.
+          </p>
+          <p className="text-xs text-emerald-600">
+            Duplicates (matching company name + state) will have their contact information merged into existing records. New companies will be added as new entries.
+          </p>
+
+          <input
+            type="file"
+            ref={sbsFileRef}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              setSbsUploading(true)
+              setSbsProgress('Reading file...')
+              setSbsResult(null)
+
+              try {
+                const XLSX = await import('xlsx')
+                const buffer = await file.arrayBuffer()
+                const wb = XLSX.read(buffer, { type: 'array' })
+                const ws = wb.Sheets[wb.SheetNames[0]]
+                const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 })
+
+                // Skip header row
+                const dataRows = rawRows.slice(1).filter(r => r.length > 0 && r[0])
+                setSbsProgress(`Parsed ${dataRows.length.toLocaleString()} rows. Importing...`)
+
+                // Send in batches of 500
+                const batchSize = 500
+                let totalImported = 0
+                let totalUpdated = 0
+                let totalSkipped = 0
+                const errors: string[] = []
+
+                for (let i = 0; i < dataRows.length; i += batchSize) {
+                  const batch = dataRows.slice(i, i + batchSize).map(row =>
+                    row.map((cell: any) => (cell === null || cell === undefined) ? '' : String(cell))
+                  )
+                  setSbsProgress(`Importing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(dataRows.length / batchSize)}... (${i}/${dataRows.length})`)
+
+                  const res = await fetch('/.netlify/functions/sbs-import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows: batch }),
+                  })
+
+                  if (res.ok) {
+                    const data = await res.json()
+                    totalImported += data.imported || 0
+                    totalUpdated += data.updated || 0
+                    totalSkipped += data.skipped || 0
+                    if (data.errors?.length > 0) errors.push(...data.errors)
+                  } else {
+                    const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
+                    errors.push(`Batch ${Math.floor(i / batchSize)}: ${errData.error}`)
+                  }
+                }
+
+                setSbsResult({ imported: totalImported, updated: totalUpdated, skipped: totalSkipped, total: dataRows.length, errors })
+                setSbsProgress('')
+                fetchStats()
+                fetchSubs()
+              } catch (err: any) {
+                setSbsResult({ error: err.message || 'Failed to parse file' })
+                setSbsProgress('')
+              }
+              setSbsUploading(false)
+              if (sbsFileRef.current) sbsFileRef.current.value = ''
+            }}
+          />
+
+          <button
+            onClick={() => sbsFileRef.current?.click()}
+            disabled={sbsUploading}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 w-full justify-center"
+          >
+            {sbsUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+            {sbsUploading ? 'Processing...' : 'Select SBS Excel/CSV File'}
+          </button>
+
+          {sbsProgress && (
+            <div className="flex items-center gap-2 text-sm text-emerald-700">
+              <Loader2 size={14} className="animate-spin" /> {sbsProgress}
+            </div>
+          )}
+
+          {sbsResult && (
+            <div className={`rounded-lg p-4 text-sm ${sbsResult.error ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-emerald-100 border border-emerald-300 text-emerald-900'}`}>
+              {sbsResult.error ? (
+                <p>Error: {sbsResult.error}</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="font-semibold">Import Complete</p>
+                  <p><strong>{sbsResult.imported?.toLocaleString()}</strong> new subcontractors added</p>
+                  <p><strong>{sbsResult.updated?.toLocaleString()}</strong> existing records updated (contact info merged)</p>
+                  <p><strong>{sbsResult.skipped?.toLocaleString()}</strong> rows skipped (no company name)</p>
+                  <p className="text-xs text-emerald-700 mt-1">Total rows processed: {sbsResult.total?.toLocaleString()}</p>
+                  {sbsResult.errors?.length > 0 && (
+                    <p className="text-amber-700 mt-1 text-xs">Warnings: {sbsResult.errors.slice(0, 5).join('; ')}{sbsResult.errors.length > 5 ? ` (+${sbsResult.errors.length - 5} more)` : ''}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* Enrichment Progress/Result */}
       {(enrichProgress || enrichResult) && (
@@ -1000,387 +1385,6 @@ export default function MasterSubDatabase() {
               </>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Outreach Panel */}
-      {showOutreach && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-green-900">Send Claim Outreach Emails</h3>
-            <button onClick={() => setShowOutreach(false)} className="text-green-400 hover:text-green-600"><X size={18} /></button>
-          </div>
-          <p className="text-sm text-green-700">
-            Send claim invitation emails to unclaimed subcontractors with email addresses.
-            Each email contains a unique claim link valid for 90 days.
-          </p>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">State (optional)</label>
-              <select value={outreachState} onChange={e => setOutreachState(e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">All States</option>
-                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Trade (optional)</label>
-              <select value={outreachTrade} onChange={e => setOutreachTrade(e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">All Trades</option>
-                {TRADE_CATEGORIES.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Batch Size</label>
-              <select value={outreachLimit} onChange={e => setOutreachLimit(Number(e.target.value))}
-                className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2">
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={previewOutreach}
-              className="flex items-center gap-2 px-4 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-100">
-              <Eye size={14} /> Preview Recipients
-            </button>
-            <button onClick={sendOutreach} disabled={outreachSending}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-              {outreachSending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-              Send Emails
-            </button>
-          </div>
-
-          {outreachPreview && (
-            <div className="bg-white border border-green-200 rounded-lg p-3 text-sm">
-              <p className="font-medium text-green-800 mb-2">{outreachPreview.total} eligible recipients found</p>
-              {outreachPreview.targets?.slice(0, 5).map((t: any) => (
-                <div key={t.id} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-700">{t.company_name}</span>
-                  <span className="text-gray-400 text-xs">{t.contact_email} • {t.state}</span>
-                </div>
-              ))}
-              {outreachPreview.total > 5 && <p className="text-xs text-gray-400 mt-1">...and {outreachPreview.total - 5} more</p>}
-            </div>
-          )}
-
-          {outreachResult && (
-            <div className={`p-3 rounded-lg text-sm ${outreachResult.error ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-100 border border-green-300 text-green-800'}`}>
-              {outreachResult.error ? (
-                <p>{outreachResult.error}</p>
-              ) : (
-                <p>
-                  <strong>{outreachResult.sent}</strong> emails sent successfully
-                  {outreachResult.failed > 0 && <>, <strong>{outreachResult.failed}</strong> failed</>}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Import Panel */}
-      {showImport && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-blue-900">SAM.gov Entity Import</h3>
-            <button onClick={() => setShowImport(false)} className="text-blue-400 hover:text-blue-600"><X size={18} /></button>
-          </div>
-          <p className="text-sm text-blue-700">
-            Import registered entities from SAM.gov into the master database. Filter by state and/or NAICS codes.
-            Duplicates (matching SAM UEI) are automatically skipped.
-          </p>
-
-          {/* Mode Tabs */}
-          <div className="flex gap-1 bg-blue-100 p-1 rounded-lg">
-            <button onClick={() => setImportMode('file')}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                importMode === 'file' ? 'bg-white text-blue-900 shadow-sm font-medium' : 'text-blue-600 hover:text-blue-800'
-              }`}>
-              <FileUp size={14} /> Upload Data File
-            </button>
-            <button onClick={() => setImportMode('api')}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                importMode === 'api' ? 'bg-white text-blue-900 shadow-sm font-medium' : 'text-blue-600 hover:text-blue-800'
-              }`}>
-              <Database size={14} /> API Import
-            </button>
-          </div>
-
-          {importMode === 'file' ? (
-            <div className="space-y-3">
-              <div className="bg-white border border-blue-200 rounded-lg p-4 space-y-3">
-                <p className="text-sm text-gray-700">
-                  Upload a SAM.gov Public Entity Extract file. Download from:{' '}
-                  <a href="https://sam.gov/data-services/Entity%20Registration/Public%20V2" target="_blank" rel="noopener noreferrer"
-                    className="text-blue-600 underline hover:text-blue-800">SAM.gov Data Services</a>
-                </p>
-                <p className="text-xs text-gray-500">
-                  Supported format: SAM Public V2 extract (pipe-delimited .dat or .csv file inside the ZIP).
-                  Monthly files contain all active entities. You can filter by state and NAICS below before importing.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">State Filter (optional)</label>
-                    <select value={importState} onChange={e => setImportState(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                      <option value="">All States (large!)</option>
-                      {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">NAICS Codes (comma-separated, optional)</label>
-                    <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
-                      placeholder="e.g. 238220, 238210, 561720"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                    <div className="flex gap-1 mt-1">
-                      <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
-                        className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
-                      <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
-                        className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
-                      <button type="button" onClick={() => setImportNaics('')}
-                        className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".dat,.csv,.txt"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleFileUpload(file)
-                    }}
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={fileUploading}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full justify-center">
-                    {fileUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
-                    {fileUploading ? 'Processing...' : 'Select SAM.gov Extract File'}
-                  </button>
-                </div>
-                {fileProgress && (
-                  <div className="flex items-center gap-2 text-sm text-blue-700">
-                    <Loader2 size={14} className="animate-spin" />
-                    {fileProgress}
-                  </div>
-                )}
-              </div>
-              {fileResult && (
-                <div className={`p-3 rounded-lg text-sm ${fileResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                  {fileResult.error ? (
-                    <p>Error: {fileResult.error}</p>
-                  ) : (
-                    <div className="space-y-1">
-                      <p><strong>{fileResult.imported?.toLocaleString()}</strong> companies imported successfully</p>
-                      {fileResult.skipped > 0 && <p>{fileResult.skipped.toLocaleString()} skipped (duplicates or errors)</p>}
-                      {fileResult.skippedNonUS > 0 && <p className="text-gray-500">{fileResult.skippedNonUS.toLocaleString()} skipped (non-US)</p>}
-                      {fileResult.skippedExpired > 0 && <p className="text-gray-500">{fileResult.skippedExpired.toLocaleString()} skipped (expired)</p>}
-                      {fileResult.message && <p className="text-yellow-700">{fileResult.message}</p>}
-                      {fileResult.errors?.length > 0 && (
-                        <div className="text-yellow-700 mt-1">
-                          <p>Warnings:</p>
-                          {fileResult.errors.map((e: string, i: number) => <p key={i} className="text-xs">{e}</p>)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-blue-800 mb-1">State Filter (optional)</label>
-                  <select value={importState} onChange={e => setImportState(e.target.value)}
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white">
-                    <option value="">All States</option>
-                    {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-blue-800 mb-1">NAICS Codes (comma-separated, optional)</label>
-                  <input type="text" value={importNaics} onChange={e => setImportNaics(e.target.value)}
-                    placeholder="e.g. 238220, 238210, 561720"
-                    className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" />
-                  <div className="flex gap-1 mt-1">
-                    <button type="button" onClick={() => setImportNaics(HIGH_DEMAND_TIER1.join(', '))}
-                      className="text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded hover:bg-orange-200">Tier 1 (Construction)</button>
-                    <button type="button" onClick={() => setImportNaics(ALL_HIGH_DEMAND.join(', '))}
-                      className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">All High Demand</button>
-                    <button type="button" onClick={() => setImportNaics('')}
-                      className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200">Clear</button>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => handleImport(true)} disabled={importing}
-                  className="flex items-center gap-2 px-4 py-2 text-sm border border-blue-400 text-blue-700 rounded-lg hover:bg-blue-100 disabled:opacity-50">
-                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
-                  Preview Import
-                </button>
-                <button onClick={() => handleImport(false)} disabled={importing}
-                  className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
-                  Import Now
-                </button>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-xs text-yellow-800">Note: API import may not work from cloud infrastructure due to SAM.gov IP restrictions. Use "Upload Data File" tab for reliable imports.</p>
-              </div>
-              {importResult && (
-                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                  {importResult.error ? (
-                    <p>Error: {importResult.error}</p>
-                  ) : (
-                    <div>
-                      <p><strong>{importResult.imported}</strong> imported, <strong>{importResult.skipped}</strong> skipped (duplicates), <strong>{importResult.totalRecords?.toLocaleString()}</strong> total available</p>
-                      {importResult.errors?.length > 0 && (
-                        <p className="text-yellow-700 mt-1">Warnings: {importResult.errors.join('; ')}</p>
-                      )}
-                      {importResult.preview && (
-                        <div className="mt-2 max-h-48 overflow-y-auto">
-                          <p className="font-medium mb-1">Preview (first 10):</p>
-                          {importResult.preview.map((p: any, i: number) => (
-                            <div key={i} className="text-xs py-1 border-t border-green-200">
-                              {p.company_name} — {p.city}, {p.state} — {(p.trade_categories || []).join(', ') || 'No trades mapped'} {p.contact_email ? '✉' : ''}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* SBS Import Panel */}
-      {showSbsImport && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-emerald-900">Import SBS (Small Business Source) Data</h3>
-            <button onClick={() => setShowSbsImport(false)} className="text-emerald-400 hover:text-emerald-600"><X size={18} /></button>
-          </div>
-          <p className="text-sm text-emerald-700">
-            Upload an Excel (.xlsx) or CSV file with subcontractor data. Expected columns: Business Name, Capabilities (2 cols), Active SBA, Contact Person, Contact Email, Address Line 1, Address Line 2, City, State, Zipcode.
-          </p>
-          <p className="text-xs text-emerald-600">
-            Duplicates (matching company name + state) will have their contact information merged into existing records. New companies will be added as new entries.
-          </p>
-
-          <input
-            type="file"
-            ref={sbsFileRef}
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              setSbsUploading(true)
-              setSbsProgress('Reading file...')
-              setSbsResult(null)
-
-              try {
-                const XLSX = await import('xlsx')
-                const buffer = await file.arrayBuffer()
-                const wb = XLSX.read(buffer, { type: 'array' })
-                const ws = wb.Sheets[wb.SheetNames[0]]
-                const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 })
-
-                // Skip header row
-                const dataRows = rawRows.slice(1).filter(r => r.length > 0 && r[0])
-                setSbsProgress(`Parsed ${dataRows.length.toLocaleString()} rows. Importing...`)
-
-                // Send in batches of 500
-                const batchSize = 500
-                let totalImported = 0
-                let totalUpdated = 0
-                let totalSkipped = 0
-                const errors: string[] = []
-
-                for (let i = 0; i < dataRows.length; i += batchSize) {
-                  const batch = dataRows.slice(i, i + batchSize).map(row =>
-                    row.map((cell: any) => (cell === null || cell === undefined) ? '' : String(cell))
-                  )
-                  setSbsProgress(`Importing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(dataRows.length / batchSize)}... (${i}/${dataRows.length})`)
-
-                  const res = await fetch('/.netlify/functions/sbs-import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rows: batch }),
-                  })
-
-                  if (res.ok) {
-                    const data = await res.json()
-                    totalImported += data.imported || 0
-                    totalUpdated += data.updated || 0
-                    totalSkipped += data.skipped || 0
-                    if (data.errors?.length > 0) errors.push(...data.errors)
-                  } else {
-                    const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
-                    errors.push(`Batch ${Math.floor(i / batchSize)}: ${errData.error}`)
-                  }
-                }
-
-                setSbsResult({ imported: totalImported, updated: totalUpdated, skipped: totalSkipped, total: dataRows.length, errors })
-                setSbsProgress('')
-                fetchStats()
-                fetchSubs()
-              } catch (err: any) {
-                setSbsResult({ error: err.message || 'Failed to parse file' })
-                setSbsProgress('')
-              }
-              setSbsUploading(false)
-              if (sbsFileRef.current) sbsFileRef.current.value = ''
-            }}
-          />
-
-          <button
-            onClick={() => sbsFileRef.current?.click()}
-            disabled={sbsUploading}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 w-full justify-center"
-          >
-            {sbsUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
-            {sbsUploading ? 'Processing...' : 'Select SBS Excel/CSV File'}
-          </button>
-
-          {sbsProgress && (
-            <div className="flex items-center gap-2 text-sm text-emerald-700">
-              <Loader2 size={14} className="animate-spin" /> {sbsProgress}
-            </div>
-          )}
-
-          {sbsResult && (
-            <div className={`rounded-lg p-4 text-sm ${sbsResult.error ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-emerald-100 border border-emerald-300 text-emerald-900'}`}>
-              {sbsResult.error ? (
-                <p>Error: {sbsResult.error}</p>
-              ) : (
-                <div className="space-y-1">
-                  <p className="font-semibold">Import Complete</p>
-                  <p><strong>{sbsResult.imported?.toLocaleString()}</strong> new subcontractors added</p>
-                  <p><strong>{sbsResult.updated?.toLocaleString()}</strong> existing records updated (contact info merged)</p>
-                  <p><strong>{sbsResult.skipped?.toLocaleString()}</strong> rows skipped (no company name)</p>
-                  <p className="text-xs text-emerald-700 mt-1">Total rows processed: {sbsResult.total?.toLocaleString()}</p>
-                  {sbsResult.errors?.length > 0 && (
-                    <p className="text-amber-700 mt-1 text-xs">Warnings: {sbsResult.errors.slice(0, 5).join('; ')}{sbsResult.errors.length > 5 ? ` (+${sbsResult.errors.length - 5} more)` : ''}</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
