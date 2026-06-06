@@ -325,13 +325,11 @@ export default async (req: Request, _context: Context) => {
 
       const trades = capabilitiesToTrades(cap1, '')
       const sbaTypes = parseSbaTypes(sbaText)
-      const address = [addr1, addr2].filter(Boolean).join(', ')
-
       const dedupKey = `${companyName.toLowerCase()}|${state}`
       const existing = existingMap.get(dedupKey)
 
       if (existing) {
-        // Update existing record — merge contact info if missing
+        // Update existing record — merge all available data
         const updates: any = {}
         if (contactEmail && !existing.contact_email) {
           updates.contact_email = contactEmail
@@ -342,8 +340,17 @@ export default async (req: Request, _context: Context) => {
           updates.small_business = true
           updates.small_business_types = sbaTypes
         }
-        if (address) updates.address_line1 = address
+        if (addr1) updates.address_line1 = addr1
+        if (addr2) updates.address_line2 = addr2
         if (zip) updates.zip_code = zip
+        if (cap1) updates.description = cap1
+        if (capLink) {
+          if (capLink.toLowerCase().endsWith('.pdf') || capLink.toLowerCase().includes('capability')) {
+            updates.capability_statement_path = capLink
+          } else if (capLink.startsWith('http')) {
+            updates.website = capLink
+          }
+        }
         updates.data_source = 'import'
 
         // Recalculate completeness with merged data
@@ -365,14 +372,27 @@ export default async (req: Request, _context: Context) => {
       const baseSlug = generateSlug(companyName)
       const slug = `${baseSlug}-${Date.now().toString(36).slice(-4)}${Math.random().toString(36).slice(2, 5)}`
 
+      // Determine if capability link is a PDF/capability statement or a website
+      let website: string | null = null
+      let capStatementPath: string | null = null
+      if (capLink) {
+        if (capLink.toLowerCase().endsWith('.pdf') || capLink.toLowerCase().includes('capability')) {
+          capStatementPath = capLink
+        } else if (capLink.startsWith('http')) {
+          website = capLink
+        }
+      }
+
       const record = {
         company_name: companyName,
         slug,
         contact_name: contactName || null,
         contact_email: contactEmail || null,
         contact_phone: null,
-        website: capLink && capLink.startsWith('http') ? capLink : null,
-        address_line1: address || null,
+        website,
+        capability_statement_path: capStatementPath,
+        address_line1: addr1 || null,
+        address_line2: addr2 || null,
         city: city || null,
         state: state || null,
         zip_code: zip || null,

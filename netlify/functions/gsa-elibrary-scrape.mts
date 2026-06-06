@@ -214,6 +214,22 @@ function parseContractorDetail(html: string) {
   const eplsMatch = html.match(/EPLS\s*:[\s\S]*?<font[^>]*>([^<]+)/)
   const eplsStatus = eplsMatch ? decodeHtmlEntities(eplsMatch[1].trim()) : ''
   
+  // Extract NAICS codes from the detail page
+  const naicsCodes: string[] = []
+  const naicsMatches = html.matchAll(/(\d{6})\s*[-–]\s*([^<\n]+)/g)
+  for (const nm of naicsMatches) {
+    const code = nm[1]
+    if (!naicsCodes.includes(code)) naicsCodes.push(code)
+  }
+  // Also try the NAICS label pattern
+  const naicsSection = html.match(/NAICS[\s\S]*?<\/table>/i)
+  if (naicsSection) {
+    const codeMatches = naicsSection[0].matchAll(/(\d{6})/g)
+    for (const cm of codeMatches) {
+      if (!naicsCodes.includes(cm[1])) naicsCodes.push(cm[1])
+    }
+  }
+  
   const smallBizTypes: string[] = []
   if (socioEconomic) {
     const lower = socioEconomic.toLowerCase()
@@ -250,6 +266,7 @@ function parseContractorDetail(html: string) {
     contract_end_date: contractEndDate,
     gsa_categories: categories,
     epls_status: eplsStatus,
+    naics_codes: naicsCodes,
     small_business_types: smallBizTypes,
     trade_categories: tradeCategories,
   }
@@ -360,24 +377,31 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
       
       batchScraped++
       
-      // Check for existing record
+      // Check for existing record — fetch description too for smart merge
       let existingId: string | null = null
+      let existingDescription: string | null = null
       if (data.sam_uei) {
         const { data: existing } = await supabase
           .from('master_subcontractors')
-          .select('id')
+          .select('id, description')
           .eq('sam_uei', data.sam_uei)
           .limit(1)
-        if (existing && existing.length > 0) existingId = existing[0].id
+        if (existing && existing.length > 0) {
+          existingId = existing[0].id
+          existingDescription = existing[0].description
+        }
       }
       if (!existingId && data.company_name && data.state) {
         const { data: existing } = await supabase
           .from('master_subcontractors')
-          .select('id')
+          .select('id, description')
           .ilike('company_name', data.company_name)
           .eq('state', data.state)
           .limit(1)
-        if (existing && existing.length > 0) existingId = existing[0].id
+        if (existing && existing.length > 0) {
+          existingId = existing[0].id
+          existingDescription = existing[0].description
+        }
       }
       
       if (existingId) {
@@ -386,9 +410,32 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
         if (data.phone) updateFields.contact_phone = data.phone
         if (data.website) updateFields.website = data.website
         if (data.sam_uei) updateFields.sam_uei = data.sam_uei
-        if (data.small_business_types.length > 0) updateFields.small_business_types = data.small_business_types
-        if (data.gsa_categories.length > 0) updateFields.description = data.gsa_categories.join('; ')
+        if (data.dba) updateFields.dba_name = data.dba
+        if (data.address) updateFields.address_line1 = data.address
+        if (data.city) updateFields.city = data.city
+        if (data.zip_code) updateFields.zip_code = data.zip_code
+        if (data.small_business_types.length > 0) {
+          updateFields.small_business = true
+          updateFields.small_business_types = data.small_business_types
+        }
+        if (data.naics_codes.length > 0) updateFields.naics_codes = data.naics_codes
         if (data.trade_categories.length > 0) updateFields.trade_categories = data.trade_categories
+        // Append GSA categories to existing description instead of overwriting
+        if (data.gsa_categories.length > 0) {
+          const gsaText = 'GSA Schedules: ' + data.gsa_categories.join('; ')
+          if (existingDescription && !existingDescription.includes('GSA Schedules:')) {
+            updateFields.description = existingDescription + ' | ' + gsaText
+          } else if (!existingDescription) {
+            updateFields.description = gsaText
+          }
+        }
+        // Store contract number and end date as source reference
+        if (data.contract_number) updateFields.source_id = `gsa:${data.contract_number}`
+        // Store contract end date in sam_expiration_date (reuse for GSA contract expiry)
+        if (data.contract_end_date) {
+          const parsed = new Date(data.contract_end_date)
+          if (!isNaN(parsed.getTime())) updateFields.sam_expiration_date = parsed.toISOString().split('T')[0]
+        }
         
         if (Object.keys(updateFields).length > 0) {
           updateFields.updated_at = new Date().toISOString()
@@ -401,7 +448,13 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
           .replace(/^-|-$/g, '')
           .substring(0, 80) + '-' + Math.random().toString(36).substring(2, 8)
         
-        const { error: insertErr } = await supabase.from('master_subcontractors').insert({
+        // Build description: GSA categories prefixed for clarity
+        let description: string | null = null
+        if (data.gsa_categories.length > 0) {
+          description = 'GSA Schedules: ' + data.gsa_categories.join('; ')
+        }
+
+        const insertRecord: Record<string, any> = {
           company_name: data.company_name,
           slug,
           dba_name: data.dba || null,
@@ -415,13 +468,22 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
           sam_uei: data.sam_uei || null,
           small_business: data.small_business_types.length > 0,
           small_business_types: data.small_business_types.length > 0 ? data.small_business_types : [],
+          naics_codes: data.naics_codes.length > 0 ? data.naics_codes : [],
           trade_categories: data.trade_categories.length > 0 ? data.trade_categories : [],
           service_categories: data.trade_categories.length > 0 ? data.trade_categories : [],
           geographic_coverage: data.state ? [data.state] : [],
-          description: data.gsa_categories.length > 0 ? data.gsa_categories.join('; ') : null,
+          description,
+          source_id: data.contract_number ? `gsa:${data.contract_number}` : null,
           data_source: 'import',
           verification_status: 'unverified',
-        })
+        }
+        // Store contract end date
+        if (data.contract_end_date) {
+          const parsed = new Date(data.contract_end_date)
+          if (!isNaN(parsed.getTime())) insertRecord.sam_expiration_date = parsed.toISOString().split('T')[0]
+        }
+
+        const { error: insertErr } = await supabase.from('master_subcontractors').insert(insertRecord)
         if (insertErr) {
           batchErrors++
         } else {
