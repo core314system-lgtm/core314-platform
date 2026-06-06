@@ -130,6 +130,9 @@ export default function MasterSubDatabase() {
   const [sbsProgress, setSbsProgress] = useState('')
   const [sbsResult, setSbsResult] = useState<any>(null)
   const sbsFileRef = useRef<HTMLInputElement>(null)
+  const outreachPanelRef = useRef<HTMLDivElement>(null)
+  const importPanelRef = useRef<HTMLDivElement>(null)
+  const sbsImportPanelRef = useRef<HTMLDivElement>(null)
 
   const PAGE_SIZE = 50
 
@@ -753,15 +756,15 @@ export default function MasterSubDatabase() {
             {enriching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {enriching ? 'Enriching...' : 'Enrich Contacts'}
           </button>
-          <button onClick={() => { setShowOutreach(!showOutreach); setShowImport(false) }}
+          <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
             <Mail size={16} /> Send Outreach
           </button>
-          <button onClick={() => { setShowImport(!showImport); setShowOutreach(false); setShowSbsImport(false) }}
+          <button onClick={() => { const opening = !showImport; setShowImport(opening); setShowOutreach(false); setShowSbsImport(false); if (opening) setTimeout(() => importPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Upload size={16} /> Import from SAM.gov
           </button>
-          <button onClick={() => { setShowSbsImport(!showSbsImport); setShowImport(false); setShowOutreach(false) }}
+          <button onClick={() => { const opening = !showSbsImport; setShowSbsImport(opening); setShowImport(false); setShowOutreach(false); if (opening) setTimeout(() => sbsImportPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
             <FileUp size={16} /> Import SBS Data
           </button>
@@ -1005,7 +1008,7 @@ export default function MasterSubDatabase() {
 
       {/* Outreach Panel */}
       {showOutreach && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
+        <div ref={outreachPanelRef} className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-green-900">Send Claim Outreach Emails</h3>
             <button onClick={() => setShowOutreach(false)} className="text-green-400 hover:text-green-600"><X size={18} /></button>
@@ -1087,7 +1090,7 @@ export default function MasterSubDatabase() {
 
       {/* Import Panel */}
       {showImport && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
+        <div ref={importPanelRef} className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-blue-900">SAM.gov Entity Import</h3>
             <button onClick={() => setShowImport(false)} className="text-blue-400 hover:text-blue-600"><X size={18} /></button>
@@ -1269,7 +1272,7 @@ export default function MasterSubDatabase() {
 
       {/* SBS Import Panel */}
       {showSbsImport && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-4">
+        <div ref={sbsImportPanelRef} className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-emerald-900">Import SBS (Small Business Source) Data</h3>
             <button onClick={() => setShowSbsImport(false)} className="text-emerald-400 hover:text-emerald-600"><X size={18} /></button>
