@@ -1106,8 +1106,8 @@ export default function MasterSubDatabase() {
                 const dataRows = rawRows.slice(1).filter(r => r.length > 0 && r[0])
                 setSbsProgress(`Parsed ${dataRows.length.toLocaleString()} rows. Importing...`)
 
-                // Send in batches of 500
-                const batchSize = 500
+                // Send in batches of 200 (smaller batches avoid function timeouts)
+                const batchSize = 200
                 let totalImported = 0
                 let totalUpdated = 0
                 let totalSkipped = 0
@@ -1119,21 +1119,26 @@ export default function MasterSubDatabase() {
                   )
                   setSbsProgress(`Importing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(dataRows.length / batchSize)}... (${i}/${dataRows.length})`)
 
-                  const res = await fetch('/.netlify/functions/sbs-import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rows: batch }),
-                  })
+                  try {
+                    const res = await fetch('/.netlify/functions/sbs-import', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ rows: batch }),
+                    })
 
-                  if (res.ok) {
-                    const data = await res.json()
-                    totalImported += data.imported || 0
-                    totalUpdated += data.updated || 0
-                    totalSkipped += data.skipped || 0
-                    if (data.errors?.length > 0) errors.push(...data.errors)
-                  } else {
-                    const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
-                    errors.push(`Batch ${Math.floor(i / batchSize)}: ${errData.error}`)
+                    if (res.ok) {
+                      const data = await res.json()
+                      totalImported += data.imported || 0
+                      totalUpdated += data.updated || 0
+                      totalSkipped += data.skipped || 0
+                      if (data.errors?.length > 0) errors.push(...data.errors)
+                    } else {
+                      const errData = await res.json().catch(() => ({ error: 'Unknown error' }))
+                      errors.push(`Batch ${Math.floor(i / batchSize)}: ${errData.error}`)
+                    }
+                  } catch (fetchErr: any) {
+                    // Network error or timeout — log and continue with next batch
+                    errors.push(`Batch ${Math.floor(i / batchSize) + 1}: ${fetchErr.message || 'Network error'}`)
                   }
                 }
 
