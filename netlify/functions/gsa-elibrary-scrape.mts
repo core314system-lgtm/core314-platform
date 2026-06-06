@@ -1,13 +1,13 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import pg from "pg"
+import { getStore } from "@netlify/blobs"
 
 /**
  * GSA eLibrary Scraper — Server-Side Background Processing
  *
  * Scrapes contractor data from gsaelibrary.gsa.gov and upserts into master_subcontractors.
  * Runs as a scheduled function (every 2 minutes) that processes batches automatically.
- * Progress is tracked in a `gsa_scrape_progress` table so it survives across invocations.
+ * Progress is tracked via Netlify Blobs so it survives across invocations (no extra DB table needed).
  *
  * Manual API modes (POST):
  *   { action: "start" }       → Start a new A-Z background scrape job
@@ -255,75 +255,56 @@ function parseContractorDetail(html: string) {
   }
 }
 
-// ─── Ensure progress table exists via direct pg connection ──
-async function ensureProgressTable(): Promise<void> {
-  const supabaseUrl = process.env.TASKORDER_SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || ''
-  const projectRef = supabaseUrl.match(/https:\/\/(\w+)\.supabase\.co/)?.[1]
-  if (!projectRef) return
-  
-  const dbPassword = process.env.TASKORDER_SUPABASE_DB_PASSWORD || process.env.SUPABASE_DB_PASSWORD || ''
-  if (!dbPassword) return
-  
-  const connectionString = `postgresql://postgres.${projectRef}:${dbPassword}@aws-0-us-east-1.pooler.supabase.com:6543/postgres`
-  const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
-  
-  try {
-    await client.connect()
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.gsa_scrape_progress (
-        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-        status TEXT NOT NULL DEFAULT 'idle',
-        current_letter TEXT DEFAULT 'A',
-        current_url_index INTEGER DEFAULT 0,
-        urls_for_letter JSONB DEFAULT '[]'::jsonb,
-        letters_completed TEXT[] DEFAULT '{}'::TEXT[],
-        total_scraped INTEGER DEFAULT 0,
-        total_inserted INTEGER DEFAULT 0,
-        total_updated INTEGER DEFAULT 0,
-        total_errors INTEGER DEFAULT 0,
-        last_error TEXT,
-        started_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        completed_at TIMESTAMPTZ
-      );
-    `)
-    // Enable RLS + policy (idempotent)
-    await client.query(`ALTER TABLE public.gsa_scrape_progress ENABLE ROW LEVEL SECURITY;`)
-    await client.query(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'gsa_scrape_progress' AND policyname = 'gsa_scrape_service_access') THEN
-          CREATE POLICY "gsa_scrape_service_access" ON public.gsa_scrape_progress FOR ALL USING (true) WITH CHECK (true);
-        END IF;
-      END $$;
-    `)
-  } finally {
-    await client.end()
-  }
+// ─── Progress tracking via Netlify Blobs ────────────────────
+interface ScrapeProgress {
+  status: 'running' | 'complete' | 'stopped' | 'idle'
+  current_letter: string
+  current_url_index: number
+  urls_for_letter: string[]
+  letters_completed: string[]
+  total_scraped: number
+  total_inserted: number
+  total_updated: number
+  total_errors: number
+  last_error?: string
+  started_at: string
+  updated_at: string
+  completed_at?: string
+}
+
+const PROGRESS_KEY = 'gsa-scrape-progress'
+
+async function getProgress(): Promise<ScrapeProgress | null> {
+  const store = getStore('gsa-scraper')
+  const data = await store.get(PROGRESS_KEY, { type: 'json' }) as ScrapeProgress | null
+  return data
+}
+
+async function setProgress(progress: ScrapeProgress): Promise<void> {
+  const store = getStore('gsa-scraper')
+  await store.setJSON(PROGRESS_KEY, progress)
+}
+
+async function deleteProgress(): Promise<void> {
+  const store = getStore('gsa-scraper')
+  await store.delete(PROGRESS_KEY)
 }
 
 // ─── Process a batch of contractors ─────────────────────────
 async function processNextBatch(supabase: any): Promise<{ processed: boolean; message: string }> {
-  // Get active job
-  const { data: jobs, error: jobErr } = await supabase
-    .from('gsa_scrape_progress')
-    .select('*')
-    .eq('status', 'running')
-    .order('started_at', { ascending: false })
-    .limit(1)
+  // Get active job from Netlify Blobs
+  const job = await getProgress()
   
-  if (jobErr || !jobs || jobs.length === 0) {
+  if (!job || job.status !== 'running') {
     return { processed: false, message: 'No active scrape job' }
   }
   
-  const job = jobs[0]
   let { current_letter, current_url_index, urls_for_letter, letters_completed,
         total_scraped, total_inserted, total_updated, total_errors } = job
   
   const letterIdx = LETTERS.indexOf(current_letter)
   if (letterIdx === -1) {
-    await supabase.from('gsa_scrape_progress').update({
-      status: 'complete', completed_at: new Date().toISOString(), updated_at: new Date().toISOString()
-    }).eq('id', job.id)
+    await setProgress({ ...job, status: 'complete', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     return { processed: false, message: 'All letters completed' }
   }
   
@@ -333,15 +314,9 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
     try {
       const html = await fetchWithRetry(`${BASE_URL}/contractorList.do?contractorListFor=${current_letter}`)
       urls = extractContractorUrls(html)
-      await supabase.from('gsa_scrape_progress').update({
-        urls_for_letter: urls,
-        updated_at: new Date().toISOString()
-      }).eq('id', job.id)
+      await setProgress({ ...job, urls_for_letter: urls, updated_at: new Date().toISOString() })
     } catch (e: any) {
-      await supabase.from('gsa_scrape_progress').update({
-        last_error: `Failed to fetch list for ${current_letter}: ${e.message}`,
-        updated_at: new Date().toISOString()
-      }).eq('id', job.id)
+      await setProgress({ ...job, last_error: `Failed to fetch list for ${current_letter}: ${e.message}`, updated_at: new Date().toISOString() })
       return { processed: true, message: `Error fetching letter ${current_letter}` }
     }
   }
@@ -350,21 +325,10 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
   if (urls.length === 0) {
     const nextLetterIdx = letterIdx + 1
     if (nextLetterIdx >= LETTERS.length) {
-      await supabase.from('gsa_scrape_progress').update({
-        status: 'complete',
-        completed_at: new Date().toISOString(),
-        letters_completed: [...(letters_completed || []), current_letter],
-        updated_at: new Date().toISOString()
-      }).eq('id', job.id)
+      await setProgress({ ...job, status: 'complete', completed_at: new Date().toISOString(), letters_completed: [...(letters_completed || []), current_letter], updated_at: new Date().toISOString() })
       return { processed: false, message: 'All letters completed' }
     }
-    await supabase.from('gsa_scrape_progress').update({
-      current_letter: LETTERS[nextLetterIdx],
-      current_url_index: 0,
-      urls_for_letter: [],
-      letters_completed: [...(letters_completed || []), current_letter],
-      updated_at: new Date().toISOString()
-    }).eq('id', job.id)
+    await setProgress({ ...job, current_letter: LETTERS[nextLetterIdx], current_url_index: 0, urls_for_letter: [], letters_completed: [...(letters_completed || []), current_letter], updated_at: new Date().toISOString() })
     return { processed: true, message: `Letter ${current_letter} had no contractors, moving to ${LETTERS[nextLetterIdx]}` }
   }
   
@@ -374,21 +338,10 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
     // Done with this letter, move to next
     const nextLetterIdx = letterIdx + 1
     if (nextLetterIdx >= LETTERS.length) {
-      await supabase.from('gsa_scrape_progress').update({
-        status: 'complete',
-        completed_at: new Date().toISOString(),
-        letters_completed: [...(letters_completed || []), current_letter],
-        updated_at: new Date().toISOString()
-      }).eq('id', job.id)
+      await setProgress({ ...job, status: 'complete', completed_at: new Date().toISOString(), letters_completed: [...(letters_completed || []), current_letter], updated_at: new Date().toISOString() })
       return { processed: false, message: 'All letters completed' }
     }
-    await supabase.from('gsa_scrape_progress').update({
-      current_letter: LETTERS[nextLetterIdx],
-      current_url_index: 0,
-      urls_for_letter: [],
-      letters_completed: [...(letters_completed || []), current_letter],
-      updated_at: new Date().toISOString()
-    }).eq('id', job.id)
+    await setProgress({ ...job, current_letter: LETTERS[nextLetterIdx], current_url_index: 0, urls_for_letter: [], letters_completed: [...(letters_completed || []), current_letter], updated_at: new Date().toISOString() })
     return { processed: true, message: `Finished letter ${current_letter}, moving to ${LETTERS[nextLetterIdx]}` }
   }
   
@@ -508,7 +461,7 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
     }
   }
   
-  await supabase.from('gsa_scrape_progress').update(update).eq('id', job.id)
+  await setProgress({ ...job, ...update })
   
   return {
     processed: true,
@@ -548,74 +501,50 @@ export default async (req: Request, _context: Context) => {
   
   try {
     if (action === 'start') {
-      // Auto-create progress table if it doesn't exist
-      try { await ensureProgressTable() } catch (_e) { /* table may already exist */ }
-      
       // Check for existing running job
-      const { data: existing } = await supabase
-        .from('gsa_scrape_progress')
-        .select('id, status')
-        .eq('status', 'running')
-        .limit(1)
-      
-      if (existing && existing.length > 0) {
-        return new Response(JSON.stringify({ error: 'A scrape job is already running', job_id: existing[0].id }), {
+      const existing = await getProgress()
+      if (existing && existing.status === 'running') {
+        return new Response(JSON.stringify({ error: 'A scrape job is already running' }), {
           status: 409, headers
         })
       }
       
-      // Create new job
-      const { data: newJob, error } = await supabase
-        .from('gsa_scrape_progress')
-        .insert({
-          status: 'running',
-          current_letter: 'A',
-          current_url_index: 0,
-          urls_for_letter: [],
-          letters_completed: [],
-          total_scraped: 0,
-          total_inserted: 0,
-          total_updated: 0,
-          total_errors: 0,
-          started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
-      
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message, hint: 'The gsa_scrape_progress table may not exist. Create it in Supabase first.' }), {
-          status: 500, headers
-        })
+      // Create new job in Netlify Blobs
+      const newJob: ScrapeProgress = {
+        status: 'running',
+        current_letter: 'A',
+        current_url_index: 0,
+        urls_for_letter: [],
+        letters_completed: [],
+        total_scraped: 0,
+        total_inserted: 0,
+        total_updated: 0,
+        total_errors: 0,
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
+      await setProgress(newJob)
       
       // Immediately process first batch
       const firstResult = await processNextBatch(supabase)
       
       return new Response(JSON.stringify({
         message: 'Background scrape started. The scheduled function will process batches every 2 minutes.',
-        job_id: newJob.id,
         first_batch: firstResult.message,
       }), { status: 200, headers })
     }
     
     if (action === 'status') {
-      const { data: jobs } = await supabase
-        .from('gsa_scrape_progress')
-        .select('*')
-        .order('started_at', { ascending: false })
-        .limit(1)
+      const job = await getProgress()
       
-      if (!jobs || jobs.length === 0) {
+      if (!job) {
         return new Response(JSON.stringify({ status: 'no_jobs', message: 'No scrape jobs found' }), {
           status: 200, headers
         })
       }
       
-      const job = jobs[0]
       const urlsTotal = (job.urls_for_letter || []).length
       return new Response(JSON.stringify({
-        job_id: job.id,
         status: job.status,
         current_letter: job.current_letter,
         current_url_index: job.current_url_index,
@@ -634,22 +563,15 @@ export default async (req: Request, _context: Context) => {
     }
     
     if (action === 'stop') {
-      const { data: jobs } = await supabase
-        .from('gsa_scrape_progress')
-        .select('id')
-        .eq('status', 'running')
-        .limit(1)
+      const job = await getProgress()
       
-      if (!jobs || jobs.length === 0) {
+      if (!job || job.status !== 'running') {
         return new Response(JSON.stringify({ message: 'No running job to stop' }), { status: 200, headers })
       }
       
-      await supabase.from('gsa_scrape_progress').update({
-        status: 'stopped',
-        updated_at: new Date().toISOString()
-      }).eq('id', jobs[0].id)
+      await setProgress({ ...job, status: 'stopped', updated_at: new Date().toISOString() })
       
-      return new Response(JSON.stringify({ message: 'Scrape job stopped', job_id: jobs[0].id }), {
+      return new Response(JSON.stringify({ message: 'Scrape job stopped' }), {
         status: 200, headers
       })
     }

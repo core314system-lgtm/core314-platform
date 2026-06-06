@@ -341,7 +341,7 @@ export default async (req: Request, _context: Context) => {
         }
         if (address) updates.address_line1 = address
         if (zip) updates.zip_code = zip
-        updates.data_source = 'sbs_import'
+        updates.data_source = 'import'
 
         // Recalculate completeness with merged data
         updates.profile_completeness = calculateCompleteness({
