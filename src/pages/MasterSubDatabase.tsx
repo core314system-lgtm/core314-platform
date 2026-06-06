@@ -794,218 +794,6 @@ export default function MasterSubDatabase() {
         </div>
       )}
 
-      {/* Enrichment Progress/Result */}
-      {(enrichProgress || enrichResult) && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          {enrichProgress && (
-            <div className="flex items-center gap-2 text-purple-700 text-sm">
-              <Loader2 size={14} className="animate-spin" />
-              {enrichProgress}
-            </div>
-          )}
-          {enrichResult && (
-            <div className="text-sm text-purple-800">
-              <strong>Enrichment complete:</strong> {enrichResult.enriched} contacts found (via Apollo + scraping), {enrichResult.noEmail} had no contact info, {enrichResult.errors} errors.
-              <button onClick={() => setEnrichResult(null)} className="ml-2 text-purple-500 hover:text-purple-700">
-                <X size={14} className="inline" />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Total Companies</div>
-          <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Mail size={14} /> With Email</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.withEmail.toLocaleString()}</div>
-          <div className="text-xs text-gray-400">{stats.total > 0 ? Math.round(stats.withEmail / stats.total * 100) : 0}% reachable</div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Users size={14} /> Claimed</div>
-          <div className="text-2xl font-bold text-indigo-600">{stats.claimed.toLocaleString()}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><BadgeCheck size={14} /> Verified</div>
-          <div className="text-2xl font-bold text-green-600">{stats.verified.toLocaleString()}</div>
-        </div>
-      </div>
-
-      {/* Outreach Dashboard */}
-      {outreachStats.totalSent > 0 && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Activity size={18} className="text-indigo-600" />
-              <h3 className="font-semibold text-indigo-900">Outreach Performance</h3>
-            </div>
-            <button onClick={fetchOutreachStats} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
-              <RefreshCw size={12} /> Refresh
-            </button>
-          </div>
-
-          <div className="grid grid-cols-4 gap-3 mb-4">
-            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-indigo-400 text-xs mb-1"><Send size={12} /> Emails Sent</div>
-              <div className="text-xl font-bold text-indigo-700">{outreachStats.totalSent}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-blue-400 text-xs mb-1"><Clock size={12} /> Sent Today</div>
-              <div className="text-xl font-bold text-blue-700">{outreachStats.sentToday}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-green-100 p-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-green-400 text-xs mb-1"><Users size={12} /> Claims</div>
-              <div className="text-xl font-bold text-green-700">{outreachStats.totalClaimed}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-purple-100 p-3 text-center">
-              <div className="flex items-center justify-center gap-1 text-purple-400 text-xs mb-1"><TrendingUp size={12} /> Conversion</div>
-              <div className="text-xl font-bold text-purple-700">
-                {outreachStats.totalSent > 0 ? ((outreachStats.totalClaimed / outreachStats.totalSent) * 100).toFixed(1) : '0.0'}%
-              </div>
-            </div>
-          </div>
-
-          {outreachStats.recentClaims.length > 0 && (
-            <div className="bg-white rounded-lg border border-indigo-100 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-2">
-                <Activity size={12} /> Recent Claims
-              </div>
-              <div className="divide-y divide-gray-100">
-                {outreachStats.recentClaims.map((claim: any) => (
-                  <div key={claim.id} className="flex items-center justify-between py-2 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-900">{claim.company_name}</span>
-                      {claim.city && claim.state && (
-                        <span className="text-gray-400 ml-2 text-xs">{claim.city}, {claim.state}</span>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      {new Date(claim.claimed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at{' '}
-                      {new Date(claim.claimed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {outreachStats.recentClaims.length === 0 && (
-            <div className="text-center py-3 text-sm text-indigo-400">
-              No claims yet — activity will appear here as subcontractors claim their profiles
-            </div>
-          )}
-
-          {/* Email Delivery Metrics */}
-          <div className="mt-4 bg-white rounded-lg border border-indigo-100 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Mail size={16} className="text-indigo-600" />
-                <h4 className="font-semibold text-sm text-indigo-900">Email Delivery Metrics</h4>
-              </div>
-              <button onClick={fetchEmailMetrics} disabled={emailMetricsLoading} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors disabled:opacity-50">
-                {emailMetricsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                {emailMetrics ? 'Refresh' : 'Load Metrics'}
-              </button>
-            </div>
-
-            {!emailMetrics && !emailMetricsLoading && (
-              <div className="text-center py-4 text-sm text-gray-400">
-                Click "Load Metrics" to fetch real-time delivery data from SendGrid
-              </div>
-            )}
-
-            {emailMetricsLoading && (
-              <div className="text-center py-4 text-sm text-indigo-500 flex items-center justify-center gap-2">
-                <Loader2 size={14} className="animate-spin" /> Loading delivery metrics from SendGrid...
-              </div>
-            )}
-
-            {emailMetrics && (
-              <>
-                <div className="grid grid-cols-5 gap-2 mb-3">
-                  <div className="bg-green-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-green-600 font-medium">Delivered</div>
-                    <div className="text-lg font-bold text-green-700">{emailMetrics.summary.delivered}</div>
-                    <div className="text-[10px] text-green-500">{emailMetrics.summary.delivery_rate}% rate</div>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-blue-600 font-medium">Opened</div>
-                    <div className="text-lg font-bold text-blue-700">{emailMetrics.summary.opened}</div>
-                    <div className="text-[10px] text-blue-500">{emailMetrics.summary.open_rate}% rate</div>
-                  </div>
-                  <div className="bg-amber-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-amber-600 font-medium">Clicked</div>
-                    <div className="text-lg font-bold text-amber-700">{emailMetrics.summary.clicked}</div>
-                    <div className="text-[10px] text-amber-500">{emailMetrics.summary.click_rate}% rate</div>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-red-600 font-medium">Bounced</div>
-                    <div className="text-lg font-bold text-red-700">{emailMetrics.summary.not_delivered}</div>
-                    <div className="text-[10px] text-red-500">{emailMetrics.summary.total > 0 ? Math.round((emailMetrics.summary.not_delivered / emailMetrics.summary.total) * 100) : 0}%</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-gray-600 font-medium">Total Opens</div>
-                    <div className="text-lg font-bold text-gray-700">{emailMetrics.summary.total_opens}</div>
-                    <div className="text-[10px] text-gray-500">{emailMetrics.summary.delivered > 0 ? (emailMetrics.summary.total_opens / emailMetrics.summary.delivered).toFixed(1) : '0'} per email</div>
-                  </div>
-                </div>
-
-                <button onClick={() => setShowEmailDetails(!showEmailDetails)} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 mb-2">
-                  {showEmailDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  {showEmailDetails ? 'Hide' : 'Show'} individual email details ({emailMetrics.emails.length})
-                </button>
-
-                {showEmailDetails && (
-                  <div className="max-h-[400px] overflow-y-auto border border-gray-100 rounded-lg">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-gray-50 border-b">
-                        <tr>
-                          <th className="text-left p-2 font-medium text-gray-600">Recipient</th>
-                          <th className="text-center p-2 font-medium text-gray-600">Status</th>
-                          <th className="text-center p-2 font-medium text-gray-600">Opens</th>
-                          <th className="text-center p-2 font-medium text-gray-600">Clicks</th>
-                          <th className="text-right p-2 font-medium text-gray-600">Last Activity</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {emailMetrics.emails.map((email: any, i: number) => (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="p-2">
-                              <div className="font-medium text-gray-800 truncate max-w-[250px]">{email.subject?.replace(' — Your Procuvex Profile Is Ready', '') || 'N/A'}</div>
-                              <div className="text-gray-400 truncate max-w-[250px]">{email.to}</div>
-                            </td>
-                            <td className="p-2 text-center">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                email.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                                email.status === 'not_delivered' ? 'bg-red-100 text-red-700' :
-                                'bg-yellow-100 text-yellow-700'
-                              }`}>{email.status === 'not_delivered' ? 'bounced' : email.status}</span>
-                            </td>
-                            <td className="p-2 text-center">
-                              <span className={email.opens > 0 ? 'text-blue-700 font-bold' : 'text-gray-300'}>{email.opens}</span>
-                            </td>
-                            <td className="p-2 text-center">
-                              <span className={email.clicks > 0 ? 'text-amber-700 font-bold' : 'text-gray-300'}>{email.clicks}</span>
-                            </td>
-                            <td className="p-2 text-right text-gray-400">
-                              {email.lastEvent ? new Date(email.lastEvent).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(email.lastEvent).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Outreach Panel */}
       {showOutreach && (
         <div ref={outreachPanelRef} className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
@@ -1384,6 +1172,219 @@ export default function MasterSubDatabase() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+
+      {/* Enrichment Progress/Result */}
+      {(enrichProgress || enrichResult) && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          {enrichProgress && (
+            <div className="flex items-center gap-2 text-purple-700 text-sm">
+              <Loader2 size={14} className="animate-spin" />
+              {enrichProgress}
+            </div>
+          )}
+          {enrichResult && (
+            <div className="text-sm text-purple-800">
+              <strong>Enrichment complete:</strong> {enrichResult.enriched} contacts found (via Apollo + scraping), {enrichResult.noEmail} had no contact info, {enrichResult.errors} errors.
+              <button onClick={() => setEnrichResult(null)} className="ml-2 text-purple-500 hover:text-purple-700">
+                <X size={14} className="inline" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Total Companies</div>
+          <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Mail size={14} /> With Email</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.withEmail.toLocaleString()}</div>
+          <div className="text-xs text-gray-400">{stats.total > 0 ? Math.round(stats.withEmail / stats.total * 100) : 0}% reachable</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Users size={14} /> Claimed</div>
+          <div className="text-2xl font-bold text-indigo-600">{stats.claimed.toLocaleString()}</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><BadgeCheck size={14} /> Verified</div>
+          <div className="text-2xl font-bold text-green-600">{stats.verified.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Outreach Dashboard */}
+      {outreachStats.totalSent > 0 && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity size={18} className="text-indigo-600" />
+              <h3 className="font-semibold text-indigo-900">Outreach Performance</h3>
+            </div>
+            <button onClick={fetchOutreachStats} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-indigo-400 text-xs mb-1"><Send size={12} /> Emails Sent</div>
+              <div className="text-xl font-bold text-indigo-700">{outreachStats.totalSent}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-indigo-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-400 text-xs mb-1"><Clock size={12} /> Sent Today</div>
+              <div className="text-xl font-bold text-blue-700">{outreachStats.sentToday}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-green-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-green-400 text-xs mb-1"><Users size={12} /> Claims</div>
+              <div className="text-xl font-bold text-green-700">{outreachStats.totalClaimed}</div>
+            </div>
+            <div className="bg-white rounded-lg border border-purple-100 p-3 text-center">
+              <div className="flex items-center justify-center gap-1 text-purple-400 text-xs mb-1"><TrendingUp size={12} /> Conversion</div>
+              <div className="text-xl font-bold text-purple-700">
+                {outreachStats.totalSent > 0 ? ((outreachStats.totalClaimed / outreachStats.totalSent) * 100).toFixed(1) : '0.0'}%
+              </div>
+            </div>
+          </div>
+
+          {outreachStats.recentClaims.length > 0 && (
+            <div className="bg-white rounded-lg border border-indigo-100 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-2">
+                <Activity size={12} /> Recent Claims
+              </div>
+              <div className="divide-y divide-gray-100">
+                {outreachStats.recentClaims.map((claim: any) => (
+                  <div key={claim.id} className="flex items-center justify-between py-2 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-900">{claim.company_name}</span>
+                      {claim.city && claim.state && (
+                        <span className="text-gray-400 ml-2 text-xs">{claim.city}, {claim.state}</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(claim.claimed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at{' '}
+                      {new Date(claim.claimed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {outreachStats.recentClaims.length === 0 && (
+            <div className="text-center py-3 text-sm text-indigo-400">
+              No claims yet — activity will appear here as subcontractors claim their profiles
+            </div>
+          )}
+
+          {/* Email Delivery Metrics */}
+          <div className="mt-4 bg-white rounded-lg border border-indigo-100 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Mail size={16} className="text-indigo-600" />
+                <h4 className="font-semibold text-sm text-indigo-900">Email Delivery Metrics</h4>
+              </div>
+              <button onClick={fetchEmailMetrics} disabled={emailMetricsLoading} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors disabled:opacity-50">
+                {emailMetricsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                {emailMetrics ? 'Refresh' : 'Load Metrics'}
+              </button>
+            </div>
+
+            {!emailMetrics && !emailMetricsLoading && (
+              <div className="text-center py-4 text-sm text-gray-400">
+                Click "Load Metrics" to fetch real-time delivery data from SendGrid
+              </div>
+            )}
+
+            {emailMetricsLoading && (
+              <div className="text-center py-4 text-sm text-indigo-500 flex items-center justify-center gap-2">
+                <Loader2 size={14} className="animate-spin" /> Loading delivery metrics from SendGrid...
+              </div>
+            )}
+
+            {emailMetrics && (
+              <>
+                <div className="grid grid-cols-5 gap-2 mb-3">
+                  <div className="bg-green-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-green-600 font-medium">Delivered</div>
+                    <div className="text-lg font-bold text-green-700">{emailMetrics.summary.delivered}</div>
+                    <div className="text-[10px] text-green-500">{emailMetrics.summary.delivery_rate}% rate</div>
+                  </div>
+                  <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-blue-600 font-medium">Opened</div>
+                    <div className="text-lg font-bold text-blue-700">{emailMetrics.summary.opened}</div>
+                    <div className="text-[10px] text-blue-500">{emailMetrics.summary.open_rate}% rate</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-amber-600 font-medium">Clicked</div>
+                    <div className="text-lg font-bold text-amber-700">{emailMetrics.summary.clicked}</div>
+                    <div className="text-[10px] text-amber-500">{emailMetrics.summary.click_rate}% rate</div>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-red-600 font-medium">Bounced</div>
+                    <div className="text-lg font-bold text-red-700">{emailMetrics.summary.not_delivered}</div>
+                    <div className="text-[10px] text-red-500">{emailMetrics.summary.total > 0 ? Math.round((emailMetrics.summary.not_delivered / emailMetrics.summary.total) * 100) : 0}%</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-600 font-medium">Total Opens</div>
+                    <div className="text-lg font-bold text-gray-700">{emailMetrics.summary.total_opens}</div>
+                    <div className="text-[10px] text-gray-500">{emailMetrics.summary.delivered > 0 ? (emailMetrics.summary.total_opens / emailMetrics.summary.delivered).toFixed(1) : '0'} per email</div>
+                  </div>
+                </div>
+
+                <button onClick={() => setShowEmailDetails(!showEmailDetails)} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 mb-2">
+                  {showEmailDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {showEmailDetails ? 'Hide' : 'Show'} individual email details ({emailMetrics.emails.length})
+                </button>
+
+                {showEmailDetails && (
+                  <div className="max-h-[400px] overflow-y-auto border border-gray-100 rounded-lg">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left p-2 font-medium text-gray-600">Recipient</th>
+                          <th className="text-center p-2 font-medium text-gray-600">Status</th>
+                          <th className="text-center p-2 font-medium text-gray-600">Opens</th>
+                          <th className="text-center p-2 font-medium text-gray-600">Clicks</th>
+                          <th className="text-right p-2 font-medium text-gray-600">Last Activity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {emailMetrics.emails.map((email: any, i: number) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="p-2">
+                              <div className="font-medium text-gray-800 truncate max-w-[250px]">{email.subject?.replace(' — Your Procuvex Profile Is Ready', '') || 'N/A'}</div>
+                              <div className="text-gray-400 truncate max-w-[250px]">{email.to}</div>
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                email.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                                email.status === 'not_delivered' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>{email.status === 'not_delivered' ? 'bounced' : email.status}</span>
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={email.opens > 0 ? 'text-blue-700 font-bold' : 'text-gray-300'}>{email.opens}</span>
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={email.clicks > 0 ? 'text-amber-700 font-bold' : 'text-gray-300'}>{email.clicks}</span>
+                            </td>
+                            <td className="p-2 text-right text-gray-400">
+                              {email.lastEvent ? new Date(email.lastEvent).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(email.lastEvent).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 
