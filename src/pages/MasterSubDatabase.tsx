@@ -1199,7 +1199,7 @@ export default function MasterSubDatabase() {
             Extracts company name, address, phone, email, website, SAM UEI, socio-economic status, GSA schedule categories, and contract details.
           </p>
           <p className="text-xs text-amber-700">
-            Rate-limited to ~2 requests/second to respect .gov servers. Full scrape may take 2-4 hours depending on total contractors. Progress is saved continuously — you can close this panel and it will keep running.
+            Runs entirely server-side — your laptop can sleep and the scrape will continue automatically every 2 minutes. Progress is saved to the database.
           </p>
 
           {!gsaScraping && !gsaResult && (
@@ -1207,79 +1207,123 @@ export default function MasterSubDatabase() {
               <button
                 onClick={async () => {
                   setGsaScraping(true)
-                  setGsaProgress('Starting GSA eLibrary scrape...')
+                  setGsaProgress('Starting background scrape...')
                   setGsaResult(null)
-                  
-                  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
-                  let totalScraped = 0
-                  let totalInserted = 0
-                  let totalUpdated = 0
-                  let totalErrors = 0
-                  
-                  for (const letter of letters) {
-                    try {
-                      setGsaProgress(`Fetching contractor list for letter ${letter}...`)
-                      const listRes = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'list', letter })
-                      })
-                      const listData = await listRes.json()
-                      
-                      if (!listData.urls || listData.urls.length === 0) {
-                        setGsaProgress(`Letter ${letter}: No contractors found. Moving to next...`)
-                        continue
-                      }
-                      
-                      const urls = listData.urls
-                      const batchSize = 15
-                      
-                      for (let i = 0; i < urls.length; i += batchSize) {
-                        const batch = urls.slice(i, i + batchSize)
-                        setGsaProgress(`Letter ${letter}: Scraping ${i + 1}-${Math.min(i + batchSize, urls.length)} of ${urls.length} contractors... (Total: ${totalScraped} scraped, ${totalInserted} new, ${totalUpdated} updated)`)
-                        
-                        try {
-                          const scrapeRes = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'scrape', urls: batch })
-                          })
-                          const scrapeData = await scrapeRes.json()
-                          totalScraped += scrapeData.scraped || 0
-                          totalInserted += scrapeData.inserted || 0
-                          totalUpdated += scrapeData.updated || 0
-                          totalErrors += scrapeData.errors || 0
-                        } catch (e) {
-                          totalErrors += batch.length
-                        }
-                      }
-                    } catch (e) {
-                      setGsaProgress(`Error on letter ${letter}, continuing...`)
+                  try {
+                    const res = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'start' })
+                    })
+                    const data = await res.json()
+                    if (res.ok) {
+                      setGsaProgress(`Background scrape started. ${data.first_batch || ''} The server will process batches every 2 minutes automatically.`)
+                    } else {
+                      setGsaProgress(`Error: ${data.error}`)
+                      setGsaScraping(false)
                     }
+                  } catch (e: any) {
+                    setGsaProgress(`Error: ${e.message}`)
+                    setGsaScraping(false)
                   }
-                  
-                  setGsaScraping(false)
-                  setGsaResult({ scraped: totalScraped, inserted: totalInserted, updated: totalUpdated, errors: totalErrors })
-                  setGsaProgress('')
-                  fetchStats()
                 }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium"
               >
-                <Database size={18} /> Start Full A–Z Scrape
+                <Database size={18} /> Start Full A–Z Background Scrape
+              </button>
+              <button
+                onClick={async () => {
+                  setGsaScraping(true)
+                  setGsaProgress('Checking scrape status...')
+                  try {
+                    const res = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'status' })
+                    })
+                    const data = await res.json()
+                    if (data.status === 'running') {
+                      const pct = data.letters_completed ? Math.round((data.letters_completed.length / 26) * 100) : 0
+                      setGsaProgress(`Running — Letter ${data.current_letter} (${data.current_url_index}/${data.urls_in_letter} in letter). Letters done: ${(data.letters_completed || []).join(', ') || 'none'} (${pct}%). Total: ${data.total_scraped} scraped, ${data.total_inserted} new, ${data.total_updated} updated, ${data.total_errors} errors.`)
+                    } else if (data.status === 'complete') {
+                      setGsaScraping(false)
+                      setGsaResult({ scraped: data.total_scraped, inserted: data.total_inserted, updated: data.total_updated, errors: data.total_errors })
+                      setGsaProgress('')
+                    } else if (data.status === 'stopped') {
+                      setGsaProgress(`Scrape was stopped. Total: ${data.total_scraped} scraped, ${data.total_inserted} new, ${data.total_updated} updated.`)
+                      setGsaScraping(false)
+                    } else {
+                      setGsaProgress('No active scrape job found.')
+                      setGsaScraping(false)
+                    }
+                  } catch (e: any) {
+                    setGsaProgress(`Error checking status: ${e.message}`)
+                    setGsaScraping(false)
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100 text-sm"
+              >
+                <RefreshCw size={16} /> Check Status
               </button>
             </div>
           )}
 
           {gsaScraping && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2 text-amber-800 text-sm">
                 <Loader2 size={16} className="animate-spin" />
-                {gsaProgress}
+                <span className="flex-1">{gsaProgress}</span>
               </div>
-              <div className="w-full bg-amber-200 rounded-full h-2">
-                <div className="bg-amber-600 h-2 rounded-full transition-all" style={{ width: '50%' }} />
+              <p className="text-xs text-green-700 font-medium">Server-side processing — safe to close your laptop. The scrape continues automatically every 2 minutes.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'status' })
+                      })
+                      const data = await res.json()
+                      if (data.status === 'running') {
+                        const pct = data.letters_completed ? Math.round((data.letters_completed.length / 26) * 100) : 0
+                        setGsaProgress(`Running — Letter ${data.current_letter} (${data.current_url_index}/${data.urls_in_letter} in letter). Letters done: ${(data.letters_completed || []).join(', ') || 'none'} (${pct}%). Total: ${data.total_scraped} scraped, ${data.total_inserted} new, ${data.total_updated} updated, ${data.total_errors} errors.`)
+                      } else if (data.status === 'complete') {
+                        setGsaScraping(false)
+                        setGsaResult({ scraped: data.total_scraped, inserted: data.total_inserted, updated: data.total_updated, errors: data.total_errors })
+                        setGsaProgress('')
+                        fetchStats()
+                      } else {
+                        setGsaProgress(`Status: ${data.status || 'unknown'}`)
+                        setGsaScraping(false)
+                      }
+                    } catch (e: any) {
+                      setGsaProgress(`Error: ${e.message}`)
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100 text-sm"
+                >
+                  <RefreshCw size={14} /> Refresh Status
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await fetch('/.netlify/functions/gsa-elibrary-scrape', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'stop' })
+                      })
+                      setGsaProgress('Scrape stopped.')
+                      setGsaScraping(false)
+                    } catch (e: any) {
+                      setGsaProgress(`Error stopping: ${e.message}`)
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm"
+                >
+                  <X size={14} /> Stop Scrape
+                </button>
               </div>
-              <p className="text-xs text-amber-600">Do not close the browser tab. The scrape will continue automatically.</p>
             </div>
           )}
 
