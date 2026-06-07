@@ -37,6 +37,8 @@ interface MasterSub {
   match_count: number
   view_count: number
   created_at: string
+  source_id: string | null
+  sam_expiration_date: string | null
 }
 
 const US_STATES = [
@@ -1706,6 +1708,11 @@ export default function MasterSubDatabase() {
                           <Star size={12} /> Small Biz
                         </span>
                       )}
+                      {sub.source_id?.startsWith('gsa:') && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <ShieldCheck size={12} /> GSA Verified
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                       {sub.city && sub.state && (
@@ -1730,19 +1737,34 @@ export default function MasterSubDatabase() {
                     )}
                   </div>
 
-                  {/* Profile Completeness */}
+                  {/* Profile Completeness — recalculate client-side for accuracy */}
+                  {(() => {
+                    const fields = [
+                      sub.company_name, sub.contact_email, sub.contact_phone,
+                      sub.city, sub.state, sub.website, sub.description,
+                      sub.naics_codes?.length > 0 ? 'yes' : null,
+                      sub.trade_categories?.length > 0 ? 'yes' : null,
+                      sub.sam_uei,
+                      sub.small_business_types?.length > 0 ? 'yes' : null,
+                      sub.source_id,
+                    ]
+                    const filled = fields.filter(f => f && String(f).length > 0).length
+                    const pct = Math.round((filled / fields.length) * 100)
+                    return (
                   <div className="text-center px-3">
-                    <div className="text-lg font-bold text-gray-700">{sub.profile_completeness}%</div>
+                    <div className="text-lg font-bold text-gray-700">{pct}%</div>
                     <div className="text-xs text-gray-400">Profile</div>
                     <div className="w-16 h-1.5 bg-gray-200 rounded-full mt-1">
                       <div className="h-full rounded-full transition-all"
                         style={{
-                          width: `${sub.profile_completeness}%`,
-                          backgroundColor: sub.profile_completeness >= 80 ? '#16a34a' : sub.profile_completeness >= 50 ? '#2563eb' : '#9ca3af',
+                          width: `${pct}%`,
+                          backgroundColor: pct >= 80 ? '#16a34a' : pct >= 50 ? '#2563eb' : '#9ca3af',
                         }}
                       />
                     </div>
                   </div>
+                    )
+                  })()}
 
                   {/* Small biz types */}
                   {sub.small_business_types && sub.small_business_types.length > 0 && (
@@ -1784,6 +1806,20 @@ export default function MasterSubDatabase() {
                         <span className="text-gray-700">{sub.cage_code || '—'}</span>
                       </div>
                     </div>
+                    {sub.source_id?.startsWith('gsa:') && (
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-xs text-gray-400 block">GSA Contract #</span>
+                          <span className="text-gray-700 font-mono text-xs">{sub.source_id.replace('gsa:', '')}</span>
+                        </div>
+                        {sub.sam_expiration_date && (
+                          <div>
+                            <span className="text-xs text-gray-400 block">Contract Expiration</span>
+                            <span className="text-gray-700">{new Date(sub.sam_expiration_date).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {sub.description && (
                       <div>
                         <span className="text-xs text-gray-400 block mb-1">Description</span>
@@ -1802,7 +1838,7 @@ export default function MasterSubDatabase() {
                     )}
                     <div className="flex items-center gap-3 text-xs text-gray-400 pt-2 border-t border-gray-200">
                       <span>Added: {new Date(sub.created_at).toLocaleDateString()}</span>
-                      <span>Source: {sub.data_source === 'sam_gov' ? 'SAM.gov' : sub.data_source}</span>
+                      <span>Source: {sub.source_id?.startsWith('gsa:') ? 'GSA eLibrary' : sub.data_source === 'sam_gov' ? 'SAM.gov' : sub.data_source === 'import' ? 'SBS Import' : sub.data_source}</span>
                       <span>Matches: {sub.match_count}</span>
                       <button onClick={(e) => { e.stopPropagation(); deleteSub(sub.id) }}
                         className="ml-auto text-red-500 hover:text-red-700 flex items-center gap-1">

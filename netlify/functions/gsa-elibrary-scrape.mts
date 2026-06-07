@@ -436,6 +436,18 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
           const parsed = new Date(data.contract_end_date)
           if (!isNaN(parsed.getTime())) updateFields.sam_expiration_date = parsed.toISOString().split('T')[0]
         }
+        // Recalculate profile completeness with enriched data
+        const completenessFields = [
+          data.company_name, data.contact_email || true, data.phone,
+          data.city, data.state, data.website,
+          data.gsa_categories.length > 0 ? 'yes' : null,
+          data.naics_codes.length > 0 ? 'yes' : null,
+          data.trade_categories.length > 0 ? 'yes' : null,
+          data.sam_uei,
+          data.small_business_types.length > 0 ? 'yes' : null,
+          data.contract_number,
+        ]
+        updateFields.profile_completeness = Math.round((completenessFields.filter(f => f && String(f).length > 0).length / completenessFields.length) * 100)
         
         if (Object.keys(updateFields).length > 0) {
           updateFields.updated_at = new Date().toISOString()
@@ -474,7 +486,7 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
           geographic_coverage: data.state ? [data.state] : [],
           description,
           source_id: data.contract_number ? `gsa:${data.contract_number}` : null,
-          data_source: 'import',
+          data_source: 'gsa_elibrary',
           verification_status: 'unverified',
         }
         // Store contract end date
@@ -482,6 +494,17 @@ async function processNextBatch(supabase: any): Promise<{ processed: boolean; me
           const parsed = new Date(data.contract_end_date)
           if (!isNaN(parsed.getTime())) insertRecord.sam_expiration_date = parsed.toISOString().split('T')[0]
         }
+        // Compute profile completeness
+        const completenessFields = [
+          data.company_name, data.contact_email, data.phone,
+          data.city, data.state, data.website, description,
+          data.naics_codes.length > 0 ? 'yes' : null,
+          data.trade_categories.length > 0 ? 'yes' : null,
+          data.sam_uei,
+          data.small_business_types.length > 0 ? 'yes' : null,
+          data.contract_number,
+        ]
+        insertRecord.profile_completeness = Math.round((completenessFields.filter(f => f && String(f).length > 0).length / completenessFields.length) * 100)
 
         const { error: insertErr } = await supabase.from('master_subcontractors').insert(insertRecord)
         if (insertErr) {
