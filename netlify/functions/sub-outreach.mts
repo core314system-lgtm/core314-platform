@@ -142,7 +142,7 @@ function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategori
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">
           Procuvex &mdash; Core314 Technologies LLC<br/>
-          1234 Innovation Drive, Jacksonville, FL 32256<br/>
+          456 Clinton Dr. Orange Park, FL 32073<br/>
           <a href="https://procuvex.com" style="color: #6b7280;">procuvex.com</a>
         </p>
         <p style="font-size: 11px; color: #d1d5db; text-align: center; margin-top: 12px;">
