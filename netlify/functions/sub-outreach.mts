@@ -11,6 +11,91 @@ function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
 }
 
+// High-demand trades based on SOW item analysis — primes actively seek these
+const HIGH_DEMAND_TRADES = [
+  "HVAC", "Plumbing", "Electrical", "Janitorial & Custodial", "Janitorial",
+  "Fire Life Safety", "Landscaping", "Security Systems", "Pest Control",
+  "Elevator Maintenance", "General Construction", "Roofing", "Painting & Coatings",
+  "Concrete & Masonry", "Environmental Services",
+]
+
+function computeOutreachPriority(sub: {
+  small_business_types?: string[] | null
+  trade_categories?: string[] | null
+  contact_phone?: string | null
+  naics_codes?: string[] | null
+  website?: string | null
+  description?: string | null
+  data_source?: string | null
+}): { score: number; tier: string; reasons: string[] } {
+  let score = 0
+  const reasons: string[] = []
+
+  // SBA certifications — primes need these for set-aside requirements (+40)
+  const sbaTypes = sub.small_business_types || []
+  const hasSba = sbaTypes.length > 0 && sbaTypes.some(t =>
+    ["8(a)", "SDVOSB", "WOSB", "EDWOSB", "HUBZone", "VOSB"].includes(t)
+  )
+  if (hasSba) {
+    score += 40
+    reasons.push("SBA certified")
+  }
+  // 8(a) bonus — most valuable set-aside
+  if (sbaTypes.includes("8(a)")) {
+    score += 10
+    reasons.push("8(a) program")
+  }
+
+  // Trade matches prime demand (+25)
+  const trades = sub.trade_categories || []
+  const matchesDemand = trades.some(t =>
+    HIGH_DEMAND_TRADES.some(d => t.toLowerCase().includes(d.toLowerCase()))
+  )
+  if (matchesDemand) {
+    score += 25
+    reasons.push("In-demand trade")
+  }
+
+  // Has both email AND phone — higher contactability (+15)
+  if (sub.contact_phone) {
+    score += 15
+    reasons.push("Phone available")
+  }
+
+  // Has NAICS codes — precise matching (+10)
+  if (sub.naics_codes && sub.naics_codes.length > 0) {
+    score += 10
+    reasons.push("NAICS coded")
+  }
+
+  // GSA verified contractor (+10)
+  if (sub.data_source === "gsa_elibrary") {
+    score += 10
+    reasons.push("GSA verified")
+  }
+
+  // Has website (+5)
+  if (sub.website) {
+    score += 5
+    reasons.push("Website")
+  }
+
+  // Has capabilities description (+5)
+  if (sub.description && sub.description.length > 20) {
+    score += 5
+    reasons.push("Capabilities")
+  }
+
+  // Determine tier
+  let tier: string
+  if (score >= 50) tier = "Tier 1 — High Priority"
+  else if (score >= 30) tier = "Tier 2 — Priority"
+  else if (score >= 15) tier = "Tier 3 — Standard"
+  else tier = "Tier 4 — Basic"
+
+  return { score, tier, reasons }
+}
+
 function generateToken(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   let token = ""
@@ -163,14 +248,15 @@ export default async (req: Request, _context: Context) => {
 
     const maxBatch = Math.min(batchLimit || 50, remainingToday, 200)
 
-    // Find unclaimed subs with email that haven't been contacted recently
+    // Fetch candidates with priority-relevant fields (fetch 5x batch for scoring)
+    const fetchSize = Math.min(maxBatch * 5, 1000)
     let query = supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_email, slug, trade_categories")
+      .select("id, company_name, contact_email, slug, trade_categories, state, outreach_email_count, small_business_types, contact_phone, naics_codes, website, description, data_source, unsubscribed")
       .is("claimed_at", null)
       .not("contact_email", "is", null)
       .order("created_at", { ascending: true })
-      .limit(maxBatch)
+      .limit(fetchSize)
 
     // Optional filters
     if (state) query = query.eq("state", state)
@@ -190,8 +276,20 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ sent: 0, message: "No eligible recipients found" }), { headers })
     }
 
-    // Filter out unsubscribed records (column may or may not exist yet)
-    const eligibleTargets = targets.filter((sub: any) => !(sub as any).unsubscribed)
+    // Filter out unsubscribed records and score by priority
+    const scored = targets
+      .filter((sub: any) => !sub.unsubscribed)
+      .map((sub: any) => ({ ...sub, priority: computeOutreachPriority(sub) }))
+      .sort((a: any, b: any) => b.priority.score - a.priority.score)
+
+    // Take top N by priority
+    const eligibleTargets = scored.slice(0, maxBatch)
+
+    // Compute tier distribution for response
+    const tierCounts: Record<string, number> = {}
+    for (const t of eligibleTargets) {
+      tierCounts[t.priority.tier] = (tierCounts[t.priority.tier] || 0) + 1
+    }
 
     let sent = 0
     let failed = 0
@@ -258,6 +356,10 @@ export default async (req: Request, _context: Context) => {
       sent_today: (sentToday || 0) + sent,
       remaining_today: remainingToday - sent,
       errors: errors.slice(0, 5),
+      priority_tiers: tierCounts,
+      avg_priority_score: eligibleTargets.length > 0
+        ? Math.round(eligibleTargets.reduce((sum: number, t: any) => sum + t.priority.score, 0) / eligibleTargets.length)
+        : 0,
     }), { headers })
   }
 
@@ -285,18 +387,19 @@ export default async (req: Request, _context: Context) => {
   }
 
   // --- ACTION: preview ---
-  // Preview outreach targets without sending
+  // Preview outreach targets with priority scoring
   if (action === "preview") {
     const { state, trade, limit: previewLimit } = body
     const maxPreview = Math.min(previewLimit || 50, 200)
+    const fetchSize = Math.min(maxPreview * 5, 1000)
 
     let query = supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_email, state, trade_categories, outreach_sent_at", { count: "exact" })
+      .select("id, company_name, contact_email, state, trade_categories, outreach_sent_at, small_business_types, contact_phone, naics_codes, website, description, data_source, unsubscribed", { count: "exact" })
       .is("claimed_at", null)
       .not("contact_email", "is", null)
       .order("created_at", { ascending: true })
-      .limit(maxPreview)
+      .limit(fetchSize)
 
     if (state) query = query.eq("state", state)
     if (trade) query = query.contains("trade_categories", [trade])
@@ -309,7 +412,75 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
     }
 
-    return new Response(JSON.stringify({ targets: data, total: count }), { headers })
+    // Score and sort by priority
+    const scored = (data || [])
+      .filter((sub: any) => !sub.unsubscribed)
+      .map((sub: any) => {
+        const priority = computeOutreachPriority(sub)
+        return {
+          id: sub.id,
+          company_name: sub.company_name,
+          contact_email: sub.contact_email,
+          state: sub.state,
+          trade_categories: sub.trade_categories,
+          outreach_sent_at: sub.outreach_sent_at,
+          priority_score: priority.score,
+          priority_tier: priority.tier,
+          priority_reasons: priority.reasons,
+        }
+      })
+      .sort((a: any, b: any) => b.priority_score - a.priority_score)
+      .slice(0, maxPreview)
+
+    // Tier summary
+    const tierCounts: Record<string, number> = {}
+    for (const t of scored) {
+      tierCounts[t.priority_tier] = (tierCounts[t.priority_tier] || 0) + 1
+    }
+
+    return new Response(JSON.stringify({
+      targets: scored,
+      total: count,
+      priority_tiers: tierCounts,
+    }), { headers })
+  }
+
+  // --- ACTION: priority-stats ---
+  // Get priority tier distribution for all eligible outreach targets
+  if (action === "priority-stats") {
+    const fetchSize = 2000
+    const { data, error } = await supabase
+      .from("master_subcontractors")
+      .select("small_business_types, trade_categories, contact_phone, naics_codes, website, description, data_source, unsubscribed")
+      .is("claimed_at", null)
+      .not("contact_email", "is", null)
+      .is("outreach_sent_at", null)
+      .limit(fetchSize)
+
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
+    }
+
+    const tiers: Record<string, number> = {
+      "Tier 1 — High Priority": 0,
+      "Tier 2 — Priority": 0,
+      "Tier 3 — Standard": 0,
+      "Tier 4 — Basic": 0,
+    }
+    let totalScore = 0
+    const eligible = (data || []).filter((s: any) => !s.unsubscribed)
+    for (const sub of eligible) {
+      const { score, tier } = computeOutreachPriority(sub)
+      tiers[tier] = (tiers[tier] || 0) + 1
+      totalScore += score
+    }
+
+    return new Response(JSON.stringify({
+      total_eligible: eligible.length,
+      sampled: fetchSize,
+      tiers,
+      avg_priority_score: eligible.length > 0 ? Math.round(totalScore / eligible.length) : 0,
+    }), { headers })
   }
 
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers })
