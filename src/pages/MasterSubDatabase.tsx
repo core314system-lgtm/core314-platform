@@ -128,6 +128,8 @@ export default function MasterSubDatabase() {
   const [showEmailDetails, setShowEmailDetails] = useState(false)
 
   // SBS Import state
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState('')
   const [showSbsImport, setShowSbsImport] = useState(false)
   const [sbsUploading, setSbsUploading] = useState(false)
   const [sbsProgress, setSbsProgress] = useState('')
@@ -582,22 +584,48 @@ export default function MasterSubDatabase() {
   }
 
   async function exportCSV() {
-    const { data } = await supabase.from('master_subcontractors').select('*').order('company_name')
-    if (!data || data.length === 0) return
-    const headers = ['Company Name', 'Email', 'Phone', 'City', 'State', 'SAM UEI', 'CAGE', 'NAICS Codes', 'Trade Categories', 'Small Business Types', 'Verification', 'Profile %', 'Website']
-    const rows = data.map(s => [
-      s.company_name, s.contact_email || '', s.contact_phone || '', s.city || '', s.state || '',
-      s.sam_uei || '', s.cage_code || '', (s.naics_codes || []).join('; '), (s.trade_categories || []).join('; '),
-      (s.small_business_types || []).join('; '), s.verification_status, s.profile_completeness, s.website || '',
-    ])
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `procuvex-master-subs-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    setExporting(true)
+    setExportProgress('Fetching records...')
+    try {
+      const PAGE_SIZE = 1000
+      const allData: any[] = []
+      let from = 0
+      let hasMore = true
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('master_subcontractors')
+          .select('*')
+          .order('company_name')
+          .range(from, from + PAGE_SIZE - 1)
+        if (error) throw error
+        if (!data || data.length === 0) { hasMore = false; break }
+        allData.push(...data)
+        setExportProgress(`Fetched ${allData.length.toLocaleString()} records...`)
+        from += PAGE_SIZE
+        if (data.length < PAGE_SIZE) hasMore = false
+      }
+      if (allData.length === 0) { setExporting(false); setExportProgress(''); return }
+      setExportProgress(`Building CSV for ${allData.length.toLocaleString()} records...`)
+      const headers = ['Company Name', 'Email', 'Phone', 'City', 'State', 'SAM UEI', 'CAGE', 'NAICS Codes', 'Trade Categories', 'Small Business Types', 'Verification', 'Profile %', 'Website']
+      const rows = allData.map(s => [
+        s.company_name, s.contact_email || '', s.contact_phone || '', s.city || '', s.state || '',
+        s.sam_uei || '', s.cage_code || '', (s.naics_codes || []).join('; '), (s.trade_categories || []).join('; '),
+        (s.small_business_types || []).join('; '), s.verification_status, s.profile_completeness, s.website || '',
+      ])
+      const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `procuvex-master-subs-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setExporting(false)
+      setExportProgress('')
+    }
   }
 
   async function previewOutreach() {
@@ -757,9 +785,10 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50">
             <Trash2 size={16} /> Delete All
           </button>
-          <button onClick={exportCSV}
-            className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Download size={16} /> Export CSV
+          <button onClick={exportCSV} disabled={exporting}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+            {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+            {exporting ? exportProgress || 'Exporting...' : 'Export CSV'}
           </button>
           <button onClick={enrichContacts} disabled={enriching}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50">
