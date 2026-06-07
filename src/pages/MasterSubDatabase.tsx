@@ -37,6 +37,8 @@ interface MasterSub {
   match_count: number
   view_count: number
   created_at: string
+  source_id: string | null
+  sam_expiration_date: string | null
 }
 
 const US_STATES = [
@@ -114,6 +116,7 @@ export default function MasterSubDatabase() {
   const [outreachSending, setOutreachSending] = useState(false)
   const [outreachResult, setOutreachResult] = useState<any>(null)
   const [outreachPreview, setOutreachPreview] = useState<any>(null)
+  const [priorityStats, setPriorityStats] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [enriching, setEnriching] = useState(false)
@@ -816,6 +819,45 @@ export default function MasterSubDatabase() {
             Send claim invitation emails to unclaimed subcontractors with email addresses.
             Each email contains a unique claim link valid for 90 days.
           </p>
+          <div className="bg-white border border-green-200 rounded-lg p-3">
+            <p className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
+              <TrendingUp size={12} /> Priority-Based Sending
+            </p>
+            <p className="text-xs text-gray-500">
+              Outreach is sent to the highest-value subs first: SBA-certified contractors (8(a), SDVOSB, WOSB, HUBZone), 
+              in-demand trades (HVAC, Electrical, Plumbing, etc.), and subs with the most complete data. 
+              This ensures primes get the most relevant matches when they search.
+            </p>
+            {!priorityStats && (
+              <button onClick={async () => {
+                const res = await fetch('/.netlify/functions/sub-outreach', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'x-user-id': profile?.id || '' },
+                  body: JSON.stringify({ action: 'priority-stats' }),
+                })
+                setPriorityStats(await res.json())
+              }} className="mt-2 text-xs text-green-700 underline hover:text-green-900">View priority breakdown</button>
+            )}
+            {priorityStats && (
+              <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+                {Object.entries(priorityStats.tiers || {}).map(([tier, count]: [string, any]) => {
+                  const label = tier.split(' \u2014 ')[1] || tier
+                  const colors: Record<string, string> = {
+                    'High Priority': 'bg-red-50 text-red-700 border-red-200',
+                    'Priority': 'bg-amber-50 text-amber-700 border-amber-200',
+                    'Standard': 'bg-blue-50 text-blue-700 border-blue-200',
+                    'Basic': 'bg-gray-50 text-gray-600 border-gray-200',
+                  }
+                  return (
+                    <div key={tier} className={`rounded-lg border p-2 ${colors[label] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                      <p className="text-lg font-bold">{Number(count).toLocaleString()}</p>
+                      <p className="text-[10px] font-medium">{label}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -861,14 +903,41 @@ export default function MasterSubDatabase() {
 
           {outreachPreview && (
             <div className="bg-white border border-green-200 rounded-lg p-3 text-sm">
-              <p className="font-medium text-green-800 mb-2">{outreachPreview.total} eligible recipients found</p>
-              {outreachPreview.targets?.slice(0, 5).map((t: any) => (
-                <div key={t.id} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
-                  <span className="text-gray-700">{t.company_name}</span>
-                  <span className="text-gray-400 text-xs">{t.contact_email} • {t.state}</span>
+              <p className="font-medium text-green-800 mb-2">{outreachPreview.total?.toLocaleString()} eligible recipients found (sorted by priority)</p>
+              {outreachPreview.priority_tiers && (
+                <div className="flex gap-2 mb-2 flex-wrap">
+                  {Object.entries(outreachPreview.priority_tiers).map(([tier, count]: [string, any]) => {
+                    const label = tier.split(' \u2014 ')[1] || tier
+                    const colors: Record<string, string> = {
+                      'High Priority': 'bg-red-100 text-red-700',
+                      'Priority': 'bg-amber-100 text-amber-700',
+                      'Standard': 'bg-blue-100 text-blue-700',
+                      'Basic': 'bg-gray-100 text-gray-600',
+                    }
+                    return <span key={tier} className={`px-2 py-0.5 rounded text-xs font-medium ${colors[label] || 'bg-gray-100'}`}>{label}: {count}</span>
+                  })}
+                </div>
+              )}
+              {outreachPreview.targets?.slice(0, 8).map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block w-2 h-2 rounded-full ${
+                      t.priority_score >= 50 ? 'bg-red-500' :
+                      t.priority_score >= 30 ? 'bg-amber-500' :
+                      t.priority_score >= 15 ? 'bg-blue-500' : 'bg-gray-400'
+                    }`} />
+                    <span className="text-gray-700">{t.company_name}</span>
+                    <span className="text-[10px] text-gray-400">({t.priority_score} pts)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {t.priority_reasons?.slice(0, 3).map((r: string) => (
+                      <span key={r} className="text-[10px] bg-green-50 text-green-700 px-1.5 py-0.5 rounded">{r}</span>
+                    ))}
+                    <span className="text-gray-400 text-xs">{t.state}</span>
+                  </div>
                 </div>
               ))}
-              {outreachPreview.total > 5 && <p className="text-xs text-gray-400 mt-1">...and {outreachPreview.total - 5} more</p>}
+              {outreachPreview.total > 8 && <p className="text-xs text-gray-400 mt-1">...and {(outreachPreview.total - 8).toLocaleString()} more</p>}
             </div>
           )}
 
@@ -877,10 +946,23 @@ export default function MasterSubDatabase() {
               {outreachResult.error ? (
                 <p>{outreachResult.error}</p>
               ) : (
-                <p>
-                  <strong>{outreachResult.sent}</strong> emails sent successfully
-                  {outreachResult.failed > 0 && <>, <strong>{outreachResult.failed}</strong> failed</>}
-                </p>
+                <>
+                  <p>
+                    <strong>{outreachResult.sent}</strong> emails sent successfully
+                    {outreachResult.failed > 0 && <>, <strong>{outreachResult.failed}</strong> failed</>}
+                    {outreachResult.avg_priority_score > 0 && (
+                      <span className="ml-2 text-green-600">• Avg priority: {outreachResult.avg_priority_score} pts</span>
+                    )}
+                  </p>
+                  {outreachResult.priority_tiers && (
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {Object.entries(outreachResult.priority_tiers).map(([tier, count]: [string, any]) => {
+                        const label = tier.split(' \u2014 ')[1] || tier
+                        return <span key={tier} className="text-xs text-green-600">{label}: {count}</span>
+                      })}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1626,6 +1708,11 @@ export default function MasterSubDatabase() {
                           <Star size={12} /> Small Biz
                         </span>
                       )}
+                      {sub.source_id?.startsWith('gsa:') && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <ShieldCheck size={12} /> GSA Verified
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                       {sub.city && sub.state && (
@@ -1650,19 +1737,34 @@ export default function MasterSubDatabase() {
                     )}
                   </div>
 
-                  {/* Profile Completeness */}
+                  {/* Profile Completeness — recalculate client-side for accuracy */}
+                  {(() => {
+                    const fields = [
+                      sub.company_name, sub.contact_email, sub.contact_phone,
+                      sub.city, sub.state, sub.website, sub.description,
+                      sub.naics_codes?.length > 0 ? 'yes' : null,
+                      sub.trade_categories?.length > 0 ? 'yes' : null,
+                      sub.sam_uei,
+                      sub.small_business_types?.length > 0 ? 'yes' : null,
+                      sub.source_id,
+                    ]
+                    const filled = fields.filter(f => f && String(f).length > 0).length
+                    const pct = Math.round((filled / fields.length) * 100)
+                    return (
                   <div className="text-center px-3">
-                    <div className="text-lg font-bold text-gray-700">{sub.profile_completeness}%</div>
+                    <div className="text-lg font-bold text-gray-700">{pct}%</div>
                     <div className="text-xs text-gray-400">Profile</div>
                     <div className="w-16 h-1.5 bg-gray-200 rounded-full mt-1">
                       <div className="h-full rounded-full transition-all"
                         style={{
-                          width: `${sub.profile_completeness}%`,
-                          backgroundColor: sub.profile_completeness >= 80 ? '#16a34a' : sub.profile_completeness >= 50 ? '#2563eb' : '#9ca3af',
+                          width: `${pct}%`,
+                          backgroundColor: pct >= 80 ? '#16a34a' : pct >= 50 ? '#2563eb' : '#9ca3af',
                         }}
                       />
                     </div>
                   </div>
+                    )
+                  })()}
 
                   {/* Small biz types */}
                   {sub.small_business_types && sub.small_business_types.length > 0 && (
@@ -1704,6 +1806,20 @@ export default function MasterSubDatabase() {
                         <span className="text-gray-700">{sub.cage_code || '—'}</span>
                       </div>
                     </div>
+                    {sub.source_id?.startsWith('gsa:') && (
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-xs text-gray-400 block">GSA Contract #</span>
+                          <span className="text-gray-700 font-mono text-xs">{sub.source_id.replace('gsa:', '')}</span>
+                        </div>
+                        {sub.sam_expiration_date && (
+                          <div>
+                            <span className="text-xs text-gray-400 block">Contract Expiration</span>
+                            <span className="text-gray-700">{new Date(sub.sam_expiration_date).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {sub.description && (
                       <div>
                         <span className="text-xs text-gray-400 block mb-1">Description</span>
@@ -1722,7 +1838,7 @@ export default function MasterSubDatabase() {
                     )}
                     <div className="flex items-center gap-3 text-xs text-gray-400 pt-2 border-t border-gray-200">
                       <span>Added: {new Date(sub.created_at).toLocaleDateString()}</span>
-                      <span>Source: {sub.data_source === 'sam_gov' ? 'SAM.gov' : sub.data_source}</span>
+                      <span>Source: {sub.source_id?.startsWith('gsa:') ? 'GSA eLibrary' : sub.data_source === 'sam_gov' ? 'SAM.gov' : sub.data_source === 'import' ? 'SBS Import' : sub.data_source}</span>
                       <span>Matches: {sub.match_count}</span>
                       <button onClick={(e) => { e.stopPropagation(); deleteSub(sub.id) }}
                         className="ml-auto text-red-500 hover:text-red-700 flex items-center gap-1">
