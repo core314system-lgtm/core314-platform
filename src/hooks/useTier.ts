@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useOrg } from '../contexts/OrgContext'
+import { useOrgSafe } from '../contexts/OrgContext'
 import { supabase } from '../lib/supabase'
 
 export type TierPlan = 'growth' | 'enterprise' | 'none'
@@ -50,7 +50,8 @@ interface TierInfo {
 }
 
 export function useTier(): TierInfo {
-  const { currentOrg } = useOrg()
+  const orgCtx = useOrgSafe()
+  const currentOrg = orgCtx?.currentOrg ?? null
   const [plan, setPlan] = useState<TierPlan>('none')
   const [status, setStatus] = useState<SubStatus>('no_subscription')
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null)

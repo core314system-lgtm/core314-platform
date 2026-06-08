@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { useOrg } from '../contexts/OrgContext'
+import { useOrgSafe } from '../contexts/OrgContext'
 import { useTier } from './useTier'
 
 interface SubConnectionsInfo {
@@ -22,7 +22,8 @@ const CONNECTION_LIMITS: Record<string, number> = {
 
 export function useSubConnections(): SubConnectionsInfo {
   const { user, profile } = useAuth()
-  const { currentOrg } = useOrg()
+  const orgCtx = useOrgSafe()
+  const currentOrg = orgCtx?.currentOrg ?? null
   const { plan } = useTier()
   const [connectedSubIds, setConnectedSubIds] = useState<Set<string>>(new Set())
   const [connectionsUsedThisMonth, setConnectionsUsedThisMonth] = useState(0)
