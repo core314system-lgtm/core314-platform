@@ -114,8 +114,12 @@ export default function SubcontractorPortal() {
     try {
       const resp = await fetch(`/api/portal-api?token=${token}`)
       if (!resp.ok) {
-        const err = await resp.json()
-        setError(err.error || 'Failed to load portal data')
+        try {
+          const err = await resp.json()
+          setError(err.error || 'Failed to load portal data')
+        } catch {
+          setError(`Failed to load portal data (${resp.status})`)
+        }
         return
       }
       const portalData = await resp.json()
@@ -187,34 +191,71 @@ export default function SubcontractorPortal() {
         }
       }
 
-      const resp = await fetch('/api/portal-api', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          action: 'submit_quote',
-          quote_data: quoteData,
-          custom_fields: customFields,
-          incumbent_data: incumbentStatus ? {
-            is_incumbent: incumbentStatus === 'yes',
-            incumbent_locations: incumbentLocations.trim() || null,
-            incumbent_contract_info: incumbentContractInfo.trim() || null,
-            incumbent_years: incumbentYears.trim() || null,
-          } : undefined,
-          is_revision: showReviseQuote,
-        }),
-      })
+      const payload = {
+        token,
+        action: 'submit_quote',
+        quote_data: quoteData,
+        custom_fields: customFields,
+        incumbent_data: incumbentStatus ? {
+          is_incumbent: incumbentStatus === 'yes',
+          incumbent_locations: incumbentLocations.trim() || null,
+          incumbent_contract_info: incumbentContractInfo.trim() || null,
+          incumbent_years: incumbentYears.trim() || null,
+        } : undefined,
+        is_revision: showReviseQuote,
+      }
+
+      let resp: Response | null = null
+      let lastErr = ''
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          resp = await fetch('/api/portal-api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          break
+        } catch {
+          lastErr = 'Network error — please check your connection and try again.'
+          if (attempt === 0) await new Promise(r => setTimeout(r, 1000))
+        }
+      }
+
+      if (!resp) {
+        setError(lastErr)
+        return
+      }
 
       if (!resp.ok) {
-        const err = await resp.json()
-        setError(err.error || 'Failed to submit quote')
+        try {
+          const err = await resp.json()
+          setError(err.error || `Server error (${resp.status}). Please try again.`)
+        } catch {
+          setError(`Server error (${resp.status}). Please try again.`)
+        }
         return
+      }
+
+      const result = await resp.json()
+
+      // Update displayed quote with new values
+      if (data) {
+        setData({
+          ...data,
+          existing_quote: {
+            ...data.existing_quote,
+            ...quoteData,
+            id: result.quote_id,
+            is_revision: showReviseQuote,
+            submitted_at: new Date().toISOString(),
+          },
+        })
       }
 
       setSubmitted(true)
       setShowReviseQuote(false)
-    } catch {
-      setError('Failed to submit quote. Please try again.')
+    } catch (e) {
+      setError(`Failed to submit quote: ${e instanceof Error ? e.message : 'Unknown error'}. Please try again.`)
     } finally {
       setSubmitting(false)
     }
