@@ -56,6 +56,7 @@ import DocumentLibrary from './pages/DocumentLibrary'
 import AiAuditLog from './pages/AiAuditLog'
 import MasterSubDatabase from './pages/MasterSubDatabase'
 import FindSubcontractors from './pages/FindSubcontractors'
+import OrgSubcontractors from './pages/OrgSubcontractors'
 import ClaimProfile from './pages/ClaimProfile'
 import MySubProfile from './pages/MySubProfile'
 import AdminVerificationReview from './pages/AdminVerificationReview'
@@ -274,6 +275,7 @@ export default function App() {
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
           <Route path="/master-subs" element={<ProtectedRoute><MasterSubDatabase /></ProtectedRoute>} />
           <Route path="/find-subs" element={<ProtectedRoute><FindSubcontractors /></ProtectedRoute>} />
+          <Route path="/my-subs" element={<ProtectedRoute><OrgSubcontractors /></ProtectedRoute>} />
           <Route path="/my-sub-profile" element={<ProtectedRoute><MySubProfile /></ProtectedRoute>} />
           <Route path="/verification-review" element={<ProtectedRoute><AdminVerificationReview /></ProtectedRoute>} />
 

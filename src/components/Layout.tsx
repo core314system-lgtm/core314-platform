@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Users,
   Building,
+  Building2,
   Shield,
   GitCompareArrows,
   Brain,
@@ -81,6 +82,7 @@ const navGroups: NavGroup[] = [
     icon: Network,
     items: [
       { path: '/subcontractors', label: 'Subcontractors', icon: Users },
+      { path: '/my-subs', label: 'My Subcontractors', icon: Building2 },
       { path: '/find-subs', label: 'Find Subcontractors', icon: ScanSearch },
       { path: '/my-sub-profile', label: 'My Sub Profile', icon: BadgeCheck },
       { path: '/verification-review', label: 'Verification Review', icon: ShieldCheck, adminOnly: true },

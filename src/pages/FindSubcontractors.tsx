@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabase'
 import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
 import { useTier } from '../hooks/useTier'
 import { useAuth } from '../contexts/AuthContext'
+import { useOrg } from '../contexts/OrgContext'
 import { useSubConnections } from '../hooks/useSubConnections'
 import { maskEmail, maskPhone } from '../lib/contactMasking'
 import {
   Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
-  Database, Building, Globe, Star, Filter, Zap, Send, CheckCircle, Unlock,
+  Database, Building, Building2, Globe, Star, Filter, Zap, Send, CheckCircle, Unlock,
 } from 'lucide-react'
 
 interface SubResult {
@@ -33,6 +34,7 @@ interface SubResult {
   capability_statement_path?: string | null
   address_line1?: string | null
   sam_uei?: string | null
+  _source?: 'master' | 'org' // Source indicator for UI badges
 }
 
 function computeDataQuality(sub: SubResult): { score: number; label: string; color: string } {
@@ -87,6 +89,7 @@ const PAGE_SIZE = 20
 export default function FindSubcontractors() {
   const { isEnterprise } = useTier()
   const { user, profile } = useAuth()
+  const { currentOrg } = useOrg()
   const { isConnected, connect, connectionsUsedThisMonth, connectionsLimit, canConnect } = useSubConnections()
   const isAdmin = profile?.is_global_admin === true
   const [connectingId, setConnectingId] = useState<string | null>(null)
@@ -99,6 +102,7 @@ export default function FindSubcontractors() {
   const [filterTrade, setFilterTrade] = useState('')
   const [filterVerified, setFilterVerified] = useState(false)
   const [filterSmallBiz, setFilterSmallBiz] = useState(false)
+  const [includeOrgSubs, setIncludeOrgSubs] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(0)
   const [stats, setStats] = useState({ total: 0, verified: 0, trades: 0 })
@@ -181,13 +185,66 @@ export default function FindSubcontractors() {
 
     const { data, count, error } = await query
 
+    // Also search org subs if toggle is on
+    let orgResults: SubResult[] = []
+    if (includeOrgSubs && currentOrg) {
+      let orgQuery = supabase
+        .from('org_subcontractors')
+        .select('id, company_name, contact_name, contact_email, contact_phone, city, state, trade_categories, naics_codes, small_business, small_business_types, website, notes')
+        .eq('org_id', currentOrg.id)
+
+      if (search.trim()) {
+        orgQuery = orgQuery.ilike('company_name', `%${search.trim()}%`)
+      }
+      if (filterState) {
+        orgQuery = orgQuery.eq('state', filterState)
+      }
+      if (filterTrade) {
+        orgQuery = orgQuery.contains('trade_categories', [filterTrade])
+      }
+      if (filterSmallBiz) {
+        orgQuery = orgQuery.eq('small_business', true)
+      }
+
+      orgQuery = orgQuery.order('company_name').limit(PAGE_SIZE)
+
+      const { data: orgData } = await orgQuery
+      orgResults = (orgData || []).map(s => ({
+        id: s.id,
+        company_name: s.company_name,
+        slug: '',
+        city: s.city,
+        state: s.state,
+        trade_categories: s.trade_categories || [],
+        small_business: s.small_business || false,
+        small_business_types: s.small_business_types || [],
+        verification_status: 'org_private',
+        profile_completeness: 0,
+        website: s.website,
+        naics_codes: s.naics_codes || [],
+        geographic_coverage: [],
+        contact_email: s.contact_email,
+        contact_phone: s.contact_phone,
+        contact_name: s.contact_name,
+        description: s.notes,
+        _source: 'org' as const,
+      }))
+    }
+
     if (!error) {
-      setResults(data || [])
-      setTotalCount(count || 0)
+      // Tag master results with source
+      const masterResults = (data || []).map(s => ({ ...s, _source: 'master' as const }))
+      // Merge: org subs first (on page 0), then master
+      if (pageNum === 0 && orgResults.length > 0) {
+        setResults([...orgResults, ...masterResults])
+      } else {
+        setResults(masterResults)
+      }
+      setTotalCount((count || 0) + orgResults.length)
       setPage(pageNum)
     }
     setLoading(false)
-  }, [search, filterState, filterTrade, filterVerified, filterSmallBiz])
+  }, [search, filterState, filterTrade, filterVerified, filterSmallBiz, includeOrgSubs, currentOrg])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -290,6 +347,19 @@ export default function FindSubcontractors() {
             <Star size={14} className="text-amber-500" />
             Small Business
           </label>
+
+          {currentOrg && (
+            <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer ml-2 pl-2 border-l">
+              <input
+                type="checkbox"
+                checked={includeOrgSubs}
+                onChange={e => setIncludeOrgSubs(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Building2 size={14} className="text-indigo-500" />
+              Include My Subcontractors
+            </label>
+          )}
         </div>
       </form>
 
@@ -576,16 +646,35 @@ export default function FindSubcontractors() {
           </div>
 
           {results.map(sub => (
-            <div key={sub.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+            <div key={sub.id} className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${sub._source === 'org' ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-200'}`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <Link
-                      to={`/sub/${sub.slug}`}
-                      className="text-base font-semibold text-gray-900 hover:text-blue-600 truncate"
-                    >
-                      {sub.company_name}
-                    </Link>
+                    {sub._source === 'org' ? (
+                      <Link
+                        to="/my-subs"
+                        className="text-base font-semibold text-gray-900 hover:text-indigo-600 truncate"
+                      >
+                        {sub.company_name}
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/sub/${sub.slug}`}
+                        className="text-base font-semibold text-gray-900 hover:text-blue-600 truncate"
+                      >
+                        {sub.company_name}
+                      </Link>
+                    )}
+                    {/* Source badge */}
+                    {sub._source === 'org' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                        <Building2 size={12} /> Your Database
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                        <Database size={12} /> Procuvex Network
+                      </span>
+                    )}
                     {sub.verification_status === 'verified' && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                         <BadgeCheck size={12} /> Verified
