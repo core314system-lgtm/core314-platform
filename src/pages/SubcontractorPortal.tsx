@@ -141,6 +141,31 @@ export default function SubcontractorPortal() {
       }
     }
 
+    // Scope Inclusions must be detailed — reject vague/insufficient responses
+    const scopeVal = formValues['scope_inclusions']?.trim() || ''
+    if (scopeVal) {
+      const vaguePatterns = [
+        /^everything\s+(in|per|from|as)\s+(the|this)?\s*(scope|sow|statement|rfp|rfq|solicitation|contract|work)/i,
+        /^as\s+(per|described|stated|outlined|noted|specified)/i,
+        /^see\s+(scope|sow|statement|attached|above|rfp)/i,
+        /^per\s+(the|this)?\s*(scope|sow|statement|rfp|contract)/i,
+        /^all\s+(work|items|services|tasks)\s+(in|per|from|as)/i,
+        /^included$/i,
+        /^yes$/i,
+        /^n\/a$/i,
+        /^same\s+as/i,
+        /^refer\s+to/i,
+      ]
+      if (vaguePatterns.some(p => p.test(scopeVal))) {
+        setError('"Scope Inclusions" must detail your specific understanding of the scope of work. Generic responses like "Everything in the SOW" are not sufficient. Please list the specific services, tasks, and deliverables your quote covers.')
+        return
+      }
+      if (scopeVal.length < 100) {
+        setError('"Scope Inclusions" requires a detailed response (minimum 100 characters). Please describe the specific services, tasks, deliverables, and requirements your quote addresses so your pricing accurately reflects the scope of work.')
+        return
+      }
+    }
+
     setSubmitting(true)
     setError('')
 
@@ -547,17 +572,35 @@ export default function SubcontractorPortal() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
                       </label>
-                      {field.help_text && (
+                      {field.default_field_key === 'scope_inclusions' ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
+                          <p className="text-xs text-amber-800 font-medium mb-1">⚠ Detailed Response Required</p>
+                          <p className="text-xs text-amber-700">You must describe your specific understanding of the scope of work in detail. Responses such as &quot;Everything in the statement of work&quot; or &quot;Per the SOW&quot; will not be accepted. Your description should demonstrate a clear understanding of the requirements and list the specific services, tasks, and deliverables your pricing covers. This ensures your quote is compliant and accurately reflects the scope.</p>
+                        </div>
+                      ) : field.help_text ? (
                         <p className="text-xs text-gray-400 mb-1">{field.help_text}</p>
-                      )}
+                      ) : null}
                       {field.field_type === 'textarea' ? (
+                        <>
                         <textarea
                           value={formValues[field.default_field_key || field.id] || ''}
                           onChange={e => setFormValues(prev => ({ ...prev, [field.default_field_key || field.id]: e.target.value }))}
-                          placeholder={field.placeholder || ''}
-                          rows={3}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder={field.default_field_key === 'scope_inclusions'
+                            ? 'Detail your understanding of the scope of work. List specific services, tasks, deliverables, staffing requirements, equipment, schedules, and any other items your pricing includes. Be specific — vague responses will be rejected.'
+                            : (field.placeholder || '')}
+                          rows={field.default_field_key === 'scope_inclusions' ? 6 : 3}
+                          className={`w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                            field.default_field_key === 'scope_inclusions' ? 'border-amber-300' : 'border-gray-300'
+                          }`}
                         />
+                        {field.default_field_key === 'scope_inclusions' && (
+                          <p className={`text-xs mt-1 ${
+                            (formValues['scope_inclusions']?.length || 0) < 100 ? 'text-red-500' : 'text-green-600'
+                          }`}>
+                            {formValues['scope_inclusions']?.length || 0} / 100 characters minimum
+                          </p>
+                        )}
+                        </>
                       ) : field.field_type === 'select' && field.options ? (
                         <select
                           value={formValues[field.default_field_key || field.id] || ''}
