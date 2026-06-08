@@ -122,10 +122,10 @@ function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategori
           A company profile has been created for your business within the Procuvex Contractor Network. Prime contractors use Procuvex to identify qualified subcontractors when assembling teams for upcoming projects and contract pursuits.
         </p>
 
-        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p style="color: #92400e; margin: 0; font-size: 14px; font-weight: 600;">&#9888; Action Required</p>
-          <p style="color: #92400e; margin: 8px 0 0; font-size: 13px; line-height: 1.6;">
-            Companies with incomplete or unverified profiles may be excluded from contractor searches and bid invitation lists.
+        <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <p style="color: #1e40af; margin: 0; font-size: 14px; font-weight: 600;">Complete Your Profile</p>
+          <p style="color: #1e40af; margin: 8px 0 0; font-size: 13px; line-height: 1.6;">
+            Verified profiles get priority placement in contractor searches and are more likely to receive bid invitations from prime contractors.
           </p>
         </div>
 
@@ -314,7 +314,7 @@ export default async (req: Request, _context: Context) => {
           to: sub.contact_email!,
           from: { email: "team@procuvex.com", name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
-          subject: `Action needed: Verify ${sub.company_name} on Procuvex before removal`,
+          subject: `${sub.company_name} — Your Procuvex Contractor Profile is Ready`,
           html,
           customArgs: { email_type: "sub_outreach" },
           headers: {
