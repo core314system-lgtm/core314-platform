@@ -180,3 +180,8 @@ export function useOrg() {
   }
   return context
 }
+
+/** Safe version that returns null when used outside OrgProvider (e.g. public pages) */
+export function useOrgSafe(): OrgContextType | null {
+  return useContext(OrgContext) ?? null
+}
