@@ -105,6 +105,34 @@ function generateToken(): string {
   return token
 }
 
+function buildOutreachPlainText(companyName: string, claimUrl: string, tradeCategories: string[], state: string, unsubscribeUrl: string): string {
+  const trades = tradeCategories.slice(0, 3).join(", ") || "Government Contracting"
+  const location = state ? ` in ${state}` : ""
+  return `PROCUVEX CONTRACTOR NETWORK
+
+Hi,
+
+Our contractor research team has identified ${companyName} as a potential subcontractor resource for government and commercial contract opportunities in ${trades}${location}.
+
+A company profile has been created for your business within the Procuvex Contractor Network. Prime contractors use Procuvex to identify qualified subcontractors when assembling teams for upcoming projects and contract pursuits.
+
+COMPLETE YOUR PROFILE
+Verified profiles get priority placement in contractor searches and are more likely to receive bid invitations from prime contractors.
+
+Review your profile here: ${claimUrl}
+
+There is no cost to review, claim, or update your company profile.
+
+---
+Procuvex - Core314 Technologies LLC
+456 Clinton Dr. Orange Park, FL 32073
+https://procuvex.com
+
+You received this because ${companyName} was identified in government contractor registrations.
+Unsubscribe: ${unsubscribeUrl}
+`
+}
+
 function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategories: string[], state: string, unsubscribeUrl: string): string {
   const trades = tradeCategories.slice(0, 3).join(", ") || "Government Contracting"
   const location = state ? ` in ${state}` : ""
@@ -309,6 +337,7 @@ export default async (req: Request, _context: Context) => {
         const claimUrl = `https://procuvex.com/claim/${token}`
         const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${token}`
         const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
+        const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
         await sgMail.default.send({
           to: sub.contact_email!,
@@ -316,6 +345,7 @@ export default async (req: Request, _context: Context) => {
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `${sub.company_name} — Your Procuvex Contractor Profile is Ready`,
           html,
+          text,
           customArgs: { email_type: "sub_outreach" },
           headers: {
             "List-Unsubscribe": `<${unsubscribeUrl}>`,
