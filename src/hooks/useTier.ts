@@ -25,6 +25,7 @@ const GROWTH_LIMITS = {
   max_projects: 25,
   max_seats: 10,
   max_subcontractors: 500,
+  max_connections_per_month: 25,
 }
 
 // Enterprise tier limits
@@ -32,6 +33,7 @@ const ENTERPRISE_LIMITS = {
   max_projects: Infinity,
   max_seats: Infinity,
   max_subcontractors: Infinity,
+  max_connections_per_month: 100,
 }
 
 interface TierInfo {
@@ -39,7 +41,7 @@ interface TierInfo {
   status: SubStatus
   loading: boolean
   canAccess: (feature: string) => boolean
-  getLimit: (key: 'max_projects' | 'max_seats' | 'max_subcontractors') => number
+  getLimit: (key: 'max_projects' | 'max_seats' | 'max_subcontractors' | 'max_connections_per_month') => number
   isEnterprise: boolean
   isGrowth: boolean
   hasActiveSubscription: boolean
@@ -100,7 +102,7 @@ export function useTier(): TierInfo {
     return !ENTERPRISE_ONLY_FEATURES.has(feature)
   }, [hasActiveSubscription, isEnterprise])
 
-  const getLimit = useCallback((key: 'max_projects' | 'max_seats' | 'max_subcontractors'): number => {
+  const getLimit = useCallback((key: 'max_projects' | 'max_seats' | 'max_subcontractors' | 'max_connections_per_month'): number => {
     if (isEnterprise) return ENTERPRISE_LIMITS[key]
     if (isGrowth) return GROWTH_LIMITS[key]
     return 0

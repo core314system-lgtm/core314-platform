@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
+import { useSubConnections } from '../hooks/useSubConnections'
+import { maskEmail, maskPhone } from '../lib/contactMasking'
 import {
   Building, MapPin, Mail, Phone, Globe, ShieldCheck, Star,
   BadgeCheck, FileText, ExternalLink, ArrowLeft,
-  Loader2, AlertCircle, CheckCircle, Users,
+  Loader2, AlertCircle, CheckCircle, Users, Unlock, Lock,
 } from 'lucide-react'
 
 interface SubProfile {
@@ -56,10 +59,15 @@ const CERT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 
 export default function SubProfilePublic() {
   const { slug } = useParams<{ slug: string }>()
+  const { profile: authProfile } = useAuth()
+  const { isConnected, connect, canConnect, connectionsUsedThisMonth, connectionsLimit } = useSubConnections()
+  const isAdmin = authProfile?.is_global_admin === true
   const [profile, setProfile] = useState<SubProfile | null>(null)
   const [certs, setCerts] = useState<Certification[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [connectErr, setConnectErr] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -123,6 +131,7 @@ export default function SubProfilePublic() {
 
   const isVerified = profile.verification_status === 'verified'
   const isClaimed = profile.verification_status === 'claimed' || isVerified
+  const connected = isAdmin || isConnected(profile.id)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -173,16 +182,57 @@ export default function SubProfilePublic() {
                   </a>
                 )}
                 {profile.contact_phone && (
-                  <a href={`tel:${profile.contact_phone}`} className="flex items-center gap-1.5 hover:text-blue-600">
-                    <Phone size={15} className="text-gray-400" /> {profile.contact_phone}
-                  </a>
+                  connected ? (
+                    <a href={`tel:${profile.contact_phone}`} className="flex items-center gap-1.5 hover:text-blue-600">
+                      <Phone size={15} className="text-gray-400" /> {profile.contact_phone}
+                    </a>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-gray-400">
+                      <Phone size={15} /> {maskPhone(profile.contact_phone)}
+                    </span>
+                  )
                 )}
                 {profile.contact_email && (
-                  <a href={`mailto:${profile.contact_email}`} className="flex items-center gap-1.5 hover:text-blue-600">
-                    <Mail size={15} className="text-gray-400" /> {profile.contact_email}
-                  </a>
+                  connected ? (
+                    <a href={`mailto:${profile.contact_email}`} className="flex items-center gap-1.5 hover:text-blue-600">
+                      <Mail size={15} className="text-gray-400" /> {profile.contact_email}
+                    </a>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-gray-400">
+                      <Mail size={15} /> {maskEmail(profile.contact_email)}
+                    </span>
+                  )
                 )}
               </div>
+
+              {/* Connect to reveal CTA */}
+              {!connected && (profile.contact_email || profile.contact_phone) && (
+                <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Lock size={16} className="text-emerald-600" />
+                    <span className="text-sm text-emerald-800">Contact info is masked. Reveal to see full details.</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setConnecting(true)
+                      setConnectErr(null)
+                      const result = await connect(profile.id)
+                      if (!result.success) setConnectErr(result.error || 'Failed')
+                      setConnecting(false)
+                    }}
+                    disabled={!canConnect || connecting}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {connecting ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+                    Reveal Contact
+                  </button>
+                </div>
+              )}
+              {connectErr && (
+                <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                  {connectErr}
+                </div>
+              )}
 
               {/* Profile completeness */}
               <div className="mt-4">

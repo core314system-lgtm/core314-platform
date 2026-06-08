@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase'
 import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
 import { useTier } from '../hooks/useTier'
 import { useAuth } from '../contexts/AuthContext'
+import { useSubConnections } from '../hooks/useSubConnections'
+import { maskEmail, maskPhone } from '../lib/contactMasking'
 import {
   Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
-  Database, Building, Globe, Star, Filter, Zap, Send, CheckCircle,
+  Database, Building, Globe, Star, Filter, Zap, Send, CheckCircle, Lock, Unlock, Link as LinkIcon,
 } from 'lucide-react'
 
 interface SubResult {
@@ -84,7 +86,11 @@ const PAGE_SIZE = 20
 
 export default function FindSubcontractors() {
   const { isEnterprise } = useTier()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const { isConnected, connect, connectionsUsedThisMonth, connectionsLimit, canConnect } = useSubConnections()
+  const isAdmin = profile?.is_global_admin === true
+  const [connectingId, setConnectingId] = useState<string | null>(null)
+  const [connectError, setConnectError] = useState<string | null>(null)
   const [results, setResults] = useState<SubResult[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
@@ -287,6 +293,50 @@ export default function FindSubcontractors() {
         </div>
       </form>
 
+      {/* Connection Credits Banner */}
+      {!isAdmin && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <Unlock size={18} className="text-emerald-600" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Contact Reveal Credits</div>
+              <div className="text-xs text-gray-500">
+                {connectionsUsedThisMonth} of {connectionsLimit === Infinity ? 'unlimited' : connectionsLimit} used this month
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="text-lg font-bold text-emerald-600">
+                {connectionsLimit === Infinity ? '∞' : connectionsLimit - connectionsUsedThisMonth}
+              </div>
+              <div className="text-[10px] text-gray-400 uppercase">remaining</div>
+            </div>
+            {connectionsLimit !== Infinity && (
+              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (connectionsUsedThisMonth / connectionsLimit) * 100)}%`,
+                    backgroundColor: connectionsUsedThisMonth >= connectionsLimit ? '#ef4444' : connectionsUsedThisMonth >= connectionsLimit * 0.8 ? '#f59e0b' : '#10b981',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Connection error toast */}
+      {connectError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{connectError}</span>
+          <button onClick={() => setConnectError(null)} className="text-red-500 hover:text-red-700 text-xs font-medium">Dismiss</button>
+        </div>
+      )}
+
       {/* Enterprise AI Match */}
       {isEnterprise && (
         <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-5">
@@ -477,7 +527,7 @@ export default function FindSubcontractors() {
                               <span className="flex items-center gap-1"><MapPin size={10} /> {[match.city, match.state].filter(Boolean).join(', ')}</span>
                             )}
                             {match.contact_email && (
-                              <span className="flex items-center gap-1"><Mail size={10} /> {match.contact_email}</span>
+                              <span className="flex items-center gap-1"><Mail size={10} /> {isConnected(match.sub_id) ? match.contact_email : maskEmail(match.contact_email)}</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -561,14 +611,14 @@ export default function FindSubcontractors() {
                         <Globe size={13} /> Website
                       </a>
                     )}
-                    {isEnterprise && sub.contact_email && (
+                    {sub.contact_email && (
                       <span className="flex items-center gap-1 text-gray-600">
-                        <Mail size={13} /> {sub.contact_email}
+                        <Mail size={13} /> {isConnected(sub.id) ? sub.contact_email : maskEmail(sub.contact_email)}
                       </span>
                     )}
-                    {isEnterprise && sub.contact_phone && (
+                    {sub.contact_phone && (
                       <span className="flex items-center gap-1 text-gray-600">
-                        <Phone size={13} /> {sub.contact_phone}
+                        <Phone size={13} /> {isConnected(sub.id) ? sub.contact_phone : maskPhone(sub.contact_phone)}
                       </span>
                     )}
                   </div>
@@ -606,6 +656,27 @@ export default function FindSubcontractors() {
                   >
                     <Eye size={14} /> View Profile
                   </Link>
+                  {!isAdmin && !isConnected(sub.id) ? (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        setConnectingId(sub.id)
+                        setConnectError(null)
+                        const result = await connect(sub.id)
+                        if (!result.success) setConnectError(result.error || 'Failed')
+                        setConnectingId(null)
+                      }}
+                      disabled={!canConnect || connectingId === sub.id}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-emerald-700 border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50"
+                    >
+                      {connectingId === sub.id ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+                      Reveal Contact
+                    </button>
+                  ) : !isAdmin ? (
+                    <span className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 bg-emerald-50 rounded-lg">
+                      <CheckCircle size={12} /> Connected
+                    </span>
+                  ) : null}
                   {(() => {
                     const quality = computeDataQuality(sub)
                     return (
