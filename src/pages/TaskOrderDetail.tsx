@@ -75,6 +75,8 @@ export default function TaskOrderDetail() {
   const [selfPerformReqs, setSelfPerformReqs] = useState<string[]>([])
   const [searchingGap, setSearchingGap] = useState<string | null>(null)
   const [sowCoverage, setSowCoverage] = useState<SowCoverageItem[]>([])
+  const [sowItems, setSowItems] = useState<{ id: string; name: string }[]>([])
+  const [selectedSowItemId, setSelectedSowItemId] = useState<string>('')
   const [piiWarning, setPiiWarning] = useState<{ matches: PiiMatch[]; texts: string[]; names: string[] } | null>(null)
 
 
@@ -322,6 +324,7 @@ export default function TaskOrderDetail() {
         quoteCount: quoteCounts[s.id] || 0,
       }))
       setSowCoverage(coverage)
+      setSowItems(sowItems.map(s => ({ id: s.id, name: s.sow_name || s.service_category || 'Unknown' })))
     } catch {
       // SOW items may not exist for this project
     }
@@ -484,7 +487,7 @@ export default function TaskOrderDetail() {
         continue
       }
 
-      await supabase.from('documents').insert({
+      const docRecord: Record<string, any> = {
         task_order_id: id,
         file_name: file.name,
         file_path: path,
@@ -493,7 +496,9 @@ export default function TaskOrderDetail() {
         category: selectedCategory,
         version: 1,
         uploaded_by: user.id,
-      })
+      }
+      if (selectedSowItemId) docRecord.sow_item_id = selectedSowItemId
+      await supabase.from('documents').insert(docRecord)
     }
 
     setUploading(false)
@@ -1054,7 +1059,7 @@ export default function TaskOrderDetail() {
 
         {expandedSection === 'documents' && (
           <div className="px-6 pb-6 space-y-4 border-t border-gray-100 pt-4">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
               <label className="text-sm font-medium text-gray-700">Category:</label>
               <select
                 value={selectedCategory}
@@ -1065,6 +1070,21 @@ export default function TaskOrderDetail() {
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
+              {sowItems.length > 0 && (
+                <>
+                  <label className="text-sm font-medium text-gray-700 ml-2">SOW Assignment:</label>
+                  <select
+                    value={selectedSowItemId}
+                    onChange={e => setSelectedSowItemId(e.target.value)}
+                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">All SOWs (shared)</option>
+                    {sowItems.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
 
             <div
