@@ -155,6 +155,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
 
+  // Detect subcontractor-only users (no org = just claimed, not an enterprise user)
+  const isSubOnly = !currentOrg && !profile?.is_global_admin
+
   const activeGroupId = useMemo(() => findActiveGroup(location.pathname), [location.pathname])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set([activeGroupId]))
 
@@ -244,7 +247,47 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="p-3 space-y-0.5 flex-1 overflow-y-auto min-h-0">
-          {navGroups
+          {/* Simplified nav for subcontractor-only users */}
+          {isSubOnly ? (
+            <div className="space-y-0.5">
+              <Link
+                to="/my-sub-profile"
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === '/my-sub-profile'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <BadgeCheck size={16} />
+                My Company Profile
+              </Link>
+              <Link
+                to="/account"
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === '/account'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <User size={16} />
+                Account
+              </Link>
+              <Link
+                to="/help"
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === '/help'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <HelpCircle size={16} />
+                Help Center
+              </Link>
+            </div>
+          ) : navGroups
             .filter(group => !group.adminOnly || profile?.is_global_admin)
             .map(group => {
               const isExpanded = expandedGroups.has(group.id)
@@ -345,7 +388,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <NotificationCenter />
         </div>
         <div className="p-6 max-w-7xl mx-auto">
-          <OnboardingChecklist onLaunchGuide={handleLaunchGuide} />
+          {!isSubOnly && <OnboardingChecklist onLaunchGuide={handleLaunchGuide} />}
           {children}
         </div>
       </main>

@@ -101,6 +101,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (profile) {
+      // Skip beta check if user just claimed a profile (auto-accepted during claim)
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('claimed') === 'true') {
+        setBetaAccepted(true)
+        setCheckingBeta(false)
+        return
+      }
       // Only show beta agreement if the feature is enabled and not yet accepted
       const accepted = (profile as any).beta_agreement_accepted_at
       setBetaAccepted(!!accepted)
