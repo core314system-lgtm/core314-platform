@@ -262,19 +262,7 @@ async function handleIncumbentStatus(tokenData: any, body: any) {
 async function handleQuoteSubmission(tokenData: any, body: any) {
   const { quote_data, custom_fields, incumbent_data, is_revision } = body
 
-  // If incumbent data is provided alongside the quote, save it
-  if (incumbent_data) {
-    await supabase
-      .from("subcontractors")
-      .update({
-        incumbent_status: incumbent_data.is_incumbent ? "known" : "not_incumbent",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", tokenData.subcontractor_id)
-      .catch(() => {})
-  }
-
-  // Insert into sow_quotes
+  // Build quote record
   const quoteRecord: Record<string, any> = {
     sow_subcontractor_id: tokenData.sow_subcontractor_id,
     sow_item_id: tokenData.sow_item_id,
@@ -284,7 +272,6 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     is_revision: is_revision || false,
   }
 
-  // Map standard fields
   const standardFields = [
     "total_amount", "monthly_amount", "annual_amount",
     "labor_cost", "materials_cost", "equipment_cost", "overhead_markup",
@@ -297,6 +284,7 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     }
   }
 
+  // CRITICAL: Insert quote first — this is the only required operation
   const { data: quote, error: quoteErr } = await supabase
     .from("sow_quotes")
     .insert(quoteRecord)
@@ -307,71 +295,108 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     return new Response(JSON.stringify({ error: quoteErr.message }), { status: 500, headers: corsHeaders })
   }
 
+  // Run all secondary operations in parallel to avoid timeout
+  const sub = tokenData.subcontractors
+  const now = new Date().toISOString()
+  const secondaryOps: Promise<any>[] = []
+
+  // Save incumbent data
+  if (incumbent_data) {
+    secondaryOps.push(
+      supabase
+        .from("subcontractors")
+        .update({
+          incumbent_status: incumbent_data.is_incumbent ? "known" : "not_incumbent",
+          updated_at: now,
+        })
+        .eq("id", tokenData.subcontractor_id)
+        .then(() => {})
+        .catch(() => {})
+    )
+  }
+
   // Save custom field values
   if (custom_fields && Object.keys(custom_fields).length > 0) {
-    await supabase.from("portal_quote_submissions").insert({
-      rfq_token_id: tokenData.id,
-      sow_quote_id: quote.id,
-      custom_fields,
-    })
+    secondaryOps.push(
+      supabase.from("portal_quote_submissions").insert({
+        rfq_token_id: tokenData.id,
+        sow_quote_id: quote.id,
+        custom_fields,
+      }).then(() => {}).catch(() => {})
+    )
   }
 
   // Update outreach status
-  await supabase
-    .from("sow_subcontractors")
-    .update({
-      outreach_status: "quote_submitted",
-      response_date: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", tokenData.sow_subcontractor_id)
+  secondaryOps.push(
+    supabase
+      .from("sow_subcontractors")
+      .update({
+        outreach_status: "quote_submitted",
+        response_date: now,
+        updated_at: now,
+      })
+      .eq("id", tokenData.sow_subcontractor_id)
+      .then(() => {}).catch(() => {})
+  )
 
   // Auto-update SOW status
-  const { data: sow } = await supabase
-    .from("sow_items")
-    .select("status")
-    .eq("id", tokenData.sow_item_id)
-    .single()
-
-  if (sow && (sow.status === "not_started" || sow.status === "subs_identified" || sow.status === "rfqs_sent")) {
-    await supabase
+  secondaryOps.push(
+    supabase
       .from("sow_items")
-      .update({ status: "quotes_received", updated_at: new Date().toISOString() })
+      .select("status")
       .eq("id", tokenData.sow_item_id)
-  }
+      .single()
+      .then(({ data: sow }) => {
+        if (sow && (sow.status === "not_started" || sow.status === "subs_identified" || sow.status === "rfqs_sent")) {
+          return supabase
+            .from("sow_items")
+            .update({ status: "quotes_received", updated_at: now })
+            .eq("id", tokenData.sow_item_id)
+        }
+      })
+      .catch(() => {})
+  )
 
   // Log communication
-  const sub = tokenData.subcontractors
-  await supabase.from("sow_communications").insert({
-    sow_subcontractor_id: tokenData.sow_subcontractor_id,
-    comm_type: "quote_received",
-    direction: "inbound",
-    subject: `Quote submitted via portal`,
-    body: `${sub?.company_name || "Subcontractor"} submitted a quote of $${quoteRecord.total_amount || "N/A"} through the subcontractor portal.`,
-  })
+  secondaryOps.push(
+    supabase.from("sow_communications").insert({
+      sow_subcontractor_id: tokenData.sow_subcontractor_id,
+      comm_type: "quote_received",
+      direction: "inbound",
+      subject: `Quote submitted via portal`,
+      body: `${sub?.company_name || "Subcontractor"} submitted a quote of $${quoteRecord.total_amount || "N/A"} through the subcontractor portal.`,
+    }).then(() => {}).catch(() => {})
+  )
 
-  // Trigger AI compliance analysis (fire-and-forget)
+  // Create in-app notification
+  const orgId = tokenData.task_orders?.org_id
+  if (orgId) {
+    const subName = sub?.company_name || "A subcontractor"
+    const projectTitle = tokenData.task_orders?.title || "a project"
+    secondaryOps.push(
+      createNotification(
+        orgId,
+        "quote_received",
+        `${subName} submitted a quote`,
+        `Quote of $${quoteRecord.total_amount || "N/A"} received for ${projectTitle}`,
+        `/projects/${tokenData.task_order_id}/sow-tracker`
+      ).catch(() => {})
+    )
+  }
+
+  // Wait for secondary ops (with 8s timeout to avoid function timeout)
+  await Promise.race([
+    Promise.allSettled(secondaryOps),
+    new Promise(resolve => setTimeout(resolve, 8000)),
+  ])
+
+  // Trigger AI compliance analysis (fire-and-forget, after response prep)
   const siteUrl = process.env.URL || "https://procuvex.com"
   fetch(`${siteUrl}/.netlify/functions/analyze-quote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ quote_id: quote.id, auto_email: true }),
   }).catch(() => {})
-
-  // Create in-app notification
-  const taskOrderId = tokenData.task_order_id
-  const orgId = tokenData.task_orders?.org_id
-  const subName = sub?.company_name || "A subcontractor"
-  const projectTitle = tokenData.task_orders?.title || "a project"
-  if (orgId) {
-    createNotification(
-      orgId,
-      "quote_received",
-      `${subName} submitted a quote`,
-      `Quote of $${quoteRecord.total_amount || "N/A"} received for ${projectTitle}`,
-      `/projects/${taskOrderId}/sow-tracker`
-    )
-  }
 
   return new Response(
     JSON.stringify({ success: true, quote_id: quote.id }),
