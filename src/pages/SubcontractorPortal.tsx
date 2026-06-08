@@ -908,8 +908,8 @@ export default function SubcontractorPortal() {
         {/* Documents Tab */}
         {activeTab === 'documents' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">SOW Documents & Flow-Downs</h2>
-            <p className="text-sm text-gray-500 mb-4">Review these documents before preparing your quote. All documents are available for download.</p>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Documents for {data.sow?.sow_name || 'Your Scope of Work'}</h2>
+            <p className="text-sm text-gray-500 mb-4">Review these documents relevant to your scope before preparing your quote. All documents are available for download.</p>
             {data.documents.length > 0 ? (
               <div className="space-y-2">
                 {data.documents.map(doc => {

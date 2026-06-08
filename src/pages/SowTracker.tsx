@@ -484,6 +484,7 @@ export default function SowTracker() {
           ? 'amendment' : 'sow'
         await supabase.from('documents').insert({
           task_order_id: taskOrderId,
+          sow_item_id: sowId,
           file_name: file.name,
           file_path: filePath,
           file_size: file.size,

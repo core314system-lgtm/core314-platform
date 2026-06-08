@@ -123,19 +123,25 @@ async function handleGet(url: URL) {
     .limit(1)
     .single()
 
-  // Get task order documents (non-sensitive ones) — SOW-specific + task-order-level
+  // Get task order documents — only those relevant to this sub's SOW item
   const { data: rawDocs } = await supabase
     .from("documents")
-    .select("id, file_name, file_path, file_type, file_size, category")
+    .select("id, file_name, file_path, file_type, file_size, category, sow_item_id")
     .eq("task_order_id", tokenData.task_order_id)
     .in("category", ["sow", "flowdown", "pricing_sheet", "exhibit", "site_info", "amendment", "qa_response"])
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
   const documents = (rawDocs || [])
     .filter((d: any) => {
+      // If document has sow_item_id, only show if it matches this sub's SOW
+      if (d.sow_item_id) return d.sow_item_id === tokenData.sow_item_id
+      // Check file_path for SOW-specific uploads (path: taskOrderId/sowId/file)
       const parts = d.file_path?.split("/") || []
       if (parts.length >= 3 && parts[1] === tokenData.sow_item_id) return true
-      if (parts.length < 3) return true
+      if (parts.length >= 3) return false
+      // Shared categories (flowdowns, site info, etc.) without sow_item_id are visible to all
+      if (["flowdown", "site_info", "exhibit", "amendment"].includes(d.category)) return true
+      // SOW docs without sow_item_id and short paths — hide to avoid showing wrong SOW
       return false
     })
     .map((d: any) => ({
