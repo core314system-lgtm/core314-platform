@@ -23,7 +23,7 @@ const CONNECTION_LIMITS: Record<string, number> = {
 export function useSubConnections(): SubConnectionsInfo {
   const { user, profile } = useAuth()
   const { currentOrg } = useOrg()
-  const { plan, isEnterprise, isGrowth } = useTier()
+  const { plan } = useTier()
   const [connectedSubIds, setConnectedSubIds] = useState<Set<string>>(new Set())
   const [connectionsUsedThisMonth, setConnectionsUsedThisMonth] = useState(0)
   const [loading, setLoading] = useState(true)

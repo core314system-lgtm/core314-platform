@@ -9,7 +9,7 @@ import { maskEmail, maskPhone } from '../lib/contactMasking'
 import {
   Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
-  Database, Building, Globe, Star, Filter, Zap, Send, CheckCircle, Lock, Unlock, Link as LinkIcon,
+  Database, Building, Globe, Star, Filter, Zap, Send, CheckCircle, Unlock,
 } from 'lucide-react'
 
 interface SubResult {

@@ -60,7 +60,7 @@ const CERT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 export default function SubProfilePublic() {
   const { slug } = useParams<{ slug: string }>()
   const { profile: authProfile } = useAuth()
-  const { isConnected, connect, canConnect, connectionsUsedThisMonth, connectionsLimit } = useSubConnections()
+  const { isConnected, connect, canConnect } = useSubConnections()
   const isAdmin = authProfile?.is_global_admin === true
   const [profile, setProfile] = useState<SubProfile | null>(null)
   const [certs, setCerts] = useState<Certification[]>([])
