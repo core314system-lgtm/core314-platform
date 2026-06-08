@@ -115,7 +115,9 @@ export default function MySubProfile() {
       .from('master_subcontractors')
       .select('*')
       .eq('claimed_by_user_id', user!.id)
-      .single()
+      .order('claimed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
     if (fetchErr || !data) {
       setNoProfile(true)

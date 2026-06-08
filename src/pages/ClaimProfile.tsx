@@ -95,6 +95,11 @@ export default function ClaimProfile() {
       setError(updateError.message)
       setStep('error')
     } else {
+      // Auto-accept beta agreement so subcontractors skip that gate
+      await supabase.from('user_profiles').update({
+        beta_agreement_accepted_at: new Date().toISOString(),
+        beta_agreement_version: '2026-05',
+      }).eq('id', user!.id)
       // Notify admin of new claim (fire-and-forget)
       fetch('/.netlify/functions/sub-claim-notify', {
         method: 'POST',
@@ -159,6 +164,11 @@ export default function ClaimProfile() {
       setError(updateError.message)
       setStep('error')
     } else {
+      // Auto-accept beta agreement so subcontractors skip that gate
+      await supabase.from('user_profiles').update({
+        beta_agreement_accepted_at: new Date().toISOString(),
+        beta_agreement_version: '2026-05',
+      }).eq('id', userId)
       // Notify admin of new claim (fire-and-forget)
       fetch('/.netlify/functions/sub-claim-notify', {
         method: 'POST',

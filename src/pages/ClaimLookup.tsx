@@ -73,6 +73,11 @@ export default function ClaimLookup() {
       setError(updateError.message)
       setStep('error')
     } else {
+      // Auto-accept beta agreement so subcontractors skip that gate
+      await supabase.from('user_profiles').update({
+        beta_agreement_accepted_at: new Date().toISOString(),
+        beta_agreement_version: '2026-05',
+      }).eq('id', userId)
       navigate('/my-sub-profile?claimed=true')
     }
   }
