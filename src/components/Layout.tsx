@@ -85,8 +85,6 @@ const navGroups: NavGroup[] = [
       { path: '/my-subs', label: 'My Subcontractors', icon: Building2 },
       { path: '/find-subs', label: 'Find Subcontractors', icon: ScanSearch },
       { path: '/my-sub-profile', label: 'My Sub Profile', icon: BadgeCheck },
-      { path: '/verification-review', label: 'Verification Review', icon: ShieldCheck, adminOnly: true },
-      { path: '/master-subs', label: 'Master Sub Database', icon: Database, adminOnly: true },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
       { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building, enterpriseOnly: true },
       { path: '/teaming', label: 'Teaming & JVs', icon: Users, enterpriseOnly: true },
@@ -134,6 +132,8 @@ const navGroups: NavGroup[] = [
       { path: '/admin/invites', label: 'Partner Program', icon: MailPlus },
       { path: '/admin/access', label: 'Global Admin', icon: Shield },
       { path: '/admin/system-health', label: 'System Health', icon: HeartPulse },
+      { path: '/master-subs', label: 'Master Sub Database', icon: Database },
+      { path: '/verification-review', label: 'Verification Review', icon: ShieldCheck },
     ],
   },
 ]
