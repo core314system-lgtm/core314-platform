@@ -282,6 +282,34 @@ export default function FindSubcontractors() {
         </div>
       </div>
 
+      {/* Browse by Category — shown when user hasn't searched yet */}
+      {!searched && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Browse by Trade Category</h2>
+              <p className="text-xs text-gray-500">Click a category to see available subcontractors</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            {TRADE_CATEGORIES.filter(t => t.id !== 'other').slice(0, 18).map(trade => (
+              <button
+                key={trade.id}
+                onClick={() => { setFilterTrade(trade.name); setSearch(''); performSearch(0) }}
+                className="p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition-all text-center group"
+              >
+                <div className="text-xs font-medium text-gray-700 group-hover:text-blue-700 truncate">{trade.name}</div>
+              </button>
+            ))}
+          </div>
+          {TRADE_CATEGORIES.length > 18 && (
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              + {TRADE_CATEGORIES.length - 18} more categories available via the filter dropdown below
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Search Form */}
       <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <div className="flex gap-3">

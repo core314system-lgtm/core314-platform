@@ -87,6 +87,7 @@ import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
 import SamGovGuidePage from './landing/pages/SamGovGuidePage'
 import ComparePage from './landing/pages/ComparePage'
 import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
+import ExploreNetworkPage from './landing/pages/ExploreNetworkPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -204,6 +205,7 @@ export default function App() {
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
           {/* Public Subcontractor Pages */}
+          <Route path="/explore-network" element={<ExploreNetworkPage />} />
           <Route path="/for-subcontractors" element={<ForSubcontractorsPage />} />
           <Route path="/sub/:slug" element={<SubProfilePublic />} />
           <Route path="/claim/:token" element={<ClaimProfile />} />

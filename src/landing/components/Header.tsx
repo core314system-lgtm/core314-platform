@@ -5,7 +5,7 @@ import { Menu, X, ChevronDown, BookOpen, GitCompareArrows } from 'lucide-react'
 const navLinks = [
   { to: '/product', label: 'Product' },
   { to: '/how-it-works', label: 'How It Works' },
-  { to: '/for-subcontractors', label: 'Sub Network' },
+  { to: '/explore-network', label: 'Sub Network' },
   { to: '/solutions', label: 'Solutions' },
   { to: '/integrations-overview', label: 'Integrations' },
   { to: '/roi', label: 'Why Procuvex' },

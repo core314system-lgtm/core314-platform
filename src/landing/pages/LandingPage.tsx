@@ -1001,6 +1001,61 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* SUBCONTRACTOR NETWORK */}
+      <section className="py-20 lg:py-28 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger}>
+            <motion.div variants={fadeUp} className="text-center mb-12">
+              <p className="text-blue-300 text-sm font-bold uppercase tracking-wider mb-3">Built-In Network</p>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                78,000+ Subcontractors at Your Fingertips
+              </h2>
+              <p className="text-lg text-blue-200 max-w-2xl mx-auto leading-relaxed">
+                The largest searchable database of government-registered subcontractors — sourced from SAM.gov, GSA eLibrary, and SBA databases. AI-matched to your SOW in seconds.
+              </p>
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mb-12">
+              {[
+                { value: '78,000+', label: 'Subcontractors' },
+                { value: '45+', label: 'Trade Categories' },
+                { value: '50', label: 'States Covered' },
+                { value: '42,000+', label: 'Small Businesses' },
+              ].map((stat, i) => (
+                <motion.div key={i} variants={fadeUp} className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
+                  <div className="text-sm text-blue-200 mt-1">{stat.label}</div>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10">
+              {[
+                { icon: Brain, title: 'AI SOW Matching', desc: 'Upload your scope of work — AI extracts required trades and finds qualified subs instantly.' },
+                { icon: Shield, title: 'Government-Verified', desc: 'Every sub sourced from official registries. SBA certifications auto-verified.' },
+                { icon: Target, title: 'One-Click Outreach', desc: 'Connect with matched subs, send RFQs, and track responses from one dashboard.' },
+              ].map((item, i) => (
+                <div key={i} className="p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10">
+                  <item.icon className="h-8 w-8 text-blue-300 mb-3" />
+                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-sm text-blue-200 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="text-center">
+              <Link
+                to="/explore-network"
+                className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-bold text-blue-900 bg-white hover:bg-blue-50 rounded-xl shadow-lg transition-all"
+              >
+                Explore the Network
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section className="py-20 lg:py-28 bg-slate-50 border-t border-slate-100">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
