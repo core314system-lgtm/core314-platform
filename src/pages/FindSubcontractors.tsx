@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useOrg } from '../contexts/OrgContext'
 import { useSubConnections } from '../hooks/useSubConnections'
 import { maskEmail, maskPhone } from '../lib/contactMasking'
+import { loadAiOutput } from '../lib/aiStorage'
+import type { AnalysisResult } from '../lib/types'
 import RfqComposeModal from '../components/RfqComposeModal'
 import {
   Search, MapPin, Mail, Phone,
@@ -547,7 +549,26 @@ export default function FindSubcontractors() {
                         .from('sow_items')
                         .select('service_category')
                         .eq('task_order_id', selectedProject)
-                      const sowLabels = (sowItems || []).map(s => s.service_category).filter(Boolean)
+                      let sowLabels = (sowItems || []).map(s => s.service_category).filter(Boolean)
+                      // Fallback: if no SOW items, try to pull service_categories from saved AI analysis
+                      if (sowLabels.length === 0) {
+                        const analysis = await loadAiOutput<AnalysisResult>(selectedProject, 'analysis')
+                        if (analysis?.service_categories?.length) {
+                          // Auto-create SOW items so they exist for future matches
+                          const cats = analysis.service_categories
+                          for (const cat of cats) {
+                            await supabase.from('sow_items').insert({
+                              task_order_id: selectedProject,
+                              sow_name: cat.category,
+                              service_category: cat.category,
+                              description: cat.description,
+                              source_document: null,
+                              status: 'not_started',
+                            })
+                          }
+                          sowLabels = cats.map(c => c.category)
+                        }
+                      }
                       const trades = [...new Set(sowLabels)]
                       if (trades.length === 0) {
                         setAiMatches([])

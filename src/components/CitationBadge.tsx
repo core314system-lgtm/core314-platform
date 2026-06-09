@@ -7,7 +7,17 @@ interface CitationBadgeProps {
 }
 
 export default function CitationBadge({ sourceDocument, pageSection, compact = false }: CitationBadgeProps) {
-  if (!sourceDocument) return null
+  const isNullish = (v: string | undefined | null): boolean =>
+    !v || v === 'null' || v === 'undefined' || v.trim() === ''
+
+  const hasNullContent = (v: string | undefined | null): boolean =>
+    !!v && /\bnull\b/i.test(v)
+
+  if (isNullish(sourceDocument)) return null
+
+  const cleanSection = pageSection && !isNullish(pageSection) && !hasNullContent(pageSection)
+    ? pageSection
+    : undefined
 
   const isSpreadsheet = /\.(xlsx?|csv)$/i.test(sourceDocument) || /^Sheet:/i.test(pageSection || '')
   const Icon = isSpreadsheet ? Table : FileText
@@ -18,9 +28,9 @@ export default function CitationBadge({ sourceDocument, pageSection, compact = f
 
   if (compact) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 font-medium" title={`${sourceDocument}${pageSection ? ' — ' + pageSection : ''}`}>
+      <span className="inline-flex items-center gap-1 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 font-medium" title={`${sourceDocument}${cleanSection ? ' — ' + cleanSection : ''}`}>
         <Icon size={10} className="text-indigo-500 flex-shrink-0" />
-        {pageSection || docName}
+        {cleanSection || docName}
       </span>
     )
   }
@@ -31,9 +41,9 @@ export default function CitationBadge({ sourceDocument, pageSection, compact = f
         <Icon size={12} className="text-indigo-500 flex-shrink-0" />
         <span className="truncate max-w-[200px]" title={sourceDocument}>{docName}</span>
       </span>
-      {pageSection && (
-        <span className="text-[10px] text-indigo-600 font-medium pl-0.5 leading-tight" title={pageSection}>
-          {pageSection}
+      {cleanSection && (
+        <span className="text-[10px] text-indigo-600 font-medium pl-0.5 leading-tight" title={cleanSection}>
+          {cleanSection}
         </span>
       )}
     </div>

@@ -556,6 +556,28 @@ export default function TaskOrderDetail() {
     }
   }
 
+  async function autoSyncSowItems(analysis: AnalysisResult) {
+    if (!id || !analysis?.service_categories?.length) return
+    try {
+      const { data: existingSows } = await supabase.from('sow_items').select('service_category').eq('task_order_id', id)
+      const existing = new Set((existingSows || []).map((s: { service_category: string }) => s.service_category.toLowerCase()))
+      for (const cat of analysis.service_categories) {
+        if (!existing.has(cat.category.toLowerCase())) {
+          await supabase.from('sow_items').insert({
+            task_order_id: id,
+            sow_name: cat.category,
+            service_category: cat.category,
+            description: cat.description,
+            source_document: null,
+            status: 'not_started',
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Auto-sync SOW items failed:', err)
+    }
+  }
+
   async function handleAnalyze() {
     if (!id || !taskOrder || documents.length === 0) return
     setAnalyzing(true)
@@ -626,6 +648,9 @@ export default function TaskOrderDetail() {
         }
       }
 
+      // Auto-sync SOW items from analysis
+      await autoSyncSowItems(result)
+
       setAnalysisProgress('Matching subcontractors...')
       // Auto-run database matching after analysis
       await runSubcontractorMatch('database', result as unknown as Record<string, unknown>)
@@ -666,6 +691,10 @@ export default function TaskOrderDetail() {
           fetchTaskOrder()
         }
       }
+
+      // Auto-sync SOW items from analysis
+      await autoSyncSowItems(result)
+
       setAnalysisProgress('Matching subcontractors...')
       await runSubcontractorMatch('database', result as unknown as Record<string, unknown>)
     } catch (err) {
@@ -744,6 +773,9 @@ export default function TaskOrderDetail() {
       const summary = await generateExecutiveSummary(...args)
       await saveAiOutput(id, 'executive_summary', summary)
       setAiStatus(prev => ({ ...prev, executive_summary: true }))
+
+      // Auto-sync SOW items from analysis
+      await autoSyncSowItems(analysis as unknown as AnalysisResult)
 
       // Update task order status
       await supabase.from('task_orders').update({ status: 'in_progress' }).eq('id', id)
