@@ -133,37 +133,61 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
       return new Response(JSON.stringify({ error: "At least one trade required" }), { status: 400, headers })
     }
 
-    // Base query — get subs that match trades
-    // Filter by trade_categories at DB level so results are project-specific
-    let query = supabase
-      .from("master_subcontractors")
-      .select("id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei")
-      .overlaps("trade_categories", trades)
+    // Per-trade queries to guarantee coverage for ALL SOW trades.
+    // A single .overlaps() query with .limit(500) causes common trades (HVAC, Plumbing)
+    // to dominate the result set, crowding out rarer trades (Fire & Life Safety, Elevator).
+    // Instead, we query each trade separately with its own limit, then merge + deduplicate.
+    const selectFields = "id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei"
+    const perTradeLimit = Math.max(Math.ceil(500 / trades.length), 50)
 
-    // Ensure all results are contactable (must have email or phone)
-    query = query.or("contact_email.not.is.null,contact_phone.not.is.null")
+    const tradeQueries = trades.map((trade: string) => {
+      let q = supabase
+        .from("master_subcontractors")
+        .select(selectFields)
+        .contains("trade_categories", [trade])
+        .or("contact_email.not.is.null,contact_phone.not.is.null")
 
-    if (!include_unclaimed) {
-      query = query.not("claimed_at", "is", null) // only claimed/active subs
+      if (!include_unclaimed) {
+        q = q.not("claimed_at", "is", null)
+      }
+      if (require_verified) {
+        q = q.eq("verification_status", "verified")
+      }
+      if (require_small_biz) {
+        q = q.eq("small_business", true)
+      }
+
+      return q.order("profile_completeness", { ascending: false }).limit(perTradeLimit)
+    })
+
+    const tradeResults = await Promise.all(tradeQueries)
+
+    // Merge and deduplicate candidates from all per-trade queries
+    const candidateMap = new Map<string, Record<string, unknown>>()
+    let queryError: string | null = null
+
+    for (const result of tradeResults) {
+      if (result.error) {
+        queryError = result.error.message
+        break
+      }
+      for (const sub of (result.data || []) as Record<string, unknown>[]) {
+        const id = sub.id as string
+        if (!candidateMap.has(id)) {
+          candidateMap.set(id, sub)
+        }
+      }
     }
 
-    if (require_verified) {
-      query = query.eq("verification_status", "verified")
+    if (queryError) {
+      return new Response(JSON.stringify({ error: queryError }), { status: 500, headers })
     }
 
-    if (require_small_biz) {
-      query = query.eq("small_business", true)
-    }
-
-    // Get candidates matching the project's trades (state is a scoring factor, not a hard filter)
-    const { data: candidates, error } = await query.order("profile_completeness", { ascending: false }).limit(500)
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
-    }
+    const candidates = Array.from(candidateMap.values())
 
     // Score each candidate
-    const scored: MatchResult[] = (candidates || []).map(sub => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scored: MatchResult[] = (candidates || []).map((sub: any) => {
       let score = 0
       const reasons: string[] = []
 
