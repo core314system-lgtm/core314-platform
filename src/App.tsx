@@ -195,6 +195,7 @@ export default function App() {
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
+          <Route path="/create-account" element={<Navigate to="/login?tab=signup" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Beta Program (public, no auth) */}

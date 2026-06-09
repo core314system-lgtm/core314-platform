@@ -9,6 +9,7 @@ import {
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { supabase } from '../../lib/supabase'
+import { useNetworkStats } from '../hooks/useNetworkStats'
 
 const fadeUp = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }
 const stagger = { visible: { transition: { staggerChildren: 0.1 } } }
@@ -40,48 +41,13 @@ function AnimatedCounter({ end, duration = 2000, suffix = '' }: { end: number; d
 
 // --- Stats Section ---
 function LiveStats() {
-  const [stats, setStats] = useState({ total: 0, withEmail: 0, verified: 0, trades: 0 })
-
-  useEffect(() => {
-    async function fetchStats() {
-      const { count: total } = await supabase
-        .from('master_subcontractors')
-        .select('*', { count: 'exact', head: true })
-
-      const { count: withEmail } = await supabase
-        .from('master_subcontractors')
-        .select('*', { count: 'exact', head: true })
-        .not('contact_email', 'is', null)
-
-      const { count: verified } = await supabase
-        .from('master_subcontractors')
-        .select('*', { count: 'exact', head: true })
-        .eq('verification_status', 'verified')
-
-      const { data: tradesData } = await supabase
-        .from('master_subcontractors')
-        .select('trade_categories')
-
-      const uniqueTrades = new Set<string>()
-      tradesData?.forEach(r => {
-        if (r.trade_categories) r.trade_categories.forEach((t: string) => uniqueTrades.add(t))
-      })
-
-      setStats({
-        total: total || 0,
-        withEmail: withEmail || 0,
-        verified: verified || 0,
-        trades: uniqueTrades.size || 200,
-      })
-    }
-    fetchStats()
-  }, [])
+  const stats = useNetworkStats()
 
   const metrics = [
-    { value: stats.total || 18000, label: 'Subcontractors Listed', suffix: '+' },
-    { value: stats.verified || 50, label: 'Verified Profiles', suffix: '+' },
+    { value: stats.total, label: 'Subcontractors Listed', suffix: '+' },
+    { value: stats.verified, label: 'Verified Profiles', suffix: '+' },
     { value: 50, label: 'States Covered', suffix: '' },
-    { value: stats.trades || 200, label: 'Trade Categories', suffix: '+' },
+    { value: stats.tradeCategories, label: 'Trade Categories', suffix: '+' },
   ]
 
   return (
@@ -89,7 +55,11 @@ function LiveStats() {
       {metrics.map((m, i) => (
         <motion.div key={i} variants={fadeUp} className="text-center">
           <div className="text-3xl md:text-4xl font-bold text-white">
-            <AnimatedCounter end={m.value} suffix={m.suffix} />
+            {stats.loading ? (
+              <span className="inline-block w-24 h-8 bg-white/10 rounded animate-pulse" />
+            ) : (
+              <AnimatedCounter end={m.value} suffix={m.suffix} />
+            )}
           </div>
           <div className="text-sm text-blue-200 mt-1">{m.label}</div>
         </motion.div>

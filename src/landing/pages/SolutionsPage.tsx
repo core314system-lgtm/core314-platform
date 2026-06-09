@@ -21,9 +21,9 @@ const industries = [
       'AI extracts FAR/DFARS compliance requirements from SOWs',
       'SAM.gov integration pulls active opportunities into your pipeline',
       'Compliance matrix maps every clause to your response',
-      'Period of performance, labor categories, and wage determinations auto-detected',
+      'AI maps SOW line items to 45-trade taxonomy and matches subs by radius',
+      'RFQ Composer with merge fields, live preview, and branded templates',
       'Workflow stages: New/Intake, Evaluating, Bid Review, Submitted, Awarded, Not Awarded',
-      'Debrief system captures lessons learned after every award decision',
     ],
     color: 'blue',
   },
@@ -35,10 +35,10 @@ const industries = [
     desc: 'Manage complex multi-trade bids where subcontractor alignment, material pricing, and compliance intersect. Procuvex keeps everything in one place.',
     features: [
       'Track multiple subcontractor quotes per service category',
-      'RFQ packages generated and emailed directly to subs',
-      'Material and labor cost risk identification',
-      'Workflow stages: Bid Review, Estimating, Bid Finalization, Submitted, Awarded, Not Awarded',
-      'Custom quote forms for each trade',
+      'Find subs within 10–200 miles of the job site with radius-based matching',
+      'Compose branded RFQs with merge fields and send to matched subs',
+      'AI Quote Compliance Engine analyzes every quote against your SOW',
+      'Pricing Decision Matrix ranks subs by best value with weighted scoring',
       'Real-time pipeline visibility across all active bids',
     ],
     color: 'amber',
@@ -51,9 +51,9 @@ const industries = [
     desc: 'Respond to technical RFPs with AI that understands solution requirements, staffing plans, and technology stack compliance.',
     features: [
       'Technical requirement extraction from complex RFPs',
-      'Service category mapping for multi-discipline proposals',
+      'AI SOW-to-trade mapping finds qualified subs automatically',
       'Labor category and certification compliance tracking',
-      'Workflow stages: Requirements Gathering, Solution Design, Technical Review, Submitted, Awarded, Not Awarded',
+      'Combinable Local/Regional/National search scopes for sub matching',
       'Team assignment with role-based access',
       'Executive summary generation for internal review boards',
     ],
@@ -195,6 +195,32 @@ export default function SolutionsPage() {
               </motion.div>
             ))}
           </motion.div>
+        </div>
+      </section>
+
+      {/* Industry Glossary */}
+      <section className="py-16 lg:py-20 bg-white border-t border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center" style={{ fontFamily: 'Poppins, sans-serif' }}>Industry Terms Glossary</h2>
+          <p className="text-sm text-slate-500 text-center mb-8">New to government contracting? Here are the key terms you'll see throughout Procuvex.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { term: 'FAR', def: 'Federal Acquisition Regulation — the rules governing how the federal government buys goods and services.' },
+              { term: 'DFARS', def: 'Defense Federal Acquisition Regulation Supplement — additional rules for Department of Defense contracts.' },
+              { term: 'SOW', def: 'Statement of Work — describes the tasks, deliverables, and timeline required under a contract.' },
+              { term: 'NAICS', def: 'North American Industry Classification System — a 6-digit code classifying businesses by industry.' },
+              { term: 'RFP', def: 'Request for Proposal — a solicitation asking vendors to submit a formal proposal.' },
+              { term: 'RFQ', def: 'Request for Quote — a solicitation asking vendors to submit pricing for specific goods or services.' },
+              { term: 'SAM.gov', def: 'System for Award Management — the federal database for contractor registration and opportunity posting.' },
+              { term: 'CUI', def: 'Controlled Unclassified Information — sensitive but unclassified government data requiring safeguarding.' },
+              { term: 'FedRAMP', def: 'Federal Risk and Authorization Management Program — standardized security assessment for cloud products.' },
+            ].map((item, i) => (
+              <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <p className="font-semibold text-blue-600 text-sm mb-1">{item.term}</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{item.def}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

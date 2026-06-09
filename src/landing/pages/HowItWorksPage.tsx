@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Upload, Brain, Shield, FileText, Users,
-  BarChart3,
+  BarChart3, Crosshair, Mail,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -40,13 +40,27 @@ const steps = [
   },
   {
     num: '5',
+    icon: Crosshair,
+    title: 'Match Subs by Location & Trade',
+    desc: 'AI maps each SOW line item to a trade category and finds qualified subcontractors within your chosen radius — 10 miles to nationwide.',
+    detail: 'Combine Local (configurable radius), Regional (adjacent states), and National scopes. Per-trade queries ensure every SOW item gets coverage. Results show distance from project site.',
+  },
+  {
+    num: '6',
+    icon: Mail,
+    title: 'Compose & Send RFQs',
+    desc: 'Customize your RFQ with your company branding, merge fields, and a custom note. Preview exactly what each subcontractor will receive before sending.',
+    detail: 'The RFQ Composer auto-populates project details (title, location, due date, SOW categories) and your company name. Select a saved template or write custom copy.',
+  },
+  {
+    num: '7',
     icon: Users,
     title: 'Collaborate & Track',
     desc: 'Assign team members and subcontractors to the project. Track workflow stages from intake through submission. Monitor the bid readiness checklist.',
     detail: 'The workflow engine supports stage changes with audit trails, approval notes, and team notifications. Every action is logged for accountability.',
   },
   {
-    num: '6',
+    num: '8',
     icon: BarChart3,
     title: 'Win & Learn',
     desc: 'After the outcome, complete a structured debrief. The Intelligence Library aggregates patterns across all your bids — win rates, competitor insights, pricing benchmarks.',
@@ -64,7 +78,7 @@ export default function HowItWorksPage() {
           <div className="max-w-3xl mx-auto text-center">
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-blue-600 text-sm font-semibold uppercase tracking-wider mb-3">How It Works</motion.p>
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              From Upload to <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Award</span> in Six Steps
+              From Upload to <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Award</span> in Eight Steps
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
               Procuvex streamlines the entire bid lifecycle. Here is exactly how your team will use it.
