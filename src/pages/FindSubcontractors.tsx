@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
@@ -150,14 +150,45 @@ export default function FindSubcontractors() {
     })
   }
 
-  const performSearch = useCallback(async (pageNum: number = 0, overrides?: { trade?: string; searchText?: string; state?: string }) => {
+  // Use refs to always have current filter values — eliminates React closure staleness
+  const filterTradeRef = useRef(filterTrade)
+  const searchRef = useRef(search)
+  const filterStateRef = useRef(filterState)
+  const filterVerifiedRef = useRef(filterVerified)
+  const filterSmallBizRef = useRef(filterSmallBiz)
+  const includeOrgSubsRef = useRef(includeOrgSubs)
+  filterTradeRef.current = filterTrade
+  searchRef.current = search
+  filterStateRef.current = filterState
+  filterVerifiedRef.current = filterVerified
+  filterSmallBizRef.current = filterSmallBiz
+  includeOrgSubsRef.current = includeOrgSubs
+
+  // Resolve text search to matching trade category if applicable
+  function resolveTradeFromSearch(searchText: string): string | null {
+    if (!searchText.trim()) return null
+    const lower = searchText.trim().toLowerCase()
+    const match = TRADE_CATEGORIES.find(t =>
+      t.name.toLowerCase().includes(lower) || lower.includes(t.name.toLowerCase())
+    )
+    return match ? match.name : null
+  }
+
+  const performSearch = useCallback(async (pageNum: number = 0) => {
     setLoading(true)
     setSearched(true)
 
-    // Use overrides if provided (fixes React state closure for immediate filter changes)
-    const activeTrade = overrides?.trade !== undefined ? overrides.trade : filterTrade
-    const activeSearch = overrides?.searchText !== undefined ? overrides.searchText : search
-    const activeState = overrides?.state !== undefined ? overrides.state : filterState
+    // Always read from refs — guaranteed to be current regardless of closure timing
+    const activeTrade = filterTradeRef.current
+    const activeSearch = searchRef.current
+    const activeState = filterStateRef.current
+    const activeVerified = filterVerifiedRef.current
+    const activeSmallBiz = filterSmallBizRef.current
+    const activeIncludeOrg = includeOrgSubsRef.current
+
+    // If user typed something that matches a trade category name, treat it as a trade filter
+    const inferredTrade = !activeTrade ? resolveTradeFromSearch(activeSearch) : null
+    const effectiveTrade = activeTrade || inferredTrade
 
     let query = supabase
       .from('master_subcontractors')
@@ -166,19 +197,20 @@ export default function FindSubcontractors() {
     // Only return contactable subs (must have email or phone)
     query = query.or('contact_email.not.is.null,contact_phone.not.is.null')
 
-    if (activeSearch.trim()) {
-      query = query.or(`company_name.ilike.%${activeSearch.trim()}%,trade_categories.cs.{${activeSearch.trim()}}`)
+    // Text search: only used for company name matching if no trade was inferred
+    if (activeSearch.trim() && !inferredTrade) {
+      query = query.ilike('company_name', `%${activeSearch.trim()}%`)
     }
     if (activeState) {
       query = query.eq('state', activeState)
     }
-    if (activeTrade) {
-      query = query.contains('trade_categories', [activeTrade])
+    if (effectiveTrade) {
+      query = query.contains('trade_categories', [effectiveTrade])
     }
-    if (filterVerified) {
+    if (activeVerified) {
       query = query.eq('verification_status', 'verified')
     }
-    if (filterSmallBiz) {
+    if (activeSmallBiz) {
       query = query.eq('small_business', true)
     }
 
@@ -192,22 +224,22 @@ export default function FindSubcontractors() {
 
     // Also search org subs if toggle is on
     let orgResults: SubResult[] = []
-    if (includeOrgSubs && currentOrg) {
+    if (activeIncludeOrg && currentOrg) {
       let orgQuery = supabase
         .from('org_subcontractors')
         .select('id, company_name, contact_name, contact_email, contact_phone, city, state, trade_categories, naics_codes, small_business, small_business_types, website, notes')
         .eq('org_id', currentOrg.id)
 
-      if (activeSearch.trim()) {
+      if (activeSearch.trim() && !inferredTrade) {
         orgQuery = orgQuery.ilike('company_name', `%${activeSearch.trim()}%`)
       }
       if (activeState) {
         orgQuery = orgQuery.eq('state', activeState)
       }
-      if (activeTrade) {
-        orgQuery = orgQuery.contains('trade_categories', [activeTrade])
+      if (effectiveTrade) {
+        orgQuery = orgQuery.contains('trade_categories', [effectiveTrade])
       }
-      if (filterSmallBiz) {
+      if (activeSmallBiz) {
         orgQuery = orgQuery.eq('small_business', true)
       }
 
@@ -249,7 +281,17 @@ export default function FindSubcontractors() {
       setPage(pageNum)
     }
     setLoading(false)
-  }, [search, filterState, filterTrade, filterVerified, filterSmallBiz, includeOrgSubs, currentOrg])
+  }, [currentOrg])
+
+  // Auto-trigger search when any filter changes (dropdown, checkbox, etc.)
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    performSearch(0)
+  }, [filterTrade, filterState, filterVerified, filterSmallBiz, includeOrgSubs])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -300,7 +342,7 @@ export default function FindSubcontractors() {
             {TRADE_CATEGORIES.filter(t => t.id !== 'other').slice(0, 18).map(trade => (
               <button
                 key={trade.id}
-                onClick={() => { setFilterTrade(trade.name); setSearch(''); performSearch(0, { trade: trade.name, searchText: '' }) }}
+                onClick={() => { setFilterTrade(trade.name); setSearch('') }}
                 className="p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition-all text-center group"
               >
                 <div className="text-xs font-medium text-gray-700 group-hover:text-blue-700 truncate">{trade.name}</div>
@@ -343,7 +385,7 @@ export default function FindSubcontractors() {
           <Filter size={14} className="text-gray-400" />
           <select
             value={filterState}
-            onChange={e => { setFilterState(e.target.value); performSearch(0, { state: e.target.value }) }}
+            onChange={e => setFilterState(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
           >
             <option value="">All States</option>
@@ -352,7 +394,7 @@ export default function FindSubcontractors() {
 
           <select
             value={filterTrade}
-            onChange={e => { setFilterTrade(e.target.value); performSearch(0, { trade: e.target.value }) }}
+            onChange={e => setFilterTrade(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
           >
             <option value="">All Trades</option>
