@@ -150,9 +150,14 @@ export default function FindSubcontractors() {
     })
   }
 
-  const performSearch = useCallback(async (pageNum: number = 0) => {
+  const performSearch = useCallback(async (pageNum: number = 0, overrides?: { trade?: string; searchText?: string; state?: string }) => {
     setLoading(true)
     setSearched(true)
+
+    // Use overrides if provided (fixes React state closure for immediate filter changes)
+    const activeTrade = overrides?.trade !== undefined ? overrides.trade : filterTrade
+    const activeSearch = overrides?.searchText !== undefined ? overrides.searchText : search
+    const activeState = overrides?.state !== undefined ? overrides.state : filterState
 
     let query = supabase
       .from('master_subcontractors')
@@ -161,14 +166,14 @@ export default function FindSubcontractors() {
     // Only return contactable subs (must have email or phone)
     query = query.or('contact_email.not.is.null,contact_phone.not.is.null')
 
-    if (search.trim()) {
-      query = query.or(`company_name.ilike.%${search.trim()}%,trade_categories.cs.{${search.trim()}}`)
+    if (activeSearch.trim()) {
+      query = query.or(`company_name.ilike.%${activeSearch.trim()}%,trade_categories.cs.{${activeSearch.trim()}}`)
     }
-    if (filterState) {
-      query = query.eq('state', filterState)
+    if (activeState) {
+      query = query.eq('state', activeState)
     }
-    if (filterTrade) {
-      query = query.contains('trade_categories', [filterTrade])
+    if (activeTrade) {
+      query = query.contains('trade_categories', [activeTrade])
     }
     if (filterVerified) {
       query = query.eq('verification_status', 'verified')
@@ -193,14 +198,14 @@ export default function FindSubcontractors() {
         .select('id, company_name, contact_name, contact_email, contact_phone, city, state, trade_categories, naics_codes, small_business, small_business_types, website, notes')
         .eq('org_id', currentOrg.id)
 
-      if (search.trim()) {
-        orgQuery = orgQuery.ilike('company_name', `%${search.trim()}%`)
+      if (activeSearch.trim()) {
+        orgQuery = orgQuery.ilike('company_name', `%${activeSearch.trim()}%`)
       }
-      if (filterState) {
-        orgQuery = orgQuery.eq('state', filterState)
+      if (activeState) {
+        orgQuery = orgQuery.eq('state', activeState)
       }
-      if (filterTrade) {
-        orgQuery = orgQuery.contains('trade_categories', [filterTrade])
+      if (activeTrade) {
+        orgQuery = orgQuery.contains('trade_categories', [activeTrade])
       }
       if (filterSmallBiz) {
         orgQuery = orgQuery.eq('small_business', true)
@@ -295,7 +300,7 @@ export default function FindSubcontractors() {
             {TRADE_CATEGORIES.filter(t => t.id !== 'other').slice(0, 18).map(trade => (
               <button
                 key={trade.id}
-                onClick={() => { setFilterTrade(trade.name); setSearch(''); performSearch(0) }}
+                onClick={() => { setFilterTrade(trade.name); setSearch(''); performSearch(0, { trade: trade.name, searchText: '' }) }}
                 className="p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition-all text-center group"
               >
                 <div className="text-xs font-medium text-gray-700 group-hover:text-blue-700 truncate">{trade.name}</div>
@@ -338,7 +343,7 @@ export default function FindSubcontractors() {
           <Filter size={14} className="text-gray-400" />
           <select
             value={filterState}
-            onChange={e => setFilterState(e.target.value)}
+            onChange={e => { setFilterState(e.target.value); performSearch(0, { state: e.target.value }) }}
             className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
           >
             <option value="">All States</option>
@@ -347,7 +352,7 @@ export default function FindSubcontractors() {
 
           <select
             value={filterTrade}
-            onChange={e => setFilterTrade(e.target.value)}
+            onChange={e => { setFilterTrade(e.target.value); performSearch(0, { trade: e.target.value }) }}
             className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
           >
             <option value="">All Trades</option>
