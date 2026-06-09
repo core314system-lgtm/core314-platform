@@ -75,6 +75,7 @@ interface AiMatch {
   small_business_types: string[]
   match_score: number
   match_reasons: string[]
+  matched_trades: string[]
 }
 
 const US_STATES = [
@@ -117,7 +118,8 @@ export default function FindSubcontractors() {
   const [selectedAiSubs, setSelectedAiSubs] = useState<Set<string>>(new Set())
   const [sendingAiRfqs, setSendingAiRfqs] = useState(false)
   const [aiRfqResult, setAiRfqResult] = useState<{ sent: number; failed: number } | null>(null)
-  const [aiMatchedTrades, setAiMatchedTrades] = useState<string[]>([])
+  const [aiTradeCounts, setAiTradeCounts] = useState<Record<string, number>>({})
+  const [aiTradeFilter, setAiTradeFilter] = useState<string>('')
 
   useEffect(() => {
     fetchStats()
@@ -529,7 +531,6 @@ export default function FindSubcontractors() {
                         .select('service_category')
                         .eq('task_order_id', selectedProject)
                       const trades = [...new Set((sowItems || []).map(s => s.service_category).filter(Boolean))]
-                      setAiMatchedTrades(trades)
                       if (trades.length === 0) {
                         setAiMatches([])
                         setAiLoading(false)
@@ -542,13 +543,15 @@ export default function FindSubcontractors() {
                           action: 'match',
                           trades,
                           states: proj?.location_state ? [proj.location_state] : [],
-                          max_results: 50,
+                          max_results: Math.min(Math.max(trades.length * 10, 50), 200),
                           include_unclaimed: true,
                         }),
                       })
                       if (res.ok) {
                         const data = await res.json()
                         setAiMatches(data.matches || [])
+                        setAiTradeCounts(data.trade_counts || {})
+                        setAiTradeFilter('')
                       }
                     } catch (err) {
                       console.error('AI match error:', err)
@@ -579,9 +582,31 @@ export default function FindSubcontractors() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found</span>
-                      {aiMatchedTrades.length > 0 && (
-                        <div className="text-xs text-purple-600 mt-0.5">Matched trades: {aiMatchedTrades.join(', ')}</div>
+                      <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found across {Object.keys(aiTradeCounts).length} trade{Object.keys(aiTradeCounts).length !== 1 ? 's' : ''}</span>
+                      {Object.keys(aiTradeCounts).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <button
+                            onClick={() => setAiTradeFilter('')}
+                            className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                              aiTradeFilter === '' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50'
+                            }`}
+                          >
+                            All ({aiMatches.length})
+                          </button>
+                          {Object.entries(aiTradeCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([trade, count]) => (
+                            <button
+                              key={trade}
+                              onClick={() => setAiTradeFilter(aiTradeFilter === trade ? '' : trade)}
+                              className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                                aiTradeFilter === trade ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50'
+                              }`}
+                            >
+                              {trade} ({count})
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -640,7 +665,7 @@ export default function FindSubcontractors() {
                   )}
 
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {aiMatches.map(match => (
+                    {aiMatches.filter(m => !aiTradeFilter || m.matched_trades?.includes(aiTradeFilter)).map(match => (
                       <div
                         key={match.sub_id}
                         className={`bg-white rounded-lg border p-3 flex items-start gap-3 transition-colors ${

@@ -20,6 +20,7 @@ interface MatchResult {
   small_business_types: string[]
   match_score: number
   match_reasons: string[]
+  matched_trades: string[]
 }
 
 export default async (req: Request, _context: Context) => {
@@ -90,7 +91,7 @@ export default async (req: Request, _context: Context) => {
       let score = 0
       const reasons: string[] = []
 
-      // Trade match (primary factor — 40 points max)
+      // Trade match (primary factor — 20 points per matching trade, capped at 40)
       const tradeMatches = trades.filter((t: string) => sub.trade_categories?.includes(t))
       if (tradeMatches.length > 0) {
         score += Math.min(tradeMatches.length * 20, 40)
@@ -98,6 +99,7 @@ export default async (req: Request, _context: Context) => {
       } else {
         return null // no trade match = skip
       }
+      const matchedTrades = tradeMatches as string[]
 
       // Location match (20 points)
       if (states && states.length > 0) {
@@ -162,12 +164,51 @@ export default async (req: Request, _context: Context) => {
         small_business_types: sub.small_business_types || [],
         match_score: score,
         match_reasons: reasons,
+        matched_trades: matchedTrades,
       }
     }).filter(Boolean) as MatchResult[]
 
-    // Sort by score descending
-    scored.sort((a, b) => b.match_score - a.match_score)
-    const results = scored.slice(0, limit)
+    // Per-trade round-robin selection to ensure ALL SOW trades have representation
+    // Without this, multi-trade subs (e.g. HVAC+Plumbing) dominate and single-trade
+    // SOWs (Janitorial, Landscaping, etc.) get zero representation.
+    const perTradeMin = Math.max(Math.ceil(limit / trades.length), 3)
+    const tradeGroups: Record<string, MatchResult[]> = {}
+    for (const trade of trades) {
+      tradeGroups[trade as string] = scored
+        .filter(s => s.matched_trades.includes(trade as string))
+        .sort((a, b) => b.match_score - a.match_score)
+    }
+
+    const selectedIds = new Set<string>()
+    const results: MatchResult[] = []
+
+    // First pass: give each trade its fair share
+    for (const trade of trades) {
+      const group = tradeGroups[trade as string] || []
+      let added = 0
+      for (const sub of group) {
+        if (results.length >= limit) break
+        if (selectedIds.has(sub.sub_id)) continue
+        selectedIds.add(sub.sub_id)
+        results.push(sub)
+        added++
+        if (added >= perTradeMin) break
+      }
+    }
+
+    // Second pass: fill remaining slots with highest-scoring unselected subs
+    if (results.length < limit) {
+      const remaining = scored
+        .filter(s => !selectedIds.has(s.sub_id))
+        .sort((a, b) => b.match_score - a.match_score)
+      for (const sub of remaining) {
+        if (results.length >= limit) break
+        results.push(sub)
+      }
+    }
+
+    // Final sort by score
+    results.sort((a, b) => b.match_score - a.match_score)
 
     // Increment match count for returned subs
     const matchedIds = results.map(r => r.sub_id)
@@ -177,7 +218,15 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
-    return new Response(JSON.stringify({ matches: results, total: scored.length }), { headers })
+    // Build per-trade count summary so frontend can show coverage
+    const tradeCounts: Record<string, number> = {}
+    for (const r of results) {
+      for (const t of r.matched_trades) {
+        tradeCounts[t] = (tradeCounts[t] || 0) + 1
+      }
+    }
+
+    return new Response(JSON.stringify({ matches: results, total: scored.length, trade_counts: tradeCounts }), { headers })
   }
 
   // --- ACTION: invite-all ---
