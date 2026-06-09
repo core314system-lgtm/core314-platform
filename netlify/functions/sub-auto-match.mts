@@ -57,20 +57,18 @@ export default async (req: Request, _context: Context) => {
     }
 
     // Base query — get subs that match trades
-    // Only return contactable subs (must have email or phone)
+    // Filter by trade_categories at DB level so results are project-specific
     let query = supabase
       .from("master_subcontractors")
       .select("id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei")
+      .overlaps("trade_categories", trades)
+
+    // Ensure all results are contactable (must have email or phone)
+    query = query.or("contact_email.not.is.null,contact_phone.not.is.null")
 
     if (!include_unclaimed) {
       query = query.not("claimed_at", "is", null) // only claimed/active subs
-    } else {
-      // For Enterprise: include all contactable subs (email or phone) OR claimed
-      query = query.or("claimed_at.not.is.null,contact_email.not.is.null,contact_phone.not.is.null")
     }
-
-    // Ensure all results are contactable
-    query = query.or("contact_email.not.is.null,contact_phone.not.is.null")
 
     if (require_verified) {
       query = query.eq("verification_status", "verified")
@@ -80,8 +78,8 @@ export default async (req: Request, _context: Context) => {
       query = query.eq("small_business", true)
     }
 
-    // Get candidates (larger set, we'll score them)
-    const { data: candidates, error } = await query.limit(500)
+    // Get candidates matching the project's trades (state is a scoring factor, not a hard filter)
+    const { data: candidates, error } = await query.order("profile_completeness", { ascending: false }).limit(500)
 
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
