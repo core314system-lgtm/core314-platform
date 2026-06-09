@@ -117,6 +117,7 @@ export default function FindSubcontractors() {
   const [selectedAiSubs, setSelectedAiSubs] = useState<Set<string>>(new Set())
   const [sendingAiRfqs, setSendingAiRfqs] = useState(false)
   const [aiRfqResult, setAiRfqResult] = useState<{ sent: number; failed: number } | null>(null)
+  const [aiMatchedTrades, setAiMatchedTrades] = useState<string[]>([])
 
   useEffect(() => {
     fetchStats()
@@ -528,6 +529,7 @@ export default function FindSubcontractors() {
                         .select('service_category')
                         .eq('task_order_id', selectedProject)
                       const trades = [...new Set((sowItems || []).map(s => s.service_category).filter(Boolean))]
+                      setAiMatchedTrades(trades)
                       if (trades.length === 0) {
                         setAiMatches([])
                         setAiLoading(false)
@@ -576,7 +578,12 @@ export default function FindSubcontractors() {
               {aiMatches.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found</span>
+                    <div>
+                      <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found</span>
+                      {aiMatchedTrades.length > 0 && (
+                        <div className="text-xs text-purple-600 mt-0.5">Matched trades: {aiMatchedTrades.join(', ')}</div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
