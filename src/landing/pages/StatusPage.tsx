@@ -73,7 +73,10 @@ export default function StatusPage() {
     setError(null)
 
     try {
-      const res = await fetch('/.netlify/functions/health')
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      const res = await fetch('/.netlify/functions/health', { signal: controller.signal })
+      clearTimeout(timeout)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data: HealthData = await res.json()
       setHealth(data)

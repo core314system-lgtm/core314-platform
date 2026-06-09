@@ -206,7 +206,11 @@ export default function ExploreNetworkPage() {
               The Procuvex Subcontractor Network
             </motion.p>
             <motion.h1 variants={fadeUp} className="text-5xl md:text-7xl font-bold text-white mb-6">
-              <AnimatedCounter end={stats.total} suffix="+" /> Subcontractors
+              {loading ? (
+                <span className="inline-block w-64 h-16 bg-white/10 rounded-lg animate-pulse align-middle" />
+              ) : (
+                <><AnimatedCounter end={stats.total} suffix="+" /></>
+              )} Subcontractors
             </motion.h1>
             <motion.p variants={fadeUp} className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto mb-12">
               The largest searchable database of government-registered subcontractors.
@@ -215,30 +219,23 @@ export default function ExploreNetworkPage() {
 
             {/* Stats Row */}
             <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-              <div className="text-center">
+              {[
+                { end: stats.small_business, suffix: '+', label: 'Small Businesses' },
+                { end: stats.contactable, suffix: '+', label: 'With Direct Contact' },
+                { end: 50, suffix: '', label: 'States Covered' },
+                { end: 45, suffix: '+', label: 'Trade Categories' },
+              ].map((item, i) => (
+              <div key={i} className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-white">
-                  <AnimatedCounter end={stats.small_business} suffix="+" />
+                  {loading ? (
+                    <span className="inline-block w-20 h-8 bg-white/10 rounded animate-pulse" />
+                  ) : (
+                    <AnimatedCounter end={item.end} suffix={item.suffix} />
+                  )}
                 </div>
-                <div className="text-sm text-blue-200 mt-1">Small Businesses</div>
+                <div className="text-sm text-blue-200 mt-1">{item.label}</div>
               </div>
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-white">
-                  <AnimatedCounter end={stats.contactable} suffix="+" />
-                </div>
-                <div className="text-sm text-blue-200 mt-1">With Direct Contact</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-white">
-                  <AnimatedCounter end={50} />
-                </div>
-                <div className="text-sm text-blue-200 mt-1">States Covered</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-white">
-                  <AnimatedCounter end={45} suffix="+" />
-                </div>
-                <div className="text-sm text-blue-200 mt-1">Trade Categories</div>
-              </div>
+              ))}
             </motion.div>
           </motion.div>
         </div>

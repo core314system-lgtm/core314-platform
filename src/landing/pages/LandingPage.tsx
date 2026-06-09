@@ -5,11 +5,12 @@ import {
   FileText, Brain, Target, BarChart3, Users, Kanban,
   DollarSign, ClipboardCheck, Zap, CheckCircle, Building2,
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
-  Award, Globe, Star, Quote,
+  Award, Globe, Star, Quote, Mail, Crosshair,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import { useNetworkStats } from '../hooks/useNetworkStats'
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } }
@@ -163,6 +164,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function LandingPage() {
+  const stats = useNetworkStats()
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <Header />
@@ -320,15 +322,15 @@ export default function LandingPage() {
               The Verified Subcontractor Network
             </h2>
             <p className="text-lg text-blue-200 max-w-3xl mx-auto leading-relaxed">
-              No other platform connects prime contractors with a verified database of 18,000+ subcontractors. This is the feature that changes how government teams are built.
+              No other platform connects prime contractors with a verified database of this size. AI-powered matching by trade, radius, and compliance — this is the feature that changes how government teams are built.
             </p>
           </motion.div>
 
           {/* Animated Stats */}
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto my-12">
             {[
-              { value: '18,000+', label: 'Subcontractors' },
-              { value: '200+', label: 'Trade Categories' },
+              { value: stats.loading ? '...' : `${Math.floor(stats.total / 1000)}K+`, label: 'Subcontractors' },
+              { value: '45+', label: 'Trade Categories' },
               { value: '50', label: 'States Covered' },
               { value: 'Real-Time', label: 'Auto-Matching' },
             ].map((stat, i) => (
@@ -347,7 +349,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold mb-3">For Prime Contractors</h3>
               <ul className="space-y-3">
-                {['Search verified subs by trade, location & certification', 'AI auto-matches subs to your RFQ requirements', 'One-click RFQ distribution to qualified subs', 'Build winning teams in minutes, not weeks'].map((item, i) => (
+                {['Search subs by trade, radius (10–200 mi), or region', 'AI maps your SOW line items to qualified subs', 'Compose & preview branded RFQs before sending', 'Combine Local + Regional + National search scopes'].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-blue-100 text-sm">
                     <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
                     {item}
@@ -1008,7 +1010,7 @@ export default function LandingPage() {
             <motion.div variants={fadeUp} className="text-center mb-12">
               <p className="text-blue-300 text-sm font-bold uppercase tracking-wider mb-3">Built-In Network</p>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                78,000+ Subcontractors at Your Fingertips
+                {stats.loading ? '...' : `${stats.total.toLocaleString()}+`} Subcontractors at Your Fingertips
               </h2>
               <p className="text-lg text-blue-200 max-w-2xl mx-auto leading-relaxed">
                 The largest searchable database of government-registered subcontractors — sourced from SAM.gov, GSA eLibrary, and SBA databases. AI-matched to your SOW in seconds.
@@ -1017,10 +1019,10 @@ export default function LandingPage() {
 
             <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mb-12">
               {[
-                { value: '78,000+', label: 'Subcontractors' },
+                { value: stats.loading ? '...' : `${stats.total.toLocaleString()}+`, label: 'Subcontractors' },
                 { value: '45+', label: 'Trade Categories' },
                 { value: '50', label: 'States Covered' },
-                { value: '42,000+', label: 'Small Businesses' },
+                { value: stats.loading ? '...' : `${stats.smallBusiness.toLocaleString()}+`, label: 'Small Businesses' },
               ].map((stat, i) => (
                 <motion.div key={i} variants={fadeUp} className="text-center">
                   <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
@@ -1031,9 +1033,9 @@ export default function LandingPage() {
 
             <motion.div variants={fadeUp} className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10">
               {[
-                { icon: Brain, title: 'AI SOW Matching', desc: 'Upload your scope of work — AI extracts required trades and finds qualified subs instantly.' },
-                { icon: Shield, title: 'Government-Verified', desc: 'Every sub sourced from official registries. SBA certifications auto-verified.' },
-                { icon: Target, title: 'One-Click Outreach', desc: 'Connect with matched subs, send RFQs, and track responses from one dashboard.' },
+                { icon: Brain, title: 'AI SOW Matching', desc: 'Upload your SOW — AI maps each line item to our 45-trade taxonomy and finds qualified subs by radius, region, or nationwide.' },
+                { icon: Crosshair, title: 'Radius-Based Search', desc: 'Find subs within 10, 25, 50, or 200 miles of your project site. Combine Local + Regional + National scopes.' },
+                { icon: Mail, title: 'RFQ Composer', desc: 'Customize RFQ templates with merge fields, preview the email, then send branded RFQs to matched subs.' },
               ].map((item, i) => (
                 <div key={i} className="p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10">
                   <item.icon className="h-8 w-8 text-blue-300 mb-3" />

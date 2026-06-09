@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import {
   FileText, Brain, Shield, Users, DollarSign, ClipboardCheck,
   Target, Kanban, BarChart3, Zap, Building2, ArrowRight,
-  Upload, CheckCircle, FileCheck, Scale,
+  Upload, CheckCircle, FileCheck, Scale, Crosshair, Mail,
+  Database,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -67,6 +68,30 @@ const modules = [
     features: ['Side-by-side quote comparison grid', 'Weighted scoring (Price, Compliance, Past Performance, Certs)', 'AI compliance score overlay per quote', 'Excel workbook & PDF export', 'Markup profiles & option year projections'],
   },
   {
+    icon: Crosshair,
+    title: 'Radius-Based Sub Matching',
+    desc: 'Find subcontractors within a configurable mile radius of your project site. Combine Local (10–200 mi), Regional (adjacent states), and National scopes in a single search.',
+    features: ['Configurable radius: 10, 25, 50, 100, 150, 200 miles', 'Combinable scope checkboxes (Local + Regional + National)', 'Distance shown on each result card', 'Proximity bonus scoring — closer subs rank higher'],
+  },
+  {
+    icon: Brain,
+    title: 'AI SOW-to-Trade Mapping',
+    desc: 'Upload your SOW and AI maps each line item to the closest trade category from the 45-trade taxonomy. Per-trade queries ensure every SOW item gets subcontractor coverage.',
+    features: ['AI-assisted label mapping via GPT-4o-mini', 'Collapsible SOW Coverage Breakdown table', 'Per-SOW sub count and match status', 'Fallback to raw trades if AI unavailable'],
+  },
+  {
+    icon: Mail,
+    title: 'RFQ Composer',
+    desc: 'Customize RFQ emails before sending. Select a template, insert merge fields ({org_name}, {project_title}, {due_date}), preview exactly what subs receive, then send.',
+    features: ['10 auto-populated merge fields', 'Editable template with rich text', 'Live email preview before send', 'Custom note callout for urgency'],
+  },
+  {
+    icon: Database,
+    title: 'Organization Sub Database',
+    desc: 'Maintain a private, organization-owned subcontractor database isolated from the master network. Import your own subs or promote from the master DB.',
+    features: ['Private org-level sub records', 'Independent from master database', 'CSV/manual import', 'Promote master DB subs to your org'],
+  },
+  {
     icon: Kanban,
     title: 'Pipeline & Workflow Engine',
     desc: 'Customizable workflow stages per project type. Kanban board view shows every bid in your pipeline at a glance.',
@@ -111,7 +136,7 @@ export default function ProductPage() {
               Every Tool Your <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Bid Team</span> Needs
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              14 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
+              18 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
             </motion.p>
           </div>
         </div>
