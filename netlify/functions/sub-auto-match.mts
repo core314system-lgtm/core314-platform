@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import zipcodes from "zipcodes"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -64,6 +65,7 @@ interface MatchResult {
   match_score: number
   match_reasons: string[]
   matched_trades: string[]
+  distance_miles?: number | null
 }
 
 export default async (req: Request, _context: Context) => {
@@ -93,7 +95,7 @@ export default async (req: Request, _context: Context) => {
   // --- ACTION: match ---
   // Find subs matching given criteria (trade, location, certs)
   if (action === "match") {
-    const { trades: rawTrades, sow_labels, states, location_scope, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
+    const { trades: rawTrades, sow_labels, states, location_scope, local_radius_miles, project_zip, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
     const limit = Math.min(max_results || 50, 200)
 
     // AI-assisted SOW label → trade taxonomy mapping
@@ -162,26 +164,65 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
       return new Response(JSON.stringify({ error: "At least one trade required" }), { status: 400, headers })
     }
 
-    // Determine which states to include based on location_scope
-    // "local" = project state only, "regional" = state + neighbors, "national" = no filter
-    const scope: string = location_scope || "regional"
-    let scopeStates: string[] | null = null // null = no state filter
-    if (scope === "local" && states && states.length > 0) {
-      scopeStates = [...states]
-    } else if (scope === "regional" && states && states.length > 0) {
-      const regionSet = new Set<string>(states)
-      for (const st of states) {
-        const neighbors = STATE_NEIGHBORS[st as string] || []
-        for (const n of neighbors) regionSet.add(n)
+    // Location scope can be a single value or an array (combinable)
+    // "local" = radius from project zip, "regional" = state + neighbors, "national" = no filter
+    // Examples: "regional", ["local", "regional"], ["local", "national"]
+    const rawScope = location_scope || "regional"
+    const scopes: string[] = Array.isArray(rawScope) ? rawScope : [rawScope]
+    const includesLocal = scopes.includes("local")
+    const includesRegional = scopes.includes("regional")
+    const includesNational = scopes.includes("national")
+    const radiusMiles = Number(local_radius_miles) || 50
+
+    // Resolve project zip for radius-based filtering
+    let projectLat: number | null = null
+    let projectLng: number | null = null
+    let localZipSet: Set<string> | null = null
+
+    if (includesLocal && project_zip) {
+      const zipInfo = zipcodes.lookup(String(project_zip).substring(0, 5))
+      if (zipInfo) {
+        projectLat = zipInfo.latitude
+        projectLng = zipInfo.longitude
+        // Get all zip codes within the radius for DB pre-filtering
+        const nearbyZips = zipcodes.radius(String(project_zip).substring(0, 5), radiusMiles) || []
+        localZipSet = new Set(nearbyZips)
       }
-      scopeStates = Array.from(regionSet)
     }
-    // scope === "national" → scopeStates remains null (no filter)
+
+    // Build the set of states to include in the DB query
+    let scopeStates: string[] | null = null // null = no state filter
+    if (includesNational) {
+      // National = no filter, trumps everything
+      scopeStates = null
+    } else {
+      const stateSet = new Set<string>()
+      if (includesLocal && projectLat && states?.[0]) {
+        // For local, include the project state + neighboring states to cast a wide net
+        // (actual radius filtering happens post-query)
+        stateSet.add(states[0])
+        const neighbors = STATE_NEIGHBORS[states[0] as string] || []
+        for (const n of neighbors) stateSet.add(n)
+      }
+      if (includesRegional && states && states.length > 0) {
+        for (const st of states) {
+          stateSet.add(st as string)
+          const neighbors = STATE_NEIGHBORS[st as string] || []
+          for (const n of neighbors) stateSet.add(n)
+        }
+      }
+      if (stateSet.size > 0) {
+        scopeStates = Array.from(stateSet)
+      } else if (states && states.length > 0) {
+        // Fallback: at least filter to project state
+        scopeStates = [...states]
+      }
+    }
 
     // Per-trade queries to guarantee coverage for ALL SOW trades.
     // A single .overlaps() query with .limit(500) causes common trades (HVAC, Plumbing)
     // to dominate the result set, crowding out rarer trades.
-    const selectFields = "id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei"
+    const selectFields = "id, company_name, contact_email, contact_phone, contact_name, state, city, zip_code, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei"
     const perTradeLimit = Math.max(Math.ceil(500 / trades.length), 50)
 
     const tradeQueries = trades.map((trade: string) => {
@@ -250,13 +291,36 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
       }
       const matchedTrades = tradeMatches as string[]
 
-      // Location match (20 points)
+      // Location/proximity scoring (up to 30 points)
+      let distanceMiles: number | null = null
+      if (includesLocal && projectLat && projectLng) {
+        if (!sub.zip_code) {
+          // No zip code — can't determine distance
+          if (!includesRegional && !includesNational) return null
+        } else {
+          const subZip = String(sub.zip_code).substring(0, 5)
+          const subInfo = zipcodes.lookup(subZip)
+          if (subInfo) {
+            distanceMiles = zipcodes.distance(String(project_zip).substring(0, 5), subZip) ?? null
+            if (distanceMiles !== null && distanceMiles <= radiusMiles) {
+              // Within local radius — high proximity bonus
+              const proximityBonus = Math.round(30 * (1 - distanceMiles / radiusMiles))
+              score += Math.max(proximityBonus, 10)
+              reasons.push(`${Math.round(distanceMiles)} mi away`)
+            } else if (!includesRegional && !includesNational) {
+              // Local only and sub is outside radius — skip
+              return null
+            }
+          } else if (!includesRegional && !includesNational) {
+            return null // Invalid zip, local-only = skip
+          }
+        }
+      }
       if (states && states.length > 0) {
         if (states.includes(sub.state)) {
           score += 15
           reasons.push(`Located in ${sub.state}`)
         }
-        // Also check geographic coverage
         const geoCover = sub.geographic_coverage || []
         const geoMatches = states.filter((s: string) => geoCover.includes(s))
         if (geoMatches.length > 0) {
@@ -314,6 +378,7 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
         match_score: score,
         match_reasons: reasons,
         matched_trades: matchedTrades,
+        distance_miles: distanceMiles,
       }
     }).filter(Boolean) as MatchResult[]
 
@@ -386,7 +451,8 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
       total: scored.length,
       trade_counts: tradeCounts,
       sow_breakdown: sowBreakdownWithCounts.length > 0 ? sowBreakdownWithCounts : undefined,
-      location_scope: scope,
+      location_scope: scopes,
+      radius_miles: includesLocal ? radiusMiles : undefined,
       scope_states: scopeStates,
     }), { headers })
   }

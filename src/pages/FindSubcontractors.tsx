@@ -77,6 +77,7 @@ interface AiMatch {
   match_score: number
   match_reasons: string[]
   matched_trades: string[]
+  distance_miles?: number | null
 }
 
 const US_STATES = [
@@ -123,7 +124,9 @@ export default function FindSubcontractors() {
   const [aiTradeFilter, setAiTradeFilter] = useState<string>('')
   const [sowBreakdown, setSowBreakdown] = useState<{ sow_label: string; mapped_trade: string | null; sub_count: number }[]>([])
   const [showSowBreakdown, setShowSowBreakdown] = useState(true)
-  const [locationScope, setLocationScope] = useState<'local' | 'regional' | 'national'>('regional')
+  const [locationScopes, setLocationScopes] = useState<Set<string>>(new Set(['regional']))
+  const [localRadius, setLocalRadius] = useState(50)
+  const [projectZip, setProjectZip] = useState('')
 
   useEffect(() => {
     fetchStats()
@@ -511,7 +514,7 @@ export default function FindSubcontractors() {
 
           {showAiMatch && (
             <div className="space-y-4">
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-start">
                 <select
                   value={selectedProject}
                   onChange={e => { setSelectedProject(e.target.value); setAiSearched(false); setAiMatches([]); setAiRfqResult(null) }}
@@ -522,18 +525,13 @@ export default function FindSubcontractors() {
                     <option key={p.id} value={p.id}>{p.title}{p.location_state ? ` (${p.location_state})` : ''}</option>
                   ))}
                 </select>
-                <select
-                  value={locationScope}
-                  onChange={e => setLocationScope(e.target.value as 'local' | 'regional' | 'national')}
-                  className="text-sm border border-purple-300 rounded-lg px-3 py-2 bg-white min-w-[140px]"
-                >
-                  <option value="local">Local (Same State)</option>
-                  <option value="regional">Regional (+ Neighbors)</option>
-                  <option value="national">National (All States)</option>
-                </select>
                 <button
                   onClick={async () => {
                     if (!selectedProject || !user) return
+                    if (locationScopes.has('local') && !projectZip) {
+                      alert('Please enter a project ZIP code for local radius search')
+                      return
+                    }
                     setAiLoading(true)
                     setAiSearched(true)
                     setAiRfqResult(null)
@@ -558,7 +556,9 @@ export default function FindSubcontractors() {
                           trades,
                           sow_labels: sowLabels,
                           states: proj?.location_state ? [proj.location_state] : [],
-                          location_scope: locationScope,
+                          location_scope: Array.from(locationScopes),
+                          local_radius_miles: locationScopes.has('local') ? localRadius : undefined,
+                          project_zip: locationScopes.has('local') ? projectZip : undefined,
                           max_results: Math.min(Math.max(trades.length * 10, 50), 200),
                           include_unclaimed: true,
                         }),
@@ -582,6 +582,65 @@ export default function FindSubcontractors() {
                   {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                   Find Matches
                 </button>
+              </div>
+
+              {/* Location Scope Controls */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="text-xs font-medium text-purple-800 mb-2 flex items-center gap-1">
+                  <MapPin size={12} /> Search Scope — select one or more:
+                </div>
+                <div className="flex flex-wrap gap-3 items-center">
+                  {[
+                    { key: 'local', label: 'Local (Radius)' },
+                    { key: 'regional', label: 'Regional (State + Neighbors)' },
+                    { key: 'national', label: 'National (All States)' },
+                  ].map(opt => (
+                    <label key={opt.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={locationScopes.has(opt.key)}
+                        onChange={() => {
+                          const next = new Set(locationScopes)
+                          if (next.has(opt.key)) next.delete(opt.key)
+                          else next.add(opt.key)
+                          if (next.size === 0) next.add('regional')
+                          setLocationScopes(next)
+                        }}
+                        className="rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="text-purple-800">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {locationScopes.has('local') && (
+                  <div className="flex gap-3 mt-2 items-center">
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-xs text-purple-700">ZIP:</label>
+                      <input
+                        type="text"
+                        value={projectZip}
+                        onChange={e => setProjectZip(e.target.value.replace(/[^0-9]/g, '').substring(0, 5))}
+                        placeholder="Project ZIP"
+                        className="w-20 text-sm border border-purple-300 rounded px-2 py-1"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-xs text-purple-700">Radius:</label>
+                      <select
+                        value={localRadius}
+                        onChange={e => setLocalRadius(Number(e.target.value))}
+                        className="text-sm border border-purple-300 rounded px-2 py-1 bg-white"
+                      >
+                        <option value={10}>10 miles</option>
+                        <option value={25}>25 miles</option>
+                        <option value={50}>50 miles</option>
+                        <option value={100}>100 miles</option>
+                        <option value={150}>150 miles</option>
+                        <option value={200}>200 miles</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {aiLoading && (
@@ -656,7 +715,7 @@ export default function FindSubcontractors() {
                       <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found across {Object.keys(aiTradeCounts).length} trade{Object.keys(aiTradeCounts).length !== 1 ? 's' : ''}</span>
                       <span className="text-xs text-gray-500 ml-2 inline-flex items-center gap-1">
                         <MapPin size={10} />
-                        {locationScope === 'local' ? 'Same state only' : locationScope === 'regional' ? 'State + neighbors' : 'Nationwide'}
+                        {Array.from(locationScopes).map(s => s === 'local' ? `Local (${localRadius}mi)` : s === 'regional' ? 'Regional' : 'National').join(' + ')}
                       </span>
                       {Object.keys(aiTradeCounts).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -776,7 +835,10 @@ export default function FindSubcontractors() {
                           </div>
                           <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 flex-wrap">
                             {(match.city || match.state) && (
-                              <span className="flex items-center gap-1"><MapPin size={10} /> {[match.city, match.state].filter(Boolean).join(', ')}</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin size={10} /> {[match.city, match.state].filter(Boolean).join(', ')}
+                                {match.distance_miles != null && <span className="text-purple-600 font-medium">({Math.round(match.distance_miles)} mi)</span>}
+                              </span>
                             )}
                             {match.contact_email && (
                               <span className="flex items-center gap-1"><Mail size={10} /> {isConnected(match.sub_id) ? match.contact_email : maskEmail(match.contact_email)}</span>
