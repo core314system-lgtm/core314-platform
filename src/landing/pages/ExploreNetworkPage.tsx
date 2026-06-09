@@ -98,22 +98,8 @@ export default function ExploreNetworkPage() {
           trade_categories: 45,
         })
 
-        // Get category counts
-        const { data: tradesRaw } = await supabase
-          .from('master_subcontractors')
-          .select('trade_categories')
-          .not('trade_categories', 'eq', '{}')
-
-        const categoryCounts: Record<string, number> = {}
-        tradesRaw?.forEach(row => {
-          if (row.trade_categories) {
-            row.trade_categories.forEach((cat: string) => {
-              categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
-            })
-          }
-        })
-
-        const TRADE_NAMES: Record<string, string> = {
+        // Get category counts — query by stored category names for accuracy
+        const CATEGORY_NAMES_MAP: Record<string, string> = {
           hvac: 'HVAC', electrical: 'Electrical', plumbing: 'Plumbing',
           fire_safety: 'Fire & Life Safety', elevator: 'Elevator & Escalator',
           janitorial: 'Janitorial & Custodial', landscaping: 'Landscaping & Grounds',
@@ -134,31 +120,48 @@ export default function ExploreNetworkPage() {
           abatement: 'Abatement', waterproofing: 'Waterproofing',
           fire_protection: 'Fire Protection', testing_inspection: 'Testing & Inspection',
           staffing: 'Staffing & Labor', consulting: 'Consulting', training: 'Training',
-          other: 'Other Services',
         }
 
+        const categoryCountPromises = Object.entries(CATEGORY_NAMES_MAP).map(async ([id, name]) => {
+          const { count } = await supabase
+            .from('master_subcontractors')
+            .select('*', { count: 'exact', head: true })
+            .contains('trade_categories', [name])
+          return { id, count: count || 0 }
+        })
+
+        const categoryResults = await Promise.all(categoryCountPromises)
+        const categoryCounts: Record<string, number> = {}
+        categoryResults.forEach(r => {
+          if (r.count > 0) categoryCounts[r.id] = r.count
+        })
+
         const sortedCategories = Object.entries(categoryCounts)
-          .map(([id, count]) => ({ id, name: TRADE_NAMES[id] || id, count }))
+          .map(([id, count]) => ({ id, name: CATEGORY_NAMES_MAP[id] || id, count }))
           .sort((a, b) => b.count - a.count)
 
         setCategories(sortedCategories)
 
-        // Get state counts
-        const { data: statesRaw } = await supabase
-          .from('master_subcontractors')
-          .select('state')
-          .not('state', 'is', null)
+        // Get state counts using individual queries for accuracy
+        const US_STATES = [
+          'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+          'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+          'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+          'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+          'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC',
+        ]
 
-        const stateCounts: Record<string, number> = {}
-        statesRaw?.forEach(row => {
-          if (row.state) {
-            const st = row.state.toUpperCase().trim()
-            if (st.length === 2) stateCounts[st] = (stateCounts[st] || 0) + 1
-          }
+        const stateCountPromises = US_STATES.map(async (st) => {
+          const { count } = await supabase
+            .from('master_subcontractors')
+            .select('*', { count: 'exact', head: true })
+            .ilike('state', st)
+          return { state: st, count: count || 0 }
         })
 
-        const sortedStates = Object.entries(stateCounts)
-          .map(([state, count]) => ({ state, count }))
+        const stateResults = await Promise.all(stateCountPromises)
+        const sortedStates = stateResults
+          .filter(s => s.count > 0)
           .sort((a, b) => b.count - a.count)
 
         setStates(sortedStates)
@@ -291,7 +294,7 @@ export default function ExploreNetworkPage() {
 
           {/* Top Categories Grid */}
           {!searchQuery && (
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {loading ? (
                 <div className="col-span-full text-center py-12 text-gray-500">Loading network data...</div>
               ) : (
@@ -300,7 +303,9 @@ export default function ExploreNetworkPage() {
                   return (
                     <motion.div
                       key={cat.id}
-                      variants={fadeUp}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
                       className="relative p-6 bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-lg transition-all group cursor-default"
                     >
                       <div className="flex items-start justify-between mb-3">
@@ -315,7 +320,7 @@ export default function ExploreNetworkPage() {
                   )
                 })
               )}
-            </motion.div>
+            </div>
           )}
 
           {!searchQuery && categories.length > 12 && (
