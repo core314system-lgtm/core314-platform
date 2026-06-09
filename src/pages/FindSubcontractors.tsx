@@ -11,6 +11,7 @@ import {
   Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
   Database, Building, Building2, Globe, Star, Filter, Zap, Send, CheckCircle, Unlock,
+  ChevronDown, ChevronRight,
 } from 'lucide-react'
 
 interface SubResult {
@@ -120,6 +121,8 @@ export default function FindSubcontractors() {
   const [aiRfqResult, setAiRfqResult] = useState<{ sent: number; failed: number } | null>(null)
   const [aiTradeCounts, setAiTradeCounts] = useState<Record<string, number>>({})
   const [aiTradeFilter, setAiTradeFilter] = useState<string>('')
+  const [sowBreakdown, setSowBreakdown] = useState<{ sow_label: string; mapped_trade: string | null; sub_count: number }[]>([])
+  const [showSowBreakdown, setShowSowBreakdown] = useState(true)
 
   useEffect(() => {
     fetchStats()
@@ -530,7 +533,8 @@ export default function FindSubcontractors() {
                         .from('sow_items')
                         .select('service_category')
                         .eq('task_order_id', selectedProject)
-                      const trades = [...new Set((sowItems || []).map(s => s.service_category).filter(Boolean))]
+                      const sowLabels = (sowItems || []).map(s => s.service_category).filter(Boolean)
+                      const trades = [...new Set(sowLabels)]
                       if (trades.length === 0) {
                         setAiMatches([])
                         setAiLoading(false)
@@ -542,6 +546,7 @@ export default function FindSubcontractors() {
                         body: JSON.stringify({
                           action: 'match',
                           trades,
+                          sow_labels: sowLabels,
                           states: proj?.location_state ? [proj.location_state] : [],
                           max_results: Math.min(Math.max(trades.length * 10, 50), 200),
                           include_unclaimed: true,
@@ -552,6 +557,8 @@ export default function FindSubcontractors() {
                         setAiMatches(data.matches || [])
                         setAiTradeCounts(data.trade_counts || {})
                         setAiTradeFilter('')
+                        setSowBreakdown(data.sow_breakdown || [])
+                        setShowSowBreakdown(true)
                       }
                     } catch (err) {
                       console.error('AI match error:', err)
@@ -580,6 +587,59 @@ export default function FindSubcontractors() {
 
               {aiMatches.length > 0 && (
                 <div className="space-y-3">
+                  {/* SOW Breakdown Summary */}
+                  {sowBreakdown.length > 0 && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setShowSowBreakdown(!showSowBreakdown)}
+                        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-purple-800 hover:bg-purple-100 transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Database size={14} />
+                          SOW Coverage Breakdown — {sowBreakdown.filter(s => s.mapped_trade && s.sub_count > 0).length} of {sowBreakdown.length} SOW items matched
+                        </span>
+                        {showSowBreakdown ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                      {showSowBreakdown && (
+                        <div className="px-4 pb-3">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-left text-purple-600 border-b border-purple-200">
+                                <th className="pb-1.5 font-medium">SOW Line Item</th>
+                                <th className="pb-1.5 font-medium">Mapped Trade Category</th>
+                                <th className="pb-1.5 font-medium text-right">Subs Found</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sowBreakdown.map((item, i) => (
+                                <tr key={i} className="border-b border-purple-100 last:border-0">
+                                  <td className="py-1.5 text-gray-700">{item.sow_label}</td>
+                                  <td className="py-1.5">
+                                    {item.mapped_trade ? (
+                                      <span className="inline-flex items-center gap-1 text-purple-700">
+                                        <CheckCircle size={10} className="text-green-500" />
+                                        {item.mapped_trade}
+                                      </span>
+                                    ) : (
+                                      <span className="text-amber-600 italic">Requires manual assignment</span>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 text-right font-medium">
+                                    {item.sub_count > 0 ? (
+                                      <span className="text-green-700">{item.sub_count}</span>
+                                    ) : (
+                                      <span className="text-gray-400">0</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found across {Object.keys(aiTradeCounts).length} trade{Object.keys(aiTradeCounts).length !== 1 ? 's' : ''}</span>
