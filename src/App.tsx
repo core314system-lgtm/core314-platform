@@ -276,11 +276,11 @@ export default function App() {
           {/* Subcontractor Database */}
           <Route path="/subcontractors" element={<ProtectedRoute><Subcontractors /></ProtectedRoute>} />
           <Route path="/subcontractor-capture" element={<ProtectedRoute><SubcontractorCapture /></ProtectedRoute>} />
-          <Route path="/master-subs" element={<ProtectedRoute><MasterSubDatabase /></ProtectedRoute>} />
+          <Route path="/master-subs" element={<ProtectedRoute><GlobalAdminRoute><MasterSubDatabase /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/find-subs" element={<ProtectedRoute><FindSubcontractors /></ProtectedRoute>} />
           <Route path="/my-subs" element={<ProtectedRoute><OrgSubcontractors /></ProtectedRoute>} />
           <Route path="/my-sub-profile" element={<ProtectedRoute><MySubProfile /></ProtectedRoute>} />
-          <Route path="/verification-review" element={<ProtectedRoute><AdminVerificationReview /></ProtectedRoute>} />
+          <Route path="/verification-review" element={<ProtectedRoute><GlobalAdminRoute><AdminVerificationReview /></GlobalAdminRoute></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
           <Route path="/teaming" element={<ProtectedRoute><TierGate feature="teaming_jv"><TeamingTracker /></TierGate></ProtectedRoute>} />
