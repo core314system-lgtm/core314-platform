@@ -458,9 +458,9 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
   }
 
   // --- ACTION: invite-all ---
-  // Send RFQ invitation emails to matched subs
+  // Send RFQ invitation emails to matched subs with customizable template
   if (action === "invite-all") {
-    const { sub_ids, rfq_title, rfq_description, prime_company, due_date } = body
+    const { sub_ids, rfq_title, rfq_description, prime_company, due_date, rfq_template, rfq_subject, custom_message, project_data } = body
 
     if (!sub_ids || !Array.isArray(sub_ids) || sub_ids.length === 0) {
       return new Response(JSON.stringify({ error: "sub_ids required" }), { status: 400, headers })
@@ -468,22 +468,100 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
 
     initSendGrid()
 
+    // Look up org name for sender
+    let orgName = prime_company || "Procuvex"
+    if (callerId) {
+      const { data: profile } = await supabase.from("profiles").select("org_id").eq("id", callerId).single()
+      if (profile?.org_id) {
+        const { data: org } = await supabase.from("organizations").select("name").eq("id", profile.org_id).single()
+        if (org?.name) orgName = org.name
+      }
+    }
+
     const { data: subs } = await supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_email")
+      .select("id, company_name, contact_name, contact_email")
       .in("id", sub_ids)
       .not("contact_email", "is", null)
 
     let sent = 0
     let failed = 0
 
+    // Merge field values from project data
+    const proj = project_data || {}
+    const mergeBase: Record<string, string> = {
+      "{org_name}": orgName,
+      "{task_order_title}": proj.title || rfq_title || "",
+      "{sow_name}": proj.sow_categories || "",
+      "{service_category}": proj.sow_categories || "",
+      "{site_name}": proj.site_name || "",
+      "{location_city}": proj.location_city || "",
+      "{location_state}": proj.location_state || "",
+      "{due_date}": proj.due_date
+        ? new Date(proj.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        : due_date || "TBD",
+      "{solicitation_number}": proj.solicitation_number || "",
+    }
+
     for (const sub of subs || []) {
       try {
+        // Per-sub merge fields
+        const mergeFields = {
+          ...mergeBase,
+          "{contact_name}": sub.contact_name || sub.company_name,
+        }
+
+        // Render template or use default
+        let emailBody = ""
+        if (rfq_template) {
+          let rendered = rfq_template
+          for (const [key, val] of Object.entries(mergeFields)) {
+            rendered = rendered.replace(new RegExp(key.replace(/[{}]/g, "\\$&"), "g"), val)
+          }
+          emailBody = rendered
+            .split("\n")
+            .map((line: string) => {
+              // Handle markdown bold
+              const boldReplaced = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+              return `<p style="margin: 4px 0; font-size: 14px; color: #374151;">${boldReplaced || "&nbsp;"}</p>`
+            })
+            .join("\n")
+        }
+
+        const customMsgHtml = custom_message
+          ? `<div style="background: #eff6ff; border-left: 4px solid #1e40af; padding: 12px 16px; margin: 16px 0; font-size: 14px;"><strong>Note from the team:</strong><br/>${custom_message}</div>`
+          : ""
+
+        const emailHtml = rfq_template
+          ? `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); border-radius: 12px 12px 0 0; padding: 24px; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 20px;">Request for Quote</h1>
+                <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 13px;">On behalf of ${orgName}</p>
+              </div>
+              <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 28px;">
+                ${emailBody}
+                ${customMsgHtml}
+                <div style="text-align: center; margin: 24px 0;">
+                  <a href="https://procuvex.com/my-sub-profile" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+                    View Details & Respond
+                  </a>
+                </div>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">Delivered on behalf of ${orgName}<br/>Powered by Procuvex</p>
+              </div>
+            </div>`
+          : buildRfqInviteEmail(sub.company_name, rfq_title, rfq_description, orgName, due_date)
+
+        const subjectLine = rfq_subject
+          ? rfq_subject.replace(/\{contact_name\}/g, sub.contact_name || sub.company_name)
+          : `New Opportunity: ${rfq_title || "RFQ Invitation"}`
+
         await sgMail.default.send({
           to: sub.contact_email!,
-          from: { email: "team@procuvex.com", name: "Procuvex" },
-          subject: `New Opportunity: ${rfq_title || "RFQ Invitation"}`,
-          html: buildRfqInviteEmail(sub.company_name, rfq_title, rfq_description, prime_company, due_date),
+          from: { email: "team@procuvex.com", name: orgName },
+          subject: subjectLine,
+          html: emailHtml,
+          trackingSettings: { clickTracking: { enable: true }, openTracking: { enable: true } },
           customArgs: { email_type: "rfq_invite" },
         })
 
@@ -491,8 +569,8 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           master_sub_id: sub.id,
           contact_type: "rfq_invite",
           contact_method: "email",
-          subject: rfq_title || "RFQ Invitation",
-          notes: `From ${prime_company || "a prime contractor"}`,
+          subject: subjectLine,
+          notes: `From ${orgName}`,
           sent_by: callerId,
         })
 

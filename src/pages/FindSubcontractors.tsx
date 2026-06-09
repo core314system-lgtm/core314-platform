@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useOrg } from '../contexts/OrgContext'
 import { useSubConnections } from '../hooks/useSubConnections'
 import { maskEmail, maskPhone } from '../lib/contactMasking'
+import RfqComposeModal from '../components/RfqComposeModal'
 import {
   Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
@@ -62,6 +63,10 @@ interface ProjectOption {
   id: string
   title: string
   location_state: string
+  location_city?: string
+  site_name?: string
+  due_date?: string
+  solicitation_number?: string
 }
 
 interface AiMatch {
@@ -127,6 +132,7 @@ export default function FindSubcontractors() {
   const [locationScopes, setLocationScopes] = useState<Set<string>>(new Set(['regional']))
   const [localRadius, setLocalRadius] = useState(50)
   const [projectZip, setProjectZip] = useState('')
+  const [showRfqCompose, setShowRfqCompose] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -136,7 +142,7 @@ export default function FindSubcontractors() {
   async function loadProjects() {
     const { data } = await supabase
       .from('task_orders')
-      .select('id, title, location_state')
+      .select('id, title, location_state, location_city, site_name, due_date, solicitation_number')
       .in('status', ['draft', 'in_progress', 'under_review'])
       .order('created_at', { ascending: false })
       .limit(50)
@@ -755,36 +761,12 @@ export default function FindSubcontractors() {
                       </button>
                       {selectedAiSubs.size > 0 && (
                         <button
-                          onClick={async () => {
-                            if (!user) return
-                            setSendingAiRfqs(true)
-                            try {
-                              const proj = projects.find(p => p.id === selectedProject)
-                              const res = await fetch('/.netlify/functions/sub-auto-match', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-                                body: JSON.stringify({
-                                  action: 'invite-all',
-                                  sub_ids: Array.from(selectedAiSubs),
-                                  rfq_title: proj?.title || 'RFQ Invitation',
-                                  rfq_description: `Request for Quote for ${proj?.title || 'project'}`,
-                                  prime_company: 'Procuvex Network',
-                                }),
-                              })
-                              if (res.ok) {
-                                const data = await res.json()
-                                setAiRfqResult({ sent: data.sent, failed: data.failed })
-                              }
-                            } catch (err) {
-                              console.error('RFQ send error:', err)
-                            }
-                            setSendingAiRfqs(false)
-                          }}
+                          onClick={() => setShowRfqCompose(true)}
                           disabled={sendingAiRfqs}
                           className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
                         >
                           {sendingAiRfqs ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                          Send RFQs ({selectedAiSubs.size})
+                          Compose RFQ ({selectedAiSubs.size})
                         </button>
                       )}
                     </div>
@@ -1062,6 +1044,49 @@ export default function FindSubcontractors() {
           )}
         </div>
       )}
+
+      {/* RFQ Compose Modal */}
+      <RfqComposeModal
+        open={showRfqCompose}
+        onClose={() => setShowRfqCompose(false)}
+        selectedCount={selectedAiSubs.size}
+        project={projects.find(pr => pr.id === selectedProject) || null}
+        sowCategories={Object.keys(aiTradeCounts)}
+        onSend={async (rfqTemplate, rfqSubject, customMessage) => {
+          if (!user) return
+          setSendingAiRfqs(true)
+          try {
+            const proj = projects.find(p => p.id === selectedProject)
+            const res = await fetch('/.netlify/functions/sub-auto-match', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+              body: JSON.stringify({
+                action: 'invite-all',
+                sub_ids: Array.from(selectedAiSubs),
+                rfq_template: rfqTemplate,
+                rfq_subject: rfqSubject,
+                custom_message: customMessage,
+                project_data: proj ? {
+                  title: proj.title,
+                  location_city: proj.location_city,
+                  location_state: proj.location_state,
+                  site_name: proj.site_name,
+                  due_date: proj.due_date,
+                  solicitation_number: proj.solicitation_number,
+                  sow_categories: Object.keys(aiTradeCounts).join(', '),
+                } : undefined,
+              }),
+            })
+            if (res.ok) {
+              const data = await res.json()
+              setAiRfqResult({ sent: data.sent, failed: data.failed })
+            }
+          } catch (err) {
+            console.error('RFQ send error:', err)
+          }
+          setSendingAiRfqs(false)
+        }}
+      />
     </div>
   )
 }
