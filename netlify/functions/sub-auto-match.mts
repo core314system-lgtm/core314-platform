@@ -4,6 +4,35 @@ const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
+// US state adjacency map for regional filtering
+const STATE_NEIGHBORS: Record<string, string[]> = {
+  AL: ["FL","GA","MS","TN"], AK: [], AZ: ["CA","NV","UT","NM","CO"],
+  AR: ["LA","MS","MO","OK","TN","TX"], CA: ["AZ","NV","OR"],
+  CO: ["AZ","KS","NE","NM","OK","UT","WY"], CT: ["MA","NY","RI"],
+  DE: ["MD","NJ","PA"], FL: ["AL","GA"], GA: ["AL","FL","NC","SC","TN"],
+  HI: [], ID: ["MT","NV","OR","UT","WA","WY"],
+  IL: ["IN","IA","KY","MO","WI"], IN: ["IL","KY","MI","OH"],
+  IA: ["IL","MN","MO","NE","SD","WI"], KS: ["CO","MO","NE","OK"],
+  KY: ["IL","IN","MO","OH","TN","VA","WV"], LA: ["AR","MS","TX"],
+  ME: ["NH"], MD: ["DE","PA","VA","WV","DC"], MA: ["CT","NH","NY","RI","VT"],
+  MI: ["IN","OH","WI"], MN: ["IA","ND","SD","WI"],
+  MS: ["AL","AR","LA","TN"], MO: ["AR","IL","IA","KS","KY","NE","OK","TN"],
+  MT: ["ID","ND","SD","WY"], NE: ["CO","IA","KS","MO","SD","WY"],
+  NV: ["AZ","CA","ID","OR","UT"], NH: ["MA","ME","VT"],
+  NJ: ["DE","NY","PA"], NM: ["AZ","CO","OK","TX","UT"],
+  NY: ["CT","MA","NJ","PA","VT"], NC: ["GA","SC","TN","VA"],
+  ND: ["MN","MT","SD"], OH: ["IN","KY","MI","PA","WV"],
+  OK: ["AR","CO","KS","MO","NM","TX"], OR: ["CA","ID","NV","WA"],
+  PA: ["DE","MD","NJ","NY","OH","WV"], RI: ["CT","MA"],
+  SC: ["GA","NC"], SD: ["IA","MN","MT","ND","NE","WY"],
+  TN: ["AL","AR","GA","KY","MO","MS","NC","VA"],
+  TX: ["AR","LA","NM","OK"], UT: ["AZ","CO","ID","NV","NM","WY"],
+  VT: ["MA","NH","NY"], VA: ["KY","MD","NC","TN","WV","DC"],
+  WA: ["ID","OR"], WV: ["KY","MD","OH","PA","VA"],
+  WI: ["IA","IL","MI","MN"], WY: ["CO","ID","MT","NE","SD","UT"],
+  DC: ["MD","VA"],
+}
+
 const KNOWN_TRADES = [
   "HVAC", "Electrical", "Plumbing", "Fire & Life Safety", "Elevator & Escalator",
   "Janitorial", "Landscaping", "Snow & Ice Removal", "Pest Control", "Roofing",
@@ -64,7 +93,7 @@ export default async (req: Request, _context: Context) => {
   // --- ACTION: match ---
   // Find subs matching given criteria (trade, location, certs)
   if (action === "match") {
-    const { trades: rawTrades, sow_labels, states, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
+    const { trades: rawTrades, sow_labels, states, location_scope, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
     const limit = Math.min(max_results || 50, 200)
 
     // AI-assisted SOW label → trade taxonomy mapping
@@ -133,37 +162,81 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
       return new Response(JSON.stringify({ error: "At least one trade required" }), { status: 400, headers })
     }
 
-    // Base query — get subs that match trades
-    // Filter by trade_categories at DB level so results are project-specific
-    let query = supabase
-      .from("master_subcontractors")
-      .select("id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei")
-      .overlaps("trade_categories", trades)
+    // Determine which states to include based on location_scope
+    // "local" = project state only, "regional" = state + neighbors, "national" = no filter
+    const scope: string = location_scope || "regional"
+    let scopeStates: string[] | null = null // null = no state filter
+    if (scope === "local" && states && states.length > 0) {
+      scopeStates = [...states]
+    } else if (scope === "regional" && states && states.length > 0) {
+      const regionSet = new Set<string>(states)
+      for (const st of states) {
+        const neighbors = STATE_NEIGHBORS[st as string] || []
+        for (const n of neighbors) regionSet.add(n)
+      }
+      scopeStates = Array.from(regionSet)
+    }
+    // scope === "national" → scopeStates remains null (no filter)
 
-    // Ensure all results are contactable (must have email or phone)
-    query = query.or("contact_email.not.is.null,contact_phone.not.is.null")
+    // Per-trade queries to guarantee coverage for ALL SOW trades.
+    // A single .overlaps() query with .limit(500) causes common trades (HVAC, Plumbing)
+    // to dominate the result set, crowding out rarer trades.
+    const selectFields = "id, company_name, contact_email, contact_phone, contact_name, state, city, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei"
+    const perTradeLimit = Math.max(Math.ceil(500 / trades.length), 50)
 
-    if (!include_unclaimed) {
-      query = query.not("claimed_at", "is", null) // only claimed/active subs
+    const tradeQueries = trades.map((trade: string) => {
+      let q = supabase
+        .from("master_subcontractors")
+        .select(selectFields)
+        .contains("trade_categories", [trade])
+        .or("contact_email.not.is.null,contact_phone.not.is.null")
+
+      // Apply location scope filter at DB level
+      if (scopeStates && scopeStates.length > 0) {
+        q = q.in("state", scopeStates)
+      }
+
+      if (!include_unclaimed) {
+        q = q.not("claimed_at", "is", null)
+      }
+      if (require_verified) {
+        q = q.eq("verification_status", "verified")
+      }
+      if (require_small_biz) {
+        q = q.eq("small_business", true)
+      }
+
+      return q.order("profile_completeness", { ascending: false }).limit(perTradeLimit)
+    })
+
+    const tradeResults = await Promise.all(tradeQueries)
+
+    // Merge and deduplicate candidates from all per-trade queries
+    const candidateMap = new Map<string, Record<string, unknown>>()
+    let queryError: string | null = null
+
+    for (const result of tradeResults) {
+      if (result.error) {
+        queryError = result.error.message
+        break
+      }
+      for (const sub of (result.data || []) as Record<string, unknown>[]) {
+        const id = sub.id as string
+        if (!candidateMap.has(id)) {
+          candidateMap.set(id, sub)
+        }
+      }
     }
 
-    if (require_verified) {
-      query = query.eq("verification_status", "verified")
+    if (queryError) {
+      return new Response(JSON.stringify({ error: queryError }), { status: 500, headers })
     }
 
-    if (require_small_biz) {
-      query = query.eq("small_business", true)
-    }
-
-    // Get candidates matching the project's trades (state is a scoring factor, not a hard filter)
-    const { data: candidates, error } = await query.order("profile_completeness", { ascending: false }).limit(500)
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
-    }
+    const candidates = Array.from(candidateMap.values())
 
     // Score each candidate
-    const scored: MatchResult[] = (candidates || []).map(sub => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scored: MatchResult[] = (candidates || []).map((sub: any) => {
       let score = 0
       const reasons: string[] = []
 
@@ -313,6 +386,8 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
       total: scored.length,
       trade_counts: tradeCounts,
       sow_breakdown: sowBreakdownWithCounts.length > 0 ? sowBreakdownWithCounts : undefined,
+      location_scope: scope,
+      scope_states: scopeStates,
     }), { headers })
   }
 
