@@ -123,6 +123,7 @@ export default function FindSubcontractors() {
   const [aiTradeFilter, setAiTradeFilter] = useState<string>('')
   const [sowBreakdown, setSowBreakdown] = useState<{ sow_label: string; mapped_trade: string | null; sub_count: number }[]>([])
   const [showSowBreakdown, setShowSowBreakdown] = useState(true)
+  const [locationScope, setLocationScope] = useState<'local' | 'regional' | 'national'>('regional')
 
   useEffect(() => {
     fetchStats()
@@ -521,6 +522,15 @@ export default function FindSubcontractors() {
                     <option key={p.id} value={p.id}>{p.title}{p.location_state ? ` (${p.location_state})` : ''}</option>
                   ))}
                 </select>
+                <select
+                  value={locationScope}
+                  onChange={e => setLocationScope(e.target.value as 'local' | 'regional' | 'national')}
+                  className="text-sm border border-purple-300 rounded-lg px-3 py-2 bg-white min-w-[140px]"
+                >
+                  <option value="local">Local (Same State)</option>
+                  <option value="regional">Regional (+ Neighbors)</option>
+                  <option value="national">National (All States)</option>
+                </select>
                 <button
                   onClick={async () => {
                     if (!selectedProject || !user) return
@@ -548,6 +558,7 @@ export default function FindSubcontractors() {
                           trades,
                           sow_labels: sowLabels,
                           states: proj?.location_state ? [proj.location_state] : [],
+                          location_scope: locationScope,
                           max_results: Math.min(Math.max(trades.length * 10, 50), 200),
                           include_unclaimed: true,
                         }),
@@ -643,6 +654,10 @@ export default function FindSubcontractors() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm font-medium text-purple-800">{aiMatches.length} matching subcontractor{aiMatches.length !== 1 ? 's' : ''} found across {Object.keys(aiTradeCounts).length} trade{Object.keys(aiTradeCounts).length !== 1 ? 's' : ''}</span>
+                      <span className="text-xs text-gray-500 ml-2 inline-flex items-center gap-1">
+                        <MapPin size={10} />
+                        {locationScope === 'local' ? 'Same state only' : locationScope === 'regional' ? 'State + neighbors' : 'Nationwide'}
+                      </span>
                       {Object.keys(aiTradeCounts).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           <button
