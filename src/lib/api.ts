@@ -213,8 +213,8 @@ Generate a detailed compliance matrix from the project documents. Every item MUS
 
 Return a JSON object with key "items", an array of objects with:
 - requirement: the EXACT requirement text from the documents (quote or closely paraphrase the document language)
-- source_document: which document it came from (use the exact document filename)
-- page_section: MANDATORY page-level citation using the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". Must include a specific page number — never "Various" or "General".
+- source_document: which document it came from (use the exact filename from the --- DOCUMENT: filename --- header). NEVER use "null" or empty string.
+- page_section: page-level citation using the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". If the document has [Page N] markers, you MUST use them. If no page markers exist, reference the nearest section heading or describe the location. NEVER output the word "null" — always provide the best available reference.
 - service_category: which service category this falls under (as described in the documents)
 - responsible_party: who is responsible — use ONLY what the documents state. In a subcontracted model, services are performed by subcontractors managed by the Facility Manager. Do NOT assume the prime contractor has direct employees performing the work unless the documents explicitly say so.
 - proposal_response_needed: boolean
@@ -294,8 +294,8 @@ Generate at LEAST 15-30 clarification questions covering multiple SOW documents.
 Return a JSON object with key "questions", an array of objects with:
 - question: the proposed clarification question (written from the perspective of what a subcontractor performing the work would need to know)
 - category: missing_quantities, unclear_frequencies, missing_equipment, access_restrictions, shutdown_requirements, missing_dimensions, missing_specifications, missing_site_conditions, labor_requirements, scope_boundaries, response_times, reporting_requirements, pricing_inconsistencies, conflicting_documents, vague_staffing, materials_responsibility, existing_conditions, other
-- source_document: which SPECIFIC SOW document triggered this question (use exact filename)
-- section_reference: MANDATORY page-level citation. Use the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". Must include a specific page number. Also quote the relevant requirement text that triggered the question.
+- source_document: which SPECIFIC SOW document triggered this question (use the exact filename from the --- DOCUMENT: filename --- header). NEVER use "null" or empty string.
+- section_reference: page-level citation using the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X — relevant heading or context". If the document has [Page N] markers, you MUST use them. If no page markers exist, reference the nearest section heading or describe the location (e.g., "Under Janitorial Services scope" or "Pricing sheet, Row 5"). NEVER output the word "null" — always provide the best available reference.
 - priority: low, medium, high, critical (critical = cannot price without this info, high = significant pricing impact, medium = could affect accuracy, low = nice to know)
 - impact: specific explanation of what happens if this isn't clarified — be concrete about pricing impact (e.g., "Without knowing the number and type of fire extinguishers, the subcontractor cannot determine if this is a $5,000 or $50,000 annual service")
 - subcontractor_trade: which trade/service category this affects (e.g., "Fire Life Safety", "HVAC", "Janitorial", "Snow Removal")
@@ -324,8 +324,8 @@ Do NOT invent generic risks. Each risk must reference the specific document and 
 Return a JSON object with key "risks", an array of objects with:
 - risk: description of the pricing risk — be specific about what is missing or problematic, referencing exact document language
 - category: missing_quotes, unpriced_scope, duplicate_scope, underpriced, labor_assumptions, salary_assumptions, sales_tax, markup_issues, reimbursable_vs_fixed, high_risk_category, leadership_review_needed
-- source_document: the EXACT document filename where the risk originates
-- section_reference: MANDATORY page-level citation. Use the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". For pricing sheets, use "Sheet: Name, Row/Cell". Must include a specific page number or cell reference — never vague.
+- source_document: the EXACT document filename where the risk originates (from the --- DOCUMENT: filename --- header). NEVER use "null" or empty string.
+- section_reference: page-level citation using the [Page N] markers in the document text. Format: "Page X, Section Y.Z — Title" or "Page X, Paragraph N". For pricing sheets, use "Sheet: Name, Row/Cell". If no page markers exist, reference the nearest section heading or describe the location. NEVER output the word "null" — always provide the best available reference.
 - severity: low, medium, high, critical
 - recommended_action: what should be done — be specific and actionable
 - financial_impact: describe the impact based ONLY on what the documents reveal. Do NOT estimate dollar amounts unless the documents provide enough data to calculate them.`
