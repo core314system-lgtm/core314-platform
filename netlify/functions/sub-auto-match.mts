@@ -4,6 +4,20 @@ const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
+const KNOWN_TRADES = [
+  "HVAC", "Electrical", "Plumbing", "Fire & Life Safety", "Elevator & Escalator",
+  "Janitorial", "Landscaping", "Snow & Ice Removal", "Pest Control", "Roofing",
+  "Painting", "Flooring", "Security Systems", "General Construction", "Demolition",
+  "Concrete & Masonry", "Structural Steel", "Environmental Services", "Waste Management",
+  "IT & Telecommunications", "Building Automation", "Emergency Power", "Dock & Loading Equipment",
+  "Glass & Glazing", "Insulation", "Drywall & Framing", "Mechanical Services",
+  "Welding & Metal Work", "Paving & Asphalt", "Fencing", "Signage", "Food Services",
+  "Moving & Logistics", "Furniture & Installation", "Engineering Services",
+  "Architectural Services", "Surveying & Geotechnical", "Abatement", "Waterproofing",
+  "Fire Protection", "Testing & Inspection", "Staffing & Labor", "Consulting", "Training",
+  "Other Services",
+]
+
 function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
 }
@@ -50,8 +64,70 @@ export default async (req: Request, _context: Context) => {
   // --- ACTION: match ---
   // Find subs matching given criteria (trade, location, certs)
   if (action === "match") {
-    const { trades, states, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
+    const { trades: rawTrades, sow_labels, states, require_verified, require_small_biz, small_biz_types, max_results, include_unclaimed } = body
     const limit = Math.min(max_results || 50, 200)
+
+    // AI-assisted SOW label → trade taxonomy mapping
+    // When sow_labels are provided, map each one to the closest known trade category
+    let trades: string[] = rawTrades || []
+    let sowBreakdown: { sow_label: string; mapped_trade: string | null }[] = []
+
+    if (sow_labels && Array.isArray(sow_labels) && sow_labels.length > 0) {
+      try {
+        const mappingPrompt = `You are a trade category classifier for the construction/facility maintenance industry.
+
+I have a list of Statement of Work (SOW) line item descriptions from a project. Map EACH one to the single BEST matching trade category from the list below. If a SOW item clearly doesn't match any category, map it to the closest reasonable one.
+
+Known trade categories:
+${KNOWN_TRADES.join(", ")}
+
+SOW line items to map:
+${sow_labels.map((l: string, i: number) => `${i + 1}. ${l}`).join("\n")}
+
+Respond with ONLY a JSON array of objects, one per SOW item, in order:
+[{"sow_label": "<original label>", "mapped_trade": "<exact category name from the list>"}]
+
+IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade categories list above. Do not invent new categories.`
+
+        const apiKey = process.env.OPENAI_API_KEY || process.env.TASKORDER_OPENAI_API_KEY
+        if (!apiKey) throw new Error("OpenAI API key not configured")
+
+        const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            temperature: 0,
+            max_tokens: 1000,
+            messages: [{ role: "user", content: mappingPrompt }],
+          }),
+        })
+
+        if (!aiResp.ok) throw new Error(`OpenAI error: ${aiResp.status}`)
+        const aiData = await aiResp.json()
+        const content = aiData.choices?.[0]?.message?.content?.trim() || "[]"
+        const jsonStr = content.replace(/```json\n?|```/g, "").trim()
+        const parsed = JSON.parse(jsonStr) as { sow_label: string; mapped_trade: string }[]
+
+        // Validate that mapped trades are actually in our taxonomy
+        sowBreakdown = parsed.map(item => ({
+          sow_label: item.sow_label,
+          mapped_trade: KNOWN_TRADES.includes(item.mapped_trade) ? item.mapped_trade : null,
+        }))
+
+        // Build the actual trades list from AI mapping (deduplicated, only valid mappings)
+        const mappedTrades = [...new Set(sowBreakdown.filter(s => s.mapped_trade).map(s => s.mapped_trade!))]
+        if (mappedTrades.length > 0) {
+          trades = mappedTrades
+        }
+      } catch (err) {
+        // If AI mapping fails, fall back to raw trades
+        console.error("AI trade mapping failed:", err)
+      }
+    }
 
     if (!trades || !Array.isArray(trades) || trades.length === 0) {
       return new Response(JSON.stringify({ error: "At least one trade required" }), { status: 400, headers })
@@ -226,7 +302,18 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
-    return new Response(JSON.stringify({ matches: results, total: scored.length, trade_counts: tradeCounts }), { headers })
+    // Add sub counts to SOW breakdown
+    const sowBreakdownWithCounts = sowBreakdown.map(item => ({
+      ...item,
+      sub_count: item.mapped_trade ? (tradeCounts[item.mapped_trade] || 0) : 0,
+    }))
+
+    return new Response(JSON.stringify({
+      matches: results,
+      total: scored.length,
+      trade_counts: tradeCounts,
+      sow_breakdown: sowBreakdownWithCounts.length > 0 ? sowBreakdownWithCounts : undefined,
+    }), { headers })
   }
 
   // --- ACTION: invite-all ---
