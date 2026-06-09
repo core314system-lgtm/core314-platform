@@ -306,7 +306,7 @@ export default function FindSubcontractors() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Find Subcontractors</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Search {stats.total.toLocaleString()} contactable subcontractors across {stats.trades} trade categories
+          Search {stats.total.toLocaleString()} subcontractors with verified contact information across {stats.trades} trade categories
         </p>
       </div>
 
@@ -315,7 +315,7 @@ export default function FindSubcontractors() {
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Contactable Subs</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
-          <div className="text-xs text-gray-400">with email or phone</div>
+          <div className="text-xs text-gray-400">all have email or phone</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><BadgeCheck size={14} /> Verified</div>
@@ -714,7 +714,7 @@ export default function FindSubcontractors() {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>{totalCount.toLocaleString()} subcontractor{totalCount !== 1 ? 's' : ''} found</span>
+            <span>{totalCount.toLocaleString()} subcontractor{totalCount !== 1 ? 's' : ''} with contact information</span>
             {totalPages > 1 && (
               <span>Page {page + 1} of {totalPages}</span>
             )}
@@ -760,6 +760,16 @@ export default function FindSubcontractors() {
                         <Star size={12} /> Small Biz
                       </span>
                     )}
+                    {/* Contact method badge */}
+                    {sub.contact_email ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        <Send size={11} /> RFQ Ready
+                      </span>
+                    ) : sub.contact_phone ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                        <Phone size={11} /> Phone Only
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500 flex-wrap">
