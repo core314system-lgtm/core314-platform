@@ -133,46 +133,52 @@ export default function DocumentLibrary() {
 
   async function handleView(doc: DocRow) {
     try {
-      const { data, error } = await supabase.storage
-        .from('task-order-documents')
-        .createSignedUrl(doc.file_path, 3600)
-      if (error) throw error
-      if (data?.signedUrl) {
-        trackRecentView(doc.id)
+      trackRecentView(doc.id)
 
-        // Check if this is a previewable type
-        const ext = doc.file_name.split('.').pop()?.toLowerCase() || ''
-        const isPreviewable = ['pdf'].includes(ext) ||
-          (doc.file_type || '').startsWith('image/') ||
-          ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)
+      const ext = doc.file_name.split('.').pop()?.toLowerCase() || ''
+      const isPreviewable = ['pdf'].includes(ext) ||
+        (doc.file_type || '').startsWith('image/') ||
+        ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)
 
-        if (isPreviewable) {
+      if (isPreviewable) {
+        const { data, error } = await supabase.storage
+          .from('task-order-documents')
+          .createSignedUrl(doc.file_path, 3600)
+        if (error) throw error
+        if (data?.signedUrl) {
           setPreviewUrl(data.signedUrl)
           setPreviewName(doc.file_name)
           setPreviewType(doc.file_type || '')
-        } else {
-          window.open(data.signedUrl, '_blank')
         }
+      } else {
+        await downloadAsBlob(doc)
       }
     } catch (err) {
       alert('Failed to open document: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
+  async function downloadAsBlob(doc: DocRow) {
+    const { data, error } = await supabase.storage
+      .from('task-order-documents')
+      .download(doc.file_path)
+    if (error) throw error
+    if (data) {
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = doc.file_name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
+  }
+
   async function handleDownloadSingle(doc: DocRow) {
     try {
-      const { data, error } = await supabase.storage
-        .from('task-order-documents')
-        .createSignedUrl(doc.file_path, 3600)
-      if (error) throw error
-      if (data?.signedUrl) {
-        trackRecentView(doc.id)
-        const a = document.createElement('a')
-        a.href = data.signedUrl
-        a.download = doc.file_name
-        a.target = '_blank'
-        a.click()
-      }
+      trackRecentView(doc.id)
+      await downloadAsBlob(doc)
     } catch (err) {
       alert('Failed to download: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }

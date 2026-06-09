@@ -82,29 +82,42 @@ export default function TaskOrderDetail() {
 
   async function handleViewDocument(doc: Doc) {
     try {
-      const { data, error } = await supabase.storage
-        .from('task-order-documents')
-        .createSignedUrl(doc.file_path, 3600)
-      if (error) throw error
-      if (data?.signedUrl) {
-        // Track in recently viewed
-        try {
-          const recent: string[] = JSON.parse(localStorage.getItem('procuvex_recent_docs') || '[]')
-          const updated = [doc.id, ...recent.filter(id => id !== doc.id)].slice(0, 10)
-          localStorage.setItem('procuvex_recent_docs', JSON.stringify(updated))
-        } catch { /* ignore */ }
+      // Track in recently viewed
+      try {
+        const recent: string[] = JSON.parse(localStorage.getItem('procuvex_recent_docs') || '[]')
+        const updated = [doc.id, ...recent.filter(id => id !== doc.id)].slice(0, 10)
+        localStorage.setItem('procuvex_recent_docs', JSON.stringify(updated))
+      } catch { /* ignore */ }
 
-        const ext = doc.file_name.split('.').pop()?.toLowerCase() || ''
-        const isPreviewable = ['pdf'].includes(ext) ||
-          (doc.file_type || '').startsWith('image/') ||
-          ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)
+      const ext = doc.file_name.split('.').pop()?.toLowerCase() || ''
+      const isPreviewable = ['pdf'].includes(ext) ||
+        (doc.file_type || '').startsWith('image/') ||
+        ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)
 
-        if (isPreviewable) {
+      if (isPreviewable) {
+        const { data, error } = await supabase.storage
+          .from('task-order-documents')
+          .createSignedUrl(doc.file_path, 3600)
+        if (error) throw error
+        if (data?.signedUrl) {
           setPreviewUrl(data.signedUrl)
           setPreviewName(doc.file_name)
           setPreviewType(doc.file_type || '')
-        } else {
-          window.open(data.signedUrl, '_blank')
+        }
+      } else {
+        const { data, error } = await supabase.storage
+          .from('task-order-documents')
+          .download(doc.file_path)
+        if (error) throw error
+        if (data) {
+          const url = URL.createObjectURL(data)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = doc.file_name
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
         }
       }
     } catch (err) {

@@ -419,8 +419,25 @@ export default function SowTracker() {
   }
 
   async function viewQuoteFile(path: string) {
-    const { data } = await supabase.storage.from('task-order-documents').createSignedUrl(path, 300)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+    const { data, error } = await supabase.storage.from('task-order-documents').download(path)
+    if (error) { alert('Failed to download file'); return }
+    if (data) {
+      const fileName = path.split('/').pop() || 'download'
+      const ext = fileName.split('.').pop()?.toLowerCase() || ''
+      const isPreviewable = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)
+      const url = URL.createObjectURL(data)
+      if (isPreviewable) {
+        window.open(url, '_blank')
+      } else {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+    }
   }
 
   async function updateQuoteStatus(quoteId: string, status: QuoteStatus) {
