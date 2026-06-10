@@ -150,10 +150,13 @@ export default function PricingMatrix() {
     setReAnalyzing(false)
   }
 
+  const [gapSendResult, setGapSendResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
   async function handleSendGapResolution(quoteId: string, gaps: string[], pricingGaps: string[], deadline: string, customMessage: string) {
     setSendingGap(true)
+    setGapSendResult(null)
     try {
-      await fetch('/.netlify/functions/send-gap-resolution', {
+      const res = await fetch('/.netlify/functions/send-gap-resolution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -164,8 +167,16 @@ export default function PricingMatrix() {
           custom_message: customMessage,
         }),
       })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setGapSendResult({ type: 'success', message: `Clarification request sent to ${data.email_sent_to}` })
+        setTimeout(() => setGapSendResult(null), 8000)
+      } else {
+        setGapSendResult({ type: 'error', message: data.error || 'Failed to send clarification request' })
+      }
     } catch (err) {
       console.error('Gap resolution send failed:', err)
+      setGapSendResult({ type: 'error', message: 'Network error — could not send clarification request' })
     }
     setSendingGap(false)
   }
@@ -183,52 +194,57 @@ export default function PricingMatrix() {
   }
 
   async function fetchData() {
-    const [toRes, sowRes, subsRes] = await Promise.all([
-      supabase.from('task_orders').select('*').eq('id', taskOrderId).single(),
-      supabase.from('sow_items').select('*').eq('task_order_id', taskOrderId).order('service_category'),
-      supabase.from('subcontractors').select('*'),
-    ])
+    try {
+      const [toRes, sowRes, subsRes] = await Promise.all([
+        supabase.from('task_orders').select('*').eq('id', taskOrderId).single(),
+        supabase.from('sow_items').select('*').eq('task_order_id', taskOrderId).order('service_category'),
+        supabase.from('subcontractors').select('*'),
+      ])
 
-    setTaskOrder(toRes.data)
-    const sMap = new Map<string, Subcontractor>()
-    for (const s of (subsRes.data || [])) sMap.set(s.id, s)
-    setAllSubs(sMap)
+      setTaskOrder(toRes.data)
+      const sMap = new Map<string, Subcontractor>()
+      for (const s of (subsRes.data || [])) sMap.set(s.id, s)
+      setAllSubs(sMap)
 
-    const newRows: SowPricingRow[] = []
-    for (const sow of (sowRes.data || [])) {
-      const { data: quotes } = await supabase
-        .from('sow_quotes')
-        .select('*')
-        .eq('sow_item_id', sow.id)
+      const newRows: SowPricingRow[] = []
+      for (const sow of (sowRes.data || [])) {
+        const { data: quotes } = await supabase
+          .from('sow_quotes')
+          .select('*')
+          .eq('sow_item_id', sow.id)
 
-      const enriched = (quotes || []).map(q => ({
-        ...q,
-        subcontractor_name: sMap.get(q.subcontractor_id)?.company_name || 'Unknown',
-      }))
+        const enriched = (quotes || []).map(q => ({
+          ...q,
+          subcontractor_name: sMap.get(q.subcontractor_id)?.company_name || 'Unknown',
+        }))
 
-      // Find lowest quote as default selection
-      const sortedByPrice = enriched.filter(q => q.total_amount).sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0))
-      const bestQuote = sortedByPrice[0] || null
+        // Find lowest quote as default selection
+        const sortedByPrice = enriched.filter(q => q.total_amount).sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0))
+        const bestQuote = sortedByPrice[0] || null
 
-      newRows.push({
-        sow,
-        quotes: enriched,
-        selectedSubId: bestQuote?.subcontractor_id || null,
-        selectedQuoteId: bestQuote?.id || null,
-        subCost: bestQuote?.total_amount || 0,
-        markupType: 'percentage',
-        markupValue: 10,
-        supplierTotal: bestQuote ? Math.round((bestQuote.total_amount || 0) * 1.10) : 0,
-        baseAnnual: bestQuote?.annual_amount || bestQuote?.total_amount || 0,
-        escalationRate: 3,
-        additionalCosts: 0,
-        additionalCostsNote: '',
-      })
+        newRows.push({
+          sow,
+          quotes: enriched,
+          selectedSubId: bestQuote?.subcontractor_id || null,
+          selectedQuoteId: bestQuote?.id || null,
+          subCost: bestQuote?.total_amount || 0,
+          markupType: 'percentage',
+          markupValue: 10,
+          supplierTotal: bestQuote ? Math.round((bestQuote.total_amount || 0) * 1.10) : 0,
+          baseAnnual: bestQuote?.annual_amount || bestQuote?.total_amount || 0,
+          escalationRate: 3,
+          additionalCosts: 0,
+          additionalCostsNote: '',
+        })
+      }
+
+      setRows(newRows)
+    } catch (err) {
+      console.error('fetchData failed:', err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
     }
-
-    setRows(newRows)
-    setLoading(false)
-    setRefreshing(false)
   }
 
   function selectQuote(sowId: string, quoteId: string, subId: string, amount: number, annualAmount: number | null) {
@@ -609,7 +625,15 @@ export default function PricingMatrix() {
           <p className="text-sm text-gray-500">{taskOrder.title} — {taskOrder.site_name}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => { setRefreshing(true); fetchData() }} disabled={refreshing} className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5 disabled:opacity-50">
+          <button
+            onClick={async () => {
+              setRefreshing(true)
+              const minDelay = new Promise(r => setTimeout(r, 800))
+              await Promise.all([fetchData(), minDelay])
+            }}
+            disabled={refreshing}
+            className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5 disabled:opacity-50"
+          >
             <RotateCcw size={14} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
           <div className="relative" ref={exportRef}>
@@ -1547,6 +1571,7 @@ export default function PricingMatrix() {
         onSendGapResolution={handleSendGapResolution}
         reAnalyzing={reAnalyzing}
         sendingGap={sendingGap}
+        gapSendResult={gapSendResult}
       />
     </div>
   )

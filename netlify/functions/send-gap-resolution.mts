@@ -165,7 +165,7 @@ export default async (req: Request, _context: Context) => {
     // Log communication
     await supabase.from("sow_communications").insert({
       sow_subcontractor_id: quote.sow_subcontractor_id,
-      comm_type: "clarification_request",
+      comm_type: "clarification",
       direction: "outbound",
       subject: `Clarification Request — ${allGaps.length + allPricingGaps.length} items requiring response by ${deadlineStr}`,
       body: `Prime sent clarification request to ${sub.company_name} for ${sow.sow_name}. Gaps: ${allGaps.length}, Pricing items: ${allPricingGaps.length}. Deadline: ${deadlineStr}.${custom_message ? ` Additional notes: ${custom_message}` : ""}`,

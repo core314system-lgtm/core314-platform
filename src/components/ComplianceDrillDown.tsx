@@ -34,6 +34,7 @@ interface Props {
   onSendGapResolution: (quoteId: string, gaps: string[], pricingGaps: string[], deadline: string, customMessage: string) => void
   reAnalyzing: boolean
   sendingGap: boolean
+  gapSendResult: { type: 'success' | 'error'; message: string } | null
 }
 
 function scoreColor(score: number) {
@@ -45,7 +46,7 @@ function scoreColor(score: number) {
 export default function ComplianceDrillDown({
   open, onClose, subName, sowName, score, analysis, quoteId,
   analyzedAt, totalAmount, revisions,
-  onReAnalyze, onSendGapResolution, reAnalyzing, sendingGap,
+  onReAnalyze, onSendGapResolution, reAnalyzing, sendingGap, gapSendResult,
 }: Props) {
   const [showGapForm, setShowGapForm] = useState(false)
   const [deadline, setDeadline] = useState('')
@@ -220,6 +221,20 @@ export default function ComplianceDrillDown({
                   {sendingGap ? 'Sending...' : 'Send Clarification Request'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Gap Send Result Banner */}
+          {gapSendResult && (
+            <div className={`rounded-xl p-4 flex items-center gap-3 ${gapSendResult.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              {gapSendResult.type === 'success' ? (
+                <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
+              ) : (
+                <AlertTriangle size={18} className="text-red-600 flex-shrink-0" />
+              )}
+              <p className={`text-sm font-medium ${gapSendResult.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                {gapSendResult.message}
+              </p>
             </div>
           )}
 
