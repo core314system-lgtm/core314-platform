@@ -19,7 +19,7 @@ const headers = {
 
 async function verifyGlobalAdmin(userId: string): Promise<boolean> {
   const { data } = await supabase
-    .from("profiles")
+    .from("user_profiles")
     .select("is_global_admin")
     .eq("id", userId)
     .single()
