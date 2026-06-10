@@ -422,16 +422,17 @@ async function getDatabaseHealthStats() {
  */
 async function archiveNoEmailRecords() {
   let archived = 0
-  let offset = 0
   const batchSize = 1000
+  const maxBatches = 20
+  let batches = 0
 
-  while (true) {
+  while (batches < maxBatches) {
     const { data: subs } = await supabase
       .from("master_subcontractors")
       .select("id")
       .is("contact_email", null)
       .eq("archived", false)
-      .range(offset, offset + batchSize - 1)
+      .limit(batchSize)
 
     if (!subs || subs.length === 0) break
 
@@ -445,18 +446,30 @@ async function archiveNoEmailRecords() {
       })
       .in("id", ids)
 
-    if (!error) {
-      archived += ids.length
-      for (const id of ids) {
-        await logHygieneAction(id, "", "archive_no_email", "No email address — unreachable for outreach")
-      }
-    }
-
-    if (subs.length < batchSize) break
-    offset += batchSize
+    if (error) break
+    archived += ids.length
+    batches++
   }
 
-  return { archived }
+  // Single summary log instead of per-record (avoids timeout)
+  if (archived > 0) {
+    await supabase.from("database_hygiene_log").insert({
+      master_sub_id: null,
+      email: "",
+      action: "archive_no_email_bulk",
+      reason: `Bulk archived ${archived} records with no email address`,
+      performed_at: new Date().toISOString(),
+    }).catch(() => {})
+  }
+
+  // Check remaining
+  const { count: remaining } = await supabase
+    .from("master_subcontractors")
+    .select("id", { count: "exact", head: true })
+    .is("contact_email", null)
+    .eq("archived", false)
+
+  return { archived, remaining: remaining || 0 }
 }
 
 async function logHygieneAction(subId: string, email: string, action: string, reason: string) {

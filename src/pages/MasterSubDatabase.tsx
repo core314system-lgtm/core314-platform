@@ -169,10 +169,10 @@ export default function MasterSubDatabase() {
   const PAGE_SIZE = 50
 
   const fetchStats = useCallback(async () => {
-    const { count: total } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true })
-    const { count: verified } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified')
-    const { count: claimed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed')
-    const { count: withEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null)
+    const { count: total } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('archived', false)
+    const { count: verified } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified').eq('archived', false)
+    const { count: claimed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed').eq('archived', false)
+    const { count: withEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null).eq('archived', false)
     setStats({
       total: total || 0,
       verified: verified || 0,
@@ -273,12 +273,17 @@ export default function MasterSubDatabase() {
         const data = await res.json()
         setHygieneResult(data)
         fetchHealthStats()
+        fetchStats()
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        setHygieneResult({ error: errData.error || `Failed (${res.status})` })
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Hygiene cycle failed:', err)
+      setHygieneResult({ error: err.message || 'Network error' })
     }
     setHygieneRunning(false)
-  }, [profile?.id, fetchHealthStats])
+  }, [profile?.id, fetchHealthStats, fetchStats])
 
   const fetchSubs = useCallback(async () => {
     setLoading(true)
