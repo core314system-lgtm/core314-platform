@@ -461,7 +461,7 @@ export default async (req: Request, _context: Context) => {
       return true
     })
 
-    const stats = {
+    const stats: Record<string, any> = {
       source: config.name,
       totalInFile: lines.length - 1,
       parsed: records.length,
@@ -481,10 +481,17 @@ export default async (req: Request, _context: Context) => {
       }), { headers: corsHeaders })
     }
 
-    // 4. Insert new records in batches
+    // 4. Insert new records in batches (cap at 500 per invocation to stay within function timeout)
+    const MAX_INSERT = 500
+    const recordsToInsert = newRecords.slice(0, MAX_INSERT)
+    stats.newRecords = newRecords.length
+    if (newRecords.length > MAX_INSERT) {
+      stats.remaining = newRecords.length - MAX_INSERT
+    }
+
     const BATCH_SIZE = 100
-    for (let i = 0; i < newRecords.length; i += BATCH_SIZE) {
-      const batch = newRecords.slice(i, i + BATCH_SIZE).map(r => ({
+    for (let i = 0; i < recordsToInsert.length; i += BATCH_SIZE) {
+      const batch = recordsToInsert.slice(i, i + BATCH_SIZE).map(r => ({
         company_name: r.company_name,
         contact_email: r.contact_email?.toLowerCase() || null,
         contact_phone: r.contact_phone,
@@ -529,7 +536,7 @@ export default async (req: Request, _context: Context) => {
       action: `state_import_${source}`,
       reason: `Imported ${stats.inserted} new records from ${config.name} (${stats.duplicatesSkipped} duplicates skipped, ${stats.errors} errors)`,
       performed_at: new Date().toISOString(),
-    }).catch(() => {})
+    })
 
     return new Response(JSON.stringify({ success: true, stats }), { headers: corsHeaders })
 
