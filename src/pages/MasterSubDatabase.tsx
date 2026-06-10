@@ -8,7 +8,7 @@ import {
   ChevronDown, ChevronUp, Download, Upload, Star,
   Users, BadgeCheck, Clock, Eye, ExternalLink, Loader2, X,
   Database, AlertCircle, FileUp, Lock, Trash2,
-  TrendingUp, Activity, Send, RefreshCw, Zap,
+  TrendingUp, Activity, Send, RefreshCw, Zap, Globe,
 } from 'lucide-react'
 
 interface MasterSub {
@@ -154,6 +154,13 @@ export default function MasterSubDatabase() {
   const [hygieneRunning, setHygieneRunning] = useState(false)
   const [hygieneResult, setHygieneResult] = useState<any>(null)
   const healthPanelRef = useRef<HTMLDivElement>(null)
+
+  // State Directory Import state
+  const [showStateImport, setShowStateImport] = useState(false)
+  const [stateImporting, setStateImporting] = useState(false)
+  const [stateImportResult, setStateImportResult] = useState<any>(null)
+  const [stateImportSource, setStateImportSource] = useState('texas_hub')
+  const stateImportRef = useRef<HTMLDivElement>(null)
 
   const PAGE_SIZE = 50
 
@@ -856,11 +863,15 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
             <FileUp size={16} /> Import SBS Data
           </button>
-          <button onClick={() => { const opening = !showGsaScraper; setShowGsaScraper(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowHealthPanel(false); if (opening) setTimeout(() => gsaScraperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showGsaScraper; setShowGsaScraper(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowHealthPanel(false); setShowStateImport(false); if (opening) setTimeout(() => gsaScraperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700">
             <Database size={16} /> Scrape GSA eLibrary
           </button>
-          <button onClick={() => { const opening = !showHealthPanel; setShowHealthPanel(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); if (opening) { fetchHealthStats(); setTimeout(() => healthPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) } }}
+          <button onClick={() => { const opening = !showStateImport; setShowStateImport(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowHealthPanel(false); if (opening) setTimeout(() => stateImportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+            <Globe size={16} /> State Directories
+          </button>
+          <button onClick={() => { const opening = !showHealthPanel; setShowHealthPanel(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowStateImport(false); if (opening) { fetchHealthStats(); setTimeout(() => healthPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) } }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700">
             <Activity size={16} /> Database Health
           </button>
@@ -1496,6 +1507,134 @@ export default function MasterSubDatabase() {
               <button onClick={() => { setGsaResult(null) }} className="text-sm text-amber-600 hover:underline mt-2">Run again</button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* State Directory Import Panel */}
+      {showStateImport && (
+        <div ref={stateImportRef} className="bg-purple-50 border border-purple-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-purple-900">Import State DBE/HUB Directories</h3>
+            <button onClick={() => setShowStateImport(false)} className="text-purple-400 hover:text-purple-600"><X size={18} /></button>
+          </div>
+          <p className="text-sm text-purple-800">
+            Import verified contractors from state government directories. These include HUB (Historically Underutilized Businesses), 
+            DBE (Disadvantaged Business Enterprises), and MBE/WBE certified firms that may not be in your existing SAM.gov data.
+          </p>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-purple-900 mb-1">Select Source</label>
+              <select
+                value={stateImportSource}
+                onChange={(e) => setStateImportSource(e.target.value)}
+                className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="texas_hub">Texas HUB Directory (~15,000 firms — minority, women, veteran-owned)</option>
+                <option value="texas_cmbl">Texas CMBL (~12,000 firms — all state bidders list)</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setStateImporting(true)
+                  setStateImportResult(null)
+                  try {
+                    const res = await fetch('/.netlify/functions/state-directory-import', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ source: stateImportSource, dryRun: true })
+                    })
+                    const data = await res.json()
+                    setStateImportResult({ ...data, isDryRun: true })
+                  } catch (e: any) {
+                    setStateImportResult({ error: e.message })
+                  }
+                  setStateImporting(false)
+                }}
+                disabled={stateImporting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-purple-600 text-purple-700 rounded-lg hover:bg-purple-100 font-medium disabled:opacity-50"
+              >
+                <Eye size={16} /> Preview (Dry Run)
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirm('This will import new records into your master database. Duplicates will be skipped. Continue?')) return
+                  setStateImporting(true)
+                  setStateImportResult(null)
+                  try {
+                    const res = await fetch('/.netlify/functions/state-directory-import', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ source: stateImportSource })
+                    })
+                    const data = await res.json()
+                    setStateImportResult(data)
+                    if (data.success) fetchStats()
+                  } catch (e: any) {
+                    setStateImportResult({ error: e.message })
+                  }
+                  setStateImporting(false)
+                }}
+                disabled={stateImporting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50"
+              >
+                {stateImporting ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
+                {stateImporting ? 'Importing...' : 'Import Now'}
+              </button>
+            </div>
+          </div>
+
+          {stateImportResult && (
+            <div className={`p-4 rounded-lg ${stateImportResult.error ? 'bg-red-100 border border-red-300' : stateImportResult.isDryRun ? 'bg-blue-100 border border-blue-300' : 'bg-green-100 border border-green-300'}`}>
+              {stateImportResult.error ? (
+                <p className="text-sm text-red-700"><AlertCircle size={14} className="inline mr-1" />{stateImportResult.error}</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {stateImportResult.isDryRun ? '📋 Preview Results' : '✓ Import Complete'}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <div className="bg-white rounded p-2 text-center">
+                      <div className="font-bold text-lg text-gray-900">{stateImportResult.stats?.totalInFile?.toLocaleString()}</div>
+                      <div className="text-gray-500">Records in File</div>
+                    </div>
+                    <div className="bg-white rounded p-2 text-center">
+                      <div className="font-bold text-lg text-gray-900">{stateImportResult.stats?.parsed?.toLocaleString()}</div>
+                      <div className="text-gray-500">Valid Records</div>
+                    </div>
+                    <div className="bg-white rounded p-2 text-center">
+                      <div className="font-bold text-lg text-orange-600">{stateImportResult.stats?.duplicatesSkipped?.toLocaleString()}</div>
+                      <div className="text-gray-500">Duplicates Skipped</div>
+                    </div>
+                    <div className="bg-white rounded p-2 text-center">
+                      <div className="font-bold text-lg text-green-600">{stateImportResult.stats?.newRecords?.toLocaleString() || stateImportResult.stats?.inserted?.toLocaleString()}</div>
+                      <div className="text-gray-500">{stateImportResult.isDryRun ? 'New to Import' : 'Imported'}</div>
+                    </div>
+                  </div>
+                  {stateImportResult.sampleRecords && stateImportResult.sampleRecords.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Sample new records:</p>
+                      <div className="space-y-1">
+                        {stateImportResult.sampleRecords.map((r: any, i: number) => (
+                          <div key={i} className="text-xs bg-white rounded px-2 py-1 flex justify-between">
+                            <span className="font-medium">{r.company_name}</span>
+                            <span className="text-gray-500">{r.city}, {r.state} • {r.contact_email || 'no email'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="text-xs text-purple-700 bg-purple-100 rounded p-2">
+            <strong>Deduplication:</strong> Records are matched by email address and vendor ID. Existing records, suppressed emails, 
+            and previously imported records from the same source will be automatically skipped.
+          </div>
         </div>
       )}
 
