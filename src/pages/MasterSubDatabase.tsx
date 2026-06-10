@@ -1815,6 +1815,26 @@ export default function MasterSubDatabase() {
                     className="flex items-center justify-center gap-2 px-3 py-2 border border-rose-300 text-rose-700 rounded-lg hover:bg-rose-50 text-sm disabled:opacity-50">
                     Auto-Archive (Score=0)
                   </button>
+                  <button onClick={() => runHygieneCycle('archive-no-email')} disabled={hygieneRunning}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium disabled:opacity-50">
+                    Archive No-Email Records
+                  </button>
+                  <button onClick={async () => {
+                    setHygieneRunning(true); setHygieneResult(null)
+                    try {
+                      const res = await fetch('/.netlify/functions/outreach-drip', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-user-id': profile?.id || '' },
+                        body: JSON.stringify({ action: 'run' }),
+                      })
+                      const data = await res.json()
+                      setHygieneResult(data)
+                    } catch (err: any) { setHygieneResult({ error: err.message }) }
+                    setHygieneRunning(false)
+                  }} disabled={hygieneRunning}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
+                    Run Drip Follow-ups
+                  </button>
                 </div>
 
                 {hygieneResult && (
