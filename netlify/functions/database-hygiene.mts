@@ -427,13 +427,15 @@ async function archiveNoEmailRecords() {
   let batches = 0
 
   while (batches < maxBatches) {
-    const { data: subs } = await supabase
+    // Match records with no usable email: NULL or empty string
+    const { data: subs, error: queryError } = await supabase
       .from("master_subcontractors")
       .select("id")
-      .is("contact_email", null)
+      .or("contact_email.is.null,contact_email.eq.")
       .eq("archived", false)
       .limit(batchSize)
 
+    if (queryError) return { archived, error: queryError.message }
     if (!subs || subs.length === 0) break
 
     const ids = subs.map(s => s.id)
@@ -446,7 +448,7 @@ async function archiveNoEmailRecords() {
       })
       .in("id", ids)
 
-    if (error) break
+    if (error) return { archived, error: error.message }
     archived += ids.length
     batches++
   }
@@ -466,7 +468,7 @@ async function archiveNoEmailRecords() {
   const { count: remaining } = await supabase
     .from("master_subcontractors")
     .select("id", { count: "exact", head: true })
-    .is("contact_email", null)
+    .or("contact_email.is.null,contact_email.eq.")
     .eq("archived", false)
 
   return { archived, remaining: remaining || 0 }

@@ -172,7 +172,7 @@ export default function MasterSubDatabase() {
     const { count: total } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('archived', false)
     const { count: verified } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified').eq('archived', false)
     const { count: claimed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed').eq('archived', false)
-    const { count: withEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null).eq('archived', false)
+    const { count: withEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null).neq('contact_email', '').eq('archived', false)
     setStats({
       total: total || 0,
       verified: verified || 0,
