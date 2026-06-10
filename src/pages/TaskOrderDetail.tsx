@@ -23,6 +23,16 @@ import { scanForPii, type PiiMatch } from '../lib/piiDetector'
 import GovtQAProcessor from '../components/GovtQAProcessor'
 import { getProjectType, getWorkflowStage, getStageColor } from '../lib/projectTypes'
 
+function isValidExtractedDate(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return false
+  const year = d.getFullYear()
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  return year >= currentYear - 2 && year <= currentYear + 10
+}
+
 const DEFAULT_CATEGORIES: { value: DocumentCategory | string; label: string }[] = [
   { value: 'sow', label: 'Statement of Work' },
   { value: 'pricing_sheet', label: 'Pricing Sheet' },
@@ -654,7 +664,7 @@ export default function TaskOrderDetail() {
         if (meta.contracting_officer) updates.contracting_officer = meta.contracting_officer
         if (meta.co_email) updates.co_email = meta.co_email
         if (meta.co_phone) updates.co_phone = meta.co_phone
-        if (meta.response_due_date && !taskOrder.due_date) updates.due_date = meta.response_due_date
+        if (meta.response_due_date && !taskOrder.due_date && isValidExtractedDate(meta.response_due_date)) updates.due_date = meta.response_due_date
         if (Object.keys(updates).length > 0) {
           await supabase.from('task_orders').update(updates).eq('id', id)
           fetchTaskOrder()
@@ -698,7 +708,7 @@ export default function TaskOrderDetail() {
         if (meta.contracting_officer) updates.contracting_officer = meta.contracting_officer
         if (meta.co_email) updates.co_email = meta.co_email
         if (meta.co_phone) updates.co_phone = meta.co_phone
-        if (meta.response_due_date && !taskOrder.due_date) updates.due_date = meta.response_due_date
+        if (meta.response_due_date && !taskOrder.due_date && isValidExtractedDate(meta.response_due_date)) updates.due_date = meta.response_due_date
         if (Object.keys(updates).length > 0) {
           await supabase.from('task_orders').update(updates).eq('id', id)
           fetchTaskOrder()

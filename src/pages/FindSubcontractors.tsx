@@ -1084,6 +1084,7 @@ export default function FindSubcontractors() {
               body: JSON.stringify({
                 action: 'invite-all',
                 sub_ids: Array.from(selectedAiSubs),
+                task_order_id: selectedProject,
                 rfq_template: rfqTemplate,
                 rfq_subject: rfqSubject,
                 custom_message: customMessage,

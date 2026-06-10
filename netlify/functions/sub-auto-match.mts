@@ -458,21 +458,24 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
   }
 
   // --- ACTION: invite-all ---
-  // Send RFQ invitation emails to matched subs with customizable template
+  // Send RFQ invitation emails to matched subs with portal access + delivery tracking
   if (action === "invite-all") {
-    const { sub_ids, rfq_title, rfq_description, prime_company, due_date, rfq_template, rfq_subject, custom_message, project_data } = body
+    const { sub_ids, task_order_id, rfq_title, rfq_description, prime_company, due_date, rfq_template, rfq_subject, custom_message, project_data } = body
 
     if (!sub_ids || !Array.isArray(sub_ids) || sub_ids.length === 0) {
       return new Response(JSON.stringify({ error: "sub_ids required" }), { status: 400, headers })
     }
 
     initSendGrid()
+    const siteUrl = process.env.URL || "https://procuvex.com"
 
-    // Look up org name for sender
+    // Look up org name and org_id for sender
     let orgName = prime_company || "Procuvex"
+    let orgId: string | null = null
     if (callerId) {
       const { data: profile } = await supabase.from("profiles").select("org_id").eq("id", callerId).single()
       if (profile?.org_id) {
+        orgId = profile.org_id
         const { data: org } = await supabase.from("organizations").select("name").eq("id", profile.org_id).single()
         if (org?.name) orgName = org.name
       }
@@ -480,9 +483,19 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
 
     const { data: subs } = await supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_name, contact_email")
+      .select("id, company_name, contact_name, contact_email, trade_categories, state, city, zip_code")
       .in("id", sub_ids)
       .not("contact_email", "is", null)
+
+    // Load SOW items for portal token generation when task_order_id is provided
+    let sowItems: { id: string; service_category: string; sow_name: string; description: string | null }[] = []
+    if (task_order_id) {
+      const { data } = await supabase
+        .from("sow_items")
+        .select("id, service_category, sow_name, description")
+        .eq("task_order_id", task_order_id)
+      sowItems = data || []
+    }
 
     let sent = 0
     let failed = 0
@@ -511,6 +524,97 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           "{contact_name}": sub.contact_name || sub.company_name,
         }
 
+        // Generate portal token if we have a task_order_id and SOW items
+        let portalUrl = `${siteUrl}/my-sub-profile`
+        let portalToken: string | null = null
+        let sowSubId: string | null = null
+
+        if (task_order_id && sowItems.length > 0) {
+          // Find or create a subcontractors record for this master sub
+          const { data: existingSub } = await supabase
+            .from("subcontractors")
+            .select("id")
+            .eq("contact_email", sub.contact_email)
+            .limit(1)
+            .single()
+
+          let subId = existingSub?.id
+          if (!subId) {
+            const { data: newSub } = await supabase
+              .from("subcontractors")
+              .insert({
+                company_name: sub.company_name,
+                contact_name: sub.contact_name,
+                contact_email: sub.contact_email,
+                service_categories: sub.trade_categories || [],
+                geographic_coverage: [sub.state, sub.city].filter(Boolean),
+              })
+              .select("id")
+              .single()
+            subId = newSub?.id
+          }
+
+          if (subId) {
+            // Match sub to the best SOW item based on trade categories
+            const subTrades = (sub.trade_categories || []).map((t: string) => t.toLowerCase())
+            const matchedSow = sowItems.find(s =>
+              subTrades.some((t: string) => s.service_category.toLowerCase().includes(t) || t.includes(s.service_category.toLowerCase()))
+            ) || sowItems[0] // Fallback to first SOW if no trade match
+
+            // Create sow_subcontractor entry (upsert)
+            const { data: existingSowSub } = await supabase
+              .from("sow_subcontractors")
+              .select("id")
+              .eq("sow_item_id", matchedSow.id)
+              .eq("subcontractor_id", subId)
+              .single()
+
+            let currentSowSubId = existingSowSub?.id
+            if (!currentSowSubId) {
+              const { data: newSowSub } = await supabase
+                .from("sow_subcontractors")
+                .insert({
+                  sow_item_id: matchedSow.id,
+                  subcontractor_id: subId,
+                  match_score: 80,
+                  outreach_status: "invited",
+                  rfq_sent_date: new Date().toISOString(),
+                })
+                .select("id")
+                .single()
+              currentSowSubId = newSowSub?.id
+            } else {
+              await supabase
+                .from("sow_subcontractors")
+                .update({ outreach_status: "invited", rfq_sent_date: new Date().toISOString(), updated_at: new Date().toISOString() })
+                .eq("id", currentSowSubId)
+            }
+
+            sowSubId = currentSowSubId || null
+
+            // Generate portal token
+            if (currentSowSubId) {
+              const token = generatePortalToken()
+              const expiresAt = new Date()
+              expiresAt.setDate(expiresAt.getDate() + 365)
+
+              const { error: tokenErr } = await supabase.from("rfq_tokens").insert({
+                token,
+                sow_subcontractor_id: currentSowSubId,
+                sow_item_id: matchedSow.id,
+                task_order_id,
+                subcontractor_id: subId,
+                expires_at: expiresAt.toISOString(),
+              })
+
+              if (!tokenErr) {
+                portalUrl = `${siteUrl}/portal/${token}`
+                portalToken = token
+              }
+            }
+          }
+        }
+
         // Render template or use default
         let emailBody = ""
         if (rfq_template) {
@@ -521,7 +625,6 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           emailBody = rendered
             .split("\n")
             .map((line: string) => {
-              // Handle markdown bold
               const boldReplaced = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
               return `<p style="margin: 4px 0; font-size: 14px; color: #374151;">${boldReplaced || "&nbsp;"}</p>`
             })
@@ -532,6 +635,7 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           ? `<div style="background: #eff6ff; border-left: 4px solid #1e40af; padding: 12px 16px; margin: 16px 0; font-size: 14px;"><strong>Note from the team:</strong><br/>${custom_message}</div>`
           : ""
 
+        const ctaLabel = portalToken ? "View RFQ & Submit Quote" : "View Details & Respond"
         const emailHtml = rfq_template
           ? `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); border-radius: 12px 12px 0 0; padding: 24px; text-align: center;">
@@ -542,35 +646,55 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
                 ${emailBody}
                 ${customMsgHtml}
                 <div style="text-align: center; margin: 24px 0;">
-                  <a href="https://procuvex.com/my-sub-profile" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
-                    View Details & Respond
+                  <a href="${portalUrl}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+                    ${ctaLabel}
                   </a>
                 </div>
+                ${portalToken ? '<p style="font-size: 12px; color: #6b7280; text-align: center;">This link is unique to your organization and will remain active for the duration of this project.</p>' : ""}
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
                 <p style="font-size: 12px; color: #9ca3af; text-align: center;">Delivered on behalf of ${orgName}<br/>Powered by Procuvex</p>
               </div>
             </div>`
-          : buildRfqInviteEmail(sub.company_name, rfq_title, rfq_description, orgName, due_date)
+          : buildRfqInviteEmail(sub.company_name, rfq_title, rfq_description, orgName, due_date, portalUrl, !!portalToken)
 
         const subjectLine = rfq_subject
           ? rfq_subject.replace(/\{contact_name\}/g, sub.contact_name || sub.company_name)
           : `New Opportunity: ${rfq_title || "RFQ Invitation"}`
 
-        await sgMail.default.send({
+        // Fix 3: Send with tracking customArgs so SendGrid webhook can track delivery/bounce
+        const [response] = await sgMail.default.send({
           to: sub.contact_email!,
           from: { email: "team@procuvex.com", name: orgName },
           subject: subjectLine,
           html: emailHtml,
           trackingSettings: { clickTracking: { enable: true }, openTracking: { enable: true } },
-          customArgs: { email_type: "rfq_invite" },
+          customArgs: {
+            email_type: "rfq_invite",
+            ...(sowSubId ? { sow_subcontractor_id: sowSubId } : {}),
+            ...(portalToken ? { rfq_token: portalToken } : {}),
+            ...(task_order_id ? { task_order_id } : {}),
+            ...(orgId ? { org_id: orgId } : {}),
+          },
         })
+
+        // Fix 3: Log email tracking event for delivery monitoring
+        if (sowSubId) {
+          await supabase.from("email_tracking").insert({
+            rfq_token_id: portalToken || null,
+            sow_subcontractor_id: sowSubId,
+            sendgrid_message_id: response?.headers?.["x-message-id"] || null,
+            event_type: "sent",
+            email_to: sub.contact_email,
+            email_subject: subjectLine,
+          })
+        }
 
         await supabase.from("master_sub_contact_log").insert({
           master_sub_id: sub.id,
           contact_type: "rfq_invite",
           contact_method: "email",
           subject: subjectLine,
-          notes: `From ${orgName}`,
+          notes: `From ${orgName}${portalToken ? " (portal link included)" : ""}`,
           sent_by: callerId,
         })
 
@@ -586,7 +710,18 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers })
 }
 
-function buildRfqInviteEmail(companyName: string, title: string, description: string, primeCompany: string, dueDate: string): string {
+function generatePortalToken(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+  let result = ""
+  for (let i = 0; i < 48; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+function buildRfqInviteEmail(companyName: string, title: string, description: string, primeCompany: string, dueDate: string, portalUrl?: string, hasPortal?: boolean): string {
+  const ctaUrl = portalUrl || "https://procuvex.com/my-sub-profile"
+  const ctaLabel = hasPortal ? "View RFQ & Submit Quote" : "View Details & Respond"
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); border-radius: 12px 12px 0 0; padding: 24px; text-align: center;">
@@ -606,10 +741,11 @@ function buildRfqInviteEmail(companyName: string, title: string, description: st
           ${dueDate ? `<p style="margin: 0; color: #dc2626; font-size: 13px; font-weight: 500;">Due: ${dueDate}</p>` : ""}
         </div>
         <div style="text-align: center; margin: 24px 0;">
-          <a href="https://procuvex.com/my-sub-profile" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
-            View Details & Respond
+          <a href="${ctaUrl}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+            ${ctaLabel}
           </a>
         </div>
+        ${hasPortal ? '<p style="font-size: 12px; color: #6b7280; text-align: center;">This link is unique to your organization and will remain active for the duration of this project.</p>' : ""}
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex — A product of Core314 Technologies LLC</p>
       </div>
