@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import type { TaskOrder, SowItem, SowQuote, Subcontractor } from '../lib/types'
 import { ArrowLeft, DollarSign, Percent, TrendingUp, CheckCircle2, AlertTriangle, Calculator, Save, RotateCcw, ChevronDown, ChevronUp, Download, FileSpreadsheet, Table2, Scale, Brain, Award, Shield, Printer } from 'lucide-react'
 import ComplianceDrillDown from '../components/ComplianceDrillDown'
+import ComplianceDocsPanel from '../components/ComplianceDocsPanel'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import jsPDF from 'jspdf'
@@ -1530,6 +1531,11 @@ export default function PricingMatrix() {
         </table>
       </div>
     </div>)}
+
+      {/* Compliance Documents Panel */}
+      <div className="mt-6">
+        <ComplianceDocsPanel taskOrderId={taskOrderId!} />
+      </div>
 
       {/* Compliance Drill-Down Panel */}
       <ComplianceDrillDown
