@@ -212,6 +212,8 @@ async function handlePost(req: Request) {
     return handleDecline(tokenData, body)
   } else if (action === "save_incumbent_status") {
     return handleIncumbentStatus(tokenData, body)
+  } else if (action === "save_experience_locations") {
+    return handleExperienceLocations(tokenData, body)
   }
 
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: corsHeaders })
@@ -265,6 +267,83 @@ async function handleIncumbentStatus(tokenData: any, body: any) {
     direction: "inbound",
     subject: "Incumbent status submitted via portal",
     body: `Self-reported: ${incumbent_data.is_incumbent ? "Yes, incumbent" : "Not incumbent"}${incumbent_data.incumbent_locations ? `. Locations: ${incumbent_data.incumbent_locations}` : ""}`,
+  }).catch(() => {})
+
+  return new Response(JSON.stringify({ success: true }), { headers: corsHeaders })
+}
+
+async function handleExperienceLocations(tokenData: any, body: any) {
+  const { experience_data } = body
+  if (!experience_data) {
+    return new Response(JSON.stringify({ error: "Experience data required" }), { status: 400, headers: corsHeaders })
+  }
+
+  const { is_incumbent_here, active_locations, service_states, active_contract_count } = experience_data
+
+  // Update the subcontractor's incumbent status
+  const updateData: Record<string, any> = {
+    incumbent_status: is_incumbent_here ? "known" : "not_incumbent",
+    updated_at: new Date().toISOString(),
+  }
+  // Store geographic coverage from the service states
+  if (service_states) {
+    const states = service_states.split(/[,;]+/).map((s: string) => s.trim().toUpperCase()).filter(Boolean)
+    if (states.length > 0) {
+      updateData.geographic_coverage = states
+    }
+  }
+
+  await supabase
+    .from("subcontractors")
+    .update(updateData)
+    .eq("id", tokenData.subcontractor_id)
+
+  // Store detailed location intelligence — one row per location for queryable matching
+  const locationRows = (active_locations || []).map((loc: any) => ({
+    subcontractor_id: tokenData.subcontractor_id,
+    task_order_id: tokenData.task_order_id,
+    sow_item_id: tokenData.sow_item_id,
+    is_incumbent: is_incumbent_here,
+    location_name: loc.location_name,
+    client_agency: loc.client_agency,
+    years_at_location: loc.years_at_location,
+    contract_type: loc.contract_type,
+    service_states: service_states || null,
+    active_contract_count: active_contract_count ? parseInt(active_contract_count) || null : null,
+    source: "portal_self_report",
+  }))
+
+  if (locationRows.length > 0) {
+    await supabase.from("incumbent_intel").insert(locationRows).catch(() => {})
+  } else {
+    // Still store the incumbent status even with no locations
+    await supabase.from("incumbent_intel").insert({
+      subcontractor_id: tokenData.subcontractor_id,
+      task_order_id: tokenData.task_order_id,
+      sow_item_id: tokenData.sow_item_id,
+      is_incumbent: is_incumbent_here,
+      source: "portal_self_report",
+    }).catch(() => {})
+  }
+
+  // Update sow_subcontractors record
+  await supabase
+    .from("sow_subcontractors")
+    .update({
+      incumbent_status: is_incumbent_here ? "known" : "not_incumbent",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tokenData.sow_subcontractor_id)
+    .catch(() => {})
+
+  // Log communication
+  const locSummary = (active_locations || []).map((l: any) => l.location_name).filter(Boolean).join(", ")
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "quote_received",
+    direction: "inbound",
+    subject: "Experience & active locations submitted via portal",
+    body: `Incumbent at this location: ${is_incumbent_here ? "Yes" : "No"}. Active locations (${(active_locations || []).length}): ${locSummary || "None provided"}. Service area: ${service_states || "Not specified"}. Active contracts: ${active_contract_count || "Not specified"}.`,
   }).catch(() => {})
 
   return new Response(JSON.stringify({ success: true }), { headers: corsHeaders })

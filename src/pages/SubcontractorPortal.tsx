@@ -99,12 +99,12 @@ export default function SubcontractorPortal() {
   const [batchResults, setBatchResults] = useState<Array<{ status: string; ai_analysis?: { answer_text?: string; confidence_score?: number; source_references?: SourceRef[]; question_category?: string } }> | null>(null)
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
-  const [incumbentStatus, setIncumbentStatus] = useState<'yes' | 'no' | ''>('')
-  const [incumbentLocations, setIncumbentLocations] = useState('')
-  const [incumbentContractInfo, setIncumbentContractInfo] = useState('')
-  const [incumbentYears, setIncumbentYears] = useState('')
-  const [incumbentSaved, setIncumbentSaved] = useState(false)
-  const [savingIncumbent, setSavingIncumbent] = useState(false)
+  const [incumbentAtThisLocation, setIncumbentAtThisLocation] = useState<'yes' | 'no' | ''>('')
+  const [activeLocations, setActiveLocations] = useState<Array<{ location: string; client: string; years: string; contract_type: string }>>([{ location: '', client: '', years: '', contract_type: '' }])
+  const [serviceStates, setServiceStates] = useState('')
+  const [activeContractCount, setActiveContractCount] = useState('')
+  const [locationsSaved, setLocationsSaved] = useState(false)
+  const [savingLocations, setSavingLocations] = useState(false)
   const [showReviseQuote, setShowReviseQuote] = useState(false)
 
   useEffect(() => {
@@ -246,11 +246,8 @@ export default function SubcontractorPortal() {
         action: 'submit_quote',
         quote_data: quoteData,
         custom_fields: customFields,
-        incumbent_data: incumbentStatus ? {
-          is_incumbent: incumbentStatus === 'yes',
-          incumbent_locations: incumbentLocations.trim() || null,
-          incumbent_contract_info: incumbentContractInfo.trim() || null,
-          incumbent_years: incumbentYears.trim() || null,
+        incumbent_data: incumbentAtThisLocation ? {
+          is_incumbent: incumbentAtThisLocation === 'yes',
         } : undefined,
         is_revision: showReviseQuote,
       }
@@ -311,29 +308,40 @@ export default function SubcontractorPortal() {
     }
   }
 
-  async function handleSaveIncumbentStatus() {
-    if (!token || !incumbentStatus) return
-    setSavingIncumbent(true)
+  async function handleSaveLocations() {
+    if (!token) return
+    const validLocations = activeLocations.filter(l => l.location.trim())
+    if (validLocations.length === 0 && !incumbentAtThisLocation) {
+      setError('Please provide at least your incumbent status or one active location.')
+      return
+    }
+    setSavingLocations(true)
+    setError('')
     try {
       await fetch('/api/portal-api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
-          action: 'save_incumbent_status',
-          incumbent_data: {
-            is_incumbent: incumbentStatus === 'yes',
-            incumbent_locations: incumbentLocations.trim() || null,
-            incumbent_contract_info: incumbentContractInfo.trim() || null,
-            incumbent_years: incumbentYears.trim() || null,
+          action: 'save_experience_locations',
+          experience_data: {
+            is_incumbent_here: incumbentAtThisLocation === 'yes',
+            active_locations: validLocations.map(l => ({
+              location_name: l.location.trim(),
+              client_agency: l.client.trim() || null,
+              years_at_location: l.years.trim() || null,
+              contract_type: l.contract_type || null,
+            })),
+            service_states: serviceStates.trim() || null,
+            active_contract_count: activeContractCount.trim() || null,
           },
         }),
       })
-      setIncumbentSaved(true)
+      setLocationsSaved(true)
     } catch {
-      // silent
+      setError('Failed to save. Please try again.')
     } finally {
-      setSavingIncumbent(false)
+      setSavingLocations(false)
     }
   }
 
@@ -510,85 +518,151 @@ export default function SubcontractorPortal() {
           </div>
         </div>
 
-        {/* Incumbent Status Section */}
-        {!incumbentSaved && (
+        {/* Experience & Active Locations Section — REQUIRED */}
+        {!locationsSaved && (
           <div className="bg-white rounded-xl shadow-sm border border-amber-200 p-6 mb-6">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-2">
               <MapPin className="w-5 h-5 text-amber-600" />
-              <h2 className="text-lg font-bold text-gray-900">Incumbent Status</h2>
-              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Important</span>
+              <h2 className="text-lg font-bold text-gray-900">Experience & Active Locations</h2>
+              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Required</span>
             </div>
-            <p className="text-sm text-gray-600 mb-4">Are you currently the incumbent contractor for this type of work at this location or similar locations? This information is critical for the evaluation process.</p>
+            <p className="text-sm text-gray-600 mb-1">Please provide your incumbent status for this location and any other locations where you currently perform similar work.</p>
+            <p className="text-xs text-amber-700 mb-4 font-medium">⚠ This section must be completed before you can submit your quote.</p>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Are you the incumbent for this work at this location? *</label>
+            <div className="space-y-5">
+              {/* Q1: Incumbent at this location */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">1. Are you the incumbent for this work at this location? *</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="incumbent" value="yes" checked={incumbentStatus === 'yes'} onChange={() => setIncumbentStatus('yes')} className="text-amber-600 focus:ring-amber-500" />
+                    <input type="radio" name="incumbent_here" value="yes" checked={incumbentAtThisLocation === 'yes'} onChange={() => setIncumbentAtThisLocation('yes')} className="text-amber-600 focus:ring-amber-500" />
                     <span className="text-sm text-gray-700">Yes, we are the incumbent</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="incumbent" value="no" checked={incumbentStatus === 'no'} onChange={() => setIncumbentStatus('no')} className="text-amber-600 focus:ring-amber-500" />
+                    <input type="radio" name="incumbent_here" value="no" checked={incumbentAtThisLocation === 'no'} onChange={() => setIncumbentAtThisLocation('no')} className="text-amber-600 focus:ring-amber-500" />
                     <span className="text-sm text-gray-700">No</span>
                   </label>
                 </div>
               </div>
 
-              {incumbentStatus === 'yes' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Current/Previous Locations for Similar Work</label>
-                    <textarea
-                      value={incumbentLocations}
-                      onChange={e => setIncumbentLocations(e.target.value)}
-                      placeholder="List locations where you are performing or have performed similar work (e.g., 'Atlanta P&DC, Memphis P&DC, Nashville Annex')..."
-                      rows={2}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    />
+              {/* Q2: Active contract locations (always shown) */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <label className="block text-sm font-semibold text-gray-800 mb-1">2. Active & Recent Contract Locations *</label>
+                <p className="text-xs text-gray-500 mb-3">List locations where you currently perform or have recently performed similar work. This is used for evaluation scoring.</p>
+                
+                {activeLocations.map((loc, idx) => (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3 p-3 bg-white rounded-lg border border-gray-200">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-0.5">Location/Facility Name *</label>
+                      <input
+                        type="text"
+                        value={loc.location}
+                        onChange={e => { const n = [...activeLocations]; n[idx].location = e.target.value; setActiveLocations(n) }}
+                        placeholder="e.g., Atlanta P&DC"
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-0.5">Client/Agency</label>
+                      <input
+                        type="text"
+                        value={loc.client}
+                        onChange={e => { const n = [...activeLocations]; n[idx].client = e.target.value; setActiveLocations(n) }}
+                        placeholder="e.g., USPS"
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-0.5">Years at Location</label>
+                      <input
+                        type="text"
+                        value={loc.years}
+                        onChange={e => { const n = [...activeLocations]; n[idx].years = e.target.value; setActiveLocations(n) }}
+                        placeholder="e.g., 5"
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                    <div className="flex items-end gap-1">
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-0.5">Contract Type</label>
+                        <select
+                          value={loc.contract_type}
+                          onChange={e => { const n = [...activeLocations]; n[idx].contract_type = e.target.value; setActiveLocations(n) }}
+                          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        >
+                          <option value="">Select...</option>
+                          <option value="prime">Prime Contractor</option>
+                          <option value="subcontractor">Subcontractor</option>
+                          <option value="jv">Joint Venture</option>
+                          <option value="teaming">Teaming Partner</option>
+                        </select>
+                      </div>
+                      {activeLocations.length > 1 && (
+                        <button
+                          onClick={() => setActiveLocations(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-red-400 hover:text-red-600 p-1.5"
+                          title="Remove location"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contract/Reference Information</label>
-                    <textarea
-                      value={incumbentContractInfo}
-                      onChange={e => setIncumbentContractInfo(e.target.value)}
-                      placeholder="Contract numbers, agency names, or reference details for your incumbent projects..."
-                      rows={2}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience at Current Locations</label>
-                    <input
-                      type="text"
-                      value={incumbentYears}
-                      onChange={e => setIncumbentYears(e.target.value)}
-                      placeholder="e.g., 5 years at Atlanta P&DC, 3 years at Memphis P&DC"
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    />
-                  </div>
-                </>
-              )}
+                ))}
+                
+                <button
+                  onClick={() => setActiveLocations(prev => [...prev, { location: '', client: '', years: '', contract_type: '' }])}
+                  className="text-xs text-amber-700 hover:text-amber-900 font-medium flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Add Another Location
+                </button>
+              </div>
+
+              {/* Q3: Geographic service area */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Geographic Service Area</label>
+                  <input
+                    type="text"
+                    value={serviceStates}
+                    onChange={e => setServiceStates(e.target.value)}
+                    placeholder="e.g., GA, FL, TN, SC (states you service)"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Number of Active Contracts</label>
+                  <input
+                    type="text"
+                    value={activeContractCount}
+                    onChange={e => setActiveContractCount(e.target.value)}
+                    placeholder="e.g., 8"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+              </div>
 
               <div className="flex justify-end">
                 <button
-                  onClick={handleSaveIncumbentStatus}
-                  disabled={!incumbentStatus || savingIncumbent}
+                  onClick={handleSaveLocations}
+                  disabled={!incumbentAtThisLocation || savingLocations}
                   className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
                 >
-                  {savingIncumbent ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-                  Save Incumbent Status
+                  {savingLocations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                  Save Experience & Locations
                 </button>
               </div>
             </div>
           </div>
         )}
-        {incumbentSaved && (
+        {locationsSaved && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-green-800">Incumbent status saved{incumbentStatus === 'yes' ? ' — Yes, incumbent' : ' — Not incumbent'}</p>
-              {incumbentStatus === 'yes' && incumbentLocations && <p className="text-xs text-green-700">Locations: {incumbentLocations}</p>}
+              <p className="text-sm font-medium text-green-800">Experience & locations saved — {incumbentAtThisLocation === 'yes' ? 'Incumbent at this location' : 'Not incumbent here'}</p>
+              {activeLocations.filter(l => l.location.trim()).length > 0 && (
+                <p className="text-xs text-green-700">{activeLocations.filter(l => l.location.trim()).length} active location(s) recorded</p>
+              )}
             </div>
           </div>
         )}
@@ -778,14 +852,19 @@ export default function SubcontractorPortal() {
                   >
                     Decline to Quote
                   </button>
-                  <button
-                    onClick={handleSubmitQuote}
-                    disabled={submitting}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Submit Quote
-                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    <button
+                      onClick={handleSubmitQuote}
+                      disabled={submitting || !locationsSaved}
+                      className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Submit Quote
+                    </button>
+                    {!locationsSaved && (
+                      <p className="text-xs text-red-500">Complete "Experience & Active Locations" above first</p>
+                    )}
+                  </div>
                 </div>
               </>
             )}
