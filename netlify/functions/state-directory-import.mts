@@ -496,7 +496,7 @@ export default async (req: Request, _context: Context) => {
         contact_email: r.contact_email?.toLowerCase() || null,
         contact_phone: r.contact_phone,
         contact_name: r.contact_name,
-        address: r.address,
+        address_line1: r.address || null,
         city: r.city,
         state: r.state,
         zip_code: r.zip_code,
