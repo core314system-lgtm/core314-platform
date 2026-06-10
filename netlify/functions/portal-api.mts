@@ -132,6 +132,23 @@ async function handleGet(url: URL) {
     .eq("task_order_id", tokenData.task_order_id)
     .eq("sow_item_id", tokenData.sow_item_id)
 
+  // Get required compliance documents for this project/SOW
+  const { data: requiredDocs } = await supabase
+    .from("required_compliance_docs")
+    .select("*")
+    .eq("task_order_id", tokenData.task_order_id)
+    .or(`sow_item_id.eq.${tokenData.sow_item_id},sow_item_id.is.null`)
+    .catch(() => ({ data: null }))
+
+  // Get uploaded compliance documents for this sub
+  const { data: complianceDocs } = await supabase
+    .from("sub_compliance_docs")
+    .select("*")
+    .eq("subcontractor_id", tokenData.subcontractor_id)
+    .eq("task_order_id", tokenData.task_order_id)
+    .order("uploaded_at", { ascending: false })
+    .catch(() => ({ data: null }))
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
   const documents = (rawDocs || []).map((d: any) => ({
     ...d,
@@ -167,6 +184,8 @@ async function handleGet(url: URL) {
       ai_questions: aiQuestions || [],
       documents: documents || [],
       question_deadline: (tokenData as any).task_orders?.question_deadline || null,
+      required_compliance_docs: requiredDocs || [],
+      compliance_docs: complianceDocs || [],
     }),
     { headers: corsHeaders }
   )
@@ -196,6 +215,10 @@ async function handlePost(req: Request) {
     return handleDecline(tokenData, body)
   } else if (action === "save_incumbent_status") {
     return handleIncumbentStatus(tokenData, body)
+  } else if (action === "upload_compliance_doc") {
+    return handleComplianceDocUpload(tokenData, body)
+  } else if (action === "delete_compliance_doc") {
+    return handleComplianceDocDelete(tokenData, body)
   }
 
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: corsHeaders })
@@ -636,6 +659,165 @@ async function handleDecline(tokenData: any, body: any) {
     JSON.stringify({ success: true }),
     { headers: corsHeaders }
   )
+}
+
+// === Compliance Document Upload ===
+const ALLOWED_DOC_TYPES = [
+  'coi', 'license', 'w9', 'bonding', 'safety', 'quality',
+  'trade_cert', 'insurance_gl', 'insurance_wc', 'insurance_auto',
+  'insurance_umbrella', 'sam_registration', 'sba_cert', 'other',
+]
+
+async function handleComplianceDocUpload(tokenData: any, body: any) {
+  const { doc_type, doc_name, file_data, file_name, expiration_date } = body
+
+  if (!doc_type || !doc_name || !file_data || !file_name) {
+    return new Response(
+      JSON.stringify({ error: "doc_type, doc_name, file_data, and file_name are required" }),
+      { status: 400, headers: corsHeaders }
+    )
+  }
+
+  if (!ALLOWED_DOC_TYPES.includes(doc_type)) {
+    return new Response(
+      JSON.stringify({ error: `Invalid doc_type. Allowed: ${ALLOWED_DOC_TYPES.join(", ")}` }),
+      { status: 400, headers: corsHeaders }
+    )
+  }
+
+  // Decode base64 file data
+  let fileBuffer: Buffer
+  try {
+    const base64Data = file_data.includes(",") ? file_data.split(",")[1] : file_data
+    fileBuffer = Buffer.from(base64Data, "base64")
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid file data" }),
+      { status: 400, headers: corsHeaders }
+    )
+  }
+
+  // Max 10MB
+  if (fileBuffer.length > 10 * 1024 * 1024) {
+    return new Response(
+      JSON.stringify({ error: "File size must be under 10MB" }),
+      { status: 400, headers: corsHeaders }
+    )
+  }
+
+  const timestamp = Date.now()
+  const safeName = file_name.replace(/[^a-zA-Z0-9._-]/g, "_")
+  const storagePath = `${tokenData.task_order_id}/compliance/${tokenData.subcontractor_id}/${timestamp}-${safeName}`
+
+  // Upload to Supabase Storage
+  const { error: uploadErr } = await supabase.storage
+    .from("task-order-documents")
+    .upload(storagePath, fileBuffer, {
+      contentType: getContentType(file_name),
+      upsert: false,
+    })
+
+  if (uploadErr) {
+    return new Response(
+      JSON.stringify({ error: `Upload failed: ${uploadErr.message}` }),
+      { status: 500, headers: corsHeaders }
+    )
+  }
+
+  // Insert record
+  const { data: doc, error: insertErr } = await supabase
+    .from("sub_compliance_docs")
+    .insert({
+      subcontractor_id: tokenData.subcontractor_id,
+      task_order_id: tokenData.task_order_id,
+      sow_item_id: tokenData.sow_item_id,
+      doc_type,
+      doc_name,
+      file_path: storagePath,
+      file_name: file_name,
+      file_size: fileBuffer.length,
+      expiration_date: expiration_date || null,
+      status: "pending",
+    })
+    .select()
+    .single()
+
+  if (insertErr) {
+    // Clean up uploaded file
+    await supabase.storage.from("task-order-documents").remove([storagePath])
+    return new Response(
+      JSON.stringify({ error: `Failed to save document: ${insertErr.message}` }),
+      { status: 500, headers: corsHeaders }
+    )
+  }
+
+  // Notify prime
+  const sub = tokenData.subcontractors
+  const sow = tokenData.sow_items
+  const orgId = tokenData.task_orders?.org_id
+  if (orgId) {
+    await createNotification(
+      orgId,
+      "compliance_doc_uploaded",
+      `${sub?.company_name} uploaded compliance document`,
+      `${sub?.company_name} uploaded "${doc_name}" (${doc_type}) for ${sow?.sow_name}`,
+      `/dashboard/projects/${tokenData.task_order_id}/pricing-matrix`
+    )
+  }
+
+  // Log communication
+  await supabase.from("sow_communications").insert({
+    sow_subcontractor_id: tokenData.sow_subcontractor_id,
+    comm_type: "note",
+    direction: "inbound",
+    subject: `Compliance document uploaded: ${doc_name}`,
+    body: `${sub?.company_name} uploaded ${doc_name} (${doc_type})${expiration_date ? `, expires ${expiration_date}` : ""}`,
+  }).catch(() => {})
+
+  return new Response(JSON.stringify({ success: true, document: doc }), { headers: corsHeaders })
+}
+
+async function handleComplianceDocDelete(tokenData: any, body: any) {
+  const { doc_id } = body
+  if (!doc_id) {
+    return new Response(JSON.stringify({ error: "doc_id is required" }), { status: 400, headers: corsHeaders })
+  }
+
+  // Verify ownership
+  const { data: doc } = await supabase
+    .from("sub_compliance_docs")
+    .select("*")
+    .eq("id", doc_id)
+    .eq("subcontractor_id", tokenData.subcontractor_id)
+    .single()
+
+  if (!doc) {
+    return new Response(JSON.stringify({ error: "Document not found" }), { status: 404, headers: corsHeaders })
+  }
+
+  // Delete from storage
+  await supabase.storage.from("task-order-documents").remove([doc.file_path])
+
+  // Delete record
+  await supabase.from("sub_compliance_docs").delete().eq("id", doc_id)
+
+  return new Response(JSON.stringify({ success: true }), { headers: corsHeaders })
+}
+
+function getContentType(fileName: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase()
+  const types: Record<string, string> = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  }
+  return types[ext || ""] || "application/octet-stream"
 }
 
 function getDefaultFields() {

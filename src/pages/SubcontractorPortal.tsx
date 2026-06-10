@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain, Plus, Trash2, MapPin, RefreshCw, Shield } from 'lucide-react'
+import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain, Plus, Trash2, MapPin, RefreshCw, Shield, Upload, ShieldCheck, Calendar } from 'lucide-react'
 
 interface PortalData {
   task_order: {
@@ -34,6 +34,34 @@ interface PortalData {
   ai_questions: AIQuestion[]
   documents: any[]
   question_deadline: string | null
+  required_compliance_docs: RequiredDoc[]
+  compliance_docs: ComplianceDoc[]
+}
+
+interface RequiredDoc {
+  id: string
+  task_order_id: string
+  sow_item_id: string | null
+  doc_type: string
+  doc_label: string
+  is_required: boolean
+}
+
+interface ComplianceDoc {
+  id: string
+  subcontractor_id: string
+  task_order_id: string
+  sow_item_id: string | null
+  doc_type: string
+  doc_name: string
+  file_path: string
+  file_name: string
+  file_size: number | null
+  expiration_date: string | null
+  status: string
+  reviewer_notes: string | null
+  uploaded_at: string
+  reviewed_at: string | null
 }
 
 interface FormField {
@@ -87,7 +115,7 @@ export default function SubcontractorPortal() {
   const [data, setData] = useState<PortalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'quote' | 'questions' | 'documents'>('quote')
+  const [activeTab, setActiveTab] = useState<'quote' | 'questions' | 'documents' | 'compliance'>('quote')
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -104,6 +132,14 @@ export default function SubcontractorPortal() {
   const [incumbentSaved, setIncumbentSaved] = useState(false)
   const [savingIncumbent, setSavingIncumbent] = useState(false)
   const [showReviseQuote, setShowReviseQuote] = useState(false)
+  const [complianceDocType, setComplianceDocType] = useState('')
+  const [complianceDocName, setComplianceDocName] = useState('')
+  const [complianceDocFile, setComplianceDocFile] = useState<File | null>(null)
+  const [complianceExpDate, setComplianceExpDate] = useState('')
+  const [complianceUploading, setComplianceUploading] = useState(false)
+  const [complianceError, setComplianceError] = useState('')
+  const [complianceSuccess, setComplianceSuccess] = useState('')
+  const [complianceDocs, setComplianceDocs] = useState<ComplianceDoc[]>([])
 
   useEffect(() => {
     if (!token) return
@@ -126,6 +162,7 @@ export default function SubcontractorPortal() {
       setData(portalData)
       if (portalData.existing_quote) setSubmitted(true)
       if (portalData.outreach_status === 'declined') setDeclined(true)
+      if (portalData.compliance_docs) setComplianceDocs(portalData.compliance_docs)
     } catch {
       setError('Failed to load portal. Please check your link and try again.')
     } finally {
@@ -347,6 +384,98 @@ export default function SubcontractorPortal() {
     }
   }
 
+  const COMPLIANCE_DOC_TYPES = [
+    { value: 'coi', label: 'Certificate of Insurance (COI)' },
+    { value: 'insurance_gl', label: 'General Liability Insurance' },
+    { value: 'insurance_wc', label: "Workers' Compensation Insurance" },
+    { value: 'insurance_auto', label: 'Auto Insurance' },
+    { value: 'insurance_umbrella', label: 'Umbrella/Excess Insurance' },
+    { value: 'license', label: 'Business/Trade License' },
+    { value: 'trade_cert', label: 'Trade-Specific Certification' },
+    { value: 'w9', label: 'W-9 Form' },
+    { value: 'bonding', label: 'Bonding Certificate' },
+    { value: 'safety', label: 'Safety Certification (OSHA, etc.)' },
+    { value: 'quality', label: 'Quality Certification (ISO, etc.)' },
+    { value: 'sam_registration', label: 'SAM.gov Registration' },
+    { value: 'sba_cert', label: 'SBA Certification (8(a), HUBZone, etc.)' },
+    { value: 'other', label: 'Other Document' },
+  ]
+
+  function getDocTypeLabel(value: string) {
+    return COMPLIANCE_DOC_TYPES.find(d => d.value === value)?.label || value
+  }
+
+  function getStatusBadge(status: string) {
+    switch (status) {
+      case 'approved': return { color: 'bg-green-100 text-green-700', label: 'Approved' }
+      case 'rejected': return { color: 'bg-red-100 text-red-700', label: 'Rejected' }
+      case 'expired': return { color: 'bg-orange-100 text-orange-700', label: 'Expired' }
+      default: return { color: 'bg-yellow-100 text-yellow-700', label: 'Pending Review' }
+    }
+  }
+
+  async function handleComplianceUpload() {
+    if (!token || !complianceDocType || !complianceDocName || !complianceDocFile) return
+    setComplianceUploading(true)
+    setComplianceError('')
+    setComplianceSuccess('')
+
+    try {
+      // Read file as base64
+      const fileData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(complianceDocFile)
+      })
+
+      const resp = await fetch('/api/portal-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          action: 'upload_compliance_doc',
+          doc_type: complianceDocType,
+          doc_name: complianceDocName,
+          file_data: fileData,
+          file_name: complianceDocFile.name,
+          expiration_date: complianceExpDate || null,
+        }),
+      })
+
+      const result = await resp.json()
+      if (resp.ok && result.success) {
+        setComplianceDocs(prev => [result.document, ...prev])
+        setComplianceDocType('')
+        setComplianceDocName('')
+        setComplianceDocFile(null)
+        setComplianceExpDate('')
+        setComplianceSuccess('Document uploaded successfully!')
+        setTimeout(() => setComplianceSuccess(''), 5000)
+      } else {
+        setComplianceError(result.error || 'Failed to upload document')
+      }
+    } catch {
+      setComplianceError('Network error — could not upload document')
+    } finally {
+      setComplianceUploading(false)
+    }
+  }
+
+  async function handleDeleteComplianceDoc(docId: string) {
+    if (!token || !confirm('Are you sure you want to delete this document?')) return
+    try {
+      const resp = await fetch('/api/portal-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, action: 'delete_compliance_doc', doc_id: docId }),
+      })
+      if (resp.ok) {
+        setComplianceDocs(prev => prev.filter(d => d.id !== docId))
+      }
+    } catch { /* silent */ }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -549,6 +678,7 @@ export default function SubcontractorPortal() {
             { key: 'quote' as const, label: submitted ? 'Quote Submitted' : 'Submit Quote', icon: FileText },
             { key: 'questions' as const, label: `Questions${(data.ai_questions?.length || data.questions.length) ? ` (${data.ai_questions?.length || data.questions.length})` : ''}`, icon: MessageSquare },
             { key: 'documents' as const, label: `Documents${data.documents.length ? ` (${data.documents.length})` : ''}`, icon: FileText },
+            { key: 'compliance' as const, label: `Compliance${complianceDocs.length ? ` (${complianceDocs.length})` : ''}`, icon: ShieldCheck },
           ].map(tab => (
             <button
               key={tab.key}
@@ -943,6 +1073,204 @@ export default function SubcontractorPortal() {
                 <p className="text-xs text-gray-400 mt-1">Check back later or contact the contracting team for scope documents.</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Compliance Documents Tab */}
+        {activeTab === 'compliance' && (
+          <div className="space-y-4">
+            {/* Header Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <ShieldCheck className="w-6 h-6 text-blue-600" />
+                <h2 className="text-lg font-bold text-gray-900">Compliance Documents</h2>
+              </div>
+              <p className="text-sm text-gray-500">
+                Upload required certifications, licenses, insurance certificates, and other compliance documents.
+                These documents are reviewed by the contracting team as part of the qualification process.
+              </p>
+            </div>
+
+            {/* Required Documents Checklist */}
+            {data.required_compliance_docs && data.required_compliance_docs.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Required Documents
+                </h3>
+                <div className="space-y-2">
+                  {data.required_compliance_docs.map(req => {
+                    const uploaded = complianceDocs.find(d => d.doc_type === req.doc_type)
+                    return (
+                      <div key={req.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
+                        {uploaded ? (
+                          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                        )}
+                        <span className="text-sm text-gray-700 flex-1">{req.doc_label}</span>
+                        {uploaded ? (
+                          <span className="text-xs text-green-600 font-medium">Uploaded</span>
+                        ) : req.is_required ? (
+                          <span className="text-xs text-red-600 font-medium">Required</span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Optional</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Upload Form */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Upload className="w-4 h-4 text-blue-600" />
+                Upload Document
+              </h3>
+
+              {complianceError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <p className="text-sm text-red-700">{complianceError}</p>
+                </div>
+              )}
+
+              {complianceSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <p className="text-sm text-green-700">{complianceSuccess}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Document Type *</label>
+                  <select
+                    value={complianceDocType}
+                    onChange={e => setComplianceDocType(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select type...</option>
+                    {COMPLIANCE_DOC_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Document Name *</label>
+                  <input
+                    type="text"
+                    value={complianceDocName}
+                    onChange={e => setComplianceDocName(e.target.value)}
+                    placeholder="e.g., GL Insurance Certificate 2025"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">File *</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
+                    onChange={e => setComplianceDocFile(e.target.files?.[0] || null)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX, PNG, JPG, XLS — max 10MB</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Expiration Date
+                    </span>
+                  </label>
+                  <input
+                    type="date"
+                    value={complianceExpDate}
+                    onChange={e => setComplianceExpDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Leave blank if document doesn't expire</p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleComplianceUpload}
+                disabled={complianceUploading || !complianceDocType || !complianceDocName || !complianceDocFile}
+                className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {complianceUploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                {complianceUploading ? 'Uploading...' : 'Upload Document'}
+              </button>
+            </div>
+
+            {/* Uploaded Documents */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Uploaded Documents ({complianceDocs.length})</h3>
+              {complianceDocs.length > 0 ? (
+                <div className="space-y-3">
+                  {complianceDocs.map(doc => {
+                    const badge = getStatusBadge(doc.status)
+                    const isExpired = doc.expiration_date && new Date(doc.expiration_date) < new Date()
+                    const isExpiringSoon = doc.expiration_date && !isExpired && new Date(doc.expiration_date) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                    return (
+                      <div key={doc.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <ShieldCheck className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                          doc.status === 'approved' ? 'text-green-500' :
+                          doc.status === 'rejected' ? 'text-red-500' :
+                          'text-amber-500'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900 truncate">{doc.doc_name}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${badge.color}`}>{badge.label}</span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            <span>{getDocTypeLabel(doc.doc_type)}</span>
+                            <span>{doc.file_name}</span>
+                            {doc.file_size && <span>{(doc.file_size / 1024).toFixed(0)} KB</span>}
+                          </div>
+                          {doc.expiration_date && (
+                            <div className={`flex items-center gap-1 mt-1 text-xs ${
+                              isExpired ? 'text-red-600' : isExpiringSoon ? 'text-amber-600' : 'text-gray-500'
+                            }`}>
+                              <Calendar className="w-3 h-3" />
+                              {isExpired ? 'Expired: ' : isExpiringSoon ? 'Expiring soon: ' : 'Expires: '}
+                              {new Date(doc.expiration_date).toLocaleDateString()}
+                            </div>
+                          )}
+                          {doc.reviewer_notes && (
+                            <p className="mt-1 text-xs text-gray-600 italic">Reviewer: {doc.reviewer_notes}</p>
+                          )}
+                          <p className="mt-1 text-xs text-gray-400">Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteComplianceDoc(doc.id)}
+                          className="text-gray-400 hover:text-red-500 flex-shrink-0"
+                          title="Delete document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <ShieldCheck className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">No compliance documents uploaded yet.</p>
+                  <p className="text-xs text-gray-400 mt-1">Use the form above to upload your certifications, licenses, and insurance documents.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
