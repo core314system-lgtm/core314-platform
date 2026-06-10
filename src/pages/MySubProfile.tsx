@@ -6,7 +6,7 @@ import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
 import {
   Building, MapPin, Save, Loader2, AlertCircle,
   CheckCircle, Globe, Phone, Mail, FileText,
-  BadgeCheck, ExternalLink, Plus, X, Star,
+  BadgeCheck, ExternalLink, Plus, X, Star, ArrowRight, Shield, Zap, TrendingUp,
 } from 'lucide-react'
 
 interface SubProfile {
@@ -84,6 +84,7 @@ export default function MySubProfile() {
   const [docExpDate, setDocExpDate] = useState('')
   const [docUploading, setDocUploading] = useState(false)
   const [verifyLoading, setVerifyLoading] = useState(false)
+  const [pendingRfqs, setPendingRfqs] = useState<{ token: string; project_title: string; sow_name: string; due_date: string | null; created_at: string }[]>([])
 
   // Editable form state
   const [form, setForm] = useState({
@@ -151,6 +152,32 @@ export default function MySubProfile() {
       small_business_types: data.small_business_types || [],
       geographic_coverage: data.geographic_coverage || [],
     })
+
+    // Fetch pending RFQ portal links for this sub
+    if (data.contact_email) {
+      const { data: subRecords } = await supabase
+        .from('subcontractors')
+        .select('id')
+        .eq('contact_email', data.contact_email)
+      const subIds = (subRecords || []).map(s => s.id)
+      if (subIds.length > 0) {
+        const { data: tokens } = await supabase
+          .from('rfq_tokens')
+          .select('token, expires_at, created_at, sow_items!inner(sow_name), task_orders!inner(title, due_date)')
+          .in('subcontractor_id', subIds)
+          .eq('is_active', true)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+        setPendingRfqs((tokens || []).map((t: any) => ({
+          token: t.token,
+          project_title: t.task_orders?.title || 'Untitled Project',
+          sow_name: t.sow_items?.sow_name || '',
+          due_date: t.task_orders?.due_date || null,
+          created_at: t.created_at,
+        })))
+      }
+    }
+
     setLoading(false)
   }
 
@@ -435,6 +462,85 @@ export default function MySubProfile() {
           </div>
         </div>
       </div>
+
+      {/* Pending RFQs — portal links for this sub */}
+      {pendingRfqs.length > 0 && (
+        <div className="bg-white rounded-xl border-2 border-blue-200 p-6 space-y-3">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <FileText size={16} className="text-blue-600" />
+            Active RFQ Invitations ({pendingRfqs.length})
+          </h2>
+          <p className="text-sm text-gray-600">You have been invited to submit quotes on the following projects:</p>
+          <div className="space-y-2">
+            {pendingRfqs.map(rfq => (
+              <a key={rfq.token} href={`/portal/${rfq.token}`}
+                className="flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors group">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{rfq.project_title}</p>
+                  {rfq.sow_name && <p className="text-xs text-gray-500">{rfq.sow_name}</p>}
+                </div>
+                <div className="flex items-center gap-3">
+                  {rfq.due_date && (
+                    <span className="text-xs text-red-600 font-medium">Due: {new Date(rfq.due_date).toLocaleDateString()}</span>
+                  )}
+                  <span className="flex items-center gap-1 text-sm font-medium text-blue-600 group-hover:text-blue-800">
+                    View & Respond <ArrowRight size={14} />
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Get Verified CTA — always visible for unverified profiles */}
+      {profile && profile.verification_status !== 'verified' && (
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+              <BadgeCheck size={24} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Get Procuvex Verified</h3>
+              <p className="text-sm text-gray-600 mb-4">Stand out from the competition and get matched with prime contractors automatically.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                <div className="flex items-start gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <TrendingUp size={14} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Priority Placement</p>
+                    <p className="text-xs text-gray-500">Appear first in prime contractor search results</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Zap size={14} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Auto-Matching</p>
+                    <p className="text-xs text-gray-500">Get automatically matched to relevant RFQs based on your trades</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Shield size={14} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Verified Badge</p>
+                    <p className="text-xs text-gray-500">Build trust with a visible verification badge on your profile</p>
+                  </div>
+                </div>
+              </div>
+              <button onClick={saveAndGetVerified} disabled={saving || verifyLoading}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all">
+                {verifyLoading ? <Loader2 size={16} className="animate-spin" /> : <BadgeCheck size={16} />}
+                Get Verified Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {saved && (
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
