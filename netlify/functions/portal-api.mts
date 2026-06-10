@@ -385,13 +385,24 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
     new Promise(resolve => setTimeout(resolve, 8000)),
   ])
 
-  // Trigger AI compliance analysis (fire-and-forget, after response prep)
+  // Trigger AI compliance analysis — must be awaited or the function
+  // terminates before the HTTP request completes
   const siteUrl = process.env.URL || "https://procuvex.com"
-  fetch(`${siteUrl}/.netlify/functions/analyze-quote`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ quote_id: quote.id, auto_email: true }),
-  }).catch(() => {})
+  try {
+    const analyzeResp = await Promise.race([
+      fetch(`${siteUrl}/.netlify/functions/analyze-quote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quote_id: quote.id, auto_email: true }),
+      }),
+      new Promise<Response>((_, reject) =>
+        setTimeout(() => reject(new Error("analyze timeout")), 15000)
+      ),
+    ])
+    console.log("Compliance analysis triggered, status:", analyzeResp.status)
+  } catch (err: any) {
+    console.error("Compliance analysis trigger failed:", err.message)
+  }
 
   return new Response(
     JSON.stringify({ success: true, quote_id: quote.id }),
