@@ -24,7 +24,7 @@ export default async (req: Request, _context: Context) => {
       const rfqToken = event.rfq_token || event.unique_args?.rfq_token
       const sgMessageId = event.sg_message_id
       const orgId = event.unique_args?.org_id
-      const emailType = event.unique_args?.email_type // welcome, invite, rfq, sub_outreach, etc.
+      const emailType = event.unique_args?.email_type || event.email_type // welcome, invite, rfq, sub_outreach, etc.
       const recipientEmail = event.email || ''
 
       // ──────────────────────────────────────────────────────────
@@ -231,17 +231,21 @@ async function handleOutreachEvent(eventType: string, email: string, event: any)
         .update({ 
           data_health_score: newScore,
           last_engagement_at: now,
-          engagement_open_count: supabase.rpc ? undefined : undefined, // handled below
         })
         .eq("id", sub.id)
-      // Increment open count
+      // Increment open count atomically
       await supabase.rpc("increment_master_sub_field", { 
         row_id: sub.id, 
         field_name: "engagement_open_count" 
-      }).catch(() => {
-        // Fallback if RPC doesn't exist yet
-        supabase.from("master_subcontractors")
-          .update({ last_engagement_at: now, data_health_score: newScore })
+      }).catch(async () => {
+        // Fallback: manual increment if RPC doesn't exist
+        const { data: current } = await supabase
+          .from("master_subcontractors")
+          .select("engagement_open_count")
+          .eq("id", sub.id)
+          .single()
+        await supabase.from("master_subcontractors")
+          .update({ engagement_open_count: (current?.engagement_open_count || 0) + 1 })
           .eq("id", sub.id)
       })
       break
@@ -257,6 +261,21 @@ async function handleOutreachEvent(eventType: string, email: string, event: any)
           last_engagement_at: now,
         })
         .eq("id", sub.id)
+      // Increment click count atomically
+      await supabase.rpc("increment_master_sub_field", { 
+        row_id: sub.id, 
+        field_name: "engagement_click_count" 
+      }).catch(async () => {
+        // Fallback: manual increment if RPC doesn't exist
+        const { data: current } = await supabase
+          .from("master_subcontractors")
+          .select("engagement_click_count")
+          .eq("id", sub.id)
+          .single()
+        await supabase.from("master_subcontractors")
+          .update({ engagement_click_count: (current?.engagement_click_count || 0) + 1 })
+          .eq("id", sub.id)
+      })
       break
     }
   }
