@@ -123,6 +123,21 @@ async function handleGet(url: URL) {
     .limit(1)
     .single()
 
+  // Get custom field values for the existing quote (so we can pre-fill on revision)
+  let customFieldValues: Record<string, any> | null = null
+  if (existingQuote) {
+    const { data: submission } = await supabase
+      .from("portal_quote_submissions")
+      .select("custom_fields")
+      .eq("sow_quote_id", existingQuote.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+    if (submission?.custom_fields) {
+      customFieldValues = submission.custom_fields
+    }
+  }
+
   // Get ONLY documents explicitly assigned to this sub's SOW item.
   // No category guessing, no filename matching — strict sow_item_id match only.
   // If a document should be visible to a sub, it must be assigned to their SOW item.
@@ -163,6 +178,7 @@ async function handleGet(url: URL) {
       outreach_status: (tokenData as any).sow_subcontractors?.outreach_status,
       form_template: formTemplate,
       existing_quote: existingQuote,
+      custom_field_values: customFieldValues,
       questions: questions || [],
       ai_questions: aiQuestions || [],
       documents: documents || [],

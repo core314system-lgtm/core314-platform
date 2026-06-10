@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Building, FileText, Send, MessageSquare, CheckCircle, Clock, AlertTriangle, X, Loader2, Brain, Plus, Trash2, MapPin, RefreshCw, Shield } from 'lucide-react'
 
 interface PortalData {
@@ -30,6 +30,7 @@ interface PortalData {
     fields: FormField[]
   }
   existing_quote: any | null
+  custom_field_values: Record<string, any> | null
   questions: Question[]
   ai_questions: AIQuestion[]
   documents: any[]
@@ -84,6 +85,7 @@ interface AIQuestion {
 
 export default function SubcontractorPortal() {
   const { token } = useParams<{ token: string }>()
+  const [searchParams] = useSearchParams()
   const [data, setData] = useState<PortalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -110,6 +112,47 @@ export default function SubcontractorPortal() {
     fetchPortalData()
   }, [token])
 
+  function prefillFormFromQuote(portalData: PortalData) {
+    const quote = portalData.existing_quote
+    if (!quote) return {}
+
+    const values: Record<string, string> = {}
+
+    // Pre-fill standard fields from the existing quote
+    const standardFields = [
+      'total_amount', 'monthly_amount', 'annual_amount',
+      'labor_cost', 'materials_cost', 'equipment_cost', 'overhead_markup',
+      'scope_inclusions', 'scope_exclusions', 'assumptions',
+      'timeline', 'payment_terms', 'validity_period',
+    ]
+    for (const key of standardFields) {
+      if (quote[key] !== undefined && quote[key] !== null && quote[key] !== '') {
+        values[key] = String(quote[key])
+      }
+    }
+
+    // Pre-fill custom field values
+    if (portalData.custom_field_values) {
+      for (const [fieldId, val] of Object.entries(portalData.custom_field_values)) {
+        if (val !== undefined && val !== null && val !== '') {
+          values[fieldId] = String(val)
+        }
+      }
+    }
+
+    return values
+  }
+
+  function getComplianceGaps(portalData: PortalData): { requirements: string[]; pricing: string[]; score: number | null } {
+    const analysis = portalData.existing_quote?.ai_compliance_analysis
+    if (!analysis) return { requirements: [], pricing: [], score: null }
+    return {
+      requirements: analysis.requirements_missing || [],
+      pricing: analysis.pricing_gaps || [],
+      score: analysis.overall_score ?? null,
+    }
+  }
+
   async function fetchPortalData() {
     try {
       const resp = await fetch(`/api/portal-api?token=${token}`)
@@ -126,6 +169,13 @@ export default function SubcontractorPortal() {
       setData(portalData)
       if (portalData.existing_quote) setSubmitted(true)
       if (portalData.outreach_status === 'declined') setDeclined(true)
+
+      // Auto-enter revision mode if ?revise=true (from gap resolution email link)
+      if (searchParams.get('revise') === 'true' && portalData.existing_quote) {
+        setShowReviseQuote(true)
+        setSubmitted(false)
+        setFormValues(prefillFormFromQuote(portalData))
+      }
     } catch {
       setError('Failed to load portal. Please check your link and try again.')
     } finally {
@@ -582,7 +632,7 @@ export default function SubcontractorPortal() {
                 )}
                 <div className="mt-6">
                   <button
-                    onClick={() => { setShowReviseQuote(true); setSubmitted(false); setFormValues({}) }}
+                    onClick={() => { setShowReviseQuote(true); setSubmitted(false); setFormValues(prefillFormFromQuote(data)) }}
                     className="flex items-center gap-2 mx-auto bg-amber-50 text-amber-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-100 border border-amber-200"
                   >
                     <RefreshCw className="w-4 h-4" /> Submit Revised Quote
@@ -595,11 +645,55 @@ export default function SubcontractorPortal() {
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
                   {showReviseQuote ? '📝 Revised Quote' : 'Quote Details'}
                 </h2>
-                <p className="text-sm text-gray-500 mb-6">
+                <p className="text-sm text-gray-500 mb-4">
                   {showReviseQuote
-                    ? 'Submit your updated quote below. This will be recorded as a revision to your original submission.'
+                    ? 'Your previous quote has been pre-filled below. Edit the fields that need updating — you only need to change what\'s necessary to address the identified gaps.'
                     : 'Complete the fields below to submit your quote. Required fields are marked with *'}
                 </p>
+
+                {/* Gap Resolution Banner — shows identified gaps when in revision mode */}
+                {showReviseQuote && (() => {
+                  const gaps = getComplianceGaps(data)
+                  if (gaps.requirements.length === 0 && gaps.pricing.length === 0) return null
+                  return (
+                    <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
+                      <div className="flex items-start gap-2 mb-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h3 className="text-sm font-bold text-amber-900">Items to Address in Your Revision</h3>
+                          <p className="text-xs text-amber-700 mt-1">
+                            The following gaps were identified in your previous submission. Please update the relevant fields below to address them.
+                          </p>
+                        </div>
+                      </div>
+                      {gaps.requirements.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold text-red-800 mb-1">SOW Requirements Not Addressed ({gaps.requirements.length}):</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {gaps.requirements.map((gap, i) => (
+                              <li key={i} className="text-xs text-red-700">{gap}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {gaps.pricing.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold text-amber-800 mb-1">Pricing Gaps ({gaps.pricing.length}):</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {gaps.pricing.map((gap, i) => (
+                              <li key={i} className="text-xs text-amber-700">{gap}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {gaps.score !== null && (
+                        <div className="mt-3 pt-2 border-t border-amber-200">
+                          <p className="text-xs text-amber-800">Previous Compliance Score: <strong className={gaps.score >= 80 ? 'text-green-700' : gaps.score >= 60 ? 'text-amber-700' : 'text-red-700'}>{gaps.score}%</strong></p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {error && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">

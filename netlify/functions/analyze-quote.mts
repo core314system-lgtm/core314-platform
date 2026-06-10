@@ -353,7 +353,7 @@ export default async (req: Request, _context: Context) => {
           .single()
 
         const portalUrl = tokenData
-          ? `https://procuvex.com/portal/${tokenData.token}`
+          ? `https://procuvex.com/portal/${tokenData.token}?revise=true`
           : "https://procuvex.com"
 
         const html = buildGapEmail(

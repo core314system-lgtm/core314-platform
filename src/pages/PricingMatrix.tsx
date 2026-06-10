@@ -183,52 +183,59 @@ export default function PricingMatrix() {
   }
 
   async function fetchData() {
-    const [toRes, sowRes, subsRes] = await Promise.all([
-      supabase.from('task_orders').select('*').eq('id', taskOrderId).single(),
-      supabase.from('sow_items').select('*').eq('task_order_id', taskOrderId).order('service_category'),
-      supabase.from('subcontractors').select('*'),
-    ])
+    const startTime = Date.now()
+    try {
+      const [toRes, sowRes, subsRes] = await Promise.all([
+        supabase.from('task_orders').select('*').eq('id', taskOrderId).single(),
+        supabase.from('sow_items').select('*').eq('task_order_id', taskOrderId).order('service_category'),
+        supabase.from('subcontractors').select('*'),
+      ])
 
-    setTaskOrder(toRes.data)
-    const sMap = new Map<string, Subcontractor>()
-    for (const s of (subsRes.data || [])) sMap.set(s.id, s)
-    setAllSubs(sMap)
+      setTaskOrder(toRes.data)
+      const sMap = new Map<string, Subcontractor>()
+      for (const s of (subsRes.data || [])) sMap.set(s.id, s)
+      setAllSubs(sMap)
 
-    const newRows: SowPricingRow[] = []
-    for (const sow of (sowRes.data || [])) {
-      const { data: quotes } = await supabase
-        .from('sow_quotes')
-        .select('*')
-        .eq('sow_item_id', sow.id)
+      const newRows: SowPricingRow[] = []
+      for (const sow of (sowRes.data || [])) {
+        const { data: quotes } = await supabase
+          .from('sow_quotes')
+          .select('*')
+          .eq('sow_item_id', sow.id)
 
-      const enriched = (quotes || []).map(q => ({
-        ...q,
-        subcontractor_name: sMap.get(q.subcontractor_id)?.company_name || 'Unknown',
-      }))
+        const enriched = (quotes || []).map(q => ({
+          ...q,
+          subcontractor_name: sMap.get(q.subcontractor_id)?.company_name || 'Unknown',
+        }))
 
-      // Find lowest quote as default selection
-      const sortedByPrice = enriched.filter(q => q.total_amount).sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0))
-      const bestQuote = sortedByPrice[0] || null
+        // Find lowest quote as default selection
+        const sortedByPrice = enriched.filter(q => q.total_amount).sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0))
+        const bestQuote = sortedByPrice[0] || null
 
-      newRows.push({
-        sow,
-        quotes: enriched,
-        selectedSubId: bestQuote?.subcontractor_id || null,
-        selectedQuoteId: bestQuote?.id || null,
-        subCost: bestQuote?.total_amount || 0,
-        markupType: 'percentage',
-        markupValue: 10,
-        supplierTotal: bestQuote ? Math.round((bestQuote.total_amount || 0) * 1.10) : 0,
-        baseAnnual: bestQuote?.annual_amount || bestQuote?.total_amount || 0,
-        escalationRate: 3,
-        additionalCosts: 0,
-        additionalCostsNote: '',
-      })
+        newRows.push({
+          sow,
+          quotes: enriched,
+          selectedSubId: bestQuote?.subcontractor_id || null,
+          selectedQuoteId: bestQuote?.id || null,
+          subCost: bestQuote?.total_amount || 0,
+          markupType: 'percentage',
+          markupValue: 10,
+          supplierTotal: bestQuote ? Math.round((bestQuote.total_amount || 0) * 1.10) : 0,
+          baseAnnual: bestQuote?.annual_amount || bestQuote?.total_amount || 0,
+          escalationRate: 3,
+          additionalCosts: 0,
+          additionalCostsNote: '',
+        })
+      }
+
+      setRows(newRows)
+      setLoading(false)
+    } finally {
+      // Ensure spinner is visible for at least 800ms
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 800 - elapsed)
+      setTimeout(() => setRefreshing(false), remaining)
     }
-
-    setRows(newRows)
-    setLoading(false)
-    setRefreshing(false)
   }
 
   function selectQuote(sowId: string, quoteId: string, subId: string, amount: number, annualAmount: number | null) {
