@@ -160,6 +160,9 @@ export default function MasterSubDatabase() {
   const [stateImporting, setStateImporting] = useState(false)
   const [stateImportResult, setStateImportResult] = useState<any>(null)
   const [stateImportSource, setStateImportSource] = useState('texas_hub')
+  const [stateImportMode, setStateImportMode] = useState<'auto' | 'upload'>('auto')
+  const [stateUploadFormat, setStateUploadFormat] = useState('ohio_mbe')
+  const [stateUploadFile, setStateUploadFile] = useState<File | null>(null)
   const stateImportRef = useRef<HTMLDivElement>(null)
 
   const PAGE_SIZE = 50
@@ -1514,77 +1517,128 @@ export default function MasterSubDatabase() {
       {showStateImport && (
         <div ref={stateImportRef} className="bg-purple-50 border border-purple-200 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-purple-900">Import State DBE/HUB Directories</h3>
+            <h3 className="text-lg font-semibold text-purple-900">Import State DBE/HUB/MBE/WBE Directories</h3>
             <button onClick={() => setShowStateImport(false)} className="text-purple-400 hover:text-purple-600"><X size={18} /></button>
           </div>
           <p className="text-sm text-purple-800">
-            Import verified contractors from state government directories. These include HUB (Historically Underutilized Businesses), 
-            DBE (Disadvantaged Business Enterprises), and MBE/WBE certified firms that may not be in your existing SAM.gov data.
+            Import verified contractors from state government directories. Supports auto-download (Texas) and file upload (OH, IL, NY, FL, VA, GA, PA, or any state CSV).
           </p>
-          
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-purple-900 mb-1">Select Source</label>
-              <select
-                value={stateImportSource}
-                onChange={(e) => setStateImportSource(e.target.value)}
-                className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="texas_hub">Texas HUB Directory (~15,000 firms — minority, women, veteran-owned)</option>
-                <option value="texas_cmbl">Texas CMBL (~12,000 firms — all state bidders list)</option>
-              </select>
-            </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  setStateImporting(true)
-                  setStateImportResult(null)
-                  try {
-                    const res = await fetch('/.netlify/functions/state-directory-import', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ source: stateImportSource, dryRun: true })
-                    })
-                    const data = await res.json()
-                    setStateImportResult({ ...data, isDryRun: true })
-                  } catch (e: any) {
-                    setStateImportResult({ error: e.message })
-                  }
-                  setStateImporting(false)
-                }}
-                disabled={stateImporting}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-purple-600 text-purple-700 rounded-lg hover:bg-purple-100 font-medium disabled:opacity-50"
-              >
-                <Eye size={16} /> Preview (Dry Run)
-              </button>
-              <button
-                onClick={async () => {
-                  if (!confirm('This will import new records into your master database. Duplicates will be skipped. Continue?')) return
-                  setStateImporting(true)
-                  setStateImportResult(null)
-                  try {
-                    const res = await fetch('/.netlify/functions/state-directory-import', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ source: stateImportSource })
-                    })
-                    const data = await res.json()
-                    setStateImportResult(data)
-                    if (data.success) fetchStats()
-                  } catch (e: any) {
-                    setStateImportResult({ error: e.message })
-                  }
-                  setStateImporting(false)
-                }}
-                disabled={stateImporting}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50"
-              >
-                {stateImporting ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
-                {stateImporting ? 'Importing...' : 'Import Now'}
-              </button>
-            </div>
+          {/* Mode Toggle */}
+          <div className="flex rounded-lg overflow-hidden border border-purple-300">
+            <button onClick={() => { setStateImportMode('auto'); setStateImportResult(null) }}
+              className={`flex-1 px-3 py-2 text-sm font-medium ${stateImportMode === 'auto' ? 'bg-purple-600 text-white' : 'bg-white text-purple-700 hover:bg-purple-50'}`}>
+              Auto-Download (TX)
+            </button>
+            <button onClick={() => { setStateImportMode('upload'); setStateImportResult(null) }}
+              className={`flex-1 px-3 py-2 text-sm font-medium ${stateImportMode === 'upload' ? 'bg-purple-600 text-white' : 'bg-white text-purple-700 hover:bg-purple-50'}`}>
+              Upload File (All States)
+            </button>
           </div>
+
+          {stateImportMode === 'auto' ? (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-purple-900 mb-1">Select Source</label>
+                <select value={stateImportSource} onChange={(e) => setStateImportSource(e.target.value)}
+                  className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm">
+                  <option value="texas_hub">Texas HUB Directory (~15,000 firms — minority, women, veteran-owned)</option>
+                  <option value="texas_cmbl">Texas CMBL (~12,000 firms — all state bidders list)</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={async () => {
+                  setStateImporting(true); setStateImportResult(null)
+                  try {
+                    const res = await fetch('/.netlify/functions/state-directory-import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: stateImportSource, dryRun: true }) })
+                    const data = await res.json(); setStateImportResult({ ...data, isDryRun: true })
+                  } catch (e: any) { setStateImportResult({ error: e.message }) }
+                  setStateImporting(false)
+                }} disabled={stateImporting} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-purple-600 text-purple-700 rounded-lg hover:bg-purple-100 font-medium disabled:opacity-50">
+                  <Eye size={16} /> Preview
+                </button>
+                <button onClick={async () => {
+                  if (!confirm('Import new records? Duplicates will be skipped.')) return
+                  setStateImporting(true); setStateImportResult(null)
+                  try {
+                    const res = await fetch('/.netlify/functions/state-directory-import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: stateImportSource }) })
+                    const data = await res.json(); setStateImportResult(data); if (data.success) fetchStats()
+                  } catch (e: any) { setStateImportResult({ error: e.message }) }
+                  setStateImporting(false)
+                }} disabled={stateImporting} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50">
+                  {stateImporting ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
+                  {stateImporting ? 'Importing...' : 'Import Now'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-purple-900 mb-1">State Format</label>
+                <select value={stateUploadFormat} onChange={(e) => setStateUploadFormat(e.target.value)}
+                  className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm">
+                  <option value="ohio_mbe">Ohio — MBE Directory (~1,300 firms)</option>
+                  <option value="ohio_edge">Ohio — EDGE Directory (~800 firms)</option>
+                  <option value="illinois_bep">Illinois — BEP MBE/WBE Directory (~4,000 firms)</option>
+                  <option value="new_york_mwbe">New York — MWBE Directory (~12,000 firms)</option>
+                  <option value="florida_dbe">Florida — DOT DBE Directory (~8,000 firms)</option>
+                  <option value="virginia_swam">Virginia — SWaM Directory (~10,000 firms)</option>
+                  <option value="georgia_dbe">Georgia — DOT DBE Directory (~3,000 firms)</option>
+                  <option value="pennsylvania_sdb">Pennsylvania — Small Diverse Business (~5,000 firms)</option>
+                  <option value="generic_state">Generic — Any state CSV (auto-detect columns)</option>
+                </select>
+              </div>
+
+              <div className="text-xs bg-purple-100 rounded p-2 text-purple-800">
+                <strong>How to get the file:</strong>{' '}
+                {stateUploadFormat === 'ohio_mbe' && 'Go to eodreporting.oit.ohio.gov/mbe-certification → leave search blank → Search → Export to Excel → save as CSV'}
+                {stateUploadFormat === 'ohio_edge' && 'Go to eodreporting.oit.ohio.gov/edge-certification → leave search blank → Search → Export to Excel → save as CSV'}
+                {stateUploadFormat === 'illinois_bep' && 'Go to ceibep.diversitysoftware.com → select MBE/WBE → scroll down → "Download Entire Directory to Excel" → save as CSV'}
+                {stateUploadFormat === 'new_york_mwbe' && 'Go to ny.newnycontracts.com → select M/WBE → complete CAPTCHA → "Download Directory to Excel" → save as CSV'}
+                {stateUploadFormat === 'florida_dbe' && 'Go to FL DOT DBE Directory → Report Format: Excel → Search (no criteria = all) → download → save as CSV'}
+                {stateUploadFormat === 'virginia_swam' && 'Go to directory.sbsd.virginia.gov → search with no filters → export results → save as CSV'}
+                {stateUploadFormat === 'georgia_dbe' && 'Go to GA DOT UCP Directory → export all results → save as CSV'}
+                {stateUploadFormat === 'pennsylvania_sdb' && 'Go to PA DGS Small Diverse Business site → search all → export → save as CSV'}
+                {stateUploadFormat === 'generic_state' && 'Download CSV from any state directory. Headers should include company name, email, phone, city, state, zip.'}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-purple-900 mb-1">Upload CSV File</label>
+                <input type="file" accept=".csv,.txt" onChange={(e) => setStateUploadFile(e.target.files?.[0] || null)}
+                  className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm bg-white" />
+                {stateUploadFile && <p className="text-xs text-purple-600 mt-1">{stateUploadFile.name} ({(stateUploadFile.size / 1024).toFixed(0)} KB)</p>}
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={async () => {
+                  if (!stateUploadFile) { setStateImportResult({ error: 'Please select a CSV file to upload' }); return }
+                  setStateImporting(true); setStateImportResult(null)
+                  try {
+                    const csvData = await stateUploadFile.text()
+                    const res = await fetch('/.netlify/functions/state-directory-import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format: stateUploadFormat, csvData, dryRun: true }) })
+                    const data = await res.json(); setStateImportResult({ ...data, isDryRun: true })
+                  } catch (e: any) { setStateImportResult({ error: e.message }) }
+                  setStateImporting(false)
+                }} disabled={stateImporting || !stateUploadFile} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-purple-600 text-purple-700 rounded-lg hover:bg-purple-100 font-medium disabled:opacity-50">
+                  <Eye size={16} /> Preview
+                </button>
+                <button onClick={async () => {
+                  if (!stateUploadFile) { setStateImportResult({ error: 'Please select a CSV file to upload' }); return }
+                  if (!confirm('Import new records from uploaded file? Duplicates will be skipped.')) return
+                  setStateImporting(true); setStateImportResult(null)
+                  try {
+                    const csvData = await stateUploadFile.text()
+                    const res = await fetch('/.netlify/functions/state-directory-import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ format: stateUploadFormat, csvData }) })
+                    const data = await res.json(); setStateImportResult(data); if (data.success) fetchStats()
+                  } catch (e: any) { setStateImportResult({ error: e.message }) }
+                  setStateImporting(false)
+                }} disabled={stateImporting || !stateUploadFile} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50">
+                  {stateImporting ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
+                  {stateImporting ? 'Importing...' : 'Import Now'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {stateImportResult && (
             <div className={`p-4 rounded-lg ${stateImportResult.error ? 'bg-red-100 border border-red-300' : stateImportResult.isDryRun ? 'bg-blue-100 border border-blue-300' : 'bg-green-100 border border-green-300'}`}>
@@ -1593,7 +1647,7 @@ export default function MasterSubDatabase() {
               ) : (
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-gray-900">
-                    {stateImportResult.isDryRun ? '📋 Preview Results' : '✓ Import Complete'}
+                    {stateImportResult.isDryRun ? 'Preview Results' : 'Import Complete'}
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                     <div className="bg-white rounded p-2 text-center">
@@ -1613,6 +1667,11 @@ export default function MasterSubDatabase() {
                       <div className="text-gray-500">{stateImportResult.isDryRun ? 'New to Import' : 'Imported'}</div>
                     </div>
                   </div>
+                  {stateImportResult.stats?.remaining > 0 && (
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                      {stateImportResult.stats.remaining.toLocaleString()} records remaining — run import again to get the next batch.
+                    </p>
+                  )}
                   {stateImportResult.sampleRecords && stateImportResult.sampleRecords.length > 0 && (
                     <div className="mt-2">
                       <p className="text-xs font-medium text-gray-700 mb-1">Sample new records:</p>
@@ -1620,7 +1679,7 @@ export default function MasterSubDatabase() {
                         {stateImportResult.sampleRecords.map((r: any, i: number) => (
                           <div key={i} className="text-xs bg-white rounded px-2 py-1 flex justify-between">
                             <span className="font-medium">{r.company_name}</span>
-                            <span className="text-gray-500">{r.city}, {r.state} • {r.contact_email || 'no email'}</span>
+                            <span className="text-gray-500">{r.city}, {r.state} {r.contact_email ? `• ${r.contact_email}` : '• no email'}</span>
                           </div>
                         ))}
                       </div>
