@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { TaskOrder, SowItem, SowQuote, Subcontractor } from '../lib/types'
@@ -92,10 +92,24 @@ export default function PricingMatrix() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('comparison')
   const [weights, setWeights] = useState<WeightConfig>({ price: 40, compliance: 30, pastPerformance: 20, certifications: 10 })
   const [allSubs, setAllSubs] = useState<Map<string, Subcontractor>>(new Map())
+  const [refreshing, setRefreshing] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (taskOrderId) fetchData()
   }, [taskOrderId])
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   async function fetchData() {
     const [toRes, sowRes, subsRes] = await Promise.all([
@@ -143,6 +157,7 @@ export default function PricingMatrix() {
 
     setRows(newRows)
     setLoading(false)
+    setRefreshing(false)
   }
 
   function selectQuote(sowId: string, quoteId: string, subId: string, amount: number, annualAmount: number | null) {
@@ -523,21 +538,23 @@ export default function PricingMatrix() {
           <p className="text-sm text-gray-500">{taskOrder.title} — {taskOrder.site_name}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => fetchData()} className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
-            <RotateCcw size={14} /> Refresh
+          <button onClick={() => { setRefreshing(true); fetchData() }} disabled={refreshing} className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5 disabled:opacity-50">
+            <RotateCcw size={14} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
-          <div className="relative group">
-            <button className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
+          <div className="relative" ref={exportRef}>
+            <button onClick={() => setExportOpen(!exportOpen)} className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5">
               <Download size={14} /> Export
             </button>
-            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 hidden group-hover:block min-w-[180px]">
-              <button onClick={exportToExcel} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-                <FileSpreadsheet size={14} className="text-green-600" /> Excel Workbook (.xlsx)
-              </button>
-              <button onClick={exportToPDF} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-                <Printer size={14} className="text-red-600" /> PDF Report
-              </button>
-            </div>
+            {exportOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[180px]">
+                <button onClick={() => { exportToExcel(); setExportOpen(false) }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                  <FileSpreadsheet size={14} className="text-green-600" /> Excel Workbook (.xlsx)
+                </button>
+                <button onClick={() => { exportToPDF(); setExportOpen(false) }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                  <Printer size={14} className="text-red-600" /> PDF Report
+                </button>
+              </div>
+            )}
           </div>
           {activeTab === 'pricing' && (
             <button onClick={handleSave} className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
