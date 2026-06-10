@@ -123,33 +123,20 @@ async function handleGet(url: URL) {
     .limit(1)
     .single()
 
-  // Get task order documents — only those relevant to this sub's SOW item
+  // Get ONLY documents explicitly assigned to this sub's SOW item.
+  // No category guessing, no filename matching — strict sow_item_id match only.
+  // If a document should be visible to a sub, it must be assigned to their SOW item.
   const { data: rawDocs } = await supabase
     .from("documents")
     .select("id, file_name, file_path, file_type, file_size, category, sow_item_id")
     .eq("task_order_id", tokenData.task_order_id)
-    .in("category", ["sow", "flowdown", "pricing_sheet", "exhibit", "site_info", "amendment", "qa_response"])
+    .eq("sow_item_id", tokenData.sow_item_id)
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
-  const documents = (rawDocs || [])
-    .filter((d: any) => {
-      // If document has sow_item_id, only show if it matches this sub's SOW
-      if (d.sow_item_id) return d.sow_item_id === tokenData.sow_item_id
-      // Check file_path for SOW-specific uploads (path: taskOrderId/sowId/file)
-      const parts = d.file_path?.split("/") || []
-      if (parts.length >= 3 && parts[1] === tokenData.sow_item_id) return true
-      if (parts.length >= 3) return false
-      // Shared project-level docs (flowdowns, pricing sheets, site info, exhibits,
-      // amendments) are relevant to all subs regardless of their SOW
-      if (["flowdown", "pricing_sheet", "site_info", "exhibit", "amendment", "qa_response"].includes(d.category)) return true
-      // SOW-category docs without sow_item_id are unassigned — hide to prevent
-      // showing a sub documents for the wrong scope of work
-      return false
-    })
-    .map((d: any) => ({
-      ...d,
-      download_url: `${supabaseUrl}/storage/v1/object/public/task-order-documents/${d.file_path}`,
-    }))
+  const documents = (rawDocs || []).map((d: any) => ({
+    ...d,
+    download_url: `${supabaseUrl}/storage/v1/object/public/task-order-documents/${d.file_path}`,
+  }))
 
   return new Response(
     JSON.stringify({
