@@ -139,9 +139,12 @@ async function handleGet(url: URL) {
       const parts = d.file_path?.split("/") || []
       if (parts.length >= 3 && parts[1] === tokenData.sow_item_id) return true
       if (parts.length >= 3) return false
-      // Project-level documents (no sow_item_id, not in a SOW subfolder) are
-      // shared with all subs — they need these to prepare their quotes
-      return true
+      // Shared project-level docs (flowdowns, pricing sheets, site info, exhibits,
+      // amendments) are relevant to all subs regardless of their SOW
+      if (["flowdown", "pricing_sheet", "site_info", "exhibit", "amendment", "qa_response"].includes(d.category)) return true
+      // SOW-category docs without sow_item_id are unassigned — hide to prevent
+      // showing a sub documents for the wrong scope of work
+      return false
     })
     .map((d: any) => ({
       ...d,

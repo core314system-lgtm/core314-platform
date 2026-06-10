@@ -510,6 +510,25 @@ export default function TaskOrderDetail() {
         continue
       }
 
+      // Auto-match document to SOW item by filename if user didn't manually select one
+      let assignedSowId = selectedSowItemId
+      if (!assignedSowId && selectedCategory === 'sow' && sowItems.length > 0) {
+        const nameLower = file.name.toLowerCase().replace(/[_\-\.]/g, ' ')
+        let bestMatch = ''
+        let bestId = ''
+        for (const sow of sowItems) {
+          const sowLower = sow.name.toLowerCase()
+          // Check if SOW name words appear in the filename
+          const sowWords = sowLower.split(/\s+/).filter(w => w.length > 2)
+          const matchCount = sowWords.filter(w => nameLower.includes(w)).length
+          if (matchCount > 0 && matchCount >= sowWords.length * 0.5 && sowLower.length > bestMatch.length) {
+            bestMatch = sowLower
+            bestId = sow.id
+          }
+        }
+        if (bestId) assignedSowId = bestId
+      }
+
       const docRecord: Record<string, any> = {
         task_order_id: id,
         file_name: file.name,
@@ -520,7 +539,7 @@ export default function TaskOrderDetail() {
         version: 1,
         uploaded_by: user.id,
       }
-      if (selectedSowItemId) docRecord.sow_item_id = selectedSowItemId
+      if (assignedSowId) docRecord.sow_item_id = assignedSowId
       await supabase.from('documents').insert(docRecord)
     }
 
