@@ -70,6 +70,9 @@ export default async (req: Request, _context: Context) => {
     if (action === "full-cycle" || action === "engagement-decay") {
       results.engagement_decay = await runEngagementDecay()
     }
+    if (action === "archive-no-email") {
+      results.archive_no_email = await archiveNoEmailRecords()
+    }
     if (action === "stats") {
       results.stats = await getDatabaseHealthStats()
     }
@@ -411,6 +414,49 @@ async function getDatabaseHealthStats() {
       ? Math.round(((highHealth || 0) / (active || 1)) * 100)
       : 0,
   }
+}
+
+/**
+ * ARCHIVE NO-EMAIL RECORDS
+ * Archive all records that have no email address — they're unreachable.
+ */
+async function archiveNoEmailRecords() {
+  let archived = 0
+  let offset = 0
+  const batchSize = 1000
+
+  while (true) {
+    const { data: subs } = await supabase
+      .from("master_subcontractors")
+      .select("id")
+      .is("contact_email", null)
+      .eq("archived", false)
+      .range(offset, offset + batchSize - 1)
+
+    if (!subs || subs.length === 0) break
+
+    const ids = subs.map(s => s.id)
+    const { error } = await supabase
+      .from("master_subcontractors")
+      .update({
+        archived: true,
+        archived_at: new Date().toISOString(),
+        archive_reason: "no_email_address",
+      })
+      .in("id", ids)
+
+    if (!error) {
+      archived += ids.length
+      for (const id of ids) {
+        await logHygieneAction(id, "", "archive_no_email", "No email address — unreachable for outreach")
+      }
+    }
+
+    if (subs.length < batchSize) break
+    offset += batchSize
+  }
+
+  return { archived }
 }
 
 async function logHygieneAction(subId: string, email: string, action: string, reason: string) {

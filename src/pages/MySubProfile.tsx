@@ -6,7 +6,7 @@ import { TRADE_CATEGORIES } from '../lib/naicsTradeMapping'
 import {
   Building, MapPin, Save, Loader2, AlertCircle,
   CheckCircle, Globe, Phone, Mail, FileText,
-  BadgeCheck, ExternalLink, Plus, X, Star, ArrowRight, Shield, Zap, TrendingUp,
+  BadgeCheck, ExternalLink, Plus, X, Star, ArrowRight,
 } from 'lucide-react'
 
 interface SubProfile {
@@ -493,50 +493,16 @@ export default function MySubProfile() {
         </div>
       )}
 
-      {/* Get Verified CTA — always visible for unverified profiles */}
+      {/* Welcome message for newly confirmed/claimed profiles */}
       {profile && profile.verification_status !== 'verified' && (
-        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-              <BadgeCheck size={24} className="text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Get Procuvex Verified</h3>
-              <p className="text-sm text-gray-600 mb-4">Stand out from the competition and get matched with prime contractors automatically.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <TrendingUp size={14} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Priority Placement</p>
-                    <p className="text-xs text-gray-500">Appear first in prime contractor search results</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Zap size={14} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Auto-Matching</p>
-                    <p className="text-xs text-gray-500">Get automatically matched to relevant RFQs based on your trades</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Shield size={14} className="text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Verified Badge</p>
-                    <p className="text-xs text-gray-500">Build trust with a visible verification badge on your profile</p>
-                  </div>
-                </div>
-              </div>
-              <button onClick={saveAndGetVerified} disabled={saving || verifyLoading}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-md hover:shadow-lg transition-all">
-                {verifyLoading ? <Loader2 size={16} className="animate-spin" /> : <BadgeCheck size={16} />}
-                Get Verified Now
-              </button>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Your profile is active</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Prime contractors can now find you in search results. Complete your profile below to increase your visibility and match rate.
+              </p>
             </div>
           </div>
         </div>
@@ -723,48 +689,24 @@ export default function MySubProfile() {
         </div>
       </div>
 
-      {/* Verification Upgrade CTA — Prime Position */}
+      {/* Verification Upgrade CTA — Subtle, shown after profile content */}
       {profile?.verification_status !== 'verified' && (
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-xl p-6 text-white shadow-lg">
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-          <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <BadgeCheck size={20} className="text-yellow-300" />
-              <span className="text-xs font-semibold bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full uppercase tracking-wide">Limited Introductory Pricing</span>
-            </div>
-            <h2 className="text-xl font-bold mt-2">Get Procuvex Verified — $99/year</h2>
-            <p className="text-blue-100 text-sm mt-1 mb-4 max-w-xl">
-              Prime contractors search for verified subcontractors first. Without verification, your profile won't appear in priority searches.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-blue-50"><strong>Verified badge</strong> — stand out from unverified competitors</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-blue-50"><strong>Priority placement</strong> — appear first in search results</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-blue-50"><strong>Auto-matching</strong> — get matched to RFQs in your trades automatically</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-green-300 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-blue-50"><strong>Expiration alerts</strong> — never miss a certification renewal</span>
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-3">
+              <BadgeCheck size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Optional: Get Verified</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Verified profiles get a badge and appear higher in search results. $99/year introductory price.
+                </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-4">
-              <button onClick={saveAndGetVerified} disabled={verifyLoading || saving}
-                className="flex items-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-50 disabled:opacity-60 shadow-md transition">
-                {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
-                Save & Get Verified — $99/year
-              </button>
-              <span className="text-xs text-blue-200">Introductory price — will increase. Lock in $99/yr today.</span>
-            </div>
+            <button onClick={saveAndGetVerified} disabled={verifyLoading || saving}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
+              {verifyLoading ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+              Get Verified
+            </button>
           </div>
         </div>
       )}
