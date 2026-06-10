@@ -151,6 +151,7 @@ export default function MasterSubDatabase() {
   const [showHealthPanel, setShowHealthPanel] = useState(false)
   const [healthStats, setHealthStats] = useState<any>(null)
   const [healthLoading, setHealthLoading] = useState(false)
+  const [healthError, setHealthError] = useState<string | null>(null)
   const [hygieneRunning, setHygieneRunning] = useState(false)
   const [hygieneResult, setHygieneResult] = useState<any>(null)
   const healthPanelRef = useRef<HTMLDivElement>(null)
@@ -238,6 +239,7 @@ export default function MasterSubDatabase() {
 
   const fetchHealthStats = useCallback(async () => {
     setHealthLoading(true)
+    setHealthError(null)
     try {
       const res = await fetch('/.netlify/functions/database-hygiene', {
         method: 'POST',
@@ -247,9 +249,13 @@ export default function MasterSubDatabase() {
       if (res.ok) {
         const data = await res.json()
         setHealthStats(data.stats)
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        setHealthError(errData.error || `Failed to load (${res.status})`)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch health stats:', err)
+      setHealthError(err.message || 'Network error')
     }
     setHealthLoading(false)
   }, [profile?.id])
@@ -1715,6 +1721,12 @@ export default function MasterSubDatabase() {
             </div>
           )}
 
+          {healthError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              <strong>Error loading stats:</strong> {healthError}
+            </div>
+          )}
+
           {healthStats && (
             <div className="space-y-4">
               {/* Key Metrics */}
@@ -1787,10 +1799,13 @@ export default function MasterSubDatabase() {
                 </div>
               )}
 
-              {/* Hygiene Actions */}
-              <div className="bg-white rounded-lg p-4 border border-rose-100">
-                <h4 className="text-sm font-semibold text-gray-800 mb-3">Run Hygiene Cycle</h4>
-                <div className="grid grid-cols-2 gap-2">
+            </div>
+          )}
+
+          {/* Hygiene Actions — always visible when panel is open */}
+          <div className="bg-white rounded-lg p-4 border border-rose-100">
+            <h4 className="text-sm font-semibold text-gray-800 mb-3">Run Hygiene Cycle</h4>
+            <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => runHygieneCycle('full-cycle')} disabled={hygieneRunning}
                     className="flex items-center justify-center gap-2 px-3 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-medium disabled:opacity-50">
                     {hygieneRunning ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />} Full Cycle
@@ -1837,15 +1852,13 @@ export default function MasterSubDatabase() {
                   </button>
                 </div>
 
-                {hygieneResult && (
-                  <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
-                    <strong>Cycle complete.</strong>
-                    <pre className="mt-1 text-xs whitespace-pre-wrap text-green-700">{JSON.stringify(hygieneResult, null, 2)}</pre>
-                  </div>
-                )}
+            {hygieneResult && (
+              <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+                <strong>Cycle complete.</strong>
+                <pre className="mt-1 text-xs whitespace-pre-wrap text-green-700">{JSON.stringify(hygieneResult, null, 2)}</pre>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
