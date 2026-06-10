@@ -123,6 +123,7 @@ export default function MasterSubDatabase() {
   const [enrichProgress, setEnrichProgress] = useState('')
   const [enrichResult, setEnrichResult] = useState<{ enriched: number; noEmail: number; errors: number } | null>(null)
   const [outreachStats, setOutreachStats] = useState<{ totalSent: number; sentToday: number; totalClaimed: number; recentClaims: any[] }>({ totalSent: 0, sentToday: 0, totalClaimed: 0, recentClaims: [] })
+  const [outreachStatsLoading, setOutreachStatsLoading] = useState(false)
   const [emailMetrics, setEmailMetrics] = useState<any>(null)
   const [emailMetricsLoading, setEmailMetricsLoading] = useState(false)
   const [showEmailDetails, setShowEmailDetails] = useState(false)
@@ -170,6 +171,7 @@ export default function MasterSubDatabase() {
   }, [])
 
   const fetchOutreachStats = useCallback(async () => {
+    setOutreachStatsLoading(true)
     // Use local midnight (not UTC) so "Sent Today" matches user's local day
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -207,6 +209,7 @@ export default function MasterSubDatabase() {
       totalClaimed: totalClaimed || 0,
       recentClaims: recentClaims || [],
     })
+    setOutreachStatsLoading(false)
   }, [])
 
   const fetchEmailMetrics = useCallback(async () => {
@@ -295,7 +298,7 @@ export default function MasterSubDatabase() {
     setLoading(false)
   }, [search, filterState, filterTrade, filterVerification, filterSmallBiz, sortBy, sortDir, page])
 
-  useEffect(() => { fetchSubs(); fetchStats(); fetchOutreachStats() }, [fetchSubs, fetchStats, fetchOutreachStats])
+  useEffect(() => { fetchSubs(); fetchStats(); fetchOutreachStats(); fetchEmailMetrics() }, [fetchSubs, fetchStats, fetchOutreachStats, fetchEmailMetrics])
 
   // SAM.gov Public V2 Extract columns (pipe-delimited)
   // See: https://open.gsa.gov/api/sam-entity-extracts-api/v1/SAM_Entity_Management_Public_V2_Extract_Layout.pdf
@@ -1677,8 +1680,8 @@ export default function MasterSubDatabase() {
               <Activity size={18} className="text-indigo-600" />
               <h3 className="font-semibold text-indigo-900">Outreach Performance</h3>
             </div>
-            <button onClick={fetchOutreachStats} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors">
-              <RefreshCw size={12} /> Refresh
+            <button onClick={fetchOutreachStats} disabled={outreachStatsLoading} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-100 transition-colors disabled:opacity-50">
+              {outreachStatsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Refresh
             </button>
           </div>
 
@@ -1748,13 +1751,13 @@ export default function MasterSubDatabase() {
 
             {!emailMetrics && !emailMetricsLoading && (
               <div className="text-center py-4 text-sm text-gray-400">
-                Click "Load Metrics" to fetch real-time delivery data from SendGrid
+                Loading delivery metrics...
               </div>
             )}
 
             {emailMetricsLoading && (
               <div className="text-center py-4 text-sm text-indigo-500 flex items-center justify-center gap-2">
-                <Loader2 size={14} className="animate-spin" /> Loading delivery metrics from SendGrid...
+                <Loader2 size={14} className="animate-spin" /> Loading delivery metrics...
               </div>
             )}
 
