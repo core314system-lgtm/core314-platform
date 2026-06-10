@@ -48,6 +48,94 @@ const KNOWN_TRADES = [
   "Other Services",
 ]
 
+// Trade-to-SOW matching: maps sub trade categories to SOW service_category/sow_name keywords
+// Used to correctly assign subs to the SOW items they're qualified for
+const TRADE_SOW_SYNONYMS: Record<string, string[]> = {
+  "hvac": ["hvac", "chiller", "heating", "cooling", "air conditioning", "mechanical", "refrigeration", "boiler"],
+  "mechanical services": ["hvac", "chiller", "mechanical", "boiler", "heating", "cooling", "plumbing"],
+  "electrical": ["electrical", "power", "lighting", "wiring", "generator", "emergency power"],
+  "emergency power": ["electrical", "power", "generator", "emergency power", "ups"],
+  "plumbing": ["plumbing", "pipe", "water", "sewer", "drain", "backflow"],
+  "fire & life safety": ["fire", "life safety", "fire protection", "sprinkler", "fire alarm", "suppression", "extinguisher"],
+  "fire protection": ["fire", "fire protection", "sprinkler", "fire alarm", "suppression", "extinguisher", "life safety"],
+  "elevator & escalator": ["elevator", "escalator", "lift", "vertical transport"],
+  "janitorial & custodial": ["janitorial", "custodial", "cleaning", "housekeeping", "sanitation"],
+  "janitorial": ["janitorial", "custodial", "cleaning", "housekeeping", "sanitation"],
+  "landscaping & grounds": ["landscaping", "grounds", "lawn", "turf", "irrigation", "tree", "horticulture"],
+  "landscaping": ["landscaping", "grounds", "lawn", "turf", "irrigation"],
+  "pest control": ["pest", "extermination", "fumigation", "rodent", "insect", "termite"],
+  "building automation": ["bas", "building automation", "controls", "bms", "building management", "automation"],
+  "security systems": ["security", "access control", "cctv", "surveillance", "intrusion"],
+  "roofing": ["roofing", "roof"],
+  "painting & coatings": ["painting", "coatings", "paint"],
+  "flooring": ["flooring", "carpet", "tile", "vinyl"],
+  "snow & ice removal": ["snow", "ice", "winter", "deicing"],
+  "concrete & masonry": ["concrete", "masonry", "brick", "block"],
+  "environmental services": ["environmental", "hazmat", "abatement", "remediation"],
+  "general construction": ["construction", "general", "renovation", "remodel"],
+  "demolition": ["demolition", "demo"],
+  "waste management": ["waste", "trash", "disposal", "recycling", "dumpster"],
+  "glass & glazing": ["glass", "glazing", "window"],
+  "it & telecommunications": ["it", "telecom", "network", "cable", "data", "fiber"],
+  "testing & inspection": ["testing", "inspection", "commissioning"],
+}
+
+function matchSubTradeToSow(
+  subTrades: string[],
+  sowItems: { id: string; service_category: string; sow_name: string; description: string | null }[]
+): typeof sowItems[number] | null {
+  const normalizedSubTrades = subTrades.map(t => t.toLowerCase().trim())
+
+  // Build keyword sets for each sub trade
+  const subKeywords = new Set<string>()
+  for (const trade of normalizedSubTrades) {
+    // Add the trade itself
+    subKeywords.add(trade)
+    // Add synonyms
+    const synonyms = TRADE_SOW_SYNONYMS[trade]
+    if (synonyms) {
+      for (const s of synonyms) subKeywords.add(s)
+    }
+    // Also add individual words from the trade name
+    for (const word of trade.split(/[\s&,]+/).filter(w => w.length > 2)) {
+      subKeywords.add(word)
+    }
+  }
+
+  // Score each SOW item
+  let bestMatch: typeof sowItems[number] | null = null
+  let bestScore = 0
+
+  for (const sow of sowItems) {
+    const sowText = `${sow.service_category} ${sow.sow_name} ${sow.description || ""}`.toLowerCase()
+    const sowWords = sowText.split(/[\s&,/()]+/).filter(w => w.length > 2)
+
+    let score = 0
+    for (const keyword of subKeywords) {
+      if (sowText.includes(keyword)) {
+        score += keyword.length // Longer keyword matches are worth more
+      }
+    }
+    // Also check if SOW words match sub trades directly
+    for (const word of sowWords) {
+      for (const trade of normalizedSubTrades) {
+        if (trade.includes(word) && word.length > 3) {
+          score += word.length
+        }
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score
+      bestMatch = sow
+    }
+  }
+
+  // Require a minimum match score to prevent false assignments
+  // A score of at least 4 means at least one meaningful keyword matched
+  return bestScore >= 4 ? bestMatch : null
+}
+
 function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
 }
@@ -555,63 +643,66 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           }
 
           if (subId) {
-            // Match sub to the best SOW item based on trade categories
-            const subTrades = (sub.trade_categories || []).map((t: string) => t.toLowerCase())
-            const matchedSow = sowItems.find(s =>
-              subTrades.some((t: string) => s.service_category.toLowerCase().includes(t) || t.includes(s.service_category.toLowerCase()))
-            ) || sowItems[0] // Fallback to first SOW if no trade match
+            // Match sub to the best SOW item using smart trade-to-SOW matching
+            const subTrades = sub.trade_categories || []
+            const matchedSow = matchSubTradeToSow(subTrades, sowItems)
 
-            // Create sow_subcontractor entry (upsert)
-            const { data: existingSowSub } = await supabase
-              .from("sow_subcontractors")
-              .select("id")
-              .eq("sow_item_id", matchedSow.id)
-              .eq("subcontractor_id", subId)
-              .single()
-
-            let currentSowSubId = existingSowSub?.id
-            if (!currentSowSubId) {
-              const { data: newSowSub } = await supabase
+            if (matchedSow) {
+              // Create sow_subcontractor entry (upsert)
+              const { data: existingSowSub } = await supabase
                 .from("sow_subcontractors")
-                .insert({
-                  sow_item_id: matchedSow.id,
-                  subcontractor_id: subId,
-                  match_score: 80,
-                  outreach_status: "invited",
-                  rfq_sent_date: new Date().toISOString(),
-                })
                 .select("id")
+                .eq("sow_item_id", matchedSow.id)
+                .eq("subcontractor_id", subId)
                 .single()
-              currentSowSubId = newSowSub?.id
-            } else {
-              await supabase
-                .from("sow_subcontractors")
-                .update({ outreach_status: "invited", rfq_sent_date: new Date().toISOString(), updated_at: new Date().toISOString() })
-                .eq("id", currentSowSubId)
-            }
 
-            sowSubId = currentSowSubId || null
+              let currentSowSubId = existingSowSub?.id
+              if (!currentSowSubId) {
+                const { data: newSowSub } = await supabase
+                  .from("sow_subcontractors")
+                  .insert({
+                    sow_item_id: matchedSow.id,
+                    subcontractor_id: subId,
+                    match_score: 80,
+                    outreach_status: "invited",
+                    rfq_sent_date: new Date().toISOString(),
+                  })
+                  .select("id")
+                  .single()
+                currentSowSubId = newSowSub?.id
+              } else {
+                await supabase
+                  .from("sow_subcontractors")
+                  .update({ outreach_status: "invited", rfq_sent_date: new Date().toISOString(), updated_at: new Date().toISOString() })
+                  .eq("id", currentSowSubId)
+              }
 
-            // Generate portal token
-            if (currentSowSubId) {
-              const token = generatePortalToken()
-              const expiresAt = new Date()
-              expiresAt.setDate(expiresAt.getDate() + 365)
+              sowSubId = currentSowSubId || null
 
-              const { error: tokenErr } = await supabase.from("rfq_tokens").insert({
-                token,
-                sow_subcontractor_id: currentSowSubId,
-                sow_item_id: matchedSow.id,
-                task_order_id,
-                subcontractor_id: subId,
-                expires_at: expiresAt.toISOString(),
-              })
+              // Generate portal token tied to the matched SOW
+              if (currentSowSubId) {
+                const token = generatePortalToken()
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 365)
 
-              if (!tokenErr) {
-                portalUrl = `${siteUrl}/portal/${token}`
-                portalToken = token
+                const { error: tokenErr } = await supabase.from("rfq_tokens").insert({
+                  token,
+                  sow_subcontractor_id: currentSowSubId,
+                  sow_item_id: matchedSow.id,
+                  task_order_id,
+                  subcontractor_id: subId,
+                  expires_at: expiresAt.toISOString(),
+                })
+
+                if (!tokenErr) {
+                  portalUrl = `${siteUrl}/portal/${token}`
+                  portalToken = token
+                }
               }
             }
+            // No match: sub's trade doesn't align with any SOW — they still
+            // get the email with a /my-sub-profile link, but are NOT assigned
+            // to a random SOW they aren't qualified for.
           }
         }
 
