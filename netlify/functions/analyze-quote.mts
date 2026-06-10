@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import pdfParse from "pdf-parse"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
@@ -23,7 +24,67 @@ interface AnalysisResult {
   summary: string
 }
 
-async function analyzeWithAI(sowDescription: string, sowName: string, quoteData: any): Promise<AnalysisResult> {
+async function extractPdfText(fileBuffer: Buffer): Promise<string> {
+  try {
+    const parsed = await pdfParse(fileBuffer)
+    return parsed.text || ""
+  } catch {
+    return ""
+  }
+}
+
+async function getDocumentTexts(
+  taskOrderId: string,
+  sowItemId: string
+): Promise<{ sowDocText: string; projectDocTexts: string }> {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL!
+
+  // Get all documents for this project
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("id, file_name, file_path, file_type, category, sow_item_id")
+    .eq("task_order_id", taskOrderId)
+
+  if (!docs?.length) return { sowDocText: "", projectDocTexts: "" }
+
+  // Separate SOW-specific docs from project-level docs
+  const sowDocs = docs.filter(d => d.sow_item_id === sowItemId)
+  const projectDocs = docs.filter(
+    d => !d.sow_item_id && d.file_name.toLowerCase().endsWith(".pdf")
+  )
+
+  const downloadAndExtract = async (doc: any): Promise<string> => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("task-order-documents")
+        .download(doc.file_path)
+      if (error || !data) return ""
+      const buffer = Buffer.from(await data.arrayBuffer())
+      const text = await extractPdfText(buffer)
+      return text ? `--- ${doc.file_name} ---\n${text}` : ""
+    } catch {
+      return ""
+    }
+  }
+
+  // Extract text from SOW documents assigned to this sub's SOW item
+  const sowTexts = await Promise.all(sowDocs.map(downloadAndExtract))
+  const sowDocText = sowTexts.filter(Boolean).join("\n\n")
+
+  // Extract text from project-level documents (Master Solicitation, etc.)
+  const projTexts = await Promise.all(projectDocs.map(downloadAndExtract))
+  const projectDocTexts = projTexts.filter(Boolean).join("\n\n")
+
+  return { sowDocText, projectDocTexts }
+}
+
+async function analyzeWithAI(
+  sowDescription: string,
+  sowName: string,
+  quoteData: any,
+  sowDocText: string,
+  projectDocTexts: string
+): Promise<AnalysisResult> {
   const apiKey = process.env.OPENAI_API_KEY || process.env.TASKORDER_OPENAI_API_KEY
   if (!apiKey) throw new Error("OpenAI API key not configured")
 
@@ -31,6 +92,14 @@ async function analyzeWithAI(sowDescription: string, sowName: string, quoteData:
     .filter(([_, v]) => v != null && v !== "")
     .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
     .join("\n")
+
+  // Build the SOW context — prefer full document text, fall back to description
+  const sowContext = sowDocText || sowDescription || "No detailed SOW provided."
+
+  // Build additional project document context if available
+  const projectContext = projectDocTexts
+    ? `\n\nAdditional Project Documents (Master Solicitation, etc.):\nThese documents may contain cross-cutting requirements that affect all scopes of work. Flag any requirements from these documents that the subcontractor should also address.\n\n${projectDocTexts}`
+    : ""
 
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -45,29 +114,28 @@ async function analyzeWithAI(sowDescription: string, sowName: string, quoteData:
       messages: [
         {
           role: "system",
-          content: `You are a government contracting compliance analyst. Analyze a subcontractor's quote against a Statement of Work (SOW) to identify compliance gaps.
+          content: `You are a government contracting compliance analyst. Analyze a subcontractor's quote against a Statement of Work (SOW) and any additional project documents to identify compliance gaps.
+
+IMPORTANT RULES:
+- Only flag requirements that ACTUALLY EXIST in the provided documents. Never invent or assume requirements.
+- If a requirement appears in the SOW document, it is a valid gap if the quote doesn't address it.
+- If a requirement appears in additional project documents (Master Solicitation, etc.) that could affect this scope, flag it separately and note which document it comes from.
+- Be thorough but fair. Do not penalize the subcontractor for vague or ambiguous language in the SOW.
+- Every item in requirements_missing and pricing_gaps must trace back to a specific section or statement in the provided documents.
 
 Return JSON with this exact structure:
 {
   "overall_score": <0-100 integer representing % of SOW requirements addressed>,
   "requirements_met": [<array of strings: SOW requirements explicitly covered in the quote>],
-  "requirements_missing": [<array of strings: SOW requirements NOT mentioned or inadequately addressed in the quote>],
-  "pricing_gaps": [<array of strings: line items or cost elements in the SOW that are not priced or detailed in the quote>],
+  "requirements_missing": [<array of strings: SOW requirements NOT mentioned or inadequately addressed — cite the document section>],
+  "pricing_gaps": [<array of strings: line items or cost elements required by the documents that are not priced in the quote>],
   "recommendations": [<array of strings: specific actions the subcontractor should take to improve the quote>],
   "summary": "<2-3 sentence executive summary of the compliance analysis>"
-}
-
-Be thorough but fair. Only flag genuinely missing items. If the SOW is vague on a requirement, note it but don't penalize the subcontractor.`,
+}`,
         },
         {
           role: "user",
-          content: `SOW Name: ${sowName}
-
-SOW Description / Requirements:
-${sowDescription || "No detailed SOW description provided."}
-
-Subcontractor Quote:
-${quoteText || "No quote details provided."}`,
+          content: `SOW Name: ${sowName}\n\nSOW Document Content:\n${sowContext}${projectContext}\n\nSubcontractor Quote:\n${quoteText || "No quote details provided."}`,
         },
       ],
     }),
@@ -239,11 +307,19 @@ export default async (req: Request, _context: Context) => {
       Object.assign(quoteData, customSubmission.custom_fields)
     }
 
-    // Run AI analysis
+    // Extract actual document text for thorough compliance analysis
+    const { sowDocText, projectDocTexts } = await getDocumentTexts(
+      sow.task_order_id,
+      sow.id
+    )
+
+    // Run AI analysis with full document content
     const analysis = await analyzeWithAI(
       sow.description || sow.sow_name,
       sow.sow_name,
-      quoteData
+      quoteData,
+      sowDocText,
+      projectDocTexts
     )
 
     // Store analysis result on the quote
