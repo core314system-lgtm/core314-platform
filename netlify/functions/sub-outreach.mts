@@ -275,10 +275,12 @@ export default async (req: Request, _context: Context) => {
     const fetchSize = Math.min(maxBatch * 5, 1000)
     let query = supabase
       .from("master_subcontractors")
-      .select("id, company_name, contact_email, slug, trade_categories, state, outreach_email_count, small_business_types, contact_phone, naics_codes, website, description, data_source, unsubscribed")
+      .select("id, company_name, contact_email, slug, trade_categories, state, outreach_email_count, small_business_types, contact_phone, naics_codes, website, description, data_source, unsubscribed, data_health_score, archived")
       .is("claimed_at", null)
       .not("contact_email", "is", null)
-      .order("created_at", { ascending: true })
+      .eq("archived", false)
+      .gte("data_health_score", 20)
+      .order("data_health_score", { ascending: false })
       .limit(fetchSize)
 
     // Optional filters
@@ -299,9 +301,17 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ sent: 0, message: "No eligible recipients found" }), { headers })
     }
 
-    // Filter out unsubscribed records and score by priority
+    // Check suppression list for these emails
+    const emails = targets.map((t: any) => t.contact_email?.toLowerCase()).filter(Boolean)
+    const { data: suppressed } = await supabase
+      .from("email_suppression_list")
+      .select("email")
+      .in("email", emails.slice(0, 500))
+    const suppressedSet = new Set((suppressed || []).map((s: any) => s.email))
+
+    // Filter out unsubscribed, archived, and suppressed records; score by priority
     const scored = targets
-      .filter((sub: any) => !sub.unsubscribed)
+      .filter((sub: any) => !sub.unsubscribed && !sub.archived && !suppressedSet.has(sub.contact_email?.toLowerCase()))
       .map((sub: any) => ({ ...sub, priority: computeOutreachPriority(sub) }))
       .sort((a: any, b: any) => b.priority.score - a.priority.score)
 

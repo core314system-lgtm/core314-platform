@@ -210,10 +210,11 @@ export default function FindSubcontractors() {
 
     let query = supabase
       .from('master_subcontractors')
-      .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage, contact_email, contact_phone, contact_name, description, capability_statement_path, address_line1, sam_uei', { count: 'exact' })
+      .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage, contact_email, contact_phone, contact_name, description, capability_statement_path, address_line1, sam_uei, data_health_score', { count: 'exact' })
 
-    // Only return contactable subs (must have email or phone)
+    // Only return contactable, non-archived subs (must have email or phone)
     query = query.or('contact_email.not.is.null,contact_phone.not.is.null')
+    query = query.eq('archived', false)
 
     // Text search: only used for company name matching if no trade was inferred
     if (activeSearch.trim() && !inferredTrade) {
