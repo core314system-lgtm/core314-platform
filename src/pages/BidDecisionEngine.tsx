@@ -101,14 +101,57 @@ export default function BidDecisionEngine() {
         .from('subcontractors')
         .select('id', { count: 'exact', head: true })
 
+      const { count: masterSubCount } = await supabase
+        .from('master_subcontractors')
+        .select('id', { count: 'exact', head: true })
+
+      // Query SOW items for trade coverage data
+      const { data: sowItems } = await supabase
+        .from('sow_items')
+        .select('id, sow_name, service_category, status')
+        .eq('task_order_id', id)
+
+      // Query sow_subcontractors for assigned/invited subs per SOW
+      const sowSubCoverage: { trade: string; assigned: number; invited: number; quoted: number }[] = []
+      if (sowItems?.length) {
+        const sowIds = sowItems.map(s => s.id)
+        const { data: sowSubs } = await supabase
+          .from('sow_subcontractors')
+          .select('sow_item_id, outreach_status')
+          .in('sow_item_id', sowIds)
+
+        for (const sow of sowItems) {
+          const relatedSubs = (sowSubs || []).filter(ss => ss.sow_item_id === sow.id)
+          sowSubCoverage.push({
+            trade: sow.service_category || sow.sow_name,
+            assigned: relatedSubs.length,
+            invited: relatedSubs.filter(s => s.outreach_status === 'invited').length,
+            quoted: relatedSubs.filter(s => s.outreach_status === 'quote_submitted').length,
+          })
+        }
+      }
+
+      // Query project_subcontractors (both old and new schema)
       const { data: projectSubs } = await supabase
         .from('project_subcontractors')
         .select('match_score')
         .eq('task_order_id', id)
 
+      const totalMatchedSubs = (projectSubs?.length || 0) + sowSubCoverage.reduce((sum, s) => sum + s.assigned, 0)
+      const avgMatchScore = projectSubs?.length
+        ? Math.round(projectSubs.reduce((a, b) => a + (b.match_score || 0), 0) / projectSubs.length)
+        : 0
+
       const winRate = historicalData.totalBids > 0
         ? Math.round((historicalData.wonBids / historicalData.totalBids) * 100)
         : 0
+
+      // Build SOW coverage summary for the prompt
+      const sowCoverageText = sowSubCoverage.length > 0
+        ? `\nSOW TRADE COVERAGE (from AI Project Matching):\n${sowSubCoverage.map(s =>
+            `- ${s.trade}: ${s.assigned} subs assigned, ${s.invited} invited, ${s.quoted} quotes received`
+          ).join('\n')}\n- Total SOW trades: ${sowItems?.length || 0}\n- Trades with subs assigned: ${sowSubCoverage.filter(s => s.assigned > 0).length}/${sowItems?.length || 0}`
+        : '\nNo SOW trade coverage data available (AI Project Matching has not been run).'
 
       const prompt = `You are a bid decision analyst for a government facilities management contractor. Analyze this opportunity and provide a data-driven bid/no-bid recommendation.
 
@@ -124,10 +167,12 @@ PROJECT DETAILS:
 
 ORGANIZATIONAL CONTEXT:
 - Historical win rate: ${winRate}% (${historicalData.wonBids} wins out of ${historicalData.totalBids} bids)
-- Total subcontractors in database: ${subCount || 0}
-- Subcontractors matched to this project: ${projectSubs?.length || 0}
-- Average match score: ${projectSubs?.length ? Math.round(projectSubs.reduce((a, b) => a + (b.match_score || 0), 0) / projectSubs.length) : 0}%
+- Total subcontractors in org database: ${subCount || 0}
+- Total subcontractors in master network: ${masterSubCount || 0}
+- Subcontractors matched to this project: ${totalMatchedSubs}
+- Average match score: ${avgMatchScore}%
 - Similar past projects: ${historicalData.similarProjects}
+${sowCoverageText}
 
 ${analysisData?.output_data ? `AI ANALYSIS SUMMARY:\n${analysisData.output_data.substring(0, 2000)}` : 'No AI analysis available yet.'}
 
