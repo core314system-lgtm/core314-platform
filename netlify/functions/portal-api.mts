@@ -139,10 +139,9 @@ async function handleGet(url: URL) {
       const parts = d.file_path?.split("/") || []
       if (parts.length >= 3 && parts[1] === tokenData.sow_item_id) return true
       if (parts.length >= 3) return false
-      // Shared categories (flowdowns, site info, etc.) without sow_item_id are visible to all
-      if (["flowdown", "site_info", "exhibit", "amendment"].includes(d.category)) return true
-      // SOW docs without sow_item_id and short paths — hide to avoid showing wrong SOW
-      return false
+      // Project-level documents (no sow_item_id, not in a SOW subfolder) are
+      // shared with all subs — they need these to prepare their quotes
+      return true
     })
     .map((d: any) => ({
       ...d,
