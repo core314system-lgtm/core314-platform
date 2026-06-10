@@ -150,10 +150,13 @@ export default function PricingMatrix() {
     setReAnalyzing(false)
   }
 
+  const [gapSendResult, setGapSendResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
   async function handleSendGapResolution(quoteId: string, gaps: string[], pricingGaps: string[], deadline: string, customMessage: string) {
     setSendingGap(true)
+    setGapSendResult(null)
     try {
-      await fetch('/.netlify/functions/send-gap-resolution', {
+      const res = await fetch('/.netlify/functions/send-gap-resolution', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -164,8 +167,16 @@ export default function PricingMatrix() {
           custom_message: customMessage,
         }),
       })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setGapSendResult({ type: 'success', message: `Clarification request sent to ${data.email_sent_to}` })
+        setTimeout(() => setGapSendResult(null), 8000)
+      } else {
+        setGapSendResult({ type: 'error', message: data.error || 'Failed to send clarification request' })
+      }
     } catch (err) {
       console.error('Gap resolution send failed:', err)
+      setGapSendResult({ type: 'error', message: 'Network error — could not send clarification request' })
     }
     setSendingGap(false)
   }
@@ -1560,6 +1571,7 @@ export default function PricingMatrix() {
         onSendGapResolution={handleSendGapResolution}
         reAnalyzing={reAnalyzing}
         sendingGap={sendingGap}
+        gapSendResult={gapSendResult}
       />
     </div>
   )
