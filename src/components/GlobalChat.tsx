@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText, AlertTriangle, Phone } from 'lucide-react'
+import { X, Send, Bot, User, Loader2, Sparkles, CheckCircle2, XCircle, FileText, AlertTriangle, Phone, EyeOff, MessageCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { parseSmartNotesResponse, getHumanResponse, applyChanges, SMART_NOTES_PROMPT, type SmartNotesResult } from '../lib/smartNotes'
 import { fetchAIProxy } from '../lib/api'
@@ -38,6 +38,9 @@ const SMART_NOTES_SUGGESTIONS = [
 
 export default function GlobalChat() {
   const [open, setOpen] = useState(false)
+  const [hidden, setHidden] = useState(() => {
+    try { return localStorage.getItem('procuvex-chat-hidden') === 'true' } catch { return false }
+  })
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -46,6 +49,17 @@ export default function GlobalChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  function handleHide() {
+    setOpen(false)
+    setHidden(true)
+    try { localStorage.setItem('procuvex-chat-hidden', 'true') } catch {}
+  }
+
+  function handleShow() {
+    setHidden(false)
+    try { localStorage.removeItem('procuvex-chat-hidden') } catch {}
+  }
 
   async function buildContext() {
     const parts: string[] = []
@@ -926,16 +940,37 @@ ${freshContext}`
     sendMessage(input)
   }
 
-  if (!open) {
+  if (hidden) {
     return (
       <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full p-4 shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:scale-105 z-50 flex items-center gap-2"
-        title="Ask Procuvex Intelligence"
+        onClick={handleShow}
+        className="fixed bottom-6 right-6 bg-gray-400 text-white rounded-full p-2.5 shadow-md hover:bg-gray-500 transition-all hover:scale-105 z-50 opacity-50 hover:opacity-100"
+        title="Show Procuvex Intelligence"
       >
-        <Sparkles size={24} />
-        <span className="text-sm font-medium hidden md:inline">Ask Procuvex Intelligence</span>
+        <MessageCircle size={18} />
       </button>
+    )
+  }
+
+  if (!open) {
+    return (
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
+        <button
+          onClick={handleHide}
+          className="bg-white text-gray-400 rounded-full p-2 shadow-md hover:text-gray-600 hover:bg-gray-50 transition-all border border-gray-200"
+          title="Hide chatbot"
+        >
+          <EyeOff size={16} />
+        </button>
+        <button
+          onClick={() => setOpen(true)}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full p-4 shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:scale-105 flex items-center gap-2"
+          title="Ask Procuvex Intelligence"
+        >
+          <Sparkles size={24} />
+          <span className="text-sm font-medium hidden md:inline">Ask Procuvex Intelligence</span>
+        </button>
+      </div>
     )
   }
 
