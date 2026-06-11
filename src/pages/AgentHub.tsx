@@ -484,8 +484,14 @@ export default function AgentHub() {
                         )}
                         {action.action_type === 'flag_compliance' && payload.days_left != null && (
                           <div className="mt-2 flex items-center gap-2">
-                            <AlertTriangle size={14} className="text-amber-500" />
-                            <span className="text-xs text-amber-700 font-medium">{String(payload.days_left)} days until expiry</span>
+                            <AlertTriangle size={14} className={Number(payload.days_left) <= 0 ? 'text-red-500' : 'text-amber-500'} />
+                            <span className={`text-xs font-medium ${Number(payload.days_left) <= 0 ? 'text-red-700' : 'text-amber-700'}`}>
+                              {Number(payload.days_left) < 0
+                                ? 'No expiration date on file — verify if required'
+                                : Number(payload.days_left) === 0
+                                  ? 'Expired — review solicitation requirements'
+                                  : `${String(payload.days_left)} days until expiry — review solicitation requirements`}
+                            </span>
                           </div>
                         )}
 
