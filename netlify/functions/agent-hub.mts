@@ -34,6 +34,54 @@ const STATE_NEIGHBORS: Record<string, string[]> = {
   DC: ["MD","VA"],
 }
 
+// SOW service_category → related trade_categories in master DB
+// The master DB uses standardized names (e.g., "Landscaping & Grounds")
+// while SOW lines use plain names (e.g., "Landscaping"). This map bridges the gap.
+const TRADE_SYNONYMS: Record<string, string[]> = {
+  "landscaping": ["Landscaping", "Landscaping & Grounds"],
+  "elevator maintenance": ["Elevator & Escalator", "Elevator Maintenance"],
+  "escalator maintenance": ["Elevator & Escalator", "Escalator Maintenance"],
+  "window cleaning": ["Window Cleaning", "Glass & Glazing"],
+  "janitorial services": ["Janitorial & Custodial", "Janitorial", "Janitorial Services"],
+  "janitorial": ["Janitorial & Custodial", "Janitorial", "Janitorial Services"],
+  "hvac": ["HVAC", "Mechanical Services"],
+  "chiller maintenance": ["HVAC", "Mechanical Services", "Chiller Maintenance"],
+  "bas maintenance": ["Building Automation", "BAS Maintenance"],
+  "pest control": ["Pest Control", "Environmental Services"],
+  "electrical": ["Electrical", "Emergency Power"],
+  "plumbing": ["Plumbing"],
+  "roofing": ["Roofing"],
+  "painting": ["Painting & Coatings"],
+  "flooring": ["Flooring"],
+  "fire protection": ["Fire & Life Safety", "Fire Protection"],
+  "security": ["Security Systems"],
+  "concrete": ["Concrete & Masonry"],
+  "demolition": ["Demolition"],
+  "general construction": ["General Construction"],
+  "snow removal": ["Snow & Ice Removal"],
+  "waste management": ["Waste Management"],
+  "it services": ["IT & Telecommunications"],
+  "environmental services": ["Environmental Services", "Abatement"],
+  "testing": ["Testing & Inspection"],
+}
+
+/** Given a SOW service_category, return all trade_categories values to search for in master DB */
+function getRelatedTrades(serviceCategory: string): string[] {
+  const normalized = serviceCategory.toLowerCase().trim()
+  const synonyms = TRADE_SYNONYMS[normalized]
+  if (synonyms) return synonyms
+
+  // Partial match: check if any synonym key is contained in the service category or vice versa
+  for (const [key, values] of Object.entries(TRADE_SYNONYMS)) {
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return values
+    }
+  }
+
+  // Fallback: return the original as-is (exact match attempt)
+  return [serviceCategory]
+}
+
 /**
  * AGENT HUB — Backend for AI agent operations
  * 
@@ -350,6 +398,10 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
   const actions: Array<Record<string, unknown>> = []
 
   for (const sow of sowItems.slice(0, 5)) {
+    // Expand SOW service_category to all related trade_categories in master DB
+    // e.g., "Landscaping" → ["Landscaping", "Landscaping & Grounds"]
+    const relatedTrades = getRelatedTrades(sow.service_category)
+
     // Location-aware search: local state first, then regional, then national
     let candidates: Array<Record<string, unknown>> = []
 
@@ -360,7 +412,7 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
         .select('id, company_name, contact_email, trade_categories, state, city')
         .eq('archived', false)
         .not('contact_email', 'is', null)
-        .contains('trade_categories', [sow.service_category])
+        .overlaps('trade_categories', relatedTrades)
         .eq('state', projectState)
         .limit(5)
 
@@ -377,7 +429,7 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
         .select('id, company_name, contact_email, trade_categories, state, city')
         .eq('archived', false)
         .not('contact_email', 'is', null)
-        .contains('trade_categories', [sow.service_category])
+        .overlaps('trade_categories', relatedTrades)
         .in('state', regionalStates)
         .limit(10)
 
@@ -398,7 +450,7 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
         .select('id, company_name, contact_email, trade_categories, state, city')
         .eq('archived', false)
         .not('contact_email', 'is', null)
-        .contains('trade_categories', [sow.service_category])
+        .overlaps('trade_categories', relatedTrades)
         .limit(5)
 
       if (nationalSubs && nationalSubs.length > 0) {
