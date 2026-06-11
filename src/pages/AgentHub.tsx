@@ -451,9 +451,17 @@ export default function AgentHub() {
                         {/* Payload Details */}
                         {action.action_type === 'recommend_sub' && Array.isArray(payload.candidates) && (
                           <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                            {payload.project_location ? (
+                              <p className="text-xs text-gray-400 mb-1">Project: {String(payload.project_location)}</p>
+                            ) : null}
                             <p className="text-xs font-medium text-gray-600 mb-1">Candidates:</p>
-                            {(payload.candidates as Array<{ name: string; state: string }>).slice(0, 3).map((c, i) => (
-                              <p key={i} className="text-xs text-gray-500">• {c.name} ({c.state || 'Unknown'})</p>
+                            {(payload.candidates as Array<{ name: string; state: string; city?: string; location_match?: string }>).slice(0, 5).map((c, i) => (
+                              <p key={i} className="text-xs text-gray-500 flex items-center gap-1">
+                                • {c.name} ({c.city ? `${c.city}, ` : ''}{c.state || 'Unknown'})
+                                {c.location_match === 'local' && <span className="text-[10px] px-1 py-0.5 bg-green-100 text-green-700 rounded font-medium">Local</span>}
+                                {c.location_match === 'regional' && <span className="text-[10px] px-1 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">Regional</span>}
+                                {c.location_match === 'national' && <span className="text-[10px] px-1 py-0.5 bg-gray-100 text-gray-600 rounded font-medium">National</span>}
+                              </p>
                             ))}
                           </div>
                         )}
