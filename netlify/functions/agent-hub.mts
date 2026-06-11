@@ -6,6 +6,34 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const STATE_NEIGHBORS: Record<string, string[]> = {
+  AL: ["FL","GA","MS","TN"], AK: [], AZ: ["CA","NV","UT","NM","CO"],
+  AR: ["LA","MS","MO","OK","TN","TX"], CA: ["AZ","NV","OR"],
+  CO: ["AZ","KS","NE","NM","OK","UT","WY"], CT: ["MA","NY","RI"],
+  DE: ["MD","NJ","PA"], FL: ["AL","GA"], GA: ["AL","FL","NC","SC","TN"],
+  HI: [], ID: ["MT","NV","OR","UT","WA","WY"],
+  IL: ["IN","IA","KY","MO","WI"], IN: ["IL","KY","MI","OH"],
+  IA: ["IL","MN","MO","NE","SD","WI"], KS: ["CO","MO","NE","OK"],
+  KY: ["IL","IN","MO","OH","TN","VA","WV"], LA: ["AR","MS","TX"],
+  ME: ["NH"], MD: ["DE","PA","VA","WV","DC"], MA: ["CT","NH","NY","RI","VT"],
+  MI: ["IN","OH","WI"], MN: ["IA","ND","SD","WI"],
+  MS: ["AL","AR","LA","TN"], MO: ["AR","IL","IA","KS","KY","NE","OK","TN"],
+  MT: ["ID","ND","SD","WY"], NE: ["CO","IA","KS","MO","SD","WY"],
+  NV: ["AZ","CA","ID","OR","UT"], NH: ["MA","ME","VT"],
+  NJ: ["DE","NY","PA"], NM: ["AZ","CO","OK","TX","UT"],
+  NY: ["CT","MA","NJ","PA","VT"], NC: ["GA","SC","TN","VA"],
+  ND: ["MN","MT","SD"], OH: ["IN","KY","MI","PA","WV"],
+  OK: ["AR","CO","KS","MO","NM","TX"], OR: ["CA","ID","NV","WA"],
+  PA: ["DE","MD","NJ","NY","OH","WV"], RI: ["CT","MA"],
+  SC: ["GA","NC"], SD: ["IA","MN","MT","ND","NE","WY"],
+  TN: ["AL","AR","GA","KY","MO","MS","NC","VA"],
+  TX: ["AR","LA","NM","OK"], UT: ["AZ","CO","ID","NV","NM","WY"],
+  VT: ["MA","NH","NY"], VA: ["KY","MD","NC","TN","WV","DC"],
+  WA: ["ID","OR"], WV: ["KY","MD","OH","PA","VA"],
+  WI: ["IA","IL","MI","MN"], WY: ["CO","ID","MT","NE","SD","UT"],
+  DC: ["MD","VA"],
+}
+
 /**
  * AGENT HUB — Backend for AI agent operations
  * 
@@ -296,6 +324,18 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
     return { actions_created: 0, message: 'Select a project to find sub gaps.' }
   }
 
+  // Get the project's location for location-aware matching
+  const { data: project } = await supabase
+    .from('task_orders')
+    .select('location_state, location_city')
+    .eq('id', projectId)
+    .single()
+
+  const projectState = project?.location_state || null
+  const projectCity = project?.location_city || null
+  const neighborStates = projectState ? (STATE_NEIGHBORS[projectState] || []) : []
+  const regionalStates = projectState ? [projectState, ...neighborStates] : []
+
   // Find SOW items without awarded subs
   const { data: sowItems } = await supabase
     .from('sow_items')
@@ -310,16 +350,68 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
   const actions: Array<Record<string, unknown>> = []
 
   for (const sow of sowItems.slice(0, 5)) {
-    // Find potential subs from master DB
-    const { data: candidates } = await supabase
-      .from('master_subcontractors')
-      .select('id, company_name, contact_email, trade_categories, state')
-      .eq('archived', false)
-      .not('contact_email', 'is', null)
-      .contains('trade_categories', [sow.service_category])
-      .limit(5)
+    // Location-aware search: local state first, then regional, then national
+    let candidates: Array<Record<string, unknown>> = []
 
-    if (candidates && candidates.length > 0) {
+    // 1. Local: same state as project
+    if (projectState) {
+      const { data: localSubs } = await supabase
+        .from('master_subcontractors')
+        .select('id, company_name, contact_email, trade_categories, state, city')
+        .eq('archived', false)
+        .not('contact_email', 'is', null)
+        .contains('trade_categories', [sow.service_category])
+        .eq('state', projectState)
+        .limit(5)
+
+      if (localSubs && localSubs.length > 0) {
+        candidates = localSubs.map(c => ({ ...c, location_match: 'local' }))
+      }
+    }
+
+    // 2. Regional: neighboring states (only if we need more candidates)
+    if (candidates.length < 3 && regionalStates.length > 0) {
+      const existingIds = candidates.map(c => c.id as string)
+      const { data: regionalSubs } = await supabase
+        .from('master_subcontractors')
+        .select('id, company_name, contact_email, trade_categories, state, city')
+        .eq('archived', false)
+        .not('contact_email', 'is', null)
+        .contains('trade_categories', [sow.service_category])
+        .in('state', regionalStates)
+        .limit(10)
+
+      if (regionalSubs) {
+        for (const s of regionalSubs) {
+          if (!existingIds.includes(s.id) && candidates.length < 5) {
+            const matchType = s.state === projectState ? 'local' : 'regional'
+            candidates.push({ ...s, location_match: matchType })
+          }
+        }
+      }
+    }
+
+    // 3. National fallback: only if no local/regional matches at all
+    if (candidates.length === 0) {
+      const { data: nationalSubs } = await supabase
+        .from('master_subcontractors')
+        .select('id, company_name, contact_email, trade_categories, state, city')
+        .eq('archived', false)
+        .not('contact_email', 'is', null)
+        .contains('trade_categories', [sow.service_category])
+        .limit(5)
+
+      if (nationalSubs && nationalSubs.length > 0) {
+        candidates = nationalSubs.map(c => ({ ...c, location_match: 'national' }))
+      }
+    }
+
+    if (candidates.length > 0) {
+      const topCandidate = candidates[0]
+      const locationNote = projectState
+        ? `${candidates.filter(c => c.location_match === 'local').length} local (${projectState}), ${candidates.filter(c => c.location_match === 'regional').length} regional, ${candidates.filter(c => c.location_match === 'national').length} national`
+        : 'No project location set — showing all matches'
+
       actions.push({
         org_id: orgId,
         project_id: projectId,
@@ -327,13 +419,21 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
         action_type: 'recommend_sub',
         status: 'pending_approval',
         title: `${candidates.length} sub${candidates.length > 1 ? 's' : ''} found for: ${sow.sow_name}`,
-        description: `Found ${candidates.length} potential subcontractors for "${sow.service_category}". Top match: ${candidates[0].company_name} (${candidates[0].state || 'Unknown location'}).`,
+        description: `Found ${candidates.length} potential subcontractors for "${sow.service_category}". Top match: ${topCandidate.company_name} (${topCandidate.state || 'Unknown'}). Coverage: ${locationNote}.`,
         payload: {
           sow_item_id: sow.id,
           sow_name: sow.sow_name,
-          candidates: candidates.map(c => ({ id: c.id, name: c.company_name, email: c.contact_email, state: c.state })),
+          project_location: projectCity && projectState ? `${projectCity}, ${projectState}` : projectState || 'Not set',
+          candidates: candidates.map(c => ({
+            id: c.id,
+            name: c.company_name,
+            email: c.contact_email,
+            state: c.state,
+            city: c.city,
+            location_match: c.location_match,
+          })),
         },
-        context: { service_category: sow.service_category },
+        context: { service_category: sow.service_category, project_state: projectState, location_strategy: 'local_first' },
         assigned_to: userId,
       })
     }
