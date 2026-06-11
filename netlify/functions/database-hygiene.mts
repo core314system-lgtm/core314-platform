@@ -419,27 +419,66 @@ async function getDatabaseHealthStats() {
 /**
  * ARCHIVE NO-EMAIL RECORDS
  * Archive all records that have no email address — they're unreachable.
+ * Uses direct SQL via RPC to bypass Supabase JS client query builder issues
+ * that cause .is("column", null) to silently return 0 rows in Netlify's runtime.
  */
 async function archiveNoEmailRecords() {
+  // Use RPC to run archival directly in the database — most reliable approach
+  const { data, error } = await supabase.rpc("archive_no_email_records", { batch_limit: 20000 })
+
+  if (error) {
+    // Fallback: try direct update if RPC doesn't exist yet
+    if (error.code === "PGRST202" || error.message?.includes("Could not find")) {
+      return await archiveNoEmailFallback()
+    }
+    return { archived: 0, error: error.message }
+  }
+
+  // Log the action
+  if (data && data > 0) {
+    await supabase.from("database_hygiene_log").insert({
+      master_sub_id: null,
+      email: "",
+      action: "archive_no_email_bulk",
+      reason: `Bulk archived ${data} records with no email address`,
+      performed_at: new Date().toISOString(),
+    }).catch(() => {})
+  }
+
+  // Count remaining
+  const { count: remaining } = await supabase
+    .from("master_subcontractors")
+    .select("id", { count: "exact", head: true })
+    .filter("contact_email", "is", "null")
+    .eq("archived", false)
+
+  return { archived: data || 0, remaining: remaining || 0 }
+}
+
+/**
+ * Fallback archive method if the RPC function hasn't been created yet.
+ * Uses .filter() instead of .is() to work around Netlify runtime issues.
+ */
+async function archiveNoEmailFallback() {
   let archived = 0
   const batchSize = 1000
   const maxBatches = 20
   let batches = 0
 
   while (batches < maxBatches) {
-    // Match records with no usable email: NULL or empty string
+    // Use .filter() with string "null" — more reliable than .is(col, null) in Netlify
     const { data: subs, error: queryError } = await supabase
       .from("master_subcontractors")
       .select("id")
-      .or("contact_email.is.null,contact_email.eq.")
+      .filter("contact_email", "is", "null")
       .eq("archived", false)
       .limit(batchSize)
 
-    if (queryError) return { archived, error: queryError.message }
+    if (queryError) return { archived, error: `SELECT failed: ${queryError.message}` }
     if (!subs || subs.length === 0) break
 
     const ids = subs.map(s => s.id)
-    const { error } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from("master_subcontractors")
       .update({
         archived: true,
@@ -447,28 +486,33 @@ async function archiveNoEmailRecords() {
         archive_reason: "no_email_address",
       })
       .in("id", ids)
+      .select("id")
 
-    if (error) return { archived, error: error.message }
-    archived += ids.length
+    if (updateError) return { archived, error: `UPDATE failed: ${updateError.message}` }
+    // Count actually updated rows, not just IDs we tried
+    archived += updated ? updated.length : 0
     batches++
+
+    // If update returned fewer rows than expected, something is blocking
+    if (updated && updated.length === 0 && subs.length > 0) {
+      return { archived, error: `UPDATE returned 0 rows despite ${subs.length} matching records — likely RLS blocking writes. Service role key may not be configured.` }
+    }
   }
 
-  // Single summary log instead of per-record (avoids timeout)
   if (archived > 0) {
     await supabase.from("database_hygiene_log").insert({
       master_sub_id: null,
       email: "",
       action: "archive_no_email_bulk",
-      reason: `Bulk archived ${archived} records with no email address`,
+      reason: `Bulk archived ${archived} records with no email address (fallback method)`,
       performed_at: new Date().toISOString(),
     }).catch(() => {})
   }
 
-  // Check remaining
   const { count: remaining } = await supabase
     .from("master_subcontractors")
     .select("id", { count: "exact", head: true })
-    .or("contact_email.is.null,contact_email.eq.")
+    .filter("contact_email", "is", "null")
     .eq("archived", false)
 
   return { archived, remaining: remaining || 0 }
