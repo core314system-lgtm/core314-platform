@@ -436,13 +436,15 @@ async function archiveNoEmailRecords() {
 
   // Log the action
   if (data && data > 0) {
-    await supabase.from("database_hygiene_log").insert({
-      master_sub_id: null,
-      email: "",
-      action: "archive_no_email_bulk",
-      reason: `Bulk archived ${data} records with no email address`,
-      performed_at: new Date().toISOString(),
-    }).catch(() => {})
+    try {
+      await supabase.from("database_hygiene_log").insert({
+        master_sub_id: null,
+        email: "",
+        action: "archive_no_email_bulk",
+        reason: `Bulk archived ${data} records with no email address`,
+        performed_at: new Date().toISOString(),
+      })
+    } catch { /* logging is best-effort */ }
   }
 
   // Count remaining
@@ -500,13 +502,15 @@ async function archiveNoEmailFallback() {
   }
 
   if (archived > 0) {
-    await supabase.from("database_hygiene_log").insert({
-      master_sub_id: null,
-      email: "",
-      action: "archive_no_email_bulk",
-      reason: `Bulk archived ${archived} records with no email address (fallback method)`,
-      performed_at: new Date().toISOString(),
-    }).catch(() => {})
+    try {
+      await supabase.from("database_hygiene_log").insert({
+        master_sub_id: null,
+        email: "",
+        action: "archive_no_email_bulk",
+        reason: `Bulk archived ${archived} records with no email address (fallback method)`,
+        performed_at: new Date().toISOString(),
+      })
+    } catch { /* logging is best-effort */ }
   }
 
   const { count: remaining } = await supabase
@@ -519,11 +523,13 @@ async function archiveNoEmailFallback() {
 }
 
 async function logHygieneAction(subId: string, email: string, action: string, reason: string) {
-  await supabase.from("database_hygiene_log").insert({
-    master_sub_id: subId,
-    email,
-    action,
-    reason,
-    performed_at: new Date().toISOString(),
-  }).catch(() => {})
+  try {
+    await supabase.from("database_hygiene_log").insert({
+      master_sub_id: subId,
+      email,
+      action,
+      reason,
+      performed_at: new Date().toISOString(),
+    })
+  } catch { /* logging is best-effort */ }
 }
