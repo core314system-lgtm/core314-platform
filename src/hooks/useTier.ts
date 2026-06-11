@@ -19,10 +19,6 @@ const ENTERPRISE_ONLY_FEATURES = new Set([
   'vendor_performance_scoring',
   'dedicated_onboarding',
   'sla_guarantee',
-])
-
-// Agentic tier features — requires Agentic plan
-const AGENTIC_ONLY_FEATURES = new Set([
   'agent_hub',
   'compliance_watchdog',
   'opportunity_hunter',
@@ -47,7 +43,7 @@ const ENTERPRISE_LIMITS = {
   max_connections_per_month: 100,
 }
 
-// Agentic tier limits (same as enterprise + agents)
+// Agentic tier limits (kept for backward compatibility if orgs still have 'agentic' plan)
 const AGENTIC_LIMITS = {
   max_projects: Infinity,
   max_seats: Infinity,
@@ -127,11 +123,11 @@ export function useTier(): TierInfo {
     if (!hasActiveSubscription) return false
     if (isAgentic) return true
     if (isEnterprise) {
-      // Enterprise can access everything except agentic-only features
-      return !AGENTIC_ONLY_FEATURES.has(feature)
+      // Enterprise can access all features including agents
+      return true
     }
-    // Growth users can access everything except enterprise-only and agentic-only features
-    return !ENTERPRISE_ONLY_FEATURES.has(feature) && !AGENTIC_ONLY_FEATURES.has(feature)
+    // Growth users can access everything except enterprise-only features
+    return !ENTERPRISE_ONLY_FEATURES.has(feature)
   }, [isGlobalAdmin, hasActiveSubscription, isEnterprise, isAgentic])
 
   const getLimit = useCallback((key: 'max_projects' | 'max_seats' | 'max_subcontractors' | 'max_connections_per_month'): number => {
