@@ -7,30 +7,20 @@ import {
   Building,
   Building2,
   Shield,
-  GitCompareArrows,
-  Brain,
   HelpCircle,
   LogOut,
   Menu,
   X,
   Radar,
   Settings,
-  Kanban,
-  Plug,
-  BarChart3,
-  FileStack,
   CreditCard,
   User,
   Activity,
   MailPlus,
-  MessageSquare,
   Compass,
   HeartPulse,
   ChevronDown,
   Briefcase,
-  Network,
-  BarChart2,
-  Wrench,
   ShieldCheck,
   FolderOpen,
   ScanSearch,
@@ -65,69 +55,35 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    id: 'work',
-    label: 'Work',
+    id: 'main',
+    label: 'Main',
     icon: Briefcase,
     items: [
       { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/opportunities', label: 'Opportunity Feed', icon: Compass },
       { path: '/projects', label: 'Projects', icon: ClipboardList },
-      { path: '/pipeline', label: 'Pipeline', icon: Kanban },
-      { path: '/contracts', label: 'Contracts', icon: FileStack },
-      { path: '/documents', label: 'Document Library', icon: FolderOpen },
+      { path: '/opportunities', label: 'Opportunities', icon: Compass },
+      { path: '/agent-hub', label: 'Agent Hub', icon: Bot, enterpriseOnly: true },
+      { path: '/documents', label: 'Documents', icon: FolderOpen },
     ],
   },
   {
     id: 'network',
-    label: 'Network',
-    icon: Network,
+    label: 'Subcontractors',
+    icon: Users,
     items: [
-      { path: '/subcontractors', label: 'Subcontractors', icon: Users },
       { path: '/my-subs', label: 'My Subcontractors', icon: Building2 },
       { path: '/find-subs', label: 'Find Subcontractors', icon: ScanSearch },
-      { path: '/my-sub-profile', label: 'My Sub Profile', icon: BadgeCheck },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
-      { path: '/vendor-tracker', label: 'Vendor Intelligence', icon: Building, enterpriseOnly: true },
-      { path: '/teaming', label: 'Teaming & JVs', icon: Users, enterpriseOnly: true },
     ],
   },
   {
-    id: 'analysis',
-    label: 'Analysis',
-    icon: BarChart2,
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
     items: [
-      { path: '/compliance', label: 'Compliance Matrices', icon: Shield },
-      { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
-      { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-      { path: '/intelligence', label: 'Intelligence Library', icon: Brain, enterpriseOnly: true },
-    ],
-  },
-  {
-    id: 'agents',
-    label: 'AI Agents',
-    icon: Bot,
-    items: [
-      { path: '/agent-hub', label: 'Agent Hub', icon: Bot },
-    ],
-  },
-  {
-    id: 'ai_compliance',
-    label: 'AI Compliance',
-    icon: ShieldCheck,
-    items: [
-      { path: '/ai-audit', label: 'AI Activity Log', icon: ScanSearch },
-    ],
-  },
-  {
-    id: 'tools',
-    label: 'Tools',
-    icon: Wrench,
-    items: [
-      { path: '/integrations', label: 'Integrations', icon: Plug },
+      { path: '/settings', label: 'Organization', icon: Building },
       { path: '/billing', label: 'Billing', icon: CreditCard },
-      { path: '/settings', label: 'Organization', icon: Settings },
       { path: '/account', label: 'Account', icon: User },
-      { path: '/feedback', label: 'Partner Feedback', icon: MessageSquare },
       { path: '/help', label: 'Help Center', icon: HelpCircle },
     ],
   },
@@ -143,11 +99,34 @@ const navGroups: NavGroup[] = [
       { path: '/admin/system-health', label: 'System Health', icon: HeartPulse },
       { path: '/master-subs', label: 'Master Sub Database', icon: Database },
       { path: '/verification-review', label: 'Verification Review', icon: ShieldCheck },
+      { path: '/ai-audit', label: 'AI Activity Log', icon: ScanSearch },
     ],
   },
 ]
 
+// Map removed sidebar routes to their parent group so the correct group highlights
+const ROUTE_GROUP_OVERRIDES: Record<string, string> = {
+  '/pipeline': 'main',
+  '/contracts': 'main',
+  '/compliance': 'main',
+  '/comparison': 'main',
+  '/analytics': 'main',
+  '/intelligence': 'main',
+  '/subcontractors': 'network',
+  '/my-sub-profile': 'network',
+  '/vendor-tracker': 'network',
+  '/teaming': 'network',
+  '/integrations': 'settings',
+  '/feedback': 'settings',
+}
+
 function findActiveGroup(pathname: string): string {
+  // Check overrides first for removed-from-sidebar routes
+  for (const [route, groupId] of Object.entries(ROUTE_GROUP_OVERRIDES)) {
+    if (pathname === route || pathname.startsWith(route + '/')) {
+      return groupId
+    }
+  }
   for (const group of navGroups) {
     for (const item of group.items) {
       if (item.path === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.path)) {
@@ -155,7 +134,7 @@ function findActiveGroup(pathname: string): string {
       }
     }
   }
-  return 'work'
+  return 'main'
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
