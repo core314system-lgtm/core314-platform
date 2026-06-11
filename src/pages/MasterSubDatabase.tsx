@@ -128,6 +128,15 @@ export default function MasterSubDatabase() {
   const [emailMetricsLoading, setEmailMetricsLoading] = useState(false)
   const [showEmailDetails, setShowEmailDetails] = useState(false)
 
+  // Email Verification state
+  const [exportingEmails, setExportingEmails] = useState(false)
+  const [exportEmailProgress, setExportEmailProgress] = useState('')
+  const [showVerificationImport, setShowVerificationImport] = useState(false)
+  const [verificationImporting, setVerificationImporting] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<{ total: number; invalid: number; risky: number; valid: number } | null>(null)
+  const verificationFileRef = useRef<HTMLInputElement>(null)
+  const verificationPanelRef = useRef<HTMLDivElement>(null)
+
   // SBS Import state
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState('')
@@ -698,6 +707,130 @@ export default function MasterSubDatabase() {
     }
   }
 
+  async function exportEmailsForVerification() {
+    setExportingEmails(true)
+    setExportEmailProgress('Fetching emails...')
+    try {
+      const PAGE_SIZE = 1000
+      const allEmails: { email: string; id: string; company: string }[] = []
+      let from = 0
+      let hasMore = true
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('master_subcontractors')
+          .select('id, contact_email, company_name')
+          .not('contact_email', 'is', null)
+          .neq('contact_email', '')
+          .eq('archived', false)
+          .is('claimed_at', null)
+          .order('company_name')
+          .range(from, from + PAGE_SIZE - 1)
+        if (error) throw error
+        if (!data || data.length === 0) { hasMore = false; break }
+        for (const row of data) {
+          if (row.contact_email) allEmails.push({ email: row.contact_email.toLowerCase().trim(), id: row.id, company: row.company_name })
+        }
+        setExportEmailProgress(`Fetched ${allEmails.length.toLocaleString()} emails...`)
+        from += PAGE_SIZE
+        if (data.length < PAGE_SIZE) hasMore = false
+      }
+      if (allEmails.length === 0) { setExportingEmails(false); setExportEmailProgress(''); return }
+      setExportEmailProgress(`Building CSV for ${allEmails.length.toLocaleString()} emails...`)
+      const headers = ['email', 'id', 'company_name']
+      const rows = allEmails.map(e => [e.email, e.id, e.company])
+      const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `procuvex-emails-for-verification-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Email export failed:', err)
+    } finally {
+      setExportingEmails(false)
+      setExportEmailProgress('')
+    }
+  }
+
+  async function importVerificationResults(file: File) {
+    setVerificationImporting(true)
+    setVerificationResult(null)
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').filter(l => l.trim())
+      if (lines.length < 2) { setVerificationImporting(false); return }
+      const headerLine = lines[0].toLowerCase()
+
+      // Detect column indices — supports MillionVerifier, ZeroBounce, NeverBounce, and generic formats
+      const headers = headerLine.split(',').map(h => h.replace(/"/g, '').trim())
+      const emailCol = headers.findIndex(h => h === 'email' || h === 'email_address')
+      const resultCol = headers.findIndex(h => h === 'result' || h === 'status' || h === 'quality' || h === 'verification_status' || h === 'sub_status')
+
+      if (emailCol === -1 || resultCol === -1) {
+        alert('CSV must have "email" and "result" (or "status") columns')
+        setVerificationImporting(false)
+        return
+      }
+
+      // Parse results
+      const invalidEmails: string[] = []
+      const riskyEmails: string[] = []
+      let validCount = 0
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim())
+        const email = cols[emailCol]?.toLowerCase()
+        const result = cols[resultCol]?.toLowerCase()
+        if (!email || !result) continue
+
+        // Map various service result formats to valid/invalid/risky
+        const isInvalid = ['invalid', 'bad', 'undeliverable', 'bounce', 'disposable', 'dead', 'syntax_error', 'mailbox_not_found', 'mailbox_full'].includes(result)
+        const isRisky = ['risky', 'unknown', 'catch-all', 'catch_all', 'role', 'do_not_mail', 'spamtrap', 'abuse'].includes(result)
+
+        if (isInvalid) invalidEmails.push(email)
+        else if (isRisky) riskyEmails.push(email)
+        else validCount++
+      }
+
+      // Batch update invalid emails — archive them
+      for (let i = 0; i < invalidEmails.length; i += 100) {
+        const batch = invalidEmails.slice(i, i + 100)
+        await supabase
+          .from('master_subcontractors')
+          .update({ archived: true, archive_reason: 'email_verification_invalid' })
+          .in('contact_email', batch)
+      }
+
+      // Mark risky emails with a lower health score
+      for (let i = 0; i < riskyEmails.length; i += 100) {
+        const batch = riskyEmails.slice(i, i + 100)
+        await supabase
+          .from('master_subcontractors')
+          .update({ data_health_score: 30 })
+          .in('contact_email', batch)
+          .gt('data_health_score', 30)
+      }
+
+      setVerificationResult({
+        total: lines.length - 1,
+        invalid: invalidEmails.length,
+        risky: riskyEmails.length,
+        valid: validCount,
+      })
+
+      // Refresh stats
+      fetchStats()
+      fetchSubs()
+    } catch (err) {
+      console.error('Verification import failed:', err)
+      alert('Failed to import verification results. Check the CSV format.')
+    } finally {
+      setVerificationImporting(false)
+    }
+  }
+
   async function previewOutreach() {
     setOutreachResult(null)
     const res = await fetch('/.netlify/functions/sub-outreach', {
@@ -885,7 +1018,11 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
             <Globe size={16} /> State Directories
           </button>
-          <button onClick={() => { const opening = !showHealthPanel; setShowHealthPanel(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowStateImport(false); if (opening) { fetchHealthStats(); setTimeout(() => healthPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) } }}
+          <button onClick={() => { const opening = !showVerificationImport; setShowVerificationImport(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowStateImport(false); setShowHealthPanel(false); if (opening) setTimeout(() => verificationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">
+            <ShieldCheck size={16} /> Email Verification
+          </button>
+          <button onClick={() => { const opening = !showHealthPanel; setShowHealthPanel(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowStateImport(false); setShowVerificationImport(false); if (opening) { fetchHealthStats(); setTimeout(() => healthPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) } }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700">
             <Activity size={16} /> Database Health
           </button>
@@ -992,6 +1129,7 @@ export default function MasterSubDatabase() {
                 <option value={50}>50</option>
                 <option value={100}>100</option>
                 <option value={200}>200</option>
+                <option value={500}>500</option>
               </select>
             </div>
           </div>
@@ -1705,6 +1843,81 @@ export default function MasterSubDatabase() {
             <strong>Deduplication:</strong> Records are matched by email address and vendor ID. Existing records, suppressed emails, 
             and previously imported records from the same source will be automatically skipped.
           </div>
+        </div>
+      )}
+
+      {/* Email Verification Panel */}
+      {showVerificationImport && (
+        <div ref={verificationPanelRef} className="bg-cyan-50 border border-cyan-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-cyan-900 flex items-center gap-2"><ShieldCheck size={20} /> Email Verification</h3>
+            <button onClick={() => setShowVerificationImport(false)} className="text-cyan-400 hover:text-cyan-600"><X size={18} /></button>
+          </div>
+
+          <p className="text-sm text-cyan-800">
+            Verify all emails before sending outreach to protect your domain reputation. Invalid emails are archived automatically.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Step 1: Export */}
+            <div className="bg-white rounded-lg p-4 border border-cyan-200">
+              <h4 className="font-semibold text-gray-900 mb-2">Step 1: Export Emails</h4>
+              <p className="text-xs text-gray-600 mb-3">
+                Download all {stats.withEmail.toLocaleString()} emails as a CSV. Upload this file to a verification service like{' '}
+                <a href="https://www.millionverifier.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 underline">MillionVerifier</a> (~$169 for 100K),{' '}
+                <a href="https://www.zerobounce.net" target="_blank" rel="noopener noreferrer" className="text-cyan-600 underline">ZeroBounce</a>, or{' '}
+                <a href="https://neverbounce.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 underline">NeverBounce</a>.
+              </p>
+              <button onClick={exportEmailsForVerification} disabled={exportingEmails}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50">
+                {exportingEmails ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                {exportingEmails ? exportEmailProgress || 'Exporting...' : `Export ${stats.withEmail.toLocaleString()} Emails`}
+              </button>
+            </div>
+
+            {/* Step 2: Import Results */}
+            <div className="bg-white rounded-lg p-4 border border-cyan-200">
+              <h4 className="font-semibold text-gray-900 mb-2">Step 2: Import Verification Results</h4>
+              <p className="text-xs text-gray-600 mb-3">
+                Upload the results CSV from your verification service. Must have &ldquo;email&rdquo; and &ldquo;result&rdquo; (or &ldquo;status&rdquo;) columns.
+                Invalid emails will be archived. Risky emails get lower health scores.
+              </p>
+              <input ref={verificationFileRef} type="file" accept=".csv" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) importVerificationResults(f) }} />
+              <button onClick={() => verificationFileRef.current?.click()} disabled={verificationImporting}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50">
+                {verificationImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                {verificationImporting ? 'Processing...' : 'Upload Verification CSV'}
+              </button>
+            </div>
+          </div>
+
+          {verificationResult && (
+            <div className="bg-white rounded-lg p-4 border border-cyan-200">
+              <h4 className="font-semibold text-gray-900 mb-2">Verification Results</h4>
+              <div className="grid grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{verificationResult.total.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Total Processed</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-600">{verificationResult.valid.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Valid (Safe to Send)</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-amber-600">{verificationResult.risky.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Risky (Lowered Score)</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-red-600">{verificationResult.invalid.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">Invalid (Archived)</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Invalid emails have been archived and will not receive outreach. Risky emails have reduced health scores and will be deprioritized in outreach.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

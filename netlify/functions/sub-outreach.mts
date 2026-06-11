@@ -272,9 +272,30 @@ export default async (req: Request, _context: Context) => {
       .select("id", { count: "exact", head: true })
       .gte("outreach_sent_at", todayStart.toISOString())
 
-    // Daily sending limit — start conservative, increase over time
-    // Days 1-3: 50/day, Days 4-7: 100/day, Day 8+: 200/day
-    const dailyLimit = Number(process.env.OUTREACH_DAILY_LIMIT) || 50
+    // Daily sending limit — auto-ramp based on sending history
+    // Env var overrides auto-ramp if set
+    const envLimit = process.env.OUTREACH_DAILY_LIMIT ? Number(process.env.OUTREACH_DAILY_LIMIT) : null
+    let autoLimit = 200 // default
+    if (!envLimit) {
+      // Auto-ramp: check first-ever outreach date to determine maturity
+      const { data: firstSent } = await supabase
+        .from("master_subcontractors")
+        .select("outreach_sent_at")
+        .not("outreach_sent_at", "is", null)
+        .order("outreach_sent_at", { ascending: true })
+        .limit(1)
+      if (firstSent && firstSent.length > 0) {
+        const daysSinceFirst = Math.floor((Date.now() - new Date(firstSent[0].outreach_sent_at).getTime()) / (1000 * 60 * 60 * 24))
+        if (daysSinceFirst < 3) autoLimit = 100
+        else if (daysSinceFirst < 7) autoLimit = 500
+        else if (daysSinceFirst < 14) autoLimit = 2000
+        else if (daysSinceFirst < 30) autoLimit = 5000
+        else autoLimit = 10000
+      } else {
+        autoLimit = 100 // first-ever send day
+      }
+    }
+    const dailyLimit = envLimit || autoLimit
     const remainingToday = Math.max(0, dailyLimit - (sentToday || 0))
 
     if (remainingToday === 0) {
@@ -286,7 +307,7 @@ export default async (req: Request, _context: Context) => {
       }), { headers })
     }
 
-    const maxBatch = Math.min(batchLimit || 50, remainingToday, 200)
+    const maxBatch = Math.min(batchLimit || 50, remainingToday, 500)
 
     // Fetch candidates with priority-relevant fields (fetch 5x batch for scoring)
     const fetchSize = Math.min(maxBatch * 5, 1000)
