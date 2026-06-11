@@ -255,6 +255,31 @@ function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategori
   `
 }
 
+function toBase64(str: string): string {
+  return Buffer.from(str, "utf-8").toString("base64")
+}
+
+function injectSesTracking(html: string, recipientEmail: string, claimUrl: string): string {
+  const base = "https://procuvex.com/.netlify/functions/ses-webhook"
+  const emailParam = toBase64(recipientEmail)
+
+  // Wrap claim URL with click tracking redirect
+  const trackedClaimUrl = `${base}?t=click&e=${emailParam}&u=${toBase64(claimUrl)}`
+  let tracked = html.replace(
+    new RegExp(claimUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+    trackedClaimUrl
+  )
+
+  // Inject tracking pixel before closing </div>
+  const pixel = `<img src="${base}?t=open&e=${emailParam}" width="1" height="1" style="display:none" alt="" />`
+  const lastDiv = tracked.lastIndexOf("</div>")
+  if (lastDiv !== -1) {
+    tracked = tracked.slice(0, lastDiv) + pixel + tracked.slice(lastDiv)
+  }
+
+  return tracked
+}
+
 async function verifyGlobalAdmin(userId: string): Promise<boolean> {
   const { data } = await supabase
     .from("user_profiles")
@@ -440,8 +465,13 @@ export default async (req: Request, _context: Context) => {
         // Build and send email
         const claimUrl = `https://procuvex.com/claim/${token}`
         const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${token}`
-        const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
+        let html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
         const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
+
+        // Inject self-hosted open/click tracking for SES (SendGrid has its own tracking)
+        if (USE_SES) {
+          html = injectSesTracking(html, sub.contact_email!, claimUrl)
+        }
 
         await sendEmail({
           to: sub.contact_email!,
@@ -479,7 +509,20 @@ export default async (req: Request, _context: Context) => {
         sent++
       } catch (err: any) {
         failed++
-        errors.push(`${sub.company_name}: ${err.message || "Unknown error"}`)
+        const errMsg = err.message || "Unknown error"
+        errors.push(`${sub.company_name}: ${errMsg}`)
+
+        // SES bounce/rejection: archive the sub if email is permanently undeliverable
+        if (USE_SES && (
+          errMsg.includes("MessageRejected") ||
+          errMsg.includes("bounce") ||
+          errMsg.includes("suppression list")
+        )) {
+          await supabase
+            .from("master_subcontractors")
+            .update({ archived: true, archive_reason: "ses_bounce" })
+            .eq("id", sub.id)
+        }
       }
     }
 
