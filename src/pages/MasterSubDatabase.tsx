@@ -1195,6 +1195,9 @@ export default function MasterSubDatabase() {
                   <p>
                     <strong>{outreachResult.sent}</strong> emails sent successfully
                     {outreachResult.failed > 0 && <>, <strong>{outreachResult.failed}</strong> failed</>}
+                    {outreachResult.email_provider && (
+                      <span className="ml-2 text-green-600">via {outreachResult.email_provider}</span>
+                    )}
                     {outreachResult.avg_priority_score > 0 && (
                       <span className="ml-2 text-green-600">• Avg priority: {outreachResult.avg_priority_score} pts</span>
                     )}

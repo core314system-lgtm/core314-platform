@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
@@ -7,8 +8,63 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Determine email provider: SES if AWS creds are set, otherwise SendGrid
+const USE_SES = !!(process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY)
+let sesClient: SESClient | null = null
+
+function initSES() {
+  if (!sesClient && USE_SES) {
+    sesClient = new SESClient({
+      region: process.env.AWS_SES_REGION || "us-east-1",
+      credentials: {
+        accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY!,
+      },
+    })
+  }
+}
+
 function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
+}
+
+async function sendEmail(params: {
+  to: string
+  from: { email: string; name: string }
+  replyTo: { email: string; name: string }
+  subject: string
+  html: string
+  text: string
+  headers?: Record<string, string>
+}) {
+  if (USE_SES) {
+    initSES()
+    const cmd = new SendEmailCommand({
+      Source: `${params.from.name} <${params.from.email}>`,
+      Destination: { ToAddresses: [params.to] },
+      ReplyToAddresses: [`${params.replyTo.name} <${params.replyTo.email}>`],
+      Message: {
+        Subject: { Data: params.subject, Charset: "UTF-8" },
+        Body: {
+          Html: { Data: params.html, Charset: "UTF-8" },
+          Text: { Data: params.text, Charset: "UTF-8" },
+        },
+      },
+    })
+    await sesClient!.send(cmd)
+  } else {
+    initSendGrid()
+    await sgMail.default.send({
+      to: params.to,
+      from: params.from,
+      replyTo: params.replyTo,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      customArgs: { email_type: "sub_outreach" },
+      headers: params.headers,
+    })
+  }
 }
 
 // High-demand trades based on SOW item analysis — primes actively seek these
@@ -260,7 +316,6 @@ export default async (req: Request, _context: Context) => {
   // --- ACTION: send-outreach ---
   // Send claim emails to unclaimed subs with email addresses
   if (action === "send-outreach") {
-    initSendGrid()
     const { state, trade, limit: batchLimit } = body
 
     // Daily limit protection — check how many sent in the user's local day
@@ -388,14 +443,13 @@ export default async (req: Request, _context: Context) => {
         const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
         const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
-        await sgMail.default.send({
+        await sendEmail({
           to: sub.contact_email!,
           from: { email: "team@procuvex.com", name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `${sub.company_name} — A Prime is Searching for ${(sub.trade_categories || []).slice(0, 1).join("") || "Contractors"} in ${sub.state || "Your Area"}`,
           html,
           text,
-          customArgs: { email_type: "sub_outreach" },
           headers: {
             "List-Unsubscribe": `<${unsubscribeUrl}>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -436,6 +490,7 @@ export default async (req: Request, _context: Context) => {
       daily_limit: dailyLimit,
       sent_today: (sentToday || 0) + sent,
       remaining_today: remainingToday - sent,
+      email_provider: USE_SES ? "Amazon SES" : "SendGrid",
       errors: errors.slice(0, 5),
       priority_tiers: tierCounts,
       avg_priority_score: eligibleTargets.length > 0
