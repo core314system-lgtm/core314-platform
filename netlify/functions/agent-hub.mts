@@ -73,17 +73,33 @@ export default async (req: Request, _context: Context) => {
 async function runComplianceWatchdog(orgId: string, projectId: string | null, userId: string) {
   const actions: Array<Record<string, unknown>> = []
 
-  // Find subs associated with this org's projects
+  // Find subs associated with this org's projects (sequential queries — Supabase JS doesn't support nested .in() subqueries)
+  const { data: orgProjects } = await supabase
+    .from('task_orders')
+    .select('id')
+    .eq('org_id', orgId)
+
+  if (!orgProjects || orgProjects.length === 0) {
+    return { actions_created: 0, message: 'No projects found for this organization.' }
+  }
+
+  const projectIds = orgProjects.map(p => p.id)
+
+  const { data: sowItemRows } = await supabase
+    .from('sow_items')
+    .select('id')
+    .in('task_order_id', projectIds)
+
+  if (!sowItemRows || sowItemRows.length === 0) {
+    return { actions_created: 0, message: 'No SOW items found in your projects.' }
+  }
+
+  const sowItemIds = sowItemRows.map(s => s.id)
+
   const { data: orgSubs } = await supabase
     .from('sow_subcontractors')
     .select('subcontractor_id')
-    .in('sow_item_id', 
-      supabase.from('sow_items')
-        .select('id')
-        .in('task_order_id',
-          supabase.from('task_orders').select('id').eq('org_id', orgId)
-        )
-    )
+    .in('sow_item_id', sowItemIds)
 
   if (!orgSubs || orgSubs.length === 0) {
     return { actions_created: 0, message: 'No subcontractors found in your projects.' }
@@ -336,13 +352,23 @@ async function runQuoteAnalysis(orgId: string, projectId: string | null, quoteId
     return { actions_created: 0, message: 'Select a project for quote analysis.' }
   }
 
+  // Get SOW items for this project first (Supabase JS doesn't support nested .in() subqueries)
+  const { data: projectSowItems } = await supabase
+    .from('sow_items')
+    .select('id')
+    .eq('task_order_id', projectId)
+
+  if (!projectSowItems || projectSowItems.length === 0) {
+    return { actions_created: 0, message: 'No SOW items found in this project.' }
+  }
+
+  const sowItemIds = projectSowItems.map(s => s.id)
+
   // Get recent quotes for this project
   const { data: quotes } = await supabase
     .from('sow_quotes')
     .select('id, sow_item_id, total_amount, monthly_amount, subcontractor_id, status')
-    .in('sow_item_id',
-      supabase.from('sow_items').select('id').eq('task_order_id', projectId)
-    )
+    .in('sow_item_id', sowItemIds)
     .eq('status', 'received')
     .limit(10)
 
