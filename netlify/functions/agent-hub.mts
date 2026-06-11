@@ -54,6 +54,9 @@ export default async (req: Request, _context: Context) => {
       case 'run_quote_analysis':
         return new Response(JSON.stringify(await runQuoteAnalysis(org_id, project_id, body.quote_id, user_id)), { headers })
 
+      case 'execute_action':
+        return new Response(JSON.stringify(await executeAction(body.action_id, user_id)), { headers })
+
       case 'get_agent_stats':
         return new Response(JSON.stringify(await getAgentStats(org_id)), { headers })
 
@@ -70,7 +73,7 @@ export default async (req: Request, _context: Context) => {
 async function runComplianceWatchdog(orgId: string, projectId: string | null, userId: string) {
   const actions: Array<Record<string, unknown>> = []
 
-  // Find subs associated with this org's projects that have expiring certifications
+  // Find subs associated with this org's projects
   const { data: orgSubs } = await supabase
     .from('sow_subcontractors')
     .select('subcontractor_id')
@@ -88,17 +91,19 @@ async function runComplianceWatchdog(orgId: string, projectId: string | null, us
 
   const subIds = [...new Set(orgSubs.map(s => s.subcontractor_id))]
 
-  // Check master DB for SAM expiry
+  // Check master DB for SAM expiry, certifications, and compliance issues
   const { data: subs } = await supabase
     .from('master_subcontractors')
-    .select('id, company_name, sam_expiration_date, contact_email')
+    .select('id, company_name, sam_expiration_date, contact_email, sba_certification_type, state')
     .in('id', subIds.slice(0, 100))
     .eq('archived', false)
 
   const now = new Date()
   const thirtyDaysOut = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const sixtyDaysOut = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
 
   for (const sub of (subs || [])) {
+    // Check SAM expiry (30-day warning)
     if (sub.sam_expiration_date) {
       const expiry = new Date(sub.sam_expiration_date)
       if (expiry <= thirtyDaysOut && expiry > now) {
@@ -111,12 +116,73 @@ async function runComplianceWatchdog(orgId: string, projectId: string | null, us
           status: 'pending_approval',
           title: `SAM Registration Expiring: ${sub.company_name}`,
           description: `${sub.company_name}'s SAM.gov registration expires in ${daysLeft} days (${sub.sam_expiration_date}). They may become ineligible for government contracts.`,
-          payload: { subcontractor_id: sub.id, expiry_type: 'sam_registration', days_left: daysLeft },
+          payload: { subcontractor_id: sub.id, expiry_type: 'sam_registration', days_left: daysLeft, company_name: sub.company_name },
+          context: { company_name: sub.company_name, email: sub.contact_email },
+          assigned_to: userId,
+        })
+      }
+      // Also flag if ALREADY expired
+      if (expiry < now) {
+        actions.push({
+          org_id: orgId,
+          project_id: projectId,
+          agent_type: 'compliance_watchdog',
+          action_type: 'flag_compliance',
+          status: 'pending_approval',
+          title: `SAM EXPIRED: ${sub.company_name}`,
+          description: `${sub.company_name}'s SAM.gov registration expired on ${sub.sam_expiration_date}. This subcontractor is currently INELIGIBLE for government contracts.`,
+          payload: { subcontractor_id: sub.id, expiry_type: 'sam_expired', days_left: 0, company_name: sub.company_name, severity: 'critical' },
           context: { company_name: sub.company_name, email: sub.contact_email },
           assigned_to: userId,
         })
       }
     }
+
+    // Check for missing SAM registration entirely
+    if (!sub.sam_expiration_date) {
+      actions.push({
+        org_id: orgId,
+        project_id: projectId,
+        agent_type: 'compliance_watchdog',
+        action_type: 'flag_compliance',
+        status: 'pending_approval',
+        title: `No SAM Registration: ${sub.company_name}`,
+        description: `${sub.company_name} has no SAM.gov expiration date on file. Verify their registration status before including on proposals.`,
+        payload: { subcontractor_id: sub.id, expiry_type: 'sam_missing', days_left: -1, company_name: sub.company_name, severity: 'warning' },
+        context: { company_name: sub.company_name, email: sub.contact_email },
+        assigned_to: userId,
+      })
+    }
+  }
+
+  // Also check compliance documents if the table exists
+  try {
+    const { data: compDocs } = await supabase
+      .from('compliance_documents')
+      .select('id, subcontractor_id, document_type, expires_at, status')
+      .in('subcontractor_id', subIds.slice(0, 100))
+      .lt('expires_at', sixtyDaysOut.toISOString())
+      .gt('expires_at', now.toISOString())
+
+    for (const doc of (compDocs || [])) {
+      const expiry = new Date(doc.expires_at)
+      const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      const matchingSub = (subs || []).find(s => s.id === doc.subcontractor_id)
+      actions.push({
+        org_id: orgId,
+        project_id: projectId,
+        agent_type: 'compliance_watchdog',
+        action_type: 'flag_compliance',
+        status: 'pending_approval',
+        title: `${doc.document_type} Expiring: ${matchingSub?.company_name || 'Unknown'}`,
+        description: `${doc.document_type} expires in ${daysLeft} days. Request updated documentation.`,
+        payload: { subcontractor_id: doc.subcontractor_id, expiry_type: 'compliance_doc', document_type: doc.document_type, days_left: daysLeft, company_name: matchingSub?.company_name },
+        context: { document_id: doc.id },
+        assigned_to: userId,
+      })
+    }
+  } catch {
+    // compliance_documents table may not exist yet
   }
 
   if (actions.length > 0) {
@@ -321,6 +387,92 @@ async function runQuoteAnalysis(orgId: string, projectId: string | null, quoteId
   }
 
   return { actions_created: actions.length, message: `Analyzed ${actions.length} quote${actions.length !== 1 ? 's' : ''}.` }
+}
+
+// ========== EXECUTE APPROVED ACTION ==========
+async function executeAction(actionId: string, userId: string) {
+  if (!actionId) return { error: 'action_id required' }
+
+  const { data: action, error } = await supabase
+    .from('agent_actions')
+    .select('*')
+    .eq('id', actionId)
+    .single()
+
+  if (error || !action) return { error: 'Action not found' }
+  if (action.status !== 'pending_approval' && action.status !== 'approved') {
+    return { error: `Cannot execute action with status: ${action.status}` }
+  }
+
+  const now = new Date().toISOString()
+
+  // Execute based on action type
+  switch (action.action_type) {
+    case 'flag_compliance': {
+      // Create compliance notification
+      await supabase.from('notifications').insert({
+        org_id: action.org_id,
+        user_id: action.assigned_to || userId,
+        type: 'compliance_gap',
+        title: action.title,
+        message: action.description,
+        read: false,
+        metadata: { agent_type: action.agent_type, ...action.payload },
+      })
+      break
+    }
+    case 'score_opportunity': {
+      // Create opportunity notification with link
+      await supabase.from('notifications').insert({
+        org_id: action.org_id,
+        user_id: action.assigned_to || userId,
+        type: 'system',
+        title: action.title,
+        message: action.description,
+        link: action.payload?.url || null,
+        read: false,
+        metadata: { agent_type: action.agent_type, ...action.payload },
+      })
+      break
+    }
+    case 'recommend_sub': {
+      // Notify about sub recommendations
+      const candidates = (action.payload as any)?.candidates || []
+      await supabase.from('notifications').insert({
+        org_id: action.org_id,
+        user_id: action.assigned_to || userId,
+        type: 'system',
+        title: `Sub Recommendations: ${action.title}`,
+        message: `${candidates.length} subcontractor candidate${candidates.length !== 1 ? 's' : ''} ready for review.`,
+        link: '/agent-hub',
+        read: false,
+        metadata: { agent_type: action.agent_type, ...action.payload },
+      })
+      break
+    }
+    case 'analyze_quote': {
+      await supabase.from('notifications').insert({
+        org_id: action.org_id,
+        user_id: action.assigned_to || userId,
+        type: 'system',
+        title: `Quote Analysis: ${action.title}`,
+        message: action.description,
+        read: false,
+        metadata: { agent_type: action.agent_type, ...action.payload },
+      })
+      break
+    }
+  }
+
+  // Mark as executed
+  await supabase.from('agent_actions').update({
+    status: 'executed',
+    approved_at: now,
+    executed_at: now,
+    resolved_by: userId,
+  }).eq('id', actionId)
+
+  return { success: true, action_id: actionId, status: 'executed' }
 }
 
 // ========== STATS ==========
