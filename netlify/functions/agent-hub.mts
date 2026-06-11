@@ -94,7 +94,7 @@ async function runComplianceWatchdog(orgId: string, projectId: string | null, us
   // Check master DB for SAM expiry, certifications, and compliance issues
   const { data: subs } = await supabase
     .from('master_subcontractors')
-    .select('id, company_name, sam_expiration_date, contact_email, sba_certification_type, state')
+    .select('id, company_name, sam_expiration_date, contact_email, small_business_types, state')
     .in('id', subIds.slice(0, 100))
     .eq('archived', false)
 
@@ -199,9 +199,8 @@ async function runOpportunityHunter(orgId: string, userId: string) {
     .from('task_orders')
     .select('naics_code, location_state, project_type')
     .eq('org_id', orgId)
-    .not('naics_code', 'is', null)
 
-  const naicsCodes = [...new Set((projects || []).map(p => p.naics_code).filter(Boolean))]
+  const naicsCodes = [...new Set((projects || []).map(p => (p as Record<string, unknown>).naics_code as string).filter(Boolean))]
   const states = [...new Set((projects || []).map(p => p.location_state).filter(Boolean))]
 
   if (naicsCodes.length === 0) {
@@ -298,10 +297,10 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
     // Find potential subs from master DB
     const { data: candidates } = await supabase
       .from('master_subcontractors')
-      .select('id, company_name, contact_email, trade_category, physical_state')
+      .select('id, company_name, contact_email, trade_categories, state')
       .eq('archived', false)
       .not('contact_email', 'is', null)
-      .ilike('trade_category', `%${sow.service_category}%`)
+      .contains('trade_categories', [sow.service_category])
       .limit(5)
 
     if (candidates && candidates.length > 0) {
@@ -312,11 +311,11 @@ async function runSubRecruitment(orgId: string, projectId: string | null, userId
         action_type: 'recommend_sub',
         status: 'pending_approval',
         title: `${candidates.length} sub${candidates.length > 1 ? 's' : ''} found for: ${sow.sow_name}`,
-        description: `Found ${candidates.length} potential subcontractors for "${sow.service_category}". Top match: ${candidates[0].company_name} (${candidates[0].physical_state || 'Unknown location'}).`,
+        description: `Found ${candidates.length} potential subcontractors for "${sow.service_category}". Top match: ${candidates[0].company_name} (${candidates[0].state || 'Unknown location'}).`,
         payload: {
           sow_item_id: sow.id,
           sow_name: sow.sow_name,
-          candidates: candidates.map(c => ({ id: c.id, name: c.company_name, email: c.contact_email, state: c.physical_state })),
+          candidates: candidates.map(c => ({ id: c.id, name: c.company_name, email: c.contact_email, state: c.state })),
         },
         context: { service_category: sow.service_category },
         assigned_to: userId,
