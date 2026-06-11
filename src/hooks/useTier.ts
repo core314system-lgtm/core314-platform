@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useOrgSafe } from '../contexts/OrgContext'
+import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
 export type TierPlan = 'growth' | 'enterprise' | 'agentic' | 'none'
@@ -70,7 +71,9 @@ interface TierInfo {
 
 export function useTier(): TierInfo {
   const orgCtx = useOrgSafe()
+  const { profile } = useAuth()
   const currentOrg = orgCtx?.currentOrg ?? null
+  const isGlobalAdmin = profile?.is_global_admin === true
   const [plan, setPlan] = useState<TierPlan>('none')
   const [status, setStatus] = useState<SubStatus>('no_subscription')
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null)
@@ -113,12 +116,14 @@ export function useTier(): TierInfo {
     loadTier()
   }, [loadTier])
 
-  const hasActiveSubscription = status === 'active' || status === 'trialing'
-  const isAgentic = plan === 'agentic' && hasActiveSubscription
-  const isEnterprise = (plan === 'enterprise' || plan === 'agentic') && hasActiveSubscription
+  const hasActiveSubscription = isGlobalAdmin || status === 'active' || status === 'trialing'
+  const isAgentic = isGlobalAdmin || (plan === 'agentic' && hasActiveSubscription)
+  const isEnterprise = isGlobalAdmin || ((plan === 'enterprise' || plan === 'agentic') && hasActiveSubscription)
   const isGrowth = plan === 'growth' && hasActiveSubscription
 
   const canAccess = useCallback((feature: string): boolean => {
+    // Global admin bypasses all tier restrictions
+    if (isGlobalAdmin) return true
     if (!hasActiveSubscription) return false
     if (isAgentic) return true
     if (isEnterprise) {
@@ -127,14 +132,15 @@ export function useTier(): TierInfo {
     }
     // Growth users can access everything except enterprise-only and agentic-only features
     return !ENTERPRISE_ONLY_FEATURES.has(feature) && !AGENTIC_ONLY_FEATURES.has(feature)
-  }, [hasActiveSubscription, isEnterprise, isAgentic])
+  }, [isGlobalAdmin, hasActiveSubscription, isEnterprise, isAgentic])
 
   const getLimit = useCallback((key: 'max_projects' | 'max_seats' | 'max_subcontractors' | 'max_connections_per_month'): number => {
+    if (isGlobalAdmin) return Infinity
     if (isAgentic) return AGENTIC_LIMITS[key]
     if (isEnterprise) return ENTERPRISE_LIMITS[key]
     if (isGrowth) return GROWTH_LIMITS[key]
     return 0
-  }, [isAgentic, isEnterprise, isGrowth])
+  }, [isGlobalAdmin, isAgentic, isEnterprise, isGrowth])
 
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
