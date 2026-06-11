@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useOrg } from '../contexts/OrgContext'
 import { useAuth } from '../contexts/AuthContext'
-import { Settings, Users, UserPlus, Shield, Crown, Trash2, Check, Building2, Mail, Clock, X, RefreshCw, FileText, Eye, EyeOff, LayoutTemplate } from 'lucide-react'
+import { Settings, Users, UserPlus, Shield, Crown, Trash2, Check, Building2, Mail, Clock, X, RefreshCw, FileText, Eye, EyeOff, LayoutTemplate, Bell } from 'lucide-react'
 import OrgDefaultTemplate from '../components/OrgDefaultTemplate'
+import NotificationPreferences from '../components/NotificationPreferences'
 import type { OrgMember } from '../contexts/OrgContext'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -63,7 +64,7 @@ const TEMPLATE_VARIABLES = [
 export default function OrgSettings() {
   const { currentOrg, members, orgRole, refreshOrg, isMultiTenantEnabled } = useOrg()
   const { user, profile } = useAuth()
-  const [tab, setTab] = useState<'general' | 'members' | 'rfq_template' | 'portal_form'>('general')
+  const [tab, setTab] = useState<'general' | 'members' | 'rfq_template' | 'portal_form' | 'notifications'>('general')
   const [orgName, setOrgName] = useState(currentOrg?.name || '')
   const [saving, setSaving] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -364,6 +365,14 @@ export default function OrgSettings() {
         >
           <LayoutTemplate size={16} /> Portal Form
         </button>
+        <button
+          onClick={() => setTab('notifications')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            tab === 'notifications' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Bell size={16} /> Notifications
+        </button>
       </div>
 
       {tab === 'general' && (
@@ -642,6 +651,12 @@ export default function OrgSettings() {
       {tab === 'portal_form' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <OrgDefaultTemplate />
+        </div>
+      )}
+
+      {tab === 'notifications' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <NotificationPreferences />
         </div>
       )}
     </div>

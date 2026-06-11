@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Users, X, UserPlus } from 'lucide-react'
+import { Users, X, UserPlus, Star, StarOff } from 'lucide-react'
+
 
 interface Assignment {
   id: string
   task_order_id: string
   user_id: string
   role: string
+  is_primary_contact?: boolean
   assigned_at: string
   user_name?: string
   user_email?: string
@@ -18,6 +20,11 @@ interface ProjectTeamProps {
 }
 
 const ASSIGNMENT_ROLES = [
+  { value: 'pm', label: 'Project Manager' },
+  { value: 'estimator', label: 'Estimator' },
+  { value: 'bd', label: 'Business Development' },
+  { value: 'viewer', label: 'Viewer' },
+  // Legacy roles for backward compatibility
   { value: 'lead', label: 'Lead' },
   { value: 'contributor', label: 'Contributor' },
   { value: 'reviewer', label: 'Reviewer' },
@@ -30,7 +37,7 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
   const [orgMembers, setOrgMembers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([])
   const [showAdd, setShowAdd] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
-  const [selectedRole, setSelectedRole] = useState('contributor')
+  const [selectedRole, setSelectedRole] = useState('pm')
   const [supported, setSupported] = useState(true)
 
   useEffect(() => {
@@ -49,7 +56,6 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
       return
     }
 
-    // Load user profiles for the assignments
     if (data && data.length > 0) {
       const userIds = data.map(a => a.user_id)
       const { data: profiles } = await supabase
@@ -92,6 +98,7 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
       task_order_id: taskOrderId,
       user_id: selectedUserId,
       role: selectedRole,
+      is_primary_contact: assignments.length === 0,
       assigned_by: user?.id,
     })
 
@@ -100,7 +107,7 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
     await loadAssignments()
     setShowAdd(false)
     setSelectedUserId('')
-    setSelectedRole('contributor')
+    setSelectedRole('pm')
   }
 
   async function handleRemove(assignmentId: string) {
@@ -113,12 +120,30 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
     setAssignments(prev => prev.map(a => a.id === assignmentId ? { ...a, role: newRole } : a))
   }
 
+  async function togglePrimaryContact(assignmentId: string) {
+    // Clear all primary contacts first
+    for (const a of assignments) {
+      if (a.is_primary_contact && a.id !== assignmentId) {
+        await supabase.from('project_assignments').update({ is_primary_contact: false }).eq('id', a.id)
+      }
+    }
+    // Set the new primary
+    await supabase.from('project_assignments').update({ is_primary_contact: true }).eq('id', assignmentId)
+    setAssignments(prev => prev.map(a => ({
+      ...a,
+      is_primary_contact: a.id === assignmentId,
+    })))
+  }
+
   if (!supported) return null
 
-  // Members not yet assigned
   const unassignedMembers = orgMembers.filter(m => !assignments.some(a => a.user_id === m.id))
 
   const roleColor: Record<string, string> = {
+    pm: 'bg-blue-100 text-blue-700',
+    estimator: 'bg-green-100 text-green-700',
+    bd: 'bg-purple-100 text-purple-700',
+    viewer: 'bg-gray-100 text-gray-600',
     lead: 'bg-blue-100 text-blue-700',
     contributor: 'bg-green-100 text-green-700',
     reviewer: 'bg-yellow-100 text-yellow-700',
@@ -161,7 +186,7 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
               onChange={e => setSelectedRole(e.target.value)}
               className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
             >
-              {ASSIGNMENT_ROLES.map(r => (
+              {ASSIGNMENT_ROLES.filter(r => ['pm', 'estimator', 'bd', 'viewer'].includes(r.value)).map(r => (
                 <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </select>
@@ -190,16 +215,26 @@ export default function ProjectTeam({ taskOrderId }: ProjectTeamProps) {
           {assignments.map(a => (
             <div key={a.id} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => togglePrimaryContact(a.id)}
+                  className="text-gray-300 hover:text-amber-500"
+                  title={a.is_primary_contact ? 'Primary contact (agents notify this person)' : 'Set as primary contact'}
+                >
+                  {a.is_primary_contact ? <Star size={14} className="text-amber-500 fill-amber-500" /> : <StarOff size={14} />}
+                </button>
                 <span className="font-medium text-gray-700">{a.user_name || a.user_email || 'Unknown'}</span>
                 <select
                   value={a.role}
                   onChange={e => handleRoleChange(a.id, e.target.value)}
-                  className={`text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer ${roleColor[a.role] || roleColor.observer}`}
+                  className={`text-xs px-2 py-0.5 rounded-full border-0 cursor-pointer ${roleColor[a.role] || roleColor.viewer}`}
                 >
                   {ASSIGNMENT_ROLES.map(r => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>
+                {a.is_primary_contact && (
+                  <span className="text-[10px] text-amber-600 font-medium">Primary</span>
+                )}
               </div>
               <button
                 onClick={() => handleRemove(a.id)}

@@ -46,6 +46,7 @@ import ResetPassword from './pages/ResetPassword'
 import AccountSettings from './pages/AccountSettings'
 import AdminAnalytics from './pages/AdminAnalytics'
 import GlobalAdminSettings from './pages/GlobalAdminSettings'
+import AgentHub from './pages/AgentHub'
 import AdminBetaInvites from './pages/AdminBetaInvites'
 import BetaApply from './pages/BetaApply'
 import BetaThankYou from './pages/BetaThankYou'
@@ -284,6 +285,9 @@ export default function App() {
 
           {/* Teaming & Joint Ventures */}
           <Route path="/teaming" element={<ProtectedRoute><TierGate feature="teaming_jv"><TeamingTracker /></TierGate></ProtectedRoute>} />
+
+          {/* Agent Hub */}
+          <Route path="/agent-hub" element={<ProtectedRoute><TierGate feature="agent_hub"><AgentHub /></TierGate></ProtectedRoute>} />
 
           {/* Intelligence & Help */}
           <Route path="/intelligence" element={<ProtectedRoute><TierGate feature="intelligence_library"><IntelligenceLibrary /></TierGate></ProtectedRoute>} />
