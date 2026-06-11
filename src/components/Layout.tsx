@@ -36,6 +36,7 @@ import {
   ScanSearch,
   Database,
   BadgeCheck,
+  Bot,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -99,6 +100,14 @@ const navGroups: NavGroup[] = [
       { path: '/comparison', label: 'Compare Projects', icon: GitCompareArrows },
       { path: '/analytics', label: 'Analytics', icon: BarChart3 },
       { path: '/intelligence', label: 'Intelligence Library', icon: Brain, enterpriseOnly: true },
+    ],
+  },
+  {
+    id: 'agents',
+    label: 'AI Agents',
+    icon: Bot,
+    items: [
+      { path: '/agent-hub', label: 'Agent Hub', icon: Bot },
     ],
   },
   {
