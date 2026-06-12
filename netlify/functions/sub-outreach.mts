@@ -8,8 +8,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Determine email provider: SES if AWS creds are set, otherwise SendGrid
-const USE_SES = !!(process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY)
+// Determine email provider priority: Mailgun > SES > SendGrid
+const USE_MAILGUN = !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN)
+const USE_SES = !USE_MAILGUN && !!(process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY)
+const EMAIL_PROVIDER = USE_MAILGUN ? "Mailgun" : USE_SES ? "Amazon SES" : "SendGrid"
 let sesClient: SESClient | null = null
 
 function initSES() {
@@ -28,6 +30,48 @@ function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
 }
 
+async function sendViaMailgun(params: {
+  to: string
+  from: { email: string; name: string }
+  replyTo: { email: string; name: string }
+  subject: string
+  html: string
+  text: string
+  headers?: Record<string, string>
+}) {
+  const domain = process.env.MAILGUN_DOMAIN!
+  const apiKey = process.env.MAILGUN_API_KEY!
+  const baseUrl = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
+
+  const form = new FormData()
+  form.append("from", `${params.from.name} <${params.from.email}>`)
+  form.append("to", params.to)
+  form.append("h:Reply-To", `${params.replyTo.name} <${params.replyTo.email}>`)
+  form.append("subject", params.subject)
+  form.append("html", params.html)
+  form.append("text", params.text)
+  if (params.headers?.["List-Unsubscribe"]) {
+    form.append("h:List-Unsubscribe", params.headers["List-Unsubscribe"])
+    form.append("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+  }
+  form.append("o:tag", "sub_outreach")
+  form.append("o:tracking-opens", "yes")
+  form.append("o:tracking-clicks", "yes")
+
+  const resp = await fetch(`${baseUrl}/v3/${domain}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`,
+    },
+    body: form,
+  })
+
+  if (!resp.ok) {
+    const body = await resp.text()
+    throw new Error(`Mailgun error ${resp.status}: ${body}`)
+  }
+}
+
 async function sendEmail(params: {
   to: string
   from: { email: string; name: string }
@@ -37,7 +81,9 @@ async function sendEmail(params: {
   text: string
   headers?: Record<string, string>
 }) {
-  if (USE_SES) {
+  if (USE_MAILGUN) {
+    await sendViaMailgun(params)
+  } else if (USE_SES) {
     initSES()
     const cmd = new SendEmailCommand({
       Source: `${params.from.name} <${params.from.email}>`,
@@ -468,8 +514,9 @@ export default async (req: Request, _context: Context) => {
         let html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
         const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
-        // Inject self-hosted open/click tracking for SES (SendGrid has its own tracking)
-        if (USE_SES) {
+        // Inject self-hosted open/click tracking for SES and Mailgun
+        // (SendGrid has its own webhook-based tracking)
+        if (USE_SES || USE_MAILGUN) {
           html = injectSesTracking(html, sub.contact_email!, claimUrl)
         }
 
@@ -512,11 +559,13 @@ export default async (req: Request, _context: Context) => {
         const errMsg = err.message || "Unknown error"
         errors.push(`${sub.company_name}: ${errMsg}`)
 
-        // SES bounce/rejection: archive the sub if email is permanently undeliverable
-        if (USE_SES && (
+        // SES/Mailgun bounce/rejection: archive the sub if email is permanently undeliverable
+        if ((USE_SES || USE_MAILGUN) && (
           errMsg.includes("MessageRejected") ||
           errMsg.includes("bounce") ||
-          errMsg.includes("suppression list")
+          errMsg.includes("suppression list") ||
+          errMsg.includes("550") ||
+          errMsg.includes("does not exist")
         )) {
           await supabase
             .from("master_subcontractors")
@@ -533,7 +582,7 @@ export default async (req: Request, _context: Context) => {
       daily_limit: dailyLimit,
       sent_today: (sentToday || 0) + sent,
       remaining_today: remainingToday - sent,
-      email_provider: USE_SES ? "Amazon SES" : "SendGrid",
+      email_provider: EMAIL_PROVIDER,
       errors: errors.slice(0, 5),
       priority_tiers: tierCounts,
       avg_priority_score: eligibleTargets.length > 0
