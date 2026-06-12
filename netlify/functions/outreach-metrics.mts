@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { getStore } from "@netlify/blobs"
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
@@ -13,73 +14,86 @@ const headers = {
   "Content-Type": "application/json",
 }
 
+// Opens/clicks within 2 min of send are likely email security scanners
+const BOT_THRESHOLD_MS = 120_000
+
 export default async (req: Request, _context: Context) => {
   if (req.method === "OPTIONS") {
     return new Response("", { headers })
   }
 
   try {
-    // All metrics come from our own database — outreach-specific only
-    // No SendGrid Stats API (that returns account-wide numbers across all email types)
-
-    // Total outreach emails sent (records with outreach_sent_at)
+    // Total outreach emails sent
     const { count: totalSent } = await supabase
       .from("master_subcontractors")
       .select("id", { count: "exact", head: true })
       .not("outreach_sent_at", "is", null)
 
-    // Records that have received at least 1 open (engagement_open_count > 0)
-    const { count: opened } = await supabase
-      .from("master_subcontractors")
-      .select("id", { count: "exact", head: true })
-      .not("outreach_sent_at", "is", null)
-      .gt("engagement_open_count", 0)
-
-    // Records that have received at least 1 click (engagement_click_count > 0)
-    const { count: clicked } = await supabase
-      .from("master_subcontractors")
-      .select("id", { count: "exact", head: true })
-      .not("outreach_sent_at", "is", null)
-      .gt("engagement_click_count", 0)
-
-    // Bounced (from hygiene log — hard_bounce_delete actions)
+    // Bounced (from hygiene log)
     const { count: bounced } = await supabase
       .from("database_hygiene_log")
       .select("id", { count: "exact", head: true })
       .eq("action", "hard_bounce_delete")
 
-    // Soft bounced (from hygiene log)
     const { count: softBounced } = await supabase
       .from("database_hygiene_log")
       .select("id", { count: "exact", head: true })
       .eq("action", "soft_bounce_delete")
 
-    // Total open events (sum of all engagement_open_count)
-    const { data: openSum } = await supabase
+    // Fetch all records with engagement to classify bot vs human
+    const { data: engaged } = await supabase
       .from("master_subcontractors")
-      .select("engagement_open_count")
+      .select("engagement_open_count, engagement_click_count, outreach_sent_at, last_engagement_at")
       .not("outreach_sent_at", "is", null)
-      .gt("engagement_open_count", 0)
+      .or("engagement_open_count.gt.0,engagement_click_count.gt.0")
 
-    const totalOpens = (openSum || []).reduce((sum, r) => sum + (r.engagement_open_count || 0), 0)
+    let rawOpened = 0
+    let rawClicked = 0
+    let rawTotalOpens = 0
+    let rawTotalClicks = 0
+    let humanOpened = 0
+    let humanClicked = 0
 
-    // Total click events (sum of all engagement_click_count)
-    const { data: clickSum } = await supabase
+    for (const r of engaged || []) {
+      const opens = r.engagement_open_count || 0
+      const clicks = r.engagement_click_count || 0
+      const sentAt = r.outreach_sent_at ? new Date(r.outreach_sent_at).getTime() : 0
+      const engagedAt = r.last_engagement_at ? new Date(r.last_engagement_at).getTime() : 0
+      const isLikelyHuman = sentAt > 0 && engagedAt > 0 && (engagedAt - sentAt) > BOT_THRESHOLD_MS
+
+      if (opens > 0) {
+        rawOpened++
+        rawTotalOpens += opens
+        if (isLikelyHuman) humanOpened++
+      }
+      if (clicks > 0) {
+        rawClicked++
+        rawTotalClicks += clicks
+        if (isLikelyHuman) humanClicked++
+      }
+    }
+
+    // Claimed / confirmed profiles (the only unambiguous metric)
+    const { count: confirmed } = await supabase
       .from("master_subcontractors")
-      .select("engagement_click_count")
-      .not("outreach_sent_at", "is", null)
-      .gt("engagement_click_count", 0)
+      .select("id", { count: "exact", head: true })
+      .not("claimed_at", "is", null)
 
-    const totalClicks = (clickSum || []).reduce((sum, r) => sum + (r.engagement_click_count || 0), 0)
+    // Get real page visit count from Netlify Blobs
+    let pageVisits = 0
+    try {
+      const store = getStore("claim-page-visits")
+      const raw = await store.get("__total", { type: "json" }) as { count: number } | null
+      pageVisits = raw?.count || 0
+    } catch {
+      // Blobs store may not exist yet
+    }
 
     const total = totalSent || 0
     const bouncedCount = (bounced || 0) + (softBounced || 0)
     const delivered = total - bouncedCount
-    const openedCount = opened || 0
-    const clickedCount = clicked || 0
 
-    // Per-email details: show all recently sent emails (most recent first)
-    // Include engaged ones at top, then recent sends without engagement
+    // Per-email details
     const { data: recentSent } = await supabase
       .from("master_subcontractors")
       .select("contact_email, company_name, engagement_open_count, engagement_click_count, outreach_sent_at, last_engagement_at, data_health_score")
@@ -87,14 +101,21 @@ export default async (req: Request, _context: Context) => {
       .order("outreach_sent_at", { ascending: false })
       .limit(100)
 
-    const emails = (recentSent || []).map((m) => ({
-      to: m.contact_email,
-      subject: `${m.company_name}`,
-      status: (m.engagement_open_count || 0) > 0 ? "opened" : "delivered",
-      opens: m.engagement_open_count || 0,
-      clicks: m.engagement_click_count || 0,
-      lastEvent: m.last_engagement_at || m.outreach_sent_at,
-    }))
+    const emails = (recentSent || []).map((m) => {
+      const sentMs = m.outreach_sent_at ? new Date(m.outreach_sent_at).getTime() : 0
+      const engMs = m.last_engagement_at ? new Date(m.last_engagement_at).getTime() : 0
+      const isHuman = sentMs > 0 && engMs > 0 && (engMs - sentMs) > BOT_THRESHOLD_MS
+      const hasEngagement = (m.engagement_open_count || 0) > 0
+
+      return {
+        to: m.contact_email,
+        subject: `${m.company_name}`,
+        status: hasEngagement ? (isHuman ? "human_open" : "bot_open") : "delivered",
+        opens: m.engagement_open_count || 0,
+        clicks: m.engagement_click_count || 0,
+        lastEvent: m.last_engagement_at || m.outreach_sent_at,
+      }
+    })
 
     return new Response(JSON.stringify({
       summary: {
@@ -102,13 +123,21 @@ export default async (req: Request, _context: Context) => {
         delivered,
         not_delivered: bouncedCount,
         processing: 0,
-        opened: openedCount,
-        clicked: clickedCount,
-        total_opens: totalOpens,
-        total_clicks: totalClicks,
+        // Raw metrics (includes bots)
+        opened: rawOpened,
+        clicked: rawClicked,
+        total_opens: rawTotalOpens,
+        total_clicks: rawTotalClicks,
+        // Human-only metrics (filtered)
+        human_opened: humanOpened,
+        human_clicked: humanClicked,
+        // Real engagement
+        page_visits: pageVisits,
+        confirmed: confirmed || 0,
+        // Rates (use human metrics for accuracy)
         delivery_rate: total > 0 ? Math.round((delivered / total) * 100) : 0,
-        open_rate: delivered > 0 ? Math.round((openedCount / delivered) * 100) : 0,
-        click_rate: delivered > 0 ? Math.round((clickedCount / delivered) * 100) : 0,
+        open_rate: delivered > 0 ? Math.round((humanOpened / delivered) * 100) : 0,
+        click_rate: delivered > 0 ? Math.round((humanClicked / delivered) * 100) : 0,
       },
       emails,
     }), { headers })
