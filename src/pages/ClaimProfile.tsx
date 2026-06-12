@@ -46,6 +46,14 @@ export default function ClaimProfile() {
     if (token) validateToken(token)
   }, [token])
 
+  // Track real page visit via JS beacon (bots don't execute JS)
+  useEffect(() => {
+    if (sub?.contact_email && (step === 'preview' || step === 'confirmed')) {
+      const emailParam = btoa(sub.contact_email)
+      fetch(`/.netlify/functions/ses-webhook?t=page_visit&e=${emailParam}`).catch(() => {})
+    }
+  }, [sub?.contact_email, step])
+
   async function validateToken(t: string) {
     const { data, error: fetchError } = await supabase
       .from('master_subcontractors')

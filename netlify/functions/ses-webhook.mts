@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { getStore } from "@netlify/blobs"
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
@@ -18,6 +19,28 @@ export default async (req: Request, _context: Context) => {
   const emailB64 = url.searchParams.get("e")
   const redirectUrl = url.searchParams.get("u")
 
+  // Handle CORS preflight for page_visit beacon
+  if (req.method === "OPTIONS") {
+    return new Response("", {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    })
+  }
+
+  // Claim page visit beacon — fired by real browsers via JS
+  if (action === "page_visit") {
+    if (emailB64) {
+      recordPageVisit(emailB64).catch(() => {})
+    }
+    return new Response("OK", {
+      status: 200,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    })
+  }
+
   if (!action || !emailB64) {
     return new Response("OK", { status: 200 })
   }
@@ -27,12 +50,10 @@ export default async (req: Request, _context: Context) => {
     return new Response("OK", { status: 200 })
   }
 
-  // Process event in the background — don't block the response
   const eventPromise = handleEvent(action, email, redirectUrl)
 
   if (action === "click" && redirectUrl) {
     const decoded = safeBase64Decode(redirectUrl)
-    // Ensure we record the event before redirecting
     await eventPromise
     if (decoded) {
       return new Response(null, {
@@ -44,7 +65,6 @@ export default async (req: Request, _context: Context) => {
   }
 
   if (action === "open") {
-    // Fire-and-forget the event recording, return pixel immediately
     eventPromise.catch(() => {})
     return new Response(TRACKING_PIXEL, {
       status: 200,
@@ -98,6 +118,26 @@ async function handleEvent(action: string, email: string, _redirectUrl: string |
     }
   } catch (err) {
     console.error("SES webhook event error:", err)
+  }
+}
+
+async function recordPageVisit(emailB64: string) {
+  try {
+    const store = getStore("claim-page-visits")
+    // Use email hash as key, store visit timestamps
+    const existing = await store.get(emailB64, { type: "json" }).catch(() => null) as { count: number; first: string; last: string } | null
+    const now = new Date().toISOString()
+    await store.setJSON(emailB64, {
+      count: (existing?.count || 0) + 1,
+      first: existing?.first || now,
+      last: now,
+    })
+
+    // Increment global counter
+    const globalRaw = await store.get("__total", { type: "json" }).catch(() => null) as { count: number } | null
+    await store.setJSON("__total", { count: (globalRaw?.count || 0) + 1 })
+  } catch (err) {
+    console.error("Page visit tracking error:", err)
   }
 }
 

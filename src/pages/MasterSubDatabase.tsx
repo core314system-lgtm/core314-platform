@@ -2231,33 +2231,64 @@ export default function MasterSubDatabase() {
 
             {emailMetrics && (
               <>
-                <div className="grid grid-cols-5 gap-2 mb-3">
-                  <div className="bg-green-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-green-600 font-medium">Delivered</div>
-                    <div className="text-lg font-bold text-green-700">{emailMetrics.summary.delivered}</div>
-                    <div className="text-[10px] text-green-500">{emailMetrics.summary.delivery_rate}% rate</div>
+                {/* Primary: Real Human Engagement (bot-filtered) */}
+                <div className="mb-3">
+                  <div className="text-[10px] uppercase tracking-wider text-emerald-600 font-semibold mb-1.5 flex items-center gap-1">
+                    <Users size={10} /> Real Human Engagement (bot-filtered)
                   </div>
-                  <div className="bg-blue-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-blue-600 font-medium">Opened</div>
-                    <div className="text-lg font-bold text-blue-700">{emailMetrics.summary.opened}</div>
-                    <div className="text-[10px] text-blue-500">{emailMetrics.summary.open_rate}% rate</div>
-                  </div>
-                  <div className="bg-amber-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-amber-600 font-medium">Clicked</div>
-                    <div className="text-lg font-bold text-amber-700">{emailMetrics.summary.clicked}</div>
-                    <div className="text-[10px] text-amber-500">{emailMetrics.summary.click_rate}% rate</div>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-red-600 font-medium">Bounced</div>
-                    <div className="text-lg font-bold text-red-700">{emailMetrics.summary.not_delivered}</div>
-                    <div className="text-[10px] text-red-500">{emailMetrics.summary.total > 0 ? Math.round((emailMetrics.summary.not_delivered / emailMetrics.summary.total) * 100) : 0}%</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-2.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wider text-gray-600 font-medium">Total Opens</div>
-                    <div className="text-lg font-bold text-gray-700">{emailMetrics.summary.total_opens}</div>
-                    <div className="text-[10px] text-gray-500">{emailMetrics.summary.delivered > 0 ? (emailMetrics.summary.total_opens / emailMetrics.summary.delivered).toFixed(1) : '0'} per email</div>
+                  <div className="grid grid-cols-5 gap-2">
+                    <div className="bg-green-50 rounded-lg p-2.5 text-center border border-green-200">
+                      <div className="text-[10px] uppercase tracking-wider text-green-600 font-medium">Delivered</div>
+                      <div className="text-lg font-bold text-green-700">{emailMetrics.summary.delivered}</div>
+                      <div className="text-[10px] text-green-500">{emailMetrics.summary.delivery_rate}% rate</div>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-2.5 text-center border border-blue-200">
+                      <div className="text-[10px] uppercase tracking-wider text-blue-600 font-medium">Human Opens</div>
+                      <div className="text-lg font-bold text-blue-700">{emailMetrics.summary.human_opened ?? emailMetrics.summary.opened}</div>
+                      <div className="text-[10px] text-blue-500">{emailMetrics.summary.open_rate}% rate</div>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg p-2.5 text-center border border-amber-200">
+                      <div className="text-[10px] uppercase tracking-wider text-amber-600 font-medium">Human Clicks</div>
+                      <div className="text-lg font-bold text-amber-700">{emailMetrics.summary.human_clicked ?? emailMetrics.summary.clicked}</div>
+                      <div className="text-[10px] text-amber-500">{emailMetrics.summary.click_rate}% rate</div>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-2.5 text-center border border-purple-200">
+                      <div className="text-[10px] uppercase tracking-wider text-purple-600 font-medium">Page Visits</div>
+                      <div className="text-lg font-bold text-purple-700">{emailMetrics.summary.page_visits ?? 0}</div>
+                      <div className="text-[10px] text-purple-500">JS-verified</div>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-2.5 text-center border-2 border-emerald-400">
+                      <div className="text-[10px] uppercase tracking-wider text-emerald-600 font-medium">Claimed</div>
+                      <div className="text-lg font-bold text-emerald-700">{emailMetrics.summary.confirmed ?? 0}</div>
+                      <div className="text-[10px] text-emerald-500">confirmed</div>
+                    </div>
                   </div>
                 </div>
+
+                {/* Secondary: Raw metrics (includes bots) */}
+                <details className="mb-3">
+                  <summary className="text-[10px] uppercase tracking-wider text-gray-400 font-medium cursor-pointer hover:text-gray-600">
+                    Raw metrics (includes bots) — {emailMetrics.summary.opened} opens / {emailMetrics.summary.clicked} clicks / {emailMetrics.summary.not_delivered} bounced
+                  </summary>
+                  <div className="grid grid-cols-4 gap-2 mt-2">
+                    <div className="bg-gray-50 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-400">Raw Opens</div>
+                      <div className="text-sm font-bold text-gray-500">{emailMetrics.summary.opened}</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-400">Raw Clicks</div>
+                      <div className="text-sm font-bold text-gray-500">{emailMetrics.summary.clicked}</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-400">Total Opens</div>
+                      <div className="text-sm font-bold text-gray-500">{emailMetrics.summary.total_opens}</div>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-red-400">Bounced</div>
+                      <div className="text-sm font-bold text-red-500">{emailMetrics.summary.not_delivered}</div>
+                    </div>
+                  </div>
+                </details>
 
                 <button onClick={() => setShowEmailDetails(!showEmailDetails)} className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 mb-2">
                   {showEmailDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -2286,9 +2317,11 @@ export default function MasterSubDatabase() {
                             <td className="p-2 text-center">
                               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                 email.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                                email.status === 'bot_open' ? 'bg-gray-100 text-gray-500' :
+                                email.status === 'human_open' ? 'bg-blue-100 text-blue-700' :
                                 email.status === 'not_delivered' ? 'bg-red-100 text-red-700' :
                                 'bg-yellow-100 text-yellow-700'
-                              }`}>{email.status === 'not_delivered' ? 'bounced' : email.status}</span>
+                              }`}>{email.status === 'not_delivered' ? 'bounced' : email.status === 'bot_open' ? 'bot' : email.status === 'human_open' ? 'human' : email.status}</span>
                             </td>
                             <td className="p-2 text-center">
                               <span className={email.opens > 0 ? 'text-blue-700 font-bold' : 'text-gray-300'}>{email.opens}</span>
