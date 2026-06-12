@@ -444,7 +444,7 @@ export default async (req: Request, _context: Context) => {
       .not("contact_email", "is", null)
       .not("trade_categories", "eq", "{}")
       .eq("archived", false)
-      .gte("data_health_score", 20)
+      .gte("data_health_score", 70)
       .order("data_health_score", { ascending: false })
       .limit(fetchSize)
 
@@ -626,6 +626,8 @@ export default async (req: Request, _context: Context) => {
       .select("id, company_name, contact_email, state, trade_categories, outreach_sent_at, small_business_types, contact_phone, naics_codes, website, description, data_source, unsubscribed", { count: "exact" })
       .is("claimed_at", null)
       .not("contact_email", "is", null)
+      .eq("archived", false)
+      .gte("data_health_score", 70)
       .order("created_at", { ascending: true })
       .limit(fetchSize)
 

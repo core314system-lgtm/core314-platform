@@ -108,7 +108,7 @@ export default function MasterSubDatabase() {
   const [fileResult, setFileResult] = useState<any>(null)
   const [fileProgress, setFileProgress] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [stats, setStats] = useState({ total: 0, verified: 0, claimed: 0, withEmail: 0 })
+  const [stats, setStats] = useState({ total: 0, verified: 0, claimed: 0, withEmail: 0, outreachEligible: 0 })
   const [showOutreach, setShowOutreach] = useState(false)
   const [outreachState, setOutreachState] = useState('')
   const [outreachTrade, setOutreachTrade] = useState('')
@@ -182,11 +182,13 @@ export default function MasterSubDatabase() {
     const { count: verified } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified').eq('archived', false)
     const { count: claimed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed').eq('archived', false)
     const { count: withEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null).neq('contact_email', '').eq('archived', false)
+    const { count: outreachEligible } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null).eq('archived', false).gte('data_health_score', 70)
     setStats({
       total: total || 0,
       verified: verified || 0,
       claimed: claimed || 0,
       withEmail: withEmail || 0,
+      outreachEligible: outreachEligible || 0,
     })
   }, [])
 
@@ -777,7 +779,7 @@ export default function MasterSubDatabase() {
       // Parse results
       const invalidEmails: string[] = []
       const riskyEmails: string[] = []
-      let validCount = 0
+      const validEmails: string[] = []
 
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim())
@@ -791,7 +793,7 @@ export default function MasterSubDatabase() {
 
         if (isInvalid) invalidEmails.push(email)
         else if (isRisky) riskyEmails.push(email)
-        else validCount++
+        else validEmails.push(email)
       }
 
       // Batch update invalid emails — archive them
@@ -803,21 +805,30 @@ export default function MasterSubDatabase() {
           .in('contact_email', batch)
       }
 
-      // Mark risky emails with a lower health score
+      // Archive risky emails
       for (let i = 0; i < riskyEmails.length; i += 100) {
         const batch = riskyEmails.slice(i, i + 100)
         await supabase
           .from('master_subcontractors')
-          .update({ data_health_score: 30 })
+          .update({ archived: true, archive_reason: 'email_verification_risky' })
           .in('contact_email', batch)
-          .gt('data_health_score', 30)
+      }
+
+      // Mark verified-valid emails with boosted health score (70) = outreach eligible
+      for (let i = 0; i < validEmails.length; i += 100) {
+        const batch = validEmails.slice(i, i + 100)
+        await supabase
+          .from('master_subcontractors')
+          .update({ data_health_score: 70 })
+          .in('contact_email', batch)
+          .eq('archived', false)
       }
 
       setVerificationResult({
         total: lines.length - 1,
         invalid: invalidEmails.length,
         risky: riskyEmails.length,
-        valid: validCount,
+        valid: validEmails.length,
       })
 
       // Refresh stats
@@ -1060,8 +1071,8 @@ export default function MasterSubDatabase() {
             <button onClick={() => setShowOutreach(false)} className="text-green-400 hover:text-green-600"><X size={18} /></button>
           </div>
           <p className="text-sm text-green-700">
-            Send claim invitation emails to unclaimed subcontractors with email addresses.
-            Each email contains a unique claim link valid for 90 days.
+            Send claim invitation emails to unclaimed subcontractors with verified email addresses.
+            Only emails marked as "safe to send" by verification are eligible. Each email contains a unique claim link valid for 90 days.
           </p>
           <div className="bg-white border border-green-200 rounded-lg p-3">
             <p className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1">
@@ -2104,7 +2115,7 @@ export default function MasterSubDatabase() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Total Companies</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
@@ -2113,6 +2124,11 @@ export default function MasterSubDatabase() {
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Mail size={14} /> With Email</div>
           <div className="text-2xl font-bold text-blue-600">{stats.withEmail.toLocaleString()}</div>
           <div className="text-xs text-gray-400">{stats.total > 0 ? Math.round(stats.withEmail / stats.total * 100) : 0}% reachable</div>
+        </div>
+        <div className="bg-white rounded-xl border border-green-300 bg-green-50 p-4">
+          <div className="flex items-center gap-2 text-green-700 text-xs mb-1"><BadgeCheck size={14} /> Outreach Eligible</div>
+          <div className="text-2xl font-bold text-green-700">{stats.outreachEligible.toLocaleString()}</div>
+          <div className="text-xs text-green-600">Verified safe to send</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Users size={14} /> Claimed</div>
