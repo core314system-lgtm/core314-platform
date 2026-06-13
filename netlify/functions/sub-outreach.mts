@@ -55,8 +55,10 @@ async function sendViaMailgun(params: {
     form.append("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
   }
   form.append("o:tag", "sub_outreach")
-  form.append("o:tracking-opens", "yes")
-  form.append("o:tracking-clicks", "yes")
+  // Disable Mailgun's built-in tracking — we use our own pixel (ses-webhook)
+  // Double tracking increases spam score and confuses metrics
+  form.append("o:tracking-opens", "no")
+  form.append("o:tracking-clicks", "no")
 
   const resp = await fetch(`${baseUrl}/v3/${domain}/messages`, {
     method: "POST",
