@@ -23,7 +23,7 @@ export default async (req: Request, _context: Context) => {
 
     const { data: sub } = await supabase
       .from("master_subcontractors")
-      .select("id, soft_bounce_count, data_health_score")
+      .select("id, soft_bounce_count, data_health_score, engagement_open_count, engagement_click_count")
       .eq("contact_email", recipient)
       .single()
 
@@ -85,6 +85,32 @@ export default async (req: Request, _context: Context) => {
           suppressed_at: now,
         }).onConflict("email").merge()
         await logHygieneAction(sub.id, recipient, "unsubscribe_delete", "Mailgun unsubscribe")
+        break
+      }
+
+      case "opened": {
+        const newScore = Math.min(100, (sub.data_health_score || 50) + 10)
+        await supabase
+          .from("master_subcontractors")
+          .update({
+            data_health_score: newScore,
+            last_engagement_at: now,
+            engagement_open_count: ((sub as any).engagement_open_count || 0) + 1,
+          })
+          .eq("id", sub.id)
+        break
+      }
+
+      case "clicked": {
+        const newScore = Math.min(100, (sub.data_health_score || 50) + 20)
+        await supabase
+          .from("master_subcontractors")
+          .update({
+            data_health_score: newScore,
+            last_engagement_at: now,
+            engagement_click_count: ((sub as any).engagement_click_count || 0) + 1,
+          })
+          .eq("id", sub.id)
         break
       }
     }
