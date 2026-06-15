@@ -4,15 +4,47 @@ import { createClient } from "@supabase/supabase-js"
 /**
  * Outreach cron — runs every 10 min during the 6–8 AM Eastern window (10:00–12:00 UTC).
  * Each invocation sends as many emails as it can within a safe 8-minute budget.
- * Exits immediately once the daily 5,000 target is met.
+ * Exits immediately once the daily target is met.
  *
- * This avoids the previous single-run design that exceeded Netlify's function timeout.
+ * Uses a warmup schedule to build domain reputation:
+ *   Day 1-4:  500/day   (already sent ~24K on procuvex.com, restarting warmup on subdomain)
+ *   Day 5-8:  1000/day
+ *   Day 9-12: 2000/day
+ *   Day 13-16: 3000/day
+ *   Day 17+:  5000/day
+ *
+ * WARMUP_START_DATE env var controls when the warmup began (ISO date string).
+ * If not set, defaults to 5000/day (no warmup).
  */
 
-const DAILY_TARGET = 5000
+const MAX_DAILY_TARGET = 5000
 const CONCURRENT_CALLS = 5
 const BATCH_PER_CALL = 50
 const MAX_RUNTIME_MS = 8 * 60 * 1000 // 8 min — safe margin under Netlify's 10/15 min limit
+
+const WARMUP_SCHEDULE = [
+  { days: 4,  limit: 500 },
+  { days: 8,  limit: 1000 },
+  { days: 12, limit: 2000 },
+  { days: 16, limit: 3000 },
+]
+
+function getDailyTarget(): number {
+  const startDate = process.env.WARMUP_START_DATE
+  if (!startDate) return MAX_DAILY_TARGET
+
+  const start = new Date(startDate)
+  if (isNaN(start.getTime())) return MAX_DAILY_TARGET
+
+  const now = new Date()
+  const daysSinceStart = Math.floor((now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))
+
+  for (const tier of WARMUP_SCHEDULE) {
+    if (daysSinceStart < tier.days) return tier.limit
+  }
+
+  return MAX_DAILY_TARGET
+}
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
@@ -46,7 +78,8 @@ async function callSubOutreach(adminId: string): Promise<{ sent: number; remaini
 
 export default async (_req: Request, _context: Context) => {
   const startTime = Date.now()
-  console.log(`[outreach-cron] Starting outreach run`)
+  const dailyTarget = getDailyTarget()
+  console.log(`[outreach-cron] Starting outreach run (daily target: ${dailyTarget})`)
 
   const { data: admin } = await supabase
     .from("user_profiles")
@@ -68,17 +101,17 @@ export default async (_req: Request, _context: Context) => {
     .gte("outreach_sent_at", todayStart.toISOString())
 
   const alreadySent = sentToday || 0
-  if (alreadySent >= DAILY_TARGET) {
-    console.log(`[outreach-cron] Daily target already met (${alreadySent}/${DAILY_TARGET})`)
-    return new Response(JSON.stringify({ message: "Daily target already met", sent_today: alreadySent }))
+  if (alreadySent >= dailyTarget) {
+    console.log(`[outreach-cron] Daily target already met (${alreadySent}/${dailyTarget})`)
+    return new Response(JSON.stringify({ message: "Daily target already met", sent_today: alreadySent, daily_target: dailyTarget }))
   }
 
-  console.log(`[outreach-cron] Sent today: ${alreadySent}. Target: ${DAILY_TARGET}`)
+  console.log(`[outreach-cron] Sent today: ${alreadySent}. Target: ${dailyTarget}`)
 
   let totalSent = 0
   let consecutiveZeros = 0
 
-  while (totalSent + alreadySent < DAILY_TARGET) {
+  while (totalSent + alreadySent < dailyTarget) {
     if (Date.now() - startTime > MAX_RUNTIME_MS) {
       console.log(`[outreach-cron] Time budget reached. Sent ${totalSent} this run. Next invocation will continue.`)
       break
@@ -100,7 +133,7 @@ export default async (_req: Request, _context: Context) => {
       consecutiveZeros = 0
     }
 
-    console.log(`[outreach-cron] Batch: +${batchSent} (total: ${totalSent + alreadySent}/${DAILY_TARGET})`)
+    console.log(`[outreach-cron] Batch: +${batchSent} (total: ${totalSent + alreadySent}/${dailyTarget})`)
 
     await new Promise(r => setTimeout(r, 1000))
   }
@@ -111,7 +144,7 @@ export default async (_req: Request, _context: Context) => {
   return new Response(JSON.stringify({
     sent: totalSent,
     total_today: alreadySent + totalSent,
-    daily_target: DAILY_TARGET,
+    daily_target: dailyTarget,
     duration_seconds: duration,
   }))
 }
