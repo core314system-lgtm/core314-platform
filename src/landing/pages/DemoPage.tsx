@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Play, ArrowRight, Clock, FileText, Users, Brain, Shield, BarChart3, Kanban, Bot } from 'lucide-react'
@@ -5,6 +6,12 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 
 const fadeUp = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }
+
+function parseTime(t: string): number {
+  const parts = t.split(':').map(Number)
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  return parts[0] * 3600 + parts[1] * 60 + parts[2]
+}
 
 const chapters = [
   { time: '0:00', title: 'Introduction & Dashboard', icon: Play },
@@ -33,6 +40,16 @@ const chapters = [
 ]
 
 export default function DemoPage() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  function jumpTo(time: string) {
+    const video = videoRef.current
+    if (!video) return
+    video.currentTime = parseTime(time)
+    video.play()
+    video.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <Header />
@@ -83,12 +100,13 @@ export default function DemoPage() {
             className="rounded-xl overflow-hidden shadow-2xl shadow-blue-900/20 border border-slate-800"
           >
             <video
+              ref={videoRef}
               controls
               preload="metadata"
               className="w-full aspect-video bg-slate-900"
             >
               <source
-                src="https://app.devin.ai/attachments/439b9654-7fc5-4fd0-a410-e9a53993ee72/Procuvex_Enterprise_Demo_v4_final.mp4"
+                src="/procuvex-demo.mp4"
                 type="video/mp4"
               />
               Your browser does not support the video tag.
@@ -105,14 +123,15 @@ export default function DemoPage() {
             {chapters.map((ch) => {
               const Icon = ch.icon
               return (
-                <div
+                <button
                   key={ch.time}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-800 hover:border-blue-500/30 transition-colors"
+                  onClick={() => jumpTo(ch.time)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-800 hover:border-blue-500/30 hover:bg-slate-800/50 transition-colors cursor-pointer text-left"
                 >
                   <Icon className="h-4 w-4 text-blue-400 flex-shrink-0" />
                   <span className="text-sm font-mono text-slate-500 flex-shrink-0">{ch.time}</span>
                   <span className="text-sm text-slate-300">{ch.title}</span>
-                </div>
+                </button>
               )
             })}
           </div>
