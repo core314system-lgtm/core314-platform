@@ -4,6 +4,7 @@ import { Menu, X, ChevronDown, BookOpen, GitCompareArrows } from 'lucide-react'
 
 const navLinks = [
   { to: '/product', label: 'Product' },
+  { to: '/demo', label: 'Demo' },
   { to: '/how-it-works', label: 'How It Works' },
   { to: '/explore-network', label: 'Sub Network' },
   { to: '/solutions', label: 'Solutions' },
