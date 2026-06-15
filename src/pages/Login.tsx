@@ -518,9 +518,9 @@ export default function Login() {
             </div>
             {isSignUp ? (
               <>
-                <h1 className="text-2xl font-bold text-gray-900">{betaInviteInfo ? 'Activate Your Founding Partner Access' : 'Start Your Free Trial'}</h1>
-                <p className="text-gray-500 mt-1">{betaInviteInfo ? 'Create your account to begin the 30-day program' : '7 days free — cancel anytime before trial ends'}</p>
-                {selectedPlan && (
+                <h1 className="text-2xl font-bold text-gray-900">{betaInviteInfo ? 'Activate Your Founding Partner Access' : signupBlocked ? 'Request Beta Access' : 'Start Your Free Trial'}</h1>
+                <p className="text-gray-500 mt-1">{betaInviteInfo ? 'Create your account to begin the 30-day program' : signupBlocked ? 'Submit your request to join the Procuvex beta program' : '7 days free — cancel anytime before trial ends'}</p>
+                {selectedPlan && !signupBlocked && (
                   <p className="text-blue-600 text-xs font-medium mt-2">
                     {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} Plan — {selectedBilling === 'annual' ? 'Annual' : 'Monthly'} billing
                   </p>
