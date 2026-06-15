@@ -78,6 +78,7 @@ import CookiesPage from './landing/pages/CookiesPage'
 import DPAPage from './landing/pages/DPAPage'
 import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
 import ROIPage from './landing/pages/ROIPage'
+import DemoPage from './landing/pages/DemoPage'
 import AiDataProcessingPage from './landing/pages/AiDataProcessingPage'
 import AboutPage from './landing/pages/AboutPage'
 import SLAPage from './landing/pages/SLAPage'
@@ -173,6 +174,7 @@ export default function App() {
           <Route path="/integrations-overview" element={<IntegrationsOverviewPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/roi" element={<ROIPage />} />
+          <Route path="/demo" element={<DemoPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
