@@ -90,6 +90,7 @@ import SamGovGuidePage from './landing/pages/SamGovGuidePage'
 import ComparePage from './landing/pages/ComparePage'
 import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
 import ExploreNetworkPage from './landing/pages/ExploreNetworkPage'
+import BetaLandingPage from './landing/pages/BetaLandingPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -202,6 +203,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Beta Program (public, no auth) */}
+          <Route path="/beta" element={<BetaLandingPage />} />
           <Route path="/beta/apply/:token" element={<BetaApply />} />
           <Route path="/beta/thank-you" element={<BetaThankYou />} />
 

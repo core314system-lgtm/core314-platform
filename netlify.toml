@@ -26,6 +26,11 @@
 
 # Beta application routes (public, no auth)
 [[redirects]]
+  from = "/beta"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
   from = "/beta/*"
   to = "/index.html"
   status = 200
