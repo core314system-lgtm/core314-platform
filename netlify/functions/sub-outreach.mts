@@ -444,7 +444,6 @@ export default async (req: Request, _context: Context) => {
       .select("id, company_name, contact_email, slug, trade_categories, state, outreach_email_count, small_business_types, contact_phone, naics_codes, website, description, data_source, unsubscribed, data_health_score, archived")
       .is("claimed_at", null)
       .not("contact_email", "is", null)
-      .not("trade_categories", "eq", "{}")
       .eq("archived", false)
       .gte("data_health_score", 70)
       .order("data_health_score", { ascending: false })
