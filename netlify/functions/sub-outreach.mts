@@ -10,6 +10,7 @@ const supabase = createClient(
 
 // Determine email provider priority: Mailgun > SES > SendGrid
 const USE_MAILGUN = !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN)
+const OUTREACH_DOMAIN = process.env.MAILGUN_OUTREACH_DOMAIN || process.env.MAILGUN_DOMAIN || "procuvex.com"
 const USE_SES = !USE_MAILGUN && !!(process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY)
 const EMAIL_PROVIDER = USE_MAILGUN ? "Mailgun" : USE_SES ? "Amazon SES" : "SendGrid"
 let sesClient: SESClient | null = null
@@ -39,7 +40,7 @@ async function sendViaMailgun(params: {
   text: string
   headers?: Record<string, string>
 }) {
-  const domain = process.env.MAILGUN_DOMAIN!
+  const domain = OUTREACH_DOMAIN
   const apiKey = process.env.MAILGUN_API_KEY!
   const baseUrl = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
 
@@ -523,7 +524,7 @@ export default async (req: Request, _context: Context) => {
 
         await sendEmail({
           to: sub.contact_email!,
-          from: { email: "team@procuvex.com", name: "Procuvex" },
+          from: { email: `team@${OUTREACH_DOMAIN}`, name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `${sub.company_name} — A Prime is Searching for ${(sub.trade_categories || []).slice(0, 1).join("") || "Contractors"} in ${sub.state || "Your Area"}`,
           html,
