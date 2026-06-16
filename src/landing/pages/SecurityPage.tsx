@@ -58,7 +58,7 @@ const compliance = [
   { label: 'GDPR', desc: 'Data processing aligned with EU General Data Protection Regulation requirements', status: 'Compliant' },
   { label: 'CCPA', desc: 'Consumer privacy rights supported per California Consumer Privacy Act', status: 'Compliant' },
   { label: 'ITAR / CUI', desc: 'Architecture supports workflows involving controlled unclassified information', status: 'Capable' },
-  { label: 'FedRAMP', desc: 'Cloud infrastructure follows FedRAMP authorization guidelines', status: 'Ready' },
+  { label: 'FedRAMP Authorization', desc: 'Not currently pursued. The platform can support future deployment within a FedRAMP-authorized environment if customer demand requires it.', status: 'Not Pursued' },
   { label: 'HIPAA', desc: 'Platform can be configured for HIPAA-compliant use cases with BAA', status: 'On Request' },
 ]
 

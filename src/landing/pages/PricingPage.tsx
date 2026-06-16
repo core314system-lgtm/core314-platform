@@ -207,7 +207,7 @@ export default function PricingPage() {
               { icon: Shield, label: 'SOC 2 Architecture' },
               { icon: Lock, label: 'AES-256 Encryption' },
               { icon: Globe, label: 'ITAR / CUI Capable' },
-              { icon: Award, label: 'FedRAMP-Ready' },
+              { icon: Award, label: 'FedRAMP: Not Currently Pursued' },
             ].map((badge, i) => (
               <div key={i} className="flex items-center gap-2 justify-center py-3 px-4 bg-slate-50 rounded-xl border border-slate-200">
                 <badge.icon className="h-4 w-4 text-blue-600 flex-shrink-0" />

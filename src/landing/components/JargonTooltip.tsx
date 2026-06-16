@@ -10,7 +10,7 @@ const GLOSSARY: Record<string, string> = {
   'SAM.gov': 'System for Award Management — the federal database where contractors register and opportunities are posted.',
   CUI: 'Controlled Unclassified Information — sensitive but unclassified government data that requires safeguarding.',
   ITAR: 'International Traffic in Arms Regulations — controls the export and import of defense-related articles and services.',
-  'FedRAMP': 'Federal Risk and Authorization Management Program — a government-wide program that provides a standardized approach to security assessment for cloud products.',
+  'FedRAMP': 'Federal Risk and Authorization Management Program — a government-wide program that provides a standardized approach to security assessment for cloud products. Procuvex does not currently pursue FedRAMP authorization but can support future deployment within a FedRAMP-authorized environment if customer demand requires it.',
   'SOC 2': 'Service Organization Control 2 — a framework for managing customer data based on trust service criteria.',
 }
 

@@ -107,7 +107,7 @@ const trustBadges = [
   { icon: Shield, title: 'SOC 2 Type II Architecture', desc: 'Built on Supabase enterprise infrastructure with SOC 2 compliance' },
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit with TLS 1.3' },
   { icon: Globe, title: 'ITAR / CUI Capable', desc: 'Architecture supports controlled unclassified information workflows' },
-  { icon: Award, title: 'FedRAMP-Ready Infrastructure', desc: 'Hosted on cloud infrastructure with FedRAMP authorization path' },
+  { icon: Award, title: 'FedRAMP Authorization', desc: 'Not currently pursued — platform can support future FedRAMP-authorized deployment if customer demand requires it' },
 ]
 
 const testimonials = [
