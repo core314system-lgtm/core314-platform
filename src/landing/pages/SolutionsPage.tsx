@@ -213,7 +213,7 @@ export default function SolutionsPage() {
               { term: 'RFQ', def: 'Request for Quote — a solicitation asking vendors to submit pricing for specific goods or services.' },
               { term: 'SAM.gov', def: 'System for Award Management — the federal database for contractor registration and opportunity posting.' },
               { term: 'CUI', def: 'Controlled Unclassified Information — sensitive but unclassified government data requiring safeguarding.' },
-              { term: 'FedRAMP', def: 'Federal Risk and Authorization Management Program — standardized security assessment for cloud products.' },
+              { term: 'FedRAMP', def: 'Federal Risk and Authorization Management Program — standardized security assessment for cloud products. Procuvex does not currently pursue FedRAMP authorization but can support deployment within a FedRAMP-authorized environment if customer demand requires it.' },
             ].map((item, i) => (
               <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                 <p className="font-semibold text-blue-600 text-sm mb-1">{item.term}</p>
