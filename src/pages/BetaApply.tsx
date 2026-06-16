@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Shield, Clock, Users, Star, MessageSquare, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
+import { Shield, Clock, Users, Star, MessageSquare, CheckCircle, Loader2, AlertCircle, ExternalLink, Play } from 'lucide-react'
 
 interface InviteInfo {
   email: string
@@ -124,6 +124,30 @@ export default function BetaApply() {
               style={{ width: `${((inviteInfo.seats.total - inviteInfo.seats.remaining) / inviteInfo.seats.total) * 100}%` }}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Learn More */}
+      <div className="max-w-2xl mx-auto px-4 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <a
+            href="https://procuvex.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 border border-white/20 rounded-lg text-white text-sm font-medium transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Visit Procuvex.com
+          </a>
+          <a
+            href="https://procuvex.com/demo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 rounded-lg text-blue-300 text-sm font-medium transition-colors"
+          >
+            <Play className="w-4 h-4" />
+            Watch Platform Demo
+          </a>
         </div>
       </div>
 
