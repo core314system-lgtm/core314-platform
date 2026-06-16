@@ -401,38 +401,48 @@ export default async (req: Request, _context: Context) => {
       .select("id", { count: "exact", head: true })
       .gte("outreach_sent_at", todayStart.toISOString())
 
-    // Daily sending limit — auto-ramp based on sending history
-    // Env var overrides auto-ramp if set
-    const envLimit = process.env.OUTREACH_DAILY_LIMIT ? Number(process.env.OUTREACH_DAILY_LIMIT) : null
-    let autoLimit = 200 // default
-    if (!envLimit) {
-      // Auto-ramp: check first-ever outreach date to determine maturity
-      const { data: firstSent } = await supabase
-        .from("master_subcontractors")
-        .select("outreach_sent_at")
-        .not("outreach_sent_at", "is", null)
-        .order("outreach_sent_at", { ascending: true })
-        .limit(1)
-      if (firstSent && firstSent.length > 0) {
-        const daysSinceFirst = Math.floor((Date.now() - new Date(firstSent[0].outreach_sent_at).getTime()) / (1000 * 60 * 60 * 24))
-        if (daysSinceFirst < 3) autoLimit = 100
-        else if (daysSinceFirst < 7) autoLimit = 500
-        else if (daysSinceFirst < 14) autoLimit = 2000
-        else if (daysSinceFirst < 30) autoLimit = 5000
-        else autoLimit = 10000
+    // Daily sending limit — respects warmup schedule for domain reputation
+    // Priority: warmup_daily_limit (from cron) > WARMUP_START_DATE calculation > OUTREACH_DAILY_LIMIT > auto-ramp
+    let dailyLimit: number
+
+    // If cron passes the warmup limit explicitly, use it (most authoritative)
+    if (body.warmup_daily_limit && Number(body.warmup_daily_limit) > 0) {
+      dailyLimit = Number(body.warmup_daily_limit)
+    } else {
+      // Compute warmup limit from WARMUP_START_DATE (same logic as outreach-cron)
+      const warmupStart = process.env.WARMUP_START_DATE
+      if (warmupStart) {
+        const start = new Date(warmupStart)
+        if (!isNaN(start.getTime())) {
+          const daysSinceStart = Math.floor((Date.now() - start.getTime()) / (24 * 60 * 60 * 1000))
+          const WARMUP_TIERS = [
+            { days: 4, limit: 500 },
+            { days: 8, limit: 1000 },
+            { days: 12, limit: 2000 },
+            { days: 16, limit: 3000 },
+          ]
+          let warmupLimit = 5000
+          for (const tier of WARMUP_TIERS) {
+            if (daysSinceStart < tier.days) { warmupLimit = tier.limit; break }
+          }
+          dailyLimit = warmupLimit
+        } else {
+          dailyLimit = process.env.OUTREACH_DAILY_LIMIT ? Number(process.env.OUTREACH_DAILY_LIMIT) : 500
+        }
       } else {
-        autoLimit = 100 // first-ever send day
+        dailyLimit = process.env.OUTREACH_DAILY_LIMIT ? Number(process.env.OUTREACH_DAILY_LIMIT) : 500
       }
     }
-    const dailyLimit = envLimit || autoLimit
+
     const remainingToday = Math.max(0, dailyLimit - (sentToday || 0))
 
     if (remainingToday === 0) {
       return new Response(JSON.stringify({
         sent: 0,
-        message: `Daily limit reached (${dailyLimit}/day). ${sentToday} emails sent today. Try again tomorrow or increase OUTREACH_DAILY_LIMIT.`,
+        message: `Daily warmup limit reached (${dailyLimit}/day). ${sentToday} emails sent today.`,
         daily_limit: dailyLimit,
         sent_today: sentToday,
+        remaining_today: 0,
       }), { headers })
     }
 

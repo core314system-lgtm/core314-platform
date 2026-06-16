@@ -3,11 +3,11 @@ import { createClient } from "@supabase/supabase-js"
 
 /**
  * Outreach cron — runs every 10 min during the 6–8 AM Eastern window (10:00–12:00 UTC).
- * Each invocation sends as many emails as it can within a safe 8-minute budget.
+ * Each invocation sends emails SEQUENTIALLY (one batch at a time) to prevent race conditions.
  * Exits immediately once the daily target is met.
  *
  * Uses a warmup schedule to build domain reputation:
- *   Day 1-4:  500/day   (already sent ~24K on procuvex.com, restarting warmup on subdomain)
+ *   Day 1-4:  500/day   (restarting warmup on outreach.procuvex.com subdomain)
  *   Day 5-8:  1000/day
  *   Day 9-12: 2000/day
  *   Day 13-16: 3000/day
@@ -18,8 +18,8 @@ import { createClient } from "@supabase/supabase-js"
  */
 
 const MAX_DAILY_TARGET = 5000
-const CONCURRENT_CALLS = 5
-const BATCH_PER_CALL = 50
+const CONCURRENT_CALLS = 1 // Sequential to prevent race conditions and duplicate sends
+const BATCH_PER_CALL = 10 // Small batch so each call completes well within timeout
 const MAX_RUNTIME_MS = 8 * 60 * 1000 // 8 min — safe margin under Netlify's 10/15 min limit
 
 const WARMUP_SCHEDULE = [
@@ -51,7 +51,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
 )
 
-async function callSubOutreach(adminId: string): Promise<{ sent: number; remaining: number }> {
+async function callSubOutreach(adminId: string, dailyTarget: number): Promise<{ sent: number; remaining: number }> {
   try {
     const resp = await fetch("https://procuvex.com/.netlify/functions/sub-outreach", {
       method: "POST",
@@ -60,8 +60,8 @@ async function callSubOutreach(adminId: string): Promise<{ sent: number; remaini
         "x-user-id": adminId,
         "x-cron-secret": process.env.CRON_SECRET || "",
       },
-      body: JSON.stringify({ action: "send-outreach", limit: BATCH_PER_CALL }),
-      signal: AbortSignal.timeout(25000),
+      body: JSON.stringify({ action: "send-outreach", limit: BATCH_PER_CALL, warmup_daily_limit: dailyTarget }),
+      signal: AbortSignal.timeout(60000), // 60s — enough for 10 emails at ~3s each
     })
     if (!resp.ok) {
       const text = await resp.text()
@@ -117,7 +117,7 @@ export default async (_req: Request, _context: Context) => {
       break
     }
 
-    const promises = Array.from({ length: CONCURRENT_CALLS }, () => callSubOutreach(admin.id))
+    const promises = Array.from({ length: CONCURRENT_CALLS }, () => callSubOutreach(admin.id, dailyTarget))
     const results = await Promise.all(promises)
 
     const batchSent = results.reduce((sum, r) => sum + r.sent, 0)

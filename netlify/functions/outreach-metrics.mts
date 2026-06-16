@@ -7,6 +7,54 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
 )
 
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || ""
+const MAILGUN_OUTREACH_DOMAIN = process.env.MAILGUN_OUTREACH_DOMAIN || process.env.MAILGUN_DOMAIN || "procuvex.com"
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "procuvex.com"
+
+async function fetchMailgunStats(domain: string): Promise<{ accepted: number; delivered: number; failed_perm: number; failed_temp: number; opened: number; clicked: number; complained: number }> {
+  const empty = { accepted: 0, delivered: 0, failed_perm: 0, failed_temp: 0, opened: 0, clicked: 0, complained: 0 }
+  if (!MAILGUN_API_KEY) return empty
+  try {
+    const resp = await fetch(
+      `https://api.mailgun.net/v3/${domain}/stats/total?event=accepted&event=delivered&event=failed&event=opened&event=clicked&event=complained&duration=30d`,
+      { headers: { Authorization: "Basic " + btoa(`api:${MAILGUN_API_KEY}`) } }
+    )
+    if (!resp.ok) return empty
+    const data = await resp.json() as any
+    let accepted = 0, delivered = 0, failed_perm = 0, failed_temp = 0, opened = 0, clicked = 0, complained = 0
+    for (const stat of data.stats || []) {
+      accepted += stat.accepted?.total || 0
+      delivered += stat.delivered?.total || 0
+      failed_perm += stat.failed?.permanent?.total || 0
+      failed_temp += stat.failed?.temporary?.total || 0
+      opened += stat.opened?.total || 0
+      clicked += stat.clicked?.total || 0
+      complained += stat.complained?.total || 0
+    }
+    return { accepted, delivered, failed_perm, failed_temp, opened, clicked, complained }
+  } catch {
+    return empty
+  }
+}
+
+function getWarmupInfo(): { daily_limit: number; day_number: number; schedule_active: boolean } {
+  const startDate = process.env.WARMUP_START_DATE
+  if (!startDate) return { daily_limit: 5000, day_number: -1, schedule_active: false }
+  const start = new Date(startDate)
+  if (isNaN(start.getTime())) return { daily_limit: 5000, day_number: -1, schedule_active: false }
+  const daysSinceStart = Math.floor((Date.now() - start.getTime()) / (24 * 60 * 60 * 1000))
+  const WARMUP_TIERS = [
+    { days: 4, limit: 500 },
+    { days: 8, limit: 1000 },
+    { days: 12, limit: 2000 },
+    { days: 16, limit: 3000 },
+  ]
+  for (const tier of WARMUP_TIERS) {
+    if (daysSinceStart < tier.days) return { daily_limit: tier.limit, day_number: daysSinceStart + 1, schedule_active: true }
+  }
+  return { daily_limit: 5000, day_number: daysSinceStart + 1, schedule_active: false }
+}
+
 const headers = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, x-user-id",
@@ -91,7 +139,38 @@ export default async (req: Request, _context: Context) => {
 
     const total = totalSent || 0
     const bouncedCount = (bounced || 0) + (softBounced || 0)
-    const delivered = total - bouncedCount
+
+    // Fetch real delivery stats from Mailgun (both domains)
+    const [mgOutreach, mgMain] = await Promise.all([
+      fetchMailgunStats(MAILGUN_OUTREACH_DOMAIN),
+      MAILGUN_OUTREACH_DOMAIN !== MAILGUN_DOMAIN ? fetchMailgunStats(MAILGUN_DOMAIN) : Promise.resolve({ accepted: 0, delivered: 0, failed_perm: 0, failed_temp: 0, opened: 0, clicked: 0, complained: 0 }),
+    ])
+
+    const mgTotal = {
+      accepted: mgOutreach.accepted + mgMain.accepted,
+      delivered: mgOutreach.delivered + mgMain.delivered,
+      failed_perm: mgOutreach.failed_perm + mgMain.failed_perm,
+      failed_temp: mgOutreach.failed_temp + mgMain.failed_temp,
+      opened: mgOutreach.opened + mgMain.opened,
+      clicked: mgOutreach.clicked + mgMain.clicked,
+      complained: mgOutreach.complained + mgMain.complained,
+    }
+
+    // Use Mailgun data for delivery metrics when available, fall back to DB
+    const actualDelivered = mgTotal.delivered > 0 ? mgTotal.delivered : (total - bouncedCount)
+    const actualBounced = mgTotal.failed_perm > 0 ? mgTotal.failed_perm : bouncedCount
+    const actualAccepted = mgTotal.accepted > 0 ? mgTotal.accepted : total
+
+    // Get warmup schedule info
+    const warmup = getWarmupInfo()
+
+    // Today's sent count
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const { count: sentToday } = await supabase
+      .from("master_subcontractors")
+      .select("id", { count: "exact", head: true })
+      .gte("outreach_sent_at", todayStart.toISOString())
 
     // Per-email details
     const { data: recentSent } = await supabase
@@ -119,10 +198,10 @@ export default async (req: Request, _context: Context) => {
 
     return new Response(JSON.stringify({
       summary: {
-        total,
-        delivered,
-        not_delivered: bouncedCount,
-        processing: 0,
+        total: actualAccepted || total,
+        delivered: actualDelivered,
+        not_delivered: actualBounced,
+        processing: mgTotal.failed_temp,
         // Raw metrics (includes bots)
         opened: rawOpened,
         clicked: rawClicked,
@@ -134,10 +213,21 @@ export default async (req: Request, _context: Context) => {
         // Real engagement
         page_visits: pageVisits,
         confirmed: confirmed || 0,
-        // Rates (use human metrics for accuracy)
-        delivery_rate: total > 0 ? Math.round((delivered / total) * 100) : 0,
-        open_rate: delivered > 0 ? Math.round((humanOpened / delivered) * 100) : 0,
-        click_rate: delivered > 0 ? Math.round((humanClicked / delivered) * 100) : 0,
+        // Rates (use Mailgun data for accuracy)
+        delivery_rate: actualAccepted > 0 ? Math.round((actualDelivered / actualAccepted) * 100) : 0,
+        open_rate: actualDelivered > 0 ? Math.round((humanOpened / actualDelivered) * 100) : 0,
+        click_rate: actualDelivered > 0 ? Math.round((humanClicked / actualDelivered) * 100) : 0,
+        // Mailgun raw stats
+        mailgun_opens: mgTotal.opened,
+        mailgun_clicks: mgTotal.clicked,
+        complaints: mgTotal.complained,
+      },
+      warmup: {
+        active: warmup.schedule_active,
+        day: warmup.day_number,
+        daily_limit: warmup.daily_limit,
+        sent_today: sentToday || 0,
+        domain: MAILGUN_OUTREACH_DOMAIN,
       },
       emails,
     }), { headers })
