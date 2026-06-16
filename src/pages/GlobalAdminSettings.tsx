@@ -318,7 +318,7 @@ export default function GlobalAdminSettings() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-700">
-            All Users ({users.length}) · {globalAdminCount} global admin{globalAdminCount !== 1 ? 's' : ''}
+            Platform Users ({users.length}) · {globalAdminCount} global admin{globalAdminCount !== 1 ? 's' : ''}
           </h2>
         </div>
 

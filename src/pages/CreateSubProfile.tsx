@@ -104,8 +104,9 @@ export default function CreateSubProfile() {
       return
     }
 
-    // Auto-accept beta agreement so subcontractors skip that gate
+    // Mark as subcontractor account and auto-accept beta agreement
     await supabase.from('user_profiles').update({
+      account_type: 'subcontractor',
       beta_agreement_accepted_at: new Date().toISOString(),
       beta_agreement_version: '2026-05',
     }).eq('id', currentUser.id)

@@ -2,6 +2,8 @@ export type TaskOrderStatus = 'draft' | 'in_progress' | 'under_review' | 'submit
 
 export type UserRole = 'admin' | 'market_sector_lead' | 'program_manager' | 'procurement' | 'contracts' | 'talent_acquisition' | 'read_only'
 
+export type AccountType = 'platform' | 'subcontractor'
+
 export interface TaskOrder {
   id: string
   title: string
@@ -102,6 +104,7 @@ export interface UserProfile {
   email: string
   full_name: string | null
   role: UserRole
+  account_type: AccountType
   created_at: string
   current_org_id?: string | null
   last_sign_in_at?: string | null
