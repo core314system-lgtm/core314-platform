@@ -154,11 +154,11 @@ export default function FindSubcontractors() {
   async function fetchStats() {
     // Only count contactable subs (with email or phone)
     const { count } = await supabase
-      .from('master_subcontractors')
+      .from('master_subcontractors_safe')
       .select('*', { count: 'exact', head: true })
       .or('contact_email.not.is.null,contact_phone.not.is.null')
     const { count: verifiedCount } = await supabase
-      .from('master_subcontractors')
+      .from('master_subcontractors_safe')
       .select('*', { count: 'exact', head: true })
       .eq('verification_status', 'verified')
     setStats({
@@ -209,7 +209,7 @@ export default function FindSubcontractors() {
     const effectiveTrade = activeTrade || inferredTrade
 
     let query = supabase
-      .from('master_subcontractors')
+      .from('master_subcontractors_safe')
       .select('id, company_name, slug, city, state, trade_categories, small_business, small_business_types, verification_status, profile_completeness, website, naics_codes, geographic_coverage, contact_email, contact_phone, contact_name, description, capability_statement_path, address_line1, sam_uei, data_health_score', { count: 'exact' })
 
     // Only return contactable, non-archived subs (must have email or phone)

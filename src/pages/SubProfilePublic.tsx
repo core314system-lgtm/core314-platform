@@ -74,7 +74,7 @@ export default function SubProfilePublic() {
       if (!slug) { setNotFound(true); setLoading(false); return }
 
       const { data, error } = await supabase
-        .from('master_subcontractors')
+        .from('master_subcontractors_safe')
         .select('*')
         .eq('slug', slug)
         .single()
