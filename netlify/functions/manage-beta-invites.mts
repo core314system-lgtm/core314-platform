@@ -11,6 +11,10 @@ const supabase = createClient(
 
 const MAX_BETA_SEATS = 30
 
+function getSiteUrl(): string {
+  return process.env.URL || process.env.DEPLOY_URL || "https://procuvex.com"
+}
+
 function generateToken(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   let result = ""
@@ -73,6 +77,9 @@ function buildInviteEmailHtml(applyUrl: string): string {
         <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;">
           Procuvex &mdash; Built for government contractors, procurement teams, and subcontractor-driven operations.<br/>A product of Core314 Technologies LLC
         </p>
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 12px;">
+          If you no longer wish to receive these emails, you can <a href="${getSiteUrl()}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=%%EMAIL%%" style="color: #9ca3af; text-decoration: underline;">unsubscribe here</a>.
+        </p>
       </div>
     </div>
   `
@@ -117,6 +124,9 @@ function buildAcceptanceEmailHtml(signupUrl: string, seatsRemaining: number): st
         <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;">
           Procuvex &mdash; A product of Core314 Technologies LLC
         </p>
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 12px;">
+          If you no longer wish to receive these emails, you can <a href="${getSiteUrl()}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=%%EMAIL%%" style="color: #9ca3af; text-decoration: underline;">unsubscribe here</a>.
+        </p>
       </div>
     </div>
   `
@@ -139,6 +149,9 @@ function buildDeclineEmailHtml(): string {
         <p style="font-size: 14px; color: #374151; margin-top: 16px;">Warm regards,<br/><strong>The Procuvex Team</strong></p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 12px;">
+          If you no longer wish to receive these emails, you can <a href="${getSiteUrl()}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=%%EMAIL%%" style="color: #9ca3af; text-decoration: underline;">unsubscribe here</a>.
+        </p>
       </div>
     </div>
   `
@@ -158,6 +171,9 @@ function buildFollowUpEmailHtml(subject: string, message: string): string {
         </div>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
+        <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 12px;">
+          If you no longer wish to receive these emails, you can <a href="${getSiteUrl()}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=%%EMAIL%%" style="color: #9ca3af; text-decoration: underline;">unsubscribe here</a>.
+        </p>
       </div>
     </div>
   `
@@ -165,11 +181,12 @@ function buildFollowUpEmailHtml(subject: string, message: string): string {
 
 async function sendEmail(to: string, subject: string, html: string, emailType: string) {
   initSendGrid()
+  const finalHtml = html.replace(/%%EMAIL%%/g, encodeURIComponent(to))
   await sgMail.default.send({
     to,
     from: { email: "noreply@core314.com", name: "Procuvex" },
     subject,
-    html,
+    html: finalHtml,
     customArgs: { email_type: emailType },
   })
 }
@@ -194,6 +211,24 @@ export default async (req: Request, _context: Context) => {
     if (url.searchParams.get("action") === "seats") {
       const accepted = await getAcceptedCount()
       return new Response(JSON.stringify({ total: MAX_BETA_SEATS, remaining: Math.max(0, MAX_BETA_SEATS - accepted) }), { headers })
+    }
+
+    // Public endpoint: unsubscribe from beta emails
+    if (url.searchParams.get("action") === "unsubscribe") {
+      const email = url.searchParams.get("email")
+      if (email) {
+        await supabase
+          .from("beta_invitations")
+          .update({ status: "unsubscribed" })
+          .eq("email", email.toLowerCase())
+          .in("status", ["pending", "sent", "applied", "declined"])
+
+        return new Response(
+          `<html><head><title>Unsubscribed</title></head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:80px 20px;background:#f9fafb;"><div style="max-width:400px;margin:0 auto;background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><h2 style="color:#111827;margin:0 0 12px;">You've been unsubscribed</h2><p style="color:#6b7280;margin:0;">You won't receive any more emails about the Procuvex Founding Partner Program. If this was a mistake, contact us at <a href="mailto:admin@core314.com" style="color:#2563eb;">admin@core314.com</a>.</p></div></body></html>`,
+          { status: 200, headers: { "Content-Type": "text/html" } }
+        )
+      }
+      return new Response(JSON.stringify({ error: "Missing email" }), { status: 400, headers })
     }
 
     const callerId = req.headers.get("x-user-id")
