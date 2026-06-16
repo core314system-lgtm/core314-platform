@@ -102,6 +102,7 @@ const navGroups: NavGroup[] = [
       { path: '/master-subs', label: 'Master Sub Database', icon: Database },
       { path: '/verification-review', label: 'Verification Review', icon: ShieldCheck },
       { path: '/ai-audit', label: 'AI Activity Log', icon: ScanSearch },
+      { path: '/audit-log', label: 'Security Audit Log', icon: ClipboardList },
     ],
   },
 ]

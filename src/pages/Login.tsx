@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert, Send, Building, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { logAuditEvent } from '../lib/auditLog'
 import MfaVerify from './MfaVerify'
 
 interface InviteInfo {
@@ -390,6 +391,7 @@ export default function Login() {
         setLoading(false)
         return
       }
+      logAuditEvent({ action: 'login', metadata: { method: 'password' } })
       // If existing user signs in via invite link, accept the invite
       if (inviteToken) {
         const { data: { user: existingUser } } = await supabase.auth.getUser()
@@ -415,7 +417,7 @@ export default function Login() {
 
   // Show MFA verification screen after successful password login
   if (showMfa) {
-    return <MfaVerify onVerified={() => navigate('/dashboard')} />
+    return <MfaVerify onVerified={() => { logAuditEvent({ action: 'login', metadata: { method: 'password+mfa' } }); navigate('/dashboard') }} />
   }
 
   // Show success screen after signup when email confirmation is required

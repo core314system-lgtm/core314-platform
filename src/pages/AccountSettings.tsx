@@ -4,6 +4,7 @@ import { useOrg } from '../contexts/OrgContext'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { User, KeyRound, Trash2, Download, AlertTriangle, CheckCircle, Shield, Smartphone, ShieldCheck, ShieldOff } from 'lucide-react'
+import { logAuditEvent } from '../lib/auditLog'
 
 export default function AccountSettings() {
   const { user, signOut } = useAuth()
@@ -84,6 +85,7 @@ export default function AccountSettings() {
     setEnrollData(null)
     setEnrolling(false)
     setVerifyCode('')
+    logAuditEvent({ action: 'mfa_enrolled' })
     loadMfaFactors()
   }
 
@@ -96,6 +98,7 @@ export default function AccountSettings() {
       setMfaError(error.message)
     } else {
       setMfaSuccess('Two-factor authentication has been disabled.')
+      logAuditEvent({ action: 'mfa_removed' })
       loadMfaFactors()
     }
     setUnenrolling(false)
@@ -123,6 +126,7 @@ export default function AccountSettings() {
       setPasswordSuccess(true)
       setNewPassword('')
       setConfirmPassword('')
+      logAuditEvent({ action: 'password_changed' })
     }
     setPasswordLoading(false)
   }
@@ -143,6 +147,7 @@ export default function AccountSettings() {
       a.download = `procuvex-export-${new Date().toISOString().split('T')[0]}.json`
       a.click()
       URL.revokeObjectURL(url)
+      logAuditEvent({ action: 'data_export', resourceType: 'organization', resourceId: org.id, metadata: { format: 'json' } })
     } catch {
       // silently fail
     }

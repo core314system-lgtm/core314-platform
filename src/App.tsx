@@ -56,6 +56,7 @@ import OpportunityDiscovery from './pages/OpportunityDiscovery'
 import SystemHealth from './pages/SystemHealth'
 import DocumentLibrary from './pages/DocumentLibrary'
 import AiAuditLog from './pages/AiAuditLog'
+import AuditLog from './pages/AuditLog'
 import MasterSubDatabase from './pages/MasterSubDatabase'
 import FindSubcontractors from './pages/FindSubcontractors'
 import OrgSubcontractors from './pages/OrgSubcontractors'
@@ -271,6 +272,7 @@ export default function App() {
 
           {/* AI Compliance */}
           <Route path="/ai-audit" element={<ProtectedRoute><AiAuditLog /></ProtectedRoute>} />
+          <Route path="/audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
 
           {/* Compliance Matrices (cross-project view) */}
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />
