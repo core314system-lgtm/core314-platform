@@ -1038,7 +1038,7 @@ export default function LandingPage() {
               {[
                 { icon: Brain, title: 'AI SOW Matching', desc: 'Upload your SOW — AI maps each line item to our 45-trade taxonomy and finds qualified subs by radius, region, or nationwide.' },
                 { icon: Crosshair, title: 'Radius-Based Search', desc: 'Find subs within 10, 25, 50, or 200 miles of your project site. Combine Local + Regional + National scopes.' },
-                { icon: Mail, title: 'RFQ Composer', desc: 'Customize RFQ templates with merge fields, preview the email, then send branded RFQs to matched subs.' },
+                { icon: Mail, title: 'RFQ Composer & Custom Domains', desc: 'Send branded RFQs from your own domain. Customize templates with merge fields — your brand, your reputation, your inbox.' },
               ].map((item, i) => (
                 <div key={i} className="p-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10">
                   <item.icon className="h-8 w-8 text-blue-300 mb-3" />

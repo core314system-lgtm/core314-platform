@@ -121,6 +121,12 @@ const modules = [
     desc: 'Capture win/loss debriefs after every bid. Over time, build an organizational knowledge base of lessons learned, pricing insights, and competitor intelligence.',
     features: ['Structured debriefs', 'Competitor tracking', 'Pricing benchmarks', 'Lessons learned repository'],
   },
+  {
+    icon: Mail,
+    title: 'Custom Email Domain & Branding',
+    desc: 'Enterprise teams send all communications — RFQs, notifications, and outreach — from their own domain. DNS verification, custom branding, and deliverability tracking included.',
+    features: ['Your domain, your reputation', 'Guided SPF/DKIM/DMARC setup', 'Custom logo & brand colors', 'Per-domain analytics'],
+  },
 ]
 
 export default function ProductPage() {
@@ -136,7 +142,7 @@ export default function ProductPage() {
               Every Tool Your <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Bid Team</span> Needs
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              18 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
+              19 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
             </motion.p>
           </div>
         </div>
