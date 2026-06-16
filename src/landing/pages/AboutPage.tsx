@@ -183,7 +183,7 @@ export default function AboutPage() {
               {[
                 { icon: Shield, label: 'SOC 2 Type II Architecture' },
                 { icon: Lock, label: 'AES-256 Encryption' },
-                { icon: Globe, label: 'ITAR / CUI Capable' },
+                { icon: Globe, label: 'ITAR / CUI: Not Currently Pursued' },
                 { icon: Award, label: 'FedRAMP: Not Currently Pursued' },
               ].map(badge => (
                 <motion.div key={badge.label} variants={fadeUp} className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center">

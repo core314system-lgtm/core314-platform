@@ -28,7 +28,7 @@ const securityLayers = [
       'Row-level security (RLS) enforced at database layer — complete tenant isolation',
       'Role-based access control (RBAC) within organizations',
       'JWT-based authentication with secure session management',
-      'Multi-factor authentication support',
+      'Multi-factor authentication (TOTP) for all accounts',
     ],
   },
   {
@@ -54,10 +54,10 @@ const securityLayers = [
 ]
 
 const compliance = [
-  { label: 'SOC 2 Type II', desc: 'Built on Supabase infrastructure with SOC 2 Type II certification', status: 'Compliant Architecture' },
+  { label: 'SOC 2 Type II', desc: 'Built on SOC 2 Type II certified infrastructure (Supabase). Application-level controls align with SOC 2 trust service criteria.', status: 'Infrastructure Certified' },
   { label: 'GDPR', desc: 'Data processing aligned with EU General Data Protection Regulation requirements', status: 'Compliant' },
   { label: 'CCPA', desc: 'Consumer privacy rights supported per California Consumer Privacy Act', status: 'Compliant' },
-  { label: 'ITAR / CUI', desc: 'Architecture supports workflows involving controlled unclassified information', status: 'Capable' },
+  { label: 'ITAR / CUI', desc: 'Not currently pursued. Architecture designed to support controlled unclassified information workflows. Full CUI controls available upon enterprise customer requirement.', status: 'Not Pursued' },
   { label: 'FedRAMP Authorization', desc: 'Not currently pursued. The platform can support future deployment within a FedRAMP-authorized environment if customer demand requires it.', status: 'Not Pursued' },
   { label: 'HIPAA', desc: 'Platform can be configured for HIPAA-compliant use cases with BAA', status: 'On Request' },
 ]
