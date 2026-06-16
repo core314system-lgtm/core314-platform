@@ -132,6 +132,7 @@ export default function ClaimProfile() {
       setStep('error')
     } else {
       await supabase.from('user_profiles').update({
+        account_type: 'subcontractor',
         beta_agreement_accepted_at: new Date().toISOString(),
         beta_agreement_version: '2026-05',
       }).eq('id', userId)

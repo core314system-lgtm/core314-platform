@@ -37,12 +37,30 @@ export default async (req: Request, _context: Context) => {
     return new Response(JSON.stringify({ error: 'Forbidden: global admin required' }), { status: 403, headers })
   }
 
-  // GET — list all users with tier info
+  // GET — list all platform users (excludes subcontractor accounts)
   if (req.method === 'GET') {
-    const { data: users, error } = await supabase
+    // Try to filter by account_type; if column doesn't exist yet, fall back to all users
+    let users: any[] = []
+    let error: any = null
+
+    const result = await supabase
       .from('user_profiles')
-      .select('id, email, full_name, role, is_global_admin, created_at')
+      .select('id, email, full_name, role, is_global_admin, created_at, account_type')
+      .or('account_type.eq.platform,account_type.is.null')
       .order('created_at', { ascending: true })
+
+    if (result.error && result.error.code === '42703') {
+      // Column doesn't exist yet — fall back to unfiltered query
+      const fallback = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name, role, is_global_admin, created_at')
+        .order('created_at', { ascending: true })
+      users = fallback.data || []
+      error = fallback.error
+    } else {
+      users = result.data || []
+      error = result.error
+    }
 
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers })
@@ -111,6 +129,7 @@ export default async (req: Request, _context: Context) => {
         email,
         full_name: full_name || null,
         role: role || 'admin',
+        account_type: 'platform',
       })
 
       // Create an organization for the user

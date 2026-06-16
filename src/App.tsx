@@ -99,6 +99,15 @@ function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Route that only requires authentication (no platform account check)
+// Used for subcontractor-accessible pages like /my-sub-profile
+function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
+  if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth()
   const [betaAccepted, setBetaAccepted] = useState(true) // default true so existing users aren't blocked
@@ -124,6 +133,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading || checkingBeta) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
+
+  // Subcontractor accounts can only access their profile and portal — not the main app
+  if (profile?.account_type === 'subcontractor') {
+    return <Navigate to="/my-sub-profile" replace />
+  }
 
   // Show beta agreement modal if not yet accepted and beta mode is enabled
   if (!betaAccepted && user) {
@@ -284,7 +298,7 @@ export default function App() {
           <Route path="/master-subs" element={<ProtectedRoute><GlobalAdminRoute><MasterSubDatabase /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/find-subs" element={<ProtectedRoute><FindSubcontractors /></ProtectedRoute>} />
           <Route path="/my-subs" element={<ProtectedRoute><OrgSubcontractors /></ProtectedRoute>} />
-          <Route path="/my-sub-profile" element={<ProtectedRoute><MySubProfile /></ProtectedRoute>} />
+          <Route path="/my-sub-profile" element={<AuthenticatedRoute><MySubProfile /></AuthenticatedRoute>} />
           <Route path="/verification-review" element={<ProtectedRoute><GlobalAdminRoute><AdminVerificationReview /></GlobalAdminRoute></ProtectedRoute>} />
 
           {/* Teaming & Joint Ventures */}
