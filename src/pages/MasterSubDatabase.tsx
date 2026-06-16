@@ -2217,6 +2217,18 @@ export default function MasterSubDatabase() {
               </button>
             </div>
 
+            {/* Warmup Schedule Status */}
+            {emailMetrics?.warmup?.active && (
+              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-amber-800 text-xs font-medium mb-1">
+                  <Clock size={12} /> Domain Warmup Active — Day {emailMetrics.warmup.day}
+                </div>
+                <div className="text-amber-700 text-xs">
+                  Sending {emailMetrics.warmup.sent_today} / {emailMetrics.warmup.daily_limit} emails today via <span className="font-mono text-amber-900">{emailMetrics.warmup.domain}</span>
+                </div>
+              </div>
+            )}
+
             {!emailMetrics && !emailMetricsLoading && (
               <div className="text-center py-4 text-sm text-gray-400">
                 Loading delivery metrics...
