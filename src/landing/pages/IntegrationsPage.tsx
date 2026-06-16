@@ -63,6 +63,19 @@ const integrations = [
     ],
   },
   {
+    icon: Zap,
+    title: 'Custom Email Domain & Branding',
+    status: 'live',
+    desc: 'Send all platform communications — RFQs, notifications, and outreach — from your own domain with your branding. Full DNS verification, deliverability tracking, and reputation isolation.',
+    features: [
+      'Connect your sending domain (e.g., mail.yourcompany.com)',
+      'Guided DNS setup — SPF, DKIM, and DMARC verification',
+      'Custom from-name, reply-to, logo, and brand colors',
+      'Per-domain reputation tracking and analytics',
+      'Automatic fallback to platform default if domain issues arise',
+    ],
+  },
+  {
     icon: Search,
     title: 'GovWin / Deltek Integration',
     status: 'coming',

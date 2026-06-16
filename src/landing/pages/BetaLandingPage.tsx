@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   Shield, Brain, Zap, Users, Star, ArrowRight,
-  CheckCircle, Clock, Rocket, Lock, BarChart3, Kanban,
+  CheckCircle, Clock, Rocket, Lock, BarChart3, Kanban, Mail,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -41,6 +41,11 @@ const benefits = [
     icon: Zap,
     title: 'AI Agent Hub',
     desc: 'Autonomous agents that monitor opportunities, check compliance, and draft responses 24/7.',
+  },
+  {
+    icon: Mail,
+    title: 'Custom Email Domains',
+    desc: 'Send RFQs and outreach from your own domain with your branding. Full DNS verification and deliverability tracking.',
   },
 ]
 
