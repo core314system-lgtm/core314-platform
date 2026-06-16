@@ -27,6 +27,7 @@ import {
   Database,
   BadgeCheck,
   Bot,
+  Mail,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -82,6 +83,7 @@ const navGroups: NavGroup[] = [
     icon: Settings,
     items: [
       { path: '/settings', label: 'Organization', icon: Building },
+      { path: '/settings/email-domain', label: 'Email Domain', icon: Mail },
       { path: '/billing', label: 'Billing', icon: CreditCard },
       { path: '/account', label: 'Account', icon: User },
       { path: '/help', label: 'Help Center', icon: HelpCircle },
