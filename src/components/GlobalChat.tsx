@@ -617,17 +617,17 @@ export default function GlobalChat() {
 
     // ========== MASTER SUBCONTRACTOR DATABASE ==========
     try {
-      const { count: masterTotal } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true })
-      const { count: masterVerified } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified')
-      const { count: masterClaimed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed')
-      const { count: masterWithEmail } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null)
-      const { count: outreachSent } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).not('outreach_sent_at', 'is', null)
-      const { count: unsubscribed } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).eq('unsubscribed', true)
+      const { count: masterTotal } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true })
+      const { count: masterVerified } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true }).eq('verification_status', 'verified')
+      const { count: masterClaimed } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true }).eq('verification_status', 'claimed')
+      const { count: masterWithEmail } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true }).not('contact_email', 'is', null)
+      const { count: outreachSent } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true }).not('outreach_sent_at', 'is', null)
+      const { count: unsubscribed } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true }).eq('unsubscribed', true)
 
       // Use local midnight (not UTC) so "sent TODAY" matches user's local day
       const todayStart = new Date()
       todayStart.setHours(0, 0, 0, 0)
-      const { count: sentToday } = await supabase.from('master_subcontractors').select('id', { count: 'exact', head: true }).gte('outreach_sent_at', todayStart.toISOString())
+      const { count: sentToday } = await supabase.from('master_subcontractors_safe').select('id', { count: 'exact', head: true }).gte('outreach_sent_at', todayStart.toISOString())
 
       parts.push(`\n=== MASTER SUBCONTRACTOR DATABASE ===`)
       parts.push(`Total master subcontractors: ${masterTotal || 0}`)
@@ -643,7 +643,7 @@ export default function GlobalChat() {
       }
 
       // Top trades in master DB
-      const { data: masterSample } = await supabase.from('master_subcontractors').select('trade_categories').not('trade_categories', 'is', null).limit(200)
+      const { data: masterSample } = await supabase.from('master_subcontractors_safe').select('trade_categories').not('trade_categories', 'is', null).limit(200)
       if (masterSample && masterSample.length > 0) {
         const tradeCounts: Record<string, number> = {}
         for (const ms of masterSample) {
@@ -657,7 +657,7 @@ export default function GlobalChat() {
       }
 
       // Recent claims
-      const { data: recentClaims } = await supabase.from('master_subcontractors').select('company_name, city, state, claimed_at').not('claimed_at', 'is', null).order('claimed_at', { ascending: false }).limit(5)
+      const { data: recentClaims } = await supabase.from('master_subcontractors_safe').select('company_name, city, state, claimed_at').not('claimed_at', 'is', null).order('claimed_at', { ascending: false }).limit(5)
       if (recentClaims && recentClaims.length > 0) {
         parts.push(`Recent claims: ${recentClaims.map(c => `${c.company_name} (${c.city}, ${c.state}) on ${fmtDate(c.claimed_at)}`).join('; ')}`)
       }

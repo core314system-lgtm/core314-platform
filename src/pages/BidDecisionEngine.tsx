@@ -102,7 +102,7 @@ export default function BidDecisionEngine() {
         .select('id', { count: 'exact', head: true })
 
       const { count: masterSubCount } = await supabase
-        .from('master_subcontractors')
+        .from('master_subcontractors_safe')
         .select('id', { count: 'exact', head: true })
 
       // Query SOW items for trade coverage data
