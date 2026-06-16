@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert, Send, Building, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { logAuditEvent } from '../lib/auditLog'
+import MfaVerify from './MfaVerify'
 
 interface InviteInfo {
   org_name: string
@@ -180,6 +182,7 @@ export default function Login() {
   const [betaInviteInfo, setBetaInviteInfo] = useState<BetaInviteInfo | null>(null)
   const [betaInviteError, setBetaInviteError] = useState<string | null>(null)
   const [betaValidating, setBetaValidating] = useState(!!betaInviteToken)
+  const [showMfa, setShowMfa] = useState(false)
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
 
@@ -381,6 +384,14 @@ export default function Login() {
         setLoading(false)
         return
       }
+      // Check if user has MFA enrolled — if so, require verification before proceeding
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      if (factors?.totp?.some(f => f.status === 'verified')) {
+        setShowMfa(true)
+        setLoading(false)
+        return
+      }
+      logAuditEvent({ action: 'login', metadata: { method: 'password' } })
       // If existing user signs in via invite link, accept the invite
       if (inviteToken) {
         const { data: { user: existingUser } } = await supabase.auth.getUser()
@@ -402,6 +413,11 @@ export default function Login() {
         navigate('/dashboard')
       }
     }
+  }
+
+  // Show MFA verification screen after successful password login
+  if (showMfa) {
+    return <MfaVerify onVerified={() => { logAuditEvent({ action: 'login', metadata: { method: 'password+mfa' } }); navigate('/dashboard') }} />
   }
 
   // Show success screen after signup when email confirmation is required
