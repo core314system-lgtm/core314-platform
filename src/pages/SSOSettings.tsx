@@ -152,7 +152,7 @@ export default function SSOSettings() {
           Single Sign-On (SSO)
         </h1>
         <p className="text-slate-500 mt-1">
-          Configure SAML 2.0 SSO for enterprise customers. Users from configured domains can sign in using their company identity provider.
+          Configure SAML 2.0 SSO for your organization. Once set up, your team members can sign in using your company's identity provider (Okta, Azure AD, Google Workspace, etc.) — no passwords needed.
         </p>
       </div>
 
@@ -287,21 +287,32 @@ export default function SSOSettings() {
 
       {/* Setup Guide */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-blue-900 mb-3">Setup Guide for Enterprise Customers</h2>
-        <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
-          <li>Customer provides their SAML 2.0 Metadata URL from their Identity Provider (Okta, Azure AD, etc.)</li>
-          <li>Share the Procuvex SP details above — they'll configure their IdP with these values</li>
-          <li>Add the provider using the form above with their metadata URL and email domain(s)</li>
-          <li>Users from that domain can now click "Sign in with SSO" on the login page</li>
+        <h2 className="text-lg font-semibold text-blue-900 mb-3">How to Set Up SSO (Self-Service)</h2>
+        <ol className="list-decimal list-inside space-y-3 text-sm text-blue-800">
+          <li><strong>Log in to your Identity Provider</strong> (Okta, Azure AD, Google Workspace, PingIdentity, etc.)</li>
+          <li><strong>Add Procuvex as a new SAML application</strong> — use the Service Provider details above (Entity ID, ACS URL, Metadata URL)</li>
+          <li><strong>Copy your IdP's SAML Metadata URL</strong> — this is usually found in your IdP's app settings or SSO configuration page</li>
+          <li><strong>Enter it in the form above</strong> — paste the metadata URL and your company's email domain(s)</li>
+          <li><strong>Done!</strong> Your team members can now click "Sign in with SSO" on the Procuvex login page and sign in with their company credentials</li>
         </ol>
-        <div className="mt-4">
+        <div className="mt-4 pt-3 border-t border-blue-200">
+          <p className="text-xs text-blue-700 mb-2">
+            <strong>Where to find your Metadata URL:</strong>
+          </p>
+          <ul className="text-xs text-blue-600 space-y-1 ml-4 list-disc">
+            <li><strong>Okta:</strong> Applications → Your App → Sign On → Metadata URL</li>
+            <li><strong>Azure AD:</strong> Enterprise Applications → Your App → Single sign-on → Federation Metadata XML (copy the URL)</li>
+            <li><strong>Google Workspace:</strong> Admin Console → Apps → Web and mobile apps → Your App → Download metadata</li>
+          </ul>
+        </div>
+        <div className="mt-3">
           <a
             href="https://supabase.com/docs/guides/auth/enterprise-sso/auth-sso-saml"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-sm text-blue-700 hover:text-blue-900 font-medium"
           >
-            Supabase SAML SSO Documentation <ExternalLink className="h-3.5 w-3.5" />
+            Full SAML SSO Documentation <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
       </div>
