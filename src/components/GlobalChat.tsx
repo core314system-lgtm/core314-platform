@@ -28,6 +28,8 @@ const SUGGESTED_QUESTIONS = [
   'How is our outreach campaign performing?',
   'Summarize our subcontractor coverage by service category.',
   'What quotes need AI compliance review?',
+  'How do I set up SSO for my organization?',
+  'What security features are available on my plan?',
 ]
 
 const SMART_NOTES_SUGGESTIONS = [
@@ -122,10 +124,10 @@ export default function GlobalChat() {
             // Tier details
             if (org.subscription_plan?.includes('growth')) {
               parts.push(`Tier: Growth ($2,500/mo or $2,000/mo annual)`)
-              parts.push(`Includes: Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix, compliance engine, data export`)
+              parts.push(`Includes: Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix, compliance engine, data export, MFA`)
             } else if (org.subscription_plan?.includes('enterprise')) {
               parts.push(`Tier: Enterprise ($5,000/mo or $4,000/mo annual)`)
-              parts.push(`Includes: Unlimited projects & users, post-award, teaming, resource capacity, relationship intelligence, API access, 99.9% SLA`)
+              parts.push(`Includes: Unlimited projects & users, post-award, teaming, resource capacity, relationship intelligence, API access, SAML SSO, custom email domain & branding, MFA, audit log, 99.9% SLA`)
             }
           }
         }
@@ -704,10 +706,37 @@ export default function GlobalChat() {
 
     // ========== INTEGRATIONS ==========
     parts.push(`\n=== INTEGRATIONS ===`)
-    parts.push(`Available integrations: SAM.gov Opportunity Search, CSV/Excel Bulk Import, REST API`)
+    parts.push(`Available integrations: SAM.gov Opportunity Search, CSV/Excel Bulk Import, REST API, Custom Email Domain & Branding, SAML SSO`)
     parts.push(`SAM.gov: Users can search federal opportunities and import them directly as projects (via Integrations page)`)
     parts.push(`Bulk Import: Upload CSV files to create multiple projects at once`)
     parts.push(`API: External systems can create/list projects via POST/GET /api/projects with X-API-Key authentication`)
+    parts.push(`Custom Email Domain: Enterprise orgs can send all platform emails (RFQs, notifications, outreach) from their own domain with custom branding. Configured at /settings/email-domain.`)
+    parts.push(`SAML SSO: Enterprise orgs can configure their identity provider (Okta, Azure AD, Google Workspace, etc.) so team members sign in with company credentials. Self-service setup at /settings/sso.`)
+
+    // ========== SECURITY & ACCOUNT FEATURES ==========
+    parts.push(`\n=== SECURITY & ACCOUNT FEATURES ===`)
+    parts.push(`MFA (Multi-Factor Authentication): Users can enable TOTP-based MFA from Account Settings. Once enrolled, a 6-digit code from an authenticator app is required at every login.`)
+    parts.push(`SSO (Single Sign-On): Enterprise plan feature. Org admins configure their SAML 2.0 identity provider at /settings/sso. Users from configured domains click "Sign in with SSO" on the login page and are redirected to their company IdP.`)
+    parts.push(`Audit Log: All key actions are logged — logins, settings changes, data exports, permission changes, project updates, quote reviews, and more. Admins can view the full audit trail at /audit-log with search and filters.`)
+    parts.push(`Custom Email Domain: Enterprise orgs can send platform emails from their own domain with custom logo, brand colors, and footer text. Setup at /settings/email-domain.`)
+    parts.push(`Role-Based Access Control: Roles include admin, market_sector_lead, program_manager, procurement, contracts, talent_acquisition, read_only. Each has different permissions.`)
+    parts.push(`Encryption: All data encrypted at rest (AES-256) and in transit (TLS 1.2+). Row-level security enforces tenant isolation.`)
+    parts.push(`Beta Program: Invitation-based beta for new customers. Managed at /beta-manage. Invites include unsubscribe links.`)
+
+    // ========== ACCOUNT-LEVEL DATA ==========
+    try {
+      // MFA enrollment status
+      const { data: { user: mfaUser } } = await supabase.auth.getUser()
+      if (mfaUser) {
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+        const enrolledFactors = factors?.totp || []
+        const verifiedFactors = enrolledFactors.filter((f: { status: string }) => f.status === 'verified')
+        parts.push(`\n=== ACCOUNT SECURITY STATUS ===`)
+        parts.push(`MFA enrolled: ${verifiedFactors.length > 0 ? 'Yes' : 'No'}${verifiedFactors.length > 0 ? ` (${verifiedFactors.length} factor${verifiedFactors.length > 1 ? 's' : ''})` : ''}`)
+      }
+    } catch {
+      // MFA query may fail
+    }
 
     // ========== ANALYTICS & INTELLIGENCE ==========
     parts.push(`\n=== ANALYTICS & INTELLIGENCE ===`)
@@ -773,7 +802,7 @@ PIPELINE & WORKFLOW:
 
 BILLING & SUBSCRIPTIONS:
 - Growth tier ($2,500/mo monthly, $2,000/mo annual): Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix with export, compliance engine, data export, chat support.
-- Enterprise tier ($5,000/mo monthly, $4,000/mo annual): Unlimited projects & users, post-award transition, teaming & JV management, resource capacity tracking, relationship intelligence, REST API access, dedicated onboarding, 99.9% uptime SLA.
+- Enterprise tier ($5,000/mo monthly, $4,000/mo annual): Unlimited projects & users, post-award transition, teaming & JV management, resource capacity tracking, relationship intelligence, REST API access, SAML SSO, custom email domain & branding, dedicated onboarding, 99.9% uptime SLA.
 - 7-day free trial with all features.
 - Billing is managed through Stripe. Users can view their subscription status, plan, and manage billing from the /billing page.
 - The Stripe Customer Portal allows users to update payment methods, view invoices, and cancel subscriptions.
@@ -811,6 +840,58 @@ SYSTEM HEALTH:
 - Health checks run automatically with retry logic and circuit breakers for resilience.
 - Public status page at /status shows real-time service health.
 - 99.9% uptime SLA.
+
+MULTI-FACTOR AUTHENTICATION (MFA):
+- TOTP-based MFA using authenticator apps (Google Authenticator, Authy, 1Password, etc.).
+- Users enroll from Account Settings → Security → Enable MFA.
+- After enrollment, a 6-digit code is required at every login in addition to the password.
+- Backup codes are provided during enrollment for account recovery.
+- Admins can see which team members have MFA enabled.
+
+SINGLE SIGN-ON (SSO / SAML 2.0):
+- Enterprise plan feature. Allows organizations to use their company's identity provider for authentication.
+- Supported IdPs: Okta, Azure AD (Entra ID), Google Workspace, PingIdentity, OneLogin, and any SAML 2.0 compatible provider.
+- Self-service setup: Org admins go to /settings/sso, share Procuvex SP metadata with their IT team, then enter the IdP metadata URL and email domain(s).
+- Once configured, users from that domain see "Sign in with SSO" on the login page and are redirected to their company IdP.
+- No password needed — authentication is handled entirely by the IdP.
+- Automatic account provisioning: new users are created in Procuvex on first SSO login.
+
+AUDIT LOGGING:
+- Comprehensive audit trail of all key actions: logins, logouts, settings changes, data exports, permission changes, project updates, quote submissions, RFQ sends, and more.
+- Available at /audit-log for admins.
+- Filterable by user, action type, date range, and resource.
+- Retention: logs are stored indefinitely for compliance purposes.
+- Each event records: who (user), what (action), when (timestamp), what resource, and additional metadata.
+
+CUSTOM EMAIL DOMAIN & BRANDING:
+- Enterprise plan feature. Organizations can send all platform emails from their own domain.
+- Setup at /settings/email-domain: enter your sending domain, then add DNS records (SPF, DKIM, DMARC) that the platform provides.
+- Once DNS is verified, all emails (RFQs, notifications, outreach) are sent from your-domain.com instead of procuvex.com.
+- Custom branding: set your logo, brand color, and footer text for all outgoing emails.
+- One manual step required: adding DNS records to your domain registrar (this is standard for all email platforms).
+- After DNS verification, everything is fully automated — no ongoing manual steps.
+
+BETA PROGRAM:
+- Invitation-based early access program with limited seats.
+- Managed at /beta-manage (admin only).
+- Invitees receive an email with a link to a landing page where they can apply.
+- All beta emails include CAN-SPAM compliant unsubscribe links.
+- Unsubscribed users won't receive further communications.
+
+NAVIGATION & SETTINGS:
+- Dashboard: /dashboard — overview of projects, activity, and key metrics.
+- Projects: /projects — list and manage all projects/task orders.
+- Find Subcontractors: /find-subs — search and discover subcontractors.
+- My Subcontractors: /my-subs — manage your organization's subcontractor database.
+- Analytics: /analytics — cross-project metrics and insights.
+- Intelligence Library: /intelligence — win/loss debriefs and competitive intelligence.
+- Integrations: /integrations — SAM.gov search, CSV import, API access.
+- Settings: /settings/organization — org profile, team management.
+- Email Domain: /settings/email-domain — custom email domain setup (Enterprise).
+- SSO / SAML: /settings/sso — configure identity providers (Enterprise).
+- Billing: /billing — subscription management, invoices, plan changes.
+- Account: /account — personal settings, MFA enrollment, password change.
+- Audit Log: /audit-log — security event history (admin only).
 
 === END PLATFORM KNOWLEDGE ===
 

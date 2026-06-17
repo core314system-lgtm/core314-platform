@@ -12,22 +12,34 @@ interface SSORequest {
   provider_id?: string
 }
 
-// Verify the requesting user is a global admin
-async function verifyAdmin(authHeader: string | null): Promise<string | null> {
+interface AuthResult {
+  userId: string
+  orgId: string | null
+  isGlobalAdmin: boolean
+}
+
+// Verify the requesting user is an org admin or global admin
+async function verifyOrgAdmin(authHeader: string | null): Promise<AuthResult | null> {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null
   const token = authHeader.replace("Bearer ", "")
   const { data: { user } } = await supabase.auth.getUser(token)
   if (!user) return null
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("is_global_admin")
+    .select("is_global_admin, role, current_org_id")
     .eq("id", user.id)
     .single()
-  if (!profile?.is_global_admin) return null
-  return user.id
+  if (!profile) return null
+  // Allow global admins or org admins
+  if (!profile.is_global_admin && profile.role !== "admin") return null
+  return {
+    userId: user.id,
+    orgId: profile.current_org_id || null,
+    isGlobalAdmin: !!profile.is_global_admin,
+  }
 }
 
-// List all SSO identity providers
+// List all SSO identity providers (global admin sees all; org admin sees own org's providers)
 async function listProviders() {
   const res = await fetch(`${supabaseUrl}/auth/v1/admin/sso/providers`, {
     headers: {
@@ -44,7 +56,8 @@ async function listProviders() {
 }
 
 // Add a new SAML SSO identity provider
-async function addProvider(metadataUrl: string, domains: string[]) {
+async function addProvider(metadataUrl: string, domains: string[], orgId: string | null) {
+  // Register with Supabase Auth
   const res = await fetch(`${supabaseUrl}/auth/v1/admin/sso/providers`, {
     method: "POST",
     headers: {
@@ -63,11 +76,36 @@ async function addProvider(metadataUrl: string, domains: string[]) {
     return { error: `Failed to add provider: ${text}` }
   }
   const data = await res.json()
+
+  // Store org-provider mapping for tracking
+  if (orgId && data.id) {
+    await supabase.from("org_sso_providers").upsert({
+      org_id: orgId,
+      provider_id: data.id,
+      domains: domains,
+      metadata_url: metadataUrl,
+      status: "active",
+    })
+  }
+
   return { provider: data }
 }
 
 // Remove an SSO identity provider
-async function removeProvider(providerId: string) {
+async function removeProvider(providerId: string, orgId: string | null, isGlobalAdmin: boolean) {
+  // If not global admin, verify this provider belongs to their org
+  if (!isGlobalAdmin && orgId) {
+    const { data: mapping } = await supabase
+      .from("org_sso_providers")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("provider_id", providerId)
+      .single()
+    if (!mapping) {
+      return { error: "You can only remove SSO providers belonging to your organization" }
+    }
+  }
+
   const res = await fetch(`${supabaseUrl}/auth/v1/admin/sso/providers/${providerId}`, {
     method: "DELETE",
     headers: {
@@ -79,19 +117,23 @@ async function removeProvider(providerId: string) {
     const text = await res.text()
     return { error: `Failed to remove provider: ${text}` }
   }
+
+  // Clean up org mapping
+  if (orgId) {
+    await supabase.from("org_sso_providers").delete().eq("provider_id", providerId)
+  }
+
   return { success: true }
 }
 
 // Get Procuvex SP metadata info for IdP configuration
 function getSpInfo() {
-  const projectRef = supabaseUrl.replace("https://", "").replace(".supabase.co", "")
   return {
     entity_id: `${supabaseUrl}/auth/v1/sso/saml/metadata`,
     metadata_url: `${supabaseUrl}/auth/v1/sso/saml/metadata`,
     acs_url: `${supabaseUrl}/auth/v1/sso/saml/acs`,
     slo_url: `${supabaseUrl}/auth/v1/sso/slo`,
     name_id_format: "emailAddress",
-    project_ref: projectRef,
   }
 }
 
@@ -108,9 +150,9 @@ export default async (req: Request, context: Context) => {
   }
 
   const authHeader = req.headers.get("authorization")
-  const userId = await verifyAdmin(authHeader)
-  if (!userId) {
-    return new Response(JSON.stringify({ error: "Unauthorized — global admin access required" }), { status: 403 })
+  const auth = await verifyOrgAdmin(authHeader)
+  if (!auth) {
+    return new Response(JSON.stringify({ error: "Unauthorized — organization admin access required" }), { status: 403 })
   }
 
   const body: SSORequest = await req.json()
@@ -128,13 +170,13 @@ export default async (req: Request, context: Context) => {
       if (!body.metadata_url || !body.domains?.length) {
         return new Response(JSON.stringify({ error: "metadata_url and domains are required" }), { status: 400 })
       }
-      result = await addProvider(body.metadata_url, body.domains)
+      result = await addProvider(body.metadata_url, body.domains, auth.orgId)
       break
     case "remove-provider":
       if (!body.provider_id) {
         return new Response(JSON.stringify({ error: "provider_id is required" }), { status: 400 })
       }
-      result = await removeProvider(body.provider_id)
+      result = await removeProvider(body.provider_id, auth.orgId, auth.isGlobalAdmin)
       break
     default:
       return new Response(JSON.stringify({ error: "Invalid action" }), { status: 400 })

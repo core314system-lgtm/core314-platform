@@ -325,7 +325,7 @@ export default function App() {
           <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/system-health" element={<ProtectedRoute><GlobalAdminRoute><SystemHealth /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/settings/email-domain" element={<ProtectedRoute><EnterpriseEmailSettings /></ProtectedRoute>} />
-          <Route path="/settings/sso" element={<ProtectedRoute><GlobalAdminRoute><SSOSettings /></GlobalAdminRoute></ProtectedRoute>} />
+          <Route path="/settings/sso" element={<ProtectedRoute><SSOSettings /></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
