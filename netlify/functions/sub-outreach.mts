@@ -1,35 +1,16 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
-const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Determine email provider priority: Mailgun > SES > SendGrid
-const USE_MAILGUN = !!(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN)
-const OUTREACH_DOMAIN = process.env.MAILGUN_OUTREACH_DOMAIN || process.env.MAILGUN_DOMAIN || "procuvex.com"
-const USE_SES = !USE_MAILGUN && !!(process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY)
-const EMAIL_PROVIDER = USE_MAILGUN ? "Mailgun" : USE_SES ? "Amazon SES" : "SendGrid"
-let sesClient: SESClient | null = null
-
-function initSES() {
-  if (!sesClient && USE_SES) {
-    sesClient = new SESClient({
-      region: process.env.AWS_SES_REGION || "us-east-1",
-      credentials: {
-        accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY!,
-      },
-    })
-  }
-}
-
-function initSendGrid() {
-  sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
-}
+// Mailgun-only — no fallback providers
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "procuvex.com"
+const MAILGUN_API_URL = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
+const EMAIL_PROVIDER = "Mailgun"
 
 async function sendViaMailgun(params: {
   to: string
@@ -38,11 +19,12 @@ async function sendViaMailgun(params: {
   subject: string
   html: string
   text: string
+  tag?: string
   headers?: Record<string, string>
-}) {
-  const domain = OUTREACH_DOMAIN
-  const apiKey = process.env.MAILGUN_API_KEY!
-  const baseUrl = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
+}): Promise<string> {
+  if (!MAILGUN_API_KEY) {
+    throw new Error("MAILGUN_API_KEY is not configured — outreach cannot send")
+  }
 
   const form = new FormData()
   form.append("from", `${params.from.name} <${params.from.email}>`)
@@ -55,16 +37,15 @@ async function sendViaMailgun(params: {
     form.append("h:List-Unsubscribe", params.headers["List-Unsubscribe"])
     form.append("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
   }
-  form.append("o:tag", "sub_outreach")
-  // Disable Mailgun's built-in tracking — we use our own pixel (ses-webhook)
-  // Double tracking increases spam score and confuses metrics
-  form.append("o:tracking-opens", "no")
-  form.append("o:tracking-clicks", "no")
+  form.append("o:tag", params.tag || "sub_outreach")
+  // Enable Mailgun native tracking for accurate dashboard metrics
+  form.append("o:tracking-opens", "yes")
+  form.append("o:tracking-clicks", "htmlonly")
 
-  const resp = await fetch(`${baseUrl}/v3/${domain}/messages`, {
+  const resp = await fetch(`${MAILGUN_API_URL}/v3/${MAILGUN_DOMAIN}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
     },
     body: form,
   })
@@ -73,6 +54,9 @@ async function sendViaMailgun(params: {
     const body = await resp.text()
     throw new Error(`Mailgun error ${resp.status}: ${body}`)
   }
+
+  const data = await resp.json() as { id?: string; message?: string }
+  return data.id || ""
 }
 
 async function sendEmail(params: {
@@ -82,38 +66,10 @@ async function sendEmail(params: {
   subject: string
   html: string
   text: string
+  tag?: string
   headers?: Record<string, string>
-}) {
-  if (USE_MAILGUN) {
-    await sendViaMailgun(params)
-  } else if (USE_SES) {
-    initSES()
-    const cmd = new SendEmailCommand({
-      Source: `${params.from.name} <${params.from.email}>`,
-      Destination: { ToAddresses: [params.to] },
-      ReplyToAddresses: [`${params.replyTo.name} <${params.replyTo.email}>`],
-      Message: {
-        Subject: { Data: params.subject, Charset: "UTF-8" },
-        Body: {
-          Html: { Data: params.html, Charset: "UTF-8" },
-          Text: { Data: params.text, Charset: "UTF-8" },
-        },
-      },
-    })
-    await sesClient!.send(cmd)
-  } else {
-    initSendGrid()
-    await sgMail.default.send({
-      to: params.to,
-      from: params.from,
-      replyTo: params.replyTo,
-      subject: params.subject,
-      html: params.html,
-      text: params.text,
-      customArgs: { email_type: "sub_outreach" },
-      headers: params.headers,
-    })
-  }
+}): Promise<string> {
+  return sendViaMailgun(params)
 }
 
 // High-demand trades based on SOW item analysis — primes actively seek these
@@ -304,30 +260,7 @@ function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategori
   `
 }
 
-function toBase64(str: string): string {
-  return Buffer.from(str, "utf-8").toString("base64")
-}
 
-function injectSesTracking(html: string, recipientEmail: string, claimUrl: string): string {
-  const base = "https://procuvex.com/.netlify/functions/ses-webhook"
-  const emailParam = toBase64(recipientEmail)
-
-  // Wrap claim URL with click tracking redirect
-  const trackedClaimUrl = `${base}?t=click&e=${emailParam}&u=${toBase64(claimUrl)}`
-  let tracked = html.replace(
-    new RegExp(claimUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
-    trackedClaimUrl
-  )
-
-  // Inject tracking pixel before closing </div>
-  const pixel = `<img src="${base}?t=open&e=${emailParam}" width="1" height="1" style="display:none" alt="" />`
-  const lastDiv = tracked.lastIndexOf("</div>")
-  if (lastDiv !== -1) {
-    tracked = tracked.slice(0, lastDiv) + pixel + tracked.slice(lastDiv)
-  }
-
-  return tracked
-}
 
 async function verifyGlobalAdmin(userId: string): Promise<boolean> {
   const { data } = await supabase
@@ -526,15 +459,9 @@ export default async (req: Request, _context: Context) => {
         let html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
         const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
-        // Inject self-hosted open/click tracking for SES and Mailgun
-        // (SendGrid has its own webhook-based tracking)
-        if (USE_SES || USE_MAILGUN) {
-          html = injectSesTracking(html, sub.contact_email!, claimUrl)
-        }
-
-        await sendEmail({
+        const mailgunMessageId = await sendEmail({
           to: sub.contact_email!,
-          from: { email: `team@${OUTREACH_DOMAIN}`, name: "Procuvex" },
+          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `${sub.company_name} — A Prime is Searching for ${(sub.trade_categories || []).slice(0, 1).join("") || "Contractors"} in ${sub.state || "Your Area"}`,
           html,
@@ -545,7 +472,7 @@ export default async (req: Request, _context: Context) => {
           },
         })
 
-        // Only mark as sent AFTER email successfully delivered to SendGrid
+        // Only mark as sent AFTER Mailgun confirms acceptance
         await supabase
           .from("master_subcontractors")
           .update({
@@ -555,13 +482,13 @@ export default async (req: Request, _context: Context) => {
           })
           .eq("id", sub.id)
 
-        // Log the contact
+        // Log the contact with Mailgun message ID
         await supabase.from("master_sub_contact_log").insert({
           master_sub_id: sub.id,
           contact_type: "outreach_email",
           contact_method: "email",
           subject: "Profile verification request",
-          notes: `Sent to ${sub.contact_email}`,
+          notes: `Sent via Mailgun to ${sub.contact_email} (${mailgunMessageId})`,
           sent_by: callerId,
         })
 
@@ -571,17 +498,17 @@ export default async (req: Request, _context: Context) => {
         const errMsg = err.message || "Unknown error"
         errors.push(`${sub.company_name}: ${errMsg}`)
 
-        // SES/Mailgun bounce/rejection: archive the sub if email is permanently undeliverable
-        if ((USE_SES || USE_MAILGUN) && (
+        // Archive the sub if email is permanently undeliverable
+        if (
           errMsg.includes("MessageRejected") ||
           errMsg.includes("bounce") ||
           errMsg.includes("suppression list") ||
           errMsg.includes("550") ||
           errMsg.includes("does not exist")
-        )) {
+        ) {
           await supabase
             .from("master_subcontractors")
-            .update({ archived: true, archive_reason: "ses_bounce" })
+            .update({ archived: true, archive_reason: "mailgun_bounce" })
             .eq("id", sub.id)
         }
       }

@@ -1,14 +1,60 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-function initSendGrid() {
-  sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
+// Mailgun-only for outreach drip follow-ups
+const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "procuvex.com"
+const MAILGUN_API_URL = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
+
+async function sendViaMailgun(params: {
+  to: string
+  from: { email: string; name: string }
+  replyTo: { email: string; name: string }
+  subject: string
+  html: string
+  text: string
+  tag: string
+  headers?: Record<string, string>
+}): Promise<string> {
+  if (!MAILGUN_API_KEY) {
+    throw new Error("MAILGUN_API_KEY is not configured — drip emails cannot send")
+  }
+
+  const form = new FormData()
+  form.append("from", `${params.from.name} <${params.from.email}>`)
+  form.append("to", params.to)
+  form.append("h:Reply-To", `${params.replyTo.name} <${params.replyTo.email}>`)
+  form.append("subject", params.subject)
+  form.append("html", params.html)
+  form.append("text", params.text)
+  if (params.headers?.["List-Unsubscribe"]) {
+    form.append("h:List-Unsubscribe", params.headers["List-Unsubscribe"])
+    form.append("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+  }
+  form.append("o:tag", params.tag)
+  form.append("o:tracking-opens", "yes")
+  form.append("o:tracking-clicks", "htmlonly")
+
+  const resp = await fetch(`${MAILGUN_API_URL}/v3/${MAILGUN_DOMAIN}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
+    },
+    body: form,
+  })
+
+  if (!resp.ok) {
+    const body = await resp.text()
+    throw new Error(`Mailgun error ${resp.status}: ${body}`)
+  }
+
+  const data = await resp.json() as { id?: string }
+  return data.id || ""
 }
 
 /**
@@ -58,7 +104,9 @@ export default async (req: Request, _context: Context) => {
   try { body = await req.json() } catch {}
   const dryRun = body.dry_run || false
 
-  initSendGrid()
+  if (!MAILGUN_API_KEY) {
+    return new Response(JSON.stringify({ error: "MAILGUN_API_KEY not configured" }), { status: 500, headers })
+  }
 
   const now = new Date()
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
@@ -96,14 +144,14 @@ export default async (req: Request, _context: Context) => {
         const trades = (sub.trade_categories || []).slice(0, 2).join(", ") || "your trade"
         const location = sub.state || "your area"
 
-        await sgMail.default.send({
+        await sendViaMailgun({
           to: sub.contact_email!,
-          from: { email: "team@procuvex.com", name: "Procuvex" },
+          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `${sub.company_name} — A prime searched for ${trades} subs in ${location}`,
           html: buildFollowUp1Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp1Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
-          customArgs: { email_type: "sub_outreach_followup1" },
+          tag: "sub_outreach_followup1",
           headers: {
             "List-Unsubscribe": `<${unsubscribeUrl}>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -148,14 +196,14 @@ export default async (req: Request, _context: Context) => {
         const trades = (sub.trade_categories || []).slice(0, 2).join(", ") || "your trade"
         const location = sub.state || "your area"
 
-        await sgMail.default.send({
+        await sendViaMailgun({
           to: sub.contact_email!,
-          from: { email: "team@procuvex.com", name: "Procuvex" },
+          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Procuvex" },
           replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
           subject: `Final notice: ${sub.company_name} profile will be deprioritized`,
           html: buildFollowUp2Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp2Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
-          customArgs: { email_type: "sub_outreach_followup2" },
+          tag: "sub_outreach_followup2",
           headers: {
             "List-Unsubscribe": `<${unsubscribeUrl}>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

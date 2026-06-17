@@ -8,7 +8,6 @@ const supabase = createClient(
 )
 
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || ""
-const MAILGUN_OUTREACH_DOMAIN = process.env.MAILGUN_OUTREACH_DOMAIN || process.env.MAILGUN_DOMAIN || "procuvex.com"
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "procuvex.com"
 
 async function fetchMailgunStats(domain: string): Promise<{ accepted: number; delivered: number; failed_perm: number; failed_temp: number; opened: number; clicked: number; complained: number }> {
@@ -140,21 +139,8 @@ export default async (req: Request, _context: Context) => {
     const total = totalSent || 0
     const bouncedCount = (bounced || 0) + (softBounced || 0)
 
-    // Fetch real delivery stats from Mailgun (both domains)
-    const [mgOutreach, mgMain] = await Promise.all([
-      fetchMailgunStats(MAILGUN_OUTREACH_DOMAIN),
-      MAILGUN_OUTREACH_DOMAIN !== MAILGUN_DOMAIN ? fetchMailgunStats(MAILGUN_DOMAIN) : Promise.resolve({ accepted: 0, delivered: 0, failed_perm: 0, failed_temp: 0, opened: 0, clicked: 0, complained: 0 }),
-    ])
-
-    const mgTotal = {
-      accepted: mgOutreach.accepted + mgMain.accepted,
-      delivered: mgOutreach.delivered + mgMain.delivered,
-      failed_perm: mgOutreach.failed_perm + mgMain.failed_perm,
-      failed_temp: mgOutreach.failed_temp + mgMain.failed_temp,
-      opened: mgOutreach.opened + mgMain.opened,
-      clicked: mgOutreach.clicked + mgMain.clicked,
-      complained: mgOutreach.complained + mgMain.complained,
-    }
+    // Fetch real delivery stats from Mailgun
+    const mgTotal = await fetchMailgunStats(MAILGUN_DOMAIN)
 
     // Use Mailgun data for delivery metrics when available, fall back to DB
     const actualDelivered = mgTotal.delivered > 0 ? mgTotal.delivered : (total - bouncedCount)
@@ -227,7 +213,7 @@ export default async (req: Request, _context: Context) => {
         day: warmup.day_number,
         daily_limit: warmup.daily_limit,
         sent_today: sentToday || 0,
-        domain: MAILGUN_OUTREACH_DOMAIN,
+        domain: MAILGUN_DOMAIN,
       },
       emails,
     }), { headers })
