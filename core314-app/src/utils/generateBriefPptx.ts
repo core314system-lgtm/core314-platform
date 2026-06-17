@@ -603,59 +603,84 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
   const hasForecast = data.forecast && (data.forecast['7_day'] || data.forecast['14_day'] || data.forecast['30_day']);
 
   if (hasRootCause || hasForecast) {
-    const analysisSlide = pptx.addSlide();
-    analysisSlide.background = { color: COLORS.white };
-    addContentHeader(analysisSlide, 'Analysis & Forecast', data.companyLogoUrl);
-    addSlideFooter(analysisSlide, dateStr);
+    // Determine if root causes need their own slide (>5 items would push forecast off-screen)
+    const rootCauseCount = data.root_cause_analysis?.length ?? 0;
+    const splitSlides = rootCauseCount > 5 && hasForecast;
+
+    // --- Root Cause Analysis slide ---
+    const rcaSlide = pptx.addSlide();
+    rcaSlide.background = { color: COLORS.white };
+    addContentHeader(rcaSlide, splitSlides ? 'Root Cause Analysis' : 'Analysis & Forecast', data.companyLogoUrl);
+    addSlideFooter(rcaSlide, dateStr);
 
     let anaY = 1.2;
 
     if (hasRootCause && data.root_cause_analysis) {
-      addSectionTitle(analysisSlide, 'ROOT CAUSE ANALYSIS', anaY);
+      addSectionTitle(rcaSlide, 'ROOT CAUSE ANALYSIS', anaY);
       anaY += 0.5;
 
       const warningChar = '\u26A0';
       for (const cause of data.root_cause_analysis) {
-        analysisSlide.addText(`${warningChar}  ${cause}`, {
-          x: MARGIN + 0.2, y: anaY, w: CONTENT_W - 0.4, h: 0.4,
-          fontSize: 13, color: COLORS.text, valign: 'top', fontFace: 'Arial',
-        });
+        analysisSlideAddCause(rcaSlide, warningChar, cause, anaY);
         anaY += 0.45;
       }
       anaY += 0.3;
     }
 
-    if (hasForecast && data.forecast) {
-      addSectionTitle(analysisSlide, 'FORECAST PROJECTIONS', anaY);
-      anaY += 0.55;
-
-      const forecasts: { label: string; text: string; color: string }[] = [];
-      if (data.forecast['7_day']) forecasts.push({ label: '7-Day Outlook', text: data.forecast['7_day'], color: COLORS.primary });
-      if (data.forecast['14_day']) forecasts.push({ label: '14-Day Outlook', text: data.forecast['14_day'], color: COLORS.amber });
-      if (data.forecast['30_day']) forecasts.push({ label: '30-Day Outlook', text: data.forecast['30_day'], color: COLORS.red });
-
-      const fcCardW = (CONTENT_W - (forecasts.length - 1) * 0.25) / forecasts.length;
-      forecasts.forEach((fc, idx) => {
-        const cx = MARGIN + idx * (fcCardW + 0.25);
-        const fcCardH = 2.0;
-        analysisSlide.addShape('roundRect' as PptxGenJS.ShapeType, {
-          x: cx, y: anaY, w: fcCardW, h: fcCardH,
-          rectRadius: 0.1, fill: { color: COLORS.bgCard },
-        });
-        analysisSlide.addShape('rect' as PptxGenJS.ShapeType, {
-          x: cx, y: anaY, w: fcCardW, h: 0.06,
-          fill: { color: fc.color },
-        });
-        analysisSlide.addText(fc.label, {
-          x: cx + 0.25, y: anaY + 0.2, w: fcCardW - 0.5, h: 0.3,
-          fontSize: 13, bold: true, color: fc.color, fontFace: 'Arial',
-        });
-        analysisSlide.addText(fc.text, {
-          x: cx + 0.25, y: anaY + 0.55, w: fcCardW - 0.5, h: 1.3,
-          fontSize: 12, color: COLORS.text, valign: 'top', fontFace: 'Arial',
-        });
-      });
+    // If not splitting, put forecasts on the same slide
+    if (!splitSlides && hasForecast && data.forecast) {
+      addForecastSection(rcaSlide, data.forecast, anaY);
     }
+
+    // --- Separate Forecast slide when root causes are long ---
+    if (splitSlides && hasForecast && data.forecast) {
+      const fcSlide = pptx.addSlide();
+      fcSlide.background = { color: COLORS.white };
+      addContentHeader(fcSlide, 'Forecast Projections', data.companyLogoUrl);
+      addSlideFooter(fcSlide, dateStr);
+      addForecastSection(fcSlide, data.forecast, 1.2);
+    }
+  }
+
+  /** Helper: add a single root-cause line */
+  function analysisSlideAddCause(slide: PptxGenJS.Slide, icon: string, text: string, y: number) {
+    slide.addText(`${icon}  ${text}`, {
+      x: MARGIN + 0.2, y, w: CONTENT_W - 0.4, h: 0.4,
+      fontSize: 13, color: COLORS.text, valign: 'top', fontFace: 'Arial',
+    });
+  }
+
+  /** Helper: render forecast cards on the given slide at the given Y offset */
+  function addForecastSection(slide: PptxGenJS.Slide, forecast: NonNullable<BriefPptxData['forecast']>, startY: number) {
+    addSectionTitle(slide, 'FORECAST PROJECTIONS', startY);
+    const cardY = startY + 0.55;
+
+    const forecasts: { label: string; text: string; color: string }[] = [];
+    if (forecast['7_day']) forecasts.push({ label: '7-Day Outlook', text: forecast['7_day'], color: COLORS.primary });
+    if (forecast['14_day']) forecasts.push({ label: '14-Day Outlook', text: forecast['14_day'], color: COLORS.amber });
+    if (forecast['30_day']) forecasts.push({ label: '30-Day Outlook', text: forecast['30_day'], color: COLORS.red });
+
+    const fcCardW = (CONTENT_W - (forecasts.length - 1) * 0.25) / forecasts.length;
+    forecasts.forEach((fc, idx) => {
+      const cx = MARGIN + idx * (fcCardW + 0.25);
+      const fcCardH = 2.0;
+      slide.addShape('roundRect' as PptxGenJS.ShapeType, {
+        x: cx, y: cardY, w: fcCardW, h: fcCardH,
+        rectRadius: 0.1, fill: { color: COLORS.bgCard },
+      });
+      slide.addShape('rect' as PptxGenJS.ShapeType, {
+        x: cx, y: cardY, w: fcCardW, h: 0.06,
+        fill: { color: fc.color },
+      });
+      slide.addText(fc.label, {
+        x: cx + 0.25, y: cardY + 0.2, w: fcCardW - 0.5, h: 0.3,
+        fontSize: 13, bold: true, color: fc.color, fontFace: 'Arial',
+      });
+      slide.addText(fc.text, {
+        x: cx + 0.25, y: cardY + 0.55, w: fcCardW - 0.5, h: 1.3,
+        fontSize: 12, color: COLORS.text, valign: 'top', fontFace: 'Arial',
+      });
+    });
   }
 
   // ==========================================================================
@@ -760,9 +785,13 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
     const CATEGORY_LABELS: Record<string, string> = {
       revenue: 'Revenue Impact',
       cash_flow: 'Cash Flow Impact',
+      financial_health: 'Financial Health',
+      pipeline_health: 'Pipeline Health',
       operations: 'Operations Impact',
       communication: 'Communication Impact',
+      project_management: 'Project Management',
       scheduling: 'Scheduling Impact',
+      engagement: 'Engagement',
     };
 
     const rows: PptxGenJS.TableRow[] = [];
@@ -779,9 +808,10 @@ export async function generateBriefPptx(data: BriefPptxData): Promise<void> {
 
     for (const [cat, penalty] of Object.entries(bd.category_penalties_capped || {})) {
       const label = CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      const absPenalty = Math.abs(penalty);
       rows.push([
         { text: label, options: { fontSize: 13, color: COLORS.text, fill: { color: COLORS.bgLight }, valign: 'middle', fontFace: 'Arial' } },
-        { text: penalty > 0 ? `-${penalty}` : '0', options: { fontSize: 13, bold: penalty > 0, color: penalty > 0 ? COLORS.red : COLORS.textLight, fill: { color: COLORS.bgLight }, valign: 'middle', align: 'right', fontFace: 'Arial' } },
+        { text: absPenalty > 0 ? `-${absPenalty}` : '0', options: { fontSize: 13, bold: absPenalty > 0, color: absPenalty > 0 ? COLORS.red : COLORS.textLight, fill: { color: COLORS.bgLight }, valign: 'middle', align: 'right', fontFace: 'Arial' } },
       ]);
     }
 
