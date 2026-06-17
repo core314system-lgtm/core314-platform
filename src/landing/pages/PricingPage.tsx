@@ -51,6 +51,7 @@ const tiers = [
       'Custom workflow stages',
       'Intelligence library',
       'Dedicated onboarding',
+      'SAML SSO (Okta, Azure AD, Google Workspace)',
       'Priority support with SLA',
       '99.9% uptime guarantee',
     ],
@@ -81,6 +82,7 @@ const comparison = [
   { name: 'Custom Quote Forms', growth: false, ent: true },
   { name: 'REST API Access', growth: false, ent: true },
   { name: 'Custom Workflows', growth: false, ent: true },
+  { name: 'SAML SSO (Okta, Azure AD, Google)', growth: false, ent: true },
   { name: 'Dedicated Onboarding', growth: false, ent: true },
   { name: '99.9% Uptime SLA', growth: false, ent: true },
 ]

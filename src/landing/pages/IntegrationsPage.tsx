@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, CheckCircle, Search, Code, Database,
-  Globe, FileSpreadsheet, Zap, Clock,
+  Globe, FileSpreadsheet, Zap, Clock, Shield,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -73,6 +73,19 @@ const integrations = [
       'Custom from-name, reply-to, logo, and brand colors',
       'Per-domain reputation tracking and analytics',
       'Automatic fallback to platform default if domain issues arise',
+    ],
+  },
+  {
+    icon: Shield,
+    title: 'SAML SSO (Enterprise)',
+    status: 'live',
+    desc: 'Enterprise customers sign in using their company identity provider. Supports Okta, Azure AD, Google Workspace, PingIdentity, OneLogin, and any SAML 2.0 compatible IdP.',
+    features: [
+      'One-click SSO login for enterprise users',
+      'Automatic account provisioning on first sign-in',
+      'Domain-based routing — users are redirected to their IdP',
+      'Full SAML 2.0 support with metadata exchange',
+      'Admin portal to manage identity providers',
     ],
   },
   {

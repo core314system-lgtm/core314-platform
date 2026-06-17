@@ -47,6 +47,7 @@ import AccountSettings from './pages/AccountSettings'
 import AdminAnalytics from './pages/AdminAnalytics'
 import GlobalAdminSettings from './pages/GlobalAdminSettings'
 import EnterpriseEmailSettings from './pages/EnterpriseEmailSettings'
+import SSOSettings from './pages/SSOSettings'
 import AgentHub from './pages/AgentHub'
 import AdminBetaInvites from './pages/AdminBetaInvites'
 import BetaApply from './pages/BetaApply'
@@ -324,6 +325,7 @@ export default function App() {
           <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/system-health" element={<ProtectedRoute><GlobalAdminRoute><SystemHealth /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/settings/email-domain" element={<ProtectedRoute><EnterpriseEmailSettings /></ProtectedRoute>} />
+          <Route path="/settings/sso" element={<ProtectedRoute><GlobalAdminRoute><SSOSettings /></GlobalAdminRoute></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
