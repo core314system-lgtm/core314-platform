@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert, Send, Building, User } from 'lucide-react'
+import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert, Send, Building, User, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { logAuditEvent } from '../lib/auditLog'
 import MfaVerify from './MfaVerify'
@@ -183,6 +183,10 @@ export default function Login() {
   const [betaInviteError, setBetaInviteError] = useState<string | null>(null)
   const [betaValidating, setBetaValidating] = useState(!!betaInviteToken)
   const [showMfa, setShowMfa] = useState(false)
+  const [showSso, setShowSso] = useState(false)
+  const [ssoEmail, setSsoEmail] = useState('')
+  const [ssoLoading, setSsoLoading] = useState(false)
+  const [ssoError, setSsoError] = useState('')
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
 
@@ -647,6 +651,67 @@ export default function Login() {
             </button>
           </form>
 
+          )}
+
+          {/* SSO Sign-in Option */}
+          {!isSignUp && !showSso && (
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setShowSso(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                <KeyRound size={16} />
+                Sign in with SSO
+              </button>
+            </div>
+          )}
+
+          {/* SSO Email Form */}
+          {!isSignUp && showSso && (
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <p className="text-sm font-medium text-slate-700 mb-2">Enterprise SSO</p>
+              <form onSubmit={async (e) => {
+                e.preventDefault()
+                setSsoError('')
+                setSsoLoading(true)
+                try {
+                  const domain = ssoEmail.split('@')[1]
+                  if (!domain) { setSsoError('Enter a valid email'); setSsoLoading(false); return }
+                  const { data, error: ssoErr } = await supabase.auth.signInWithSSO({ domain })
+                  if (ssoErr) { setSsoError(ssoErr.message); setSsoLoading(false); return }
+                  if (data?.url) window.location.href = data.url
+                } catch {
+                  setSsoError('SSO sign-in failed')
+                  setSsoLoading(false)
+                }
+              }} className="space-y-3">
+                <input
+                  type="email"
+                  value={ssoEmail}
+                  onChange={(e) => setSsoEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  required
+                />
+                {ssoError && <p className="text-xs text-red-600">{ssoError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={ssoLoading}
+                    className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {ssoLoading ? 'Redirecting...' : 'Continue with SSO'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSso(false); setSsoError('') }}
+                    className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
 
           {/* Contextual footer based on mode */}

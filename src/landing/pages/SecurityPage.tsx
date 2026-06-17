@@ -29,6 +29,7 @@ const securityLayers = [
       'Role-based access control (RBAC) within organizations',
       'JWT-based authentication with secure session management',
       'Multi-factor authentication (TOTP) for all accounts',
+      'SAML 2.0 SSO — enterprise customers sign in via Okta, Azure AD, Google Workspace, or any SAML-compatible IdP',
     ],
   },
   {
