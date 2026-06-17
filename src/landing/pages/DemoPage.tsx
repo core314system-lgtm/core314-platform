@@ -143,7 +143,7 @@ export default function DemoPage() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Win More Contracts?</h2>
           <p className="text-slate-400 mb-8">
-            Start your 7-day free trial. Full platform access from day one. No credit card required.
+            Start your 7-day free trial. Full platform access from day one.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
