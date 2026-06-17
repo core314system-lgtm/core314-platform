@@ -93,7 +93,8 @@ export default async (req: Request) => {
           try {
             await sgMail.default.send({
               to: tester.email,
-              from: { email: "noreply@core314.com", name: "Procuvex" },
+              from: { email: "admin@core314.com", name: "Chris Brown — Procuvex" },
+              replyTo: { email: "admin@core314.com", name: "Chris Brown" },
               subject: isFollowUp
                 ? `Reminder: Week ${currentWeek} Feedback Still Pending — Procuvex Founding Partner Program`
                 : `Procuvex Founding Partner Program — Week ${currentWeek} Feedback Ready`,
@@ -128,7 +129,8 @@ export default async (req: Request) => {
         try {
           await sgMail.default.send({
             to: tester.email,
-            from: { email: "noreply@core314.com", name: "Procuvex" },
+            from: { email: "admin@core314.com", name: "Chris Brown — Procuvex" },
+            replyTo: { email: "admin@core314.com", name: "Chris Brown" },
             subject: daysRemaining <= 1
               ? "Last Chance — Your 25% Lifetime Discount Expires Today!"
               : "Your 25% Lifetime Discount Expires in 2 Days",
@@ -151,7 +153,70 @@ export default async (req: Request) => {
     }
   }
 
-  // 3. Set beta_start_date on first login for accepted testers who haven't logged in yet
+  // 3. Follow-up drip for pending beta invitations (Day 3 and Day 7)
+  const { data: pendingInvites } = await supabase
+    .from("beta_invitations")
+    .select("id, email, created_at, status")
+    .eq("status", "pending")
+
+  if (pendingInvites) {
+    const siteUrl = process.env.URL || "https://procuvex.com"
+    for (const inv of pendingInvites) {
+      const daysSinceSent = Math.floor(
+        (Date.now() - new Date(inv.created_at).getTime()) / 86400000
+      )
+
+      if (daysSinceSent === 3 || daysSinceSent === 7) {
+        const domain = inv.email.split("@")[1]?.toLowerCase() || ""
+        const genericDomains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com", "icloud.com", "protonmail.com", "mail.com"]
+        const company = genericDomains.includes(domain) ? "" : (domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1))
+
+        const isDay3 = daysSinceSent === 3
+        const subject = isDay3
+          ? "Quick follow-up — your Procuvex invite is waiting"
+          : `Last chance${company ? ` for ${company}` : ""} — Procuvex Founding Partner spot`
+
+        const body = isDay3
+          ? `<p style="font-size: 15px; color: #111827;">Hi — just wanted to make sure you saw my previous email.</p>
+             <p style="font-size: 15px; color: #374151; line-height: 1.7;">We're selecting 30 procurement professionals for our Founding Partner Program — complimentary access, 25% lifetime discount, and direct input on the product roadmap.</p>
+             <p style="font-size: 15px; color: #374151;">Your spot is reserved for the next few days. Takes 2 minutes to apply:</p>`
+          : `<p style="font-size: 15px; color: #111827;">This is my last note about this — I don't want to be a bother.</p>
+             <p style="font-size: 15px; color: #374151; line-height: 1.7;">Your invitation to the Procuvex Founding Partner Program expires soon. If procurement tech isn't on your radar right now, no worries at all. But if you've been meaning to look into it, now's the time:</p>`
+
+        const html = `
+          <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px;">
+              ${body}
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${siteUrl}/beta/apply/${inv.id}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">View My Invitation</a>
+              </div>
+              <p style="font-size: 14px; color: #374151; margin: 16px 0 0;">— Chris Brown, Founder<br/><span style="font-size: 13px; color: #6b7280;">Core314 Technologies</span></p>
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+              <p style="font-size: 11px; color: #9ca3af; text-align: center;">
+                <a href="${siteUrl}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=${encodeURIComponent(inv.email)}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
+              </p>
+            </div>
+          </div>
+        `
+
+        try {
+          await sgMail.default.send({
+            to: inv.email,
+            from: { email: "admin@core314.com", name: "Chris Brown — Procuvex" },
+            replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+            subject,
+            html,
+            customArgs: { email_type: "beta_invite_followup" },
+          })
+          results.push(`Sent day ${daysSinceSent} follow-up to ${inv.email}`)
+        } catch {
+          results.push(`Failed to send follow-up to ${inv.email}`)
+        }
+      }
+    }
+  }
+
+  // 4. Set beta_start_date on first login for accepted testers who haven't logged in yet
   const { data: acceptedInvites } = await supabase
     .from("beta_invitations")
     .select("email")

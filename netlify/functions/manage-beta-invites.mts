@@ -45,17 +45,27 @@ function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
 }
 
-function buildInviteEmailHtml(applyUrl: string): string {
+function getCompanyFromEmail(email: string): string {
+  const domain = email.split("@")[1]?.toLowerCase() || ""
+  const genericDomains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com", "icloud.com", "protonmail.com", "mail.com"]
+  if (genericDomains.includes(domain)) return ""
+  const name = domain.split(".")[0]
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
+function buildInviteEmailHtml(applyUrl: string, recipientEmail: string): string {
+  const company = getCompanyFromEmail(recipientEmail)
+  const greeting = company ? `I came across ${company} and wanted to reach out personally.` : "I wanted to reach out to you personally."
   return `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 40px 32px; border-radius: 12px 12px 0 0; text-align: center;">
-        <p style="margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8;">Founding Partner Program</p>
-        <h1 style="margin: 0; font-size: 26px; font-weight: bold; line-height: 1.3;">You've Been Selected for<br/>the Procuvex Founding Partner Program</h1>
-        <p style="margin: 14px 0 0; opacity: 0.85; font-size: 14px;">AI-Powered Procurement Intelligence for Complex Bid &amp; Subcontractor Workflows</p>
+        <p style="margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8;">Invitation — Limited to 30 Partners</p>
+        <h1 style="margin: 0; font-size: 26px; font-weight: bold; line-height: 1.3;">You're Invited to Shape the Future<br/>of Procurement Technology</h1>
       </div>
       <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
-        <p style="font-size: 16px; color: #111827; margin-top: 0;">You've been hand-selected to join a limited group of procurement professionals as a Founding Partner of Procuvex.</p>
+        <p style="font-size: 16px; color: #111827; margin-top: 0;">${greeting} We're selecting 30 procurement professionals to join the Procuvex Founding Partner Program — and your team is on our short list.</p>
         <p style="color: #374151; line-height: 1.7; font-size: 15px;">Procuvex was built from real-world federal procurement and multi-site facility management operations. It's designed for teams managing complex solicitations, subcontractor coordination, and compliance-heavy bid processes. <a href="https://procuvex.com" style="color: #1e40af; text-decoration: underline;">Learn more at procuvex.com</a></p>
+        <p style="font-size: 14px; color: #374151; line-height: 1.6; margin: 16px 0 0;">I'd love to hear your honest feedback on the platform — that's what this program is about.</p>
         <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 24px 0;">
           <p style="margin: 0 0 10px; font-size: 14px; color: #0c4a6e; font-weight: 600;">As a Founding Partner, you receive:</p>
           <ul style="margin: 0; padding-left: 18px; color: #0369a1; font-size: 14px; line-height: 2;">
@@ -72,7 +82,8 @@ function buildInviteEmailHtml(applyUrl: string): string {
           </a>
           <p style="margin: 12px 0 0; font-size: 12px; color: #9ca3af;">Only 30 founding seats available &mdash; spots are not guaranteed</p>
         </div>
-        <p style="font-size: 13px; color: #6b7280; line-height: 1.6;">This invitation is personal and non-transferable. It expires in 30 days.</p>
+        <p style="font-size: 14px; color: #374151; margin: 16px 0 0;">— Chris Brown, Founder<br/><span style="font-size: 13px; color: #6b7280;">Core314 Technologies</span></p>
+        <p style="font-size: 13px; color: #6b7280; line-height: 1.6; margin-top: 16px;">This invitation is personal and non-transferable. It expires in 30 days.</p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;">
           Procuvex &mdash; Built for government contractors, procurement teams, and subcontractor-driven operations.<br/>A product of Core314 Technologies LLC
@@ -119,7 +130,7 @@ function buildAcceptanceEmailHtml(signupUrl: string, seatsRemaining: number): st
         </div>
 
         <p style="font-size: 14px; color: #374151; line-height: 1.7;">Questions? Use the <strong>Ask Procuvex Intelligence</strong> chatbot (bottom-right of every page) once you're logged in.</p>
-        <p style="font-size: 14px; color: #374151; margin-top: 16px;">Welcome aboard,<br/><strong>The Procuvex Team</strong></p>
+        <p style="font-size: 14px; color: #374151; margin-top: 16px;">Welcome aboard,<br/><strong>Chris Brown, Founder</strong><br/><span style="font-size: 13px; color: #6b7280;">Core314 Technologies</span></p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center; line-height: 1.6;">
           Procuvex &mdash; A product of Core314 Technologies LLC
@@ -146,7 +157,7 @@ function buildDeclineEmailHtml(): string {
           <p style="margin: 0; font-size: 14px; color: #0c4a6e;">In the meantime, learn more about Procuvex at<br/><a href="https://procuvex.com" style="color: #1e40af; font-weight: 600;">procuvex.com</a></p>
         </div>
         <p style="font-size: 14px; color: #374151;">We genuinely appreciate your interest and look forward to working with you soon.</p>
-        <p style="font-size: 14px; color: #374151; margin-top: 16px;">Warm regards,<br/><strong>The Procuvex Team</strong></p>
+        <p style="font-size: 14px; color: #374151; margin-top: 16px;">Warm regards,<br/><strong>Chris Brown, Founder</strong><br/><span style="font-size: 13px; color: #6b7280;">Core314 Technologies</span></p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
         <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 12px;">
@@ -184,7 +195,8 @@ async function sendEmail(to: string, subject: string, html: string, emailType: s
   const finalHtml = html.replace(/%%EMAIL%%/g, encodeURIComponent(to))
   await sgMail.default.send({
     to,
-    from: { email: "noreply@core314.com", name: "Procuvex" },
+    from: { email: "admin@core314.com", name: "Chris Brown — Procuvex" },
+    replyTo: { email: "admin@core314.com", name: "Chris Brown" },
     subject,
     html: finalHtml,
     customArgs: { email_type: emailType },
@@ -457,10 +469,14 @@ export default async (req: Request, _context: Context) => {
       const applyUrl = `${siteUrl}/beta/apply/${token}`
 
       try {
+        const company = getCompanyFromEmail(email)
+        const subjectLine = company
+          ? `${company} + Procuvex — Founding Partner Invitation`
+          : "Invitation: Procuvex Founding Partner Program"
         await sendEmail(
           email,
-          "Founding Partner Program — You've Been Selected for Procuvex",
-          buildInviteEmailHtml(applyUrl),
+          subjectLine,
+          buildInviteEmailHtml(applyUrl, email),
           "beta_invite"
         )
         results.push({ email, status: "sent" })
@@ -532,8 +548,8 @@ export default async (req: Request, _context: Context) => {
       try {
         initSendGrid()
         await sgMail.default.send({
-          to: "team@procuvex.com",
-          from: { email: "team@procuvex.com", name: "Procuvex" },
+          to: "admin@core314.com",
+          from: { email: "admin@core314.com", name: "Procuvex" },
           subject: `Beta Access Request: ${reqName.trim()} (${cleanEmail})`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 500px; padding: 20px;">
@@ -701,7 +717,11 @@ export default async (req: Request, _context: Context) => {
       const applyUrl = `${siteUrl}/beta/apply/${newToken}`
 
       try {
-        await sendEmail(invite.email, "Founding Partner Program — You've Been Selected for Procuvex", buildInviteEmailHtml(applyUrl), "beta_invite")
+        const company = getCompanyFromEmail(invite.email)
+        const subjectLine = company
+          ? `${company} + Procuvex — Founding Partner Invitation`
+          : "Invitation: Procuvex Founding Partner Program"
+        await sendEmail(invite.email, subjectLine, buildInviteEmailHtml(applyUrl, invite.email), "beta_invite")
         return new Response(JSON.stringify({ success: true, token: newToken }), { headers })
       } catch (emailErr: unknown) {
         const errMsg = emailErr instanceof Error ? emailErr.message : "Unknown error"
