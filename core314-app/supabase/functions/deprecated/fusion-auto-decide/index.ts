@@ -252,7 +252,7 @@ async function sendEmailNotification(
         personalizations: [{
           to: [{ email: config.to }]
         }],
-        from: { email: 'noreply@core314.com', name: 'Core314 Automation' },
+        from: { email: 'team@procuvex.com', name: 'Core314 Automation' },
         subject: `Core314 Alert: ${rule.rule_name}`,
         content: [{
           type: 'text/plain',

@@ -228,7 +228,8 @@ export default async (req: Request, _context: Context) => {
             initSendGrid()
             await sgMail.default.send({
               to: profile.email,
-              from: { email: "noreply@core314.com", name: "Procuvex" },
+              from: { email: "team@procuvex.com", name: "Procuvex" },
+              replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
               subject: "You Did It — Claim Your 25% Lifetime Discount!",
               html: buildCompletionEmailHtml(promoCode.code, claimUrl),
               customArgs: { email_type: "beta_completed" },

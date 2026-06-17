@@ -239,7 +239,7 @@ async function sendEmail(
   text: string
 ): Promise<{ success: boolean; error?: string }> {
   const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
-  const senderEmail = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'noreply@core314.com';
+  const senderEmail = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'team@procuvex.com';
   const senderName = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
 
   if (!sendgridApiKey) {

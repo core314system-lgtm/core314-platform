@@ -259,7 +259,7 @@ Logic in Motion. Intelligence in Control.
           subject: 'Welcome to Core314 — Your Operations, Unified by Logic'
         }],
         from: {
-          email: 'noreply@core314.com',
+          email: 'team@procuvex.com',
           name: 'Core314'
         },
         content: [

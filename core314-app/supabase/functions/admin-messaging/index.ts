@@ -437,7 +437,7 @@ async function sendEmailWithTemplate(
   console.log('[SENDGRID] sendEmailWithTemplate called', { to, templateId });
   
   const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
-  const senderEmail = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'noreply@core314.com';
+  const senderEmail = Deno.env.get('SENDGRID_SENDER_EMAIL') || 'team@procuvex.com';
   const senderName = Deno.env.get('SENDGRID_SENDER_NAME') || 'Core314';
 
   console.log('[SENDGRID] Config check', { 

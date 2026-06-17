@@ -93,7 +93,8 @@ export default async (req: Request) => {
           try {
             await sgMail.default.send({
               to: tester.email,
-              from: { email: "noreply@core314.com", name: "Procuvex" },
+              from: { email: "team@procuvex.com", name: "Procuvex" },
+              replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
               subject: isFollowUp
                 ? `Reminder: Week ${currentWeek} Feedback Still Pending — Procuvex Founding Partner Program`
                 : `Procuvex Founding Partner Program — Week ${currentWeek} Feedback Ready`,
@@ -128,7 +129,8 @@ export default async (req: Request) => {
         try {
           await sgMail.default.send({
             to: tester.email,
-            from: { email: "noreply@core314.com", name: "Procuvex" },
+            from: { email: "team@procuvex.com", name: "Procuvex" },
+            replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
             subject: daysRemaining <= 1
               ? "Last Chance — Your 25% Lifetime Discount Expires Today!"
               : "Your 25% Lifetime Discount Expires in 2 Days",

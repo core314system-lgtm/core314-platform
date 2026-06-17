@@ -17,7 +17,7 @@ The following environment variables must be configured in your Supabase project:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `SENDGRID_API_KEY` | Yes | - | SendGrid API key for sending emails |
-| `SENDGRID_SENDER_EMAIL` | No | `noreply@core314.com` | Verified sender email address in SendGrid |
+| `SENDGRID_SENDER_EMAIL` | No | `team@procuvex.com` | Verified sender email address in SendGrid |
 | `SENDGRID_SENDER_NAME` | No | `Core314` | Display name for the sender |
 | `APP_URL` | No | `https://app.core314.com` | Base URL for the application (used in email links) |
 | `SUPABASE_URL` | Yes | - | Supabase project URL (auto-configured) |
@@ -37,7 +37,7 @@ The following environment variables must be configured in your Supabase project:
 ```bash
 # Using Supabase CLI
 supabase secrets set SENDGRID_API_KEY=your_api_key_here
-supabase secrets set SENDGRID_SENDER_EMAIL=noreply@core314.com
+supabase secrets set SENDGRID_SENDER_EMAIL=team@procuvex.com
 supabase secrets set SENDGRID_SENDER_NAME=Core314
 supabase secrets set APP_URL=https://app.core314.com
 ```

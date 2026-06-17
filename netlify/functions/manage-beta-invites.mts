@@ -184,7 +184,8 @@ async function sendEmail(to: string, subject: string, html: string, emailType: s
   const finalHtml = html.replace(/%%EMAIL%%/g, encodeURIComponent(to))
   await sgMail.default.send({
     to,
-    from: { email: "noreply@core314.com", name: "Procuvex" },
+    from: { email: "team@procuvex.com", name: "Procuvex" },
+    replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
     subject,
     html: finalHtml,
     customArgs: { email_type: emailType },

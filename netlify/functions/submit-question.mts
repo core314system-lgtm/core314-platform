@@ -313,7 +313,8 @@ async function sendAutoAnsweredEmail(
 
   await sgMail.default.send({
     to: subEmail,
-    from: { email: "noreply@core314.com", name: orgName },
+    from: { email: "team@procuvex.com", name: orgName },
+    replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
     subject: `Answer to your question — ${taskOrderTitle}`,
     html: emailHtml,
   })
@@ -357,7 +358,8 @@ async function sendPendingSubmissionEmail(
 
   await sgMail.default.send({
     to: subEmail,
-    from: { email: "noreply@core314.com", name: orgName },
+    from: { email: "team@procuvex.com", name: orgName },
+    replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
     subject: `Question Received — ${taskOrderTitle}`,
     html: emailHtml,
   })
