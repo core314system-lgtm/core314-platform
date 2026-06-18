@@ -146,9 +146,9 @@ export default async (req: Request, _context: Context) => {
 
         await sendViaMailgun({
           to: sub.contact_email!,
-          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Procuvex" },
-          replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
-          subject: `${sub.company_name} — A prime searched for ${trades} subs in ${location}`,
+          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
+          replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+          subject: `Following up — ${sub.company_name} profile on Procuvex`,
           html: buildFollowUp1Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp1Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           tag: "sub_outreach_followup1",
@@ -198,9 +198,9 @@ export default async (req: Request, _context: Context) => {
 
         await sendViaMailgun({
           to: sub.contact_email!,
-          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Procuvex" },
-          replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
-          subject: `Final notice: ${sub.company_name} profile will be deprioritized`,
+          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
+          replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+          subject: `Last note about ${sub.company_name} on Procuvex`,
           html: buildFollowUp2Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp2Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           tag: "sub_outreach_followup2",
@@ -232,36 +232,29 @@ export default async (req: Request, _context: Context) => {
   }), { headers })
 }
 
-// --- Follow-up #1 (Day 3): "A prime searched for your trade" ---
+// --- Follow-up #1 (Day 3): short personal nudge ---
 function buildFollowUp1Email(companyName: string, claimUrl: string, trades: string[], location: string, unsubscribeUrl: string): string {
   const tradeStr = trades.slice(0, 2).join(", ") || "your trade"
   return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px;">
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          Hi,
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
+      <div style="padding: 20px 0;">
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">Hi,</p>
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          Just wanted to make sure you saw my note from a few days ago. We have a profile set up for <strong>${companyName}</strong> on Procuvex — primes are searching for ${tradeStr} subs in ${location} and your company matches.
         </p>
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          Quick update — a prime contractor just searched for <strong>${tradeStr}</strong> subcontractors in <strong>${location}</strong> on Procuvex. <strong>${companyName}</strong> matched their criteria.
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          If you want to show up in those searches, just confirm the profile is accurate:
         </p>
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          However, since your profile hasn't been confirmed yet, you appeared lower in the results. Confirmed profiles get priority placement.
+        <p style="margin: 20px 0;">
+          <a href="${claimUrl}" style="color: #1e40af; font-size: 15px; font-weight: 600; text-decoration: underline;">Confirm your profile</a>
+          <span style="color: #6b7280; font-size: 14px;"> (10 seconds, free)</span>
         </p>
+        <p style="color: #1a1a1a; font-size: 15px; margin: 24px 0 4px;">&mdash; Chris</p>
 
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${claimUrl}" style="background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
-            Confirm My Profile (10 sec) →
-          </a>
-        </div>
-
-        <p style="color: #6b7280; font-size: 13px; line-height: 1.5;">
-          This takes 10 seconds and is completely free. You just confirm the info we already have is accurate.
-        </p>
-
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 11px; color: #9ca3af; text-align: center;">
-          Procuvex &mdash; Core314 Technologies LLC &mdash; 456 Clinton Dr. Orange Park, FL 32073<br/>
-          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0 12px;" />
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5;">
+          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> &mdash;
+          Core314 Technologies LLC, 456 Clinton Dr. Orange Park, FL 32073
         </p>
       </div>
     </div>
@@ -272,58 +265,48 @@ function buildFollowUp1Text(companyName: string, claimUrl: string, trades: strin
   const tradeStr = trades.slice(0, 2).join(", ") || "your trade"
   return `Hi,
 
-Quick update — a prime contractor just searched for ${tradeStr} subcontractors in ${location} on Procuvex. ${companyName} matched their criteria.
+Just wanted to make sure you saw my note from a few days ago. We have a profile set up for ${companyName} on Procuvex — primes are searching for ${tradeStr} subs in ${location} and your company matches.
 
-However, since your profile hasn't been confirmed yet, you appeared lower in the results. Confirmed profiles get priority placement.
+If you want to show up in those searches, just confirm the profile is accurate:
 
-Confirm your profile (10 seconds, free): ${claimUrl}
+${claimUrl}
 
----
-Procuvex - Core314 Technologies LLC
+10 seconds, free.
+
+— Chris
+
 Unsubscribe: ${unsubscribeUrl}
 `
 }
 
-// --- Follow-up #2 (Day 7): "Last chance — deprioritization" ---
+// --- Follow-up #2 (Day 7): final personal note ---
 function buildFollowUp2Email(companyName: string, claimUrl: string, trades: string[], location: string, unsubscribeUrl: string): string {
   const tradeStr = trades.slice(0, 2).join(", ") || "your trade"
   return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px;">
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          Hi,
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
+      <div style="padding: 20px 0;">
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">Hi,</p>
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          Last note from me on this — I don't want to be a bother.
         </p>
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          This is a final courtesy notice for <strong>${companyName}</strong>.
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          <strong>${companyName}</strong>'s profile has been on Procuvex for a week. Primes searching for ${tradeStr} in ${location} can find you, but unconfirmed profiles get less visibility over time.
         </p>
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          We've had your profile in our contractor network for a week and it still hasn't been confirmed. Starting next week, <strong>unconfirmed profiles will be deprioritized</strong> — meaning primes searching for ${tradeStr} in ${location} won't see your company in the first page of results.
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          If you're interested in receiving bid invitations from primes, confirm here:
         </p>
-
-        <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p style="color: #991b1b; margin: 0; font-size: 13px; font-weight: 600;">
-            Unconfirmed profiles lose visibility after 7 days
-          </p>
-          <p style="color: #991b1b; margin: 6px 0 0; font-size: 12px;">
-            Confirm now to keep ${companyName} visible to prime contractors.
-          </p>
-        </div>
-
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${claimUrl}" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
-            Keep My Profile Active →
-          </a>
-          <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0;">One click. No account. No cost.</p>
-        </div>
-
-        <p style="color: #6b7280; font-size: 13px; line-height: 1.5;">
-          If you don't want to appear in contractor searches, no action needed — your profile will naturally become less visible over time. You can also unsubscribe below.
+        <p style="margin: 20px 0;">
+          <a href="${claimUrl}" style="color: #1e40af; font-size: 15px; font-weight: 600; text-decoration: underline;">Confirm your profile</a>
         </p>
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          If not, no worries at all. This is the last email I'll send about this.
+        </p>
+        <p style="color: #1a1a1a; font-size: 15px; margin: 24px 0 4px;">&mdash; Chris</p>
 
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 11px; color: #9ca3af; text-align: center;">
-          Procuvex &mdash; Core314 Technologies LLC &mdash; 456 Clinton Dr. Orange Park, FL 32073<br/>
-          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> &mdash; This is the last email we'll send about profile confirmation.
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0 12px;" />
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5;">
+          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> &mdash;
+          Core314 Technologies LLC, 456 Clinton Dr. Orange Park, FL 32073
         </p>
       </div>
     </div>
@@ -334,19 +317,16 @@ function buildFollowUp2Text(companyName: string, claimUrl: string, trades: strin
   const tradeStr = trades.slice(0, 2).join(", ") || "your trade"
   return `Hi,
 
-This is a final courtesy notice for ${companyName}.
+Last note from me on this — I don't want to be a bother.
 
-We've had your profile in our contractor network for a week and it still hasn't been confirmed. Starting next week, unconfirmed profiles will be deprioritized — meaning primes searching for ${tradeStr} in ${location} won't see your company in the first page of results.
+${companyName}'s profile has been on Procuvex for a week. Primes searching for ${tradeStr} in ${location} can find you, but unconfirmed profiles get less visibility over time.
 
-Confirm now to keep your profile visible: ${claimUrl}
+If you're interested: ${claimUrl}
 
-One click. No account. No cost.
+If not, no worries at all. This is the last email I'll send about this.
 
-If you don't want to appear in contractor searches, no action needed. You can also unsubscribe below.
+— Chris
 
----
-Procuvex - Core314 Technologies LLC
 Unsubscribe: ${unsubscribeUrl}
-This is the last email we'll send about profile confirmation.
 `
 }

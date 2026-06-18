@@ -167,93 +167,57 @@ function generateToken(): string {
 }
 
 function buildOutreachPlainText(companyName: string, claimUrl: string, tradeCategories: string[], state: string, unsubscribeUrl: string): string {
-  const trades = tradeCategories.slice(0, 3).join(", ") || "Government Contracting"
+  const trades = tradeCategories.slice(0, 3).join(", ") || "government contracting"
   const location = state || "your area"
-  return `${companyName} — Prime Contractors Are Searching for ${trades} Subs in ${location}
+  return `Hi,
 
-Hi,
+I'm reaching out because ${companyName} is registered as a ${trades} contractor in ${location}, and we have prime contractors on Procuvex looking for subs with exactly that profile.
 
-Prime contractors in ${location} are actively looking for ${trades} subcontractors on Procuvex. Your company came up as a match.
-
-We've already built a profile for ${companyName} based on your public registrations. It takes 10 seconds to confirm it's accurate:
+We pulled together a profile for ${companyName} from your public registrations (SAM.gov, state licenses, etc). If the info looks right, one click confirms it and you'll start showing up when primes search for ${trades} subs in ${location}.
 
 Confirm your profile: ${claimUrl}
 
-WHY THIS MATTERS:
-- Primes search Procuvex to find subcontractors for upcoming bids
-- Confirmed profiles appear first in search results
-- You'll receive RFQ invitations directly to your inbox
-- 100% free — no cost to confirm or receive opportunities
+Takes about 10 seconds. No account needed. No cost — ever.
 
-${companyName} is one of ${Math.floor(Math.random() * 50) + 80} ${trades} contractors in ${location} who have been matched to upcoming opportunities this month.
+If this isn't relevant to your business, just ignore this email or unsubscribe below. No hard feelings.
 
-Confirm your profile (10 seconds): ${claimUrl}
-
----
-Procuvex — Connecting Primes with Qualified Subcontractors
-Core314 Technologies LLC
-456 Clinton Dr. Orange Park, FL 32073
+— Chris Brown
+Core314 Technologies / Procuvex
 https://procuvex.com
 
-You received this because ${companyName} is listed in government contractor registrations.
+You received this because ${companyName} appears in government contractor registrations.
 Unsubscribe: ${unsubscribeUrl}
 `
 }
 
 function buildOutreachEmail(companyName: string, claimUrl: string, tradeCategories: string[], state: string, unsubscribeUrl: string): string {
-  const trades = tradeCategories.slice(0, 3).join(", ") || "Government Contracting"
+  const trades = tradeCategories.slice(0, 3).join(", ") || "government contracting"
   const location = state || "your area"
-  const matchCount = Math.floor(Math.random() * 50) + 80
   return `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%); border-radius: 12px 12px 0 0; padding: 32px; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 22px;">Primes Are Searching for Subs Like You</h1>
-        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">Procuvex Contractor Network</p>
-      </div>
-      <div style="background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; padding: 32px;">
-        <p style="color: #374151; line-height: 1.6; font-size: 15px;">
-          Prime contractors in <strong>${location}</strong> are actively searching for <strong>${trades}</strong> subcontractors on Procuvex. <strong>${companyName}</strong> came up as a match.
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
+      <div style="padding: 20px 0;">
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">Hi,</p>
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          I'm reaching out because <strong>${companyName}</strong> is registered as a ${trades} contractor in ${location}, and we have prime contractors on Procuvex looking for subs with exactly that profile.
         </p>
-
-        <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p style="color: #166534; margin: 0; font-size: 14px; font-weight: 600;">Your profile is ready — just confirm it's accurate</p>
-          <p style="color: #166534; margin: 8px 0 0; font-size: 13px; line-height: 1.6;">
-            We built a profile for ${companyName} from your public registrations. One click to confirm = you start receiving bid invitations.
-          </p>
-        </div>
-
-        <div style="text-align: center; margin: 28px 0;">
-          <a href="${claimUrl}" style="background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
-            Confirm My Profile →
-          </a>
-          <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0;">Takes 10 seconds. 100% free.</p>
-        </div>
-
-        <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 20px;">
-          <p style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 12px;">What confirmed profiles get:</p>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 6px 0; color: #374151; font-size: 13px;">✓ Priority placement in contractor searches</td></tr>
-            <tr><td style="padding: 6px 0; color: #374151; font-size: 13px;">✓ RFQ invitations sent directly to your inbox</td></tr>
-            <tr><td style="padding: 6px 0; color: #374151; font-size: 13px;">✓ Visibility to primes bidding in ${location}</td></tr>
-            <tr><td style="padding: 6px 0; color: #374151; font-size: 13px;">✓ No cost — free to confirm and receive opportunities</td></tr>
-          </table>
-        </div>
-
-        <div style="background: #fefce8; border: 1px solid #eab308; border-radius: 8px; padding: 12px 16px; margin: 20px 0;">
-          <p style="color: #854d0e; margin: 0; font-size: 12px;">
-            <strong>${matchCount} ${trades} contractors</strong> in ${location} have been matched to opportunities this month. Unconfirmed profiles are deprioritized in search results.
-          </p>
-        </div>
-
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-          Procuvex &mdash; Core314 Technologies LLC<br/>
-          456 Clinton Dr. Orange Park, FL 32073<br/>
-          <a href="https://procuvex.com" style="color: #6b7280;">procuvex.com</a>
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          We pulled together a profile for ${companyName} from your public registrations (SAM.gov, state licenses, etc). If the info looks right, one click confirms it and you'll start showing up when primes search for ${trades} subs in ${location}.
         </p>
-        <p style="font-size: 11px; color: #d1d5db; text-align: center; margin-top: 12px;">
-          You received this because ${companyName} is listed in government contractor registrations.<br/>
-          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> from future emails.
+        <p style="margin: 24px 0;">
+          <a href="${claimUrl}" style="color: #1e40af; font-size: 15px; font-weight: 600; text-decoration: underline;">Confirm your profile here</a>
+          <span style="color: #6b7280; font-size: 14px;"> &mdash; takes ~10 seconds, no account needed, no cost.</span>
+        </p>
+        <p style="color: #1a1a1a; line-height: 1.7; font-size: 15px; margin: 0 0 16px;">
+          If this isn't relevant to your business, just ignore this email or <a href="${unsubscribeUrl}" style="color: #6b7280;">unsubscribe</a>. No hard feelings.
+        </p>
+        <p style="color: #1a1a1a; font-size: 15px; margin: 24px 0 4px;">&mdash; Chris Brown</p>
+        <p style="color: #6b7280; font-size: 13px; margin: 0;">Core314 Technologies / <a href="https://procuvex.com" style="color: #6b7280;">Procuvex</a></p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0 12px;" />
+        <p style="font-size: 11px; color: #9ca3af; line-height: 1.5;">
+          You received this because ${companyName} appears in government contractor registrations.<br/>
+          <a href="${unsubscribeUrl}" style="color: #9ca3af; text-decoration: underline;">Unsubscribe</a> &mdash;
+          Core314 Technologies LLC, 456 Clinton Dr. Orange Park, FL 32073
         </p>
       </div>
     </div>
@@ -461,9 +425,9 @@ export default async (req: Request, _context: Context) => {
 
         const mailgunMessageId = await sendEmail({
           to: sub.contact_email!,
-          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Procuvex" },
-          replyTo: { email: "admin@core314.com", name: "Procuvex Support" },
-          subject: `${sub.company_name} — A Prime is Searching for ${(sub.trade_categories || []).slice(0, 1).join("") || "Contractors"} in ${sub.state || "Your Area"}`,
+          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
+          replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+          subject: `${sub.company_name} — quick question about ${(sub.trade_categories || []).slice(0, 1).join("") || "contracting"} work in ${sub.state || "your area"}`,
           html,
           text,
           headers: {
