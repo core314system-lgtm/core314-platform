@@ -77,6 +77,13 @@ async function callSubOutreach(adminId: string, dailyTarget: number): Promise<{ 
 }
 
 export default async (_req: Request, _context: Context) => {
+  // OUTREACH PAUSED — domain reputation needs recovery before resuming sends
+  const outreachEnabled = process.env.OUTREACH_ENABLED === "true"
+  if (!outreachEnabled) {
+    console.log(`[outreach-cron] Outreach is PAUSED (set OUTREACH_ENABLED=true to resume)`)
+    return new Response(JSON.stringify({ message: "Outreach paused", reason: "OUTREACH_ENABLED is not set to true" }))
+  }
+
   const startTime = Date.now()
   const dailyTarget = getDailyTarget()
   console.log(`[outreach-cron] Starting outreach run (daily target: ${dailyTarget})`)
