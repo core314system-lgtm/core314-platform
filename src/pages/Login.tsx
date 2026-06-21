@@ -475,9 +475,9 @@ export default function Login() {
     )
   }
 
-  // Signup requires a valid beta invite or org invite (invite-only mode)
+  // Signup requires a valid beta invite, org invite, or pricing plan selection
   const hasValidInvite = !!inviteInfo || !!betaInviteInfo
-  const signupBlocked = isSignUp && !hasValidInvite && !inviteToken && !betaInviteToken
+  const signupBlocked = isSignUp && !hasValidInvite && !inviteToken && !betaInviteToken && !selectedPlan
 
   // Show loading while validating beta invite
   if (betaValidating) {
