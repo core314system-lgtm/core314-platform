@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   Shield, Brain, Zap, Users, Star, ArrowRight,
-  CheckCircle, Clock, Rocket, Lock, BarChart3, Kanban, Mail,
+  CheckCircle, Rocket, Lock, BarChart3, Kanban, Mail,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -50,11 +50,11 @@ const benefits = [
 ]
 
 const foundingPerks = [
-  { icon: Star, text: 'Lifetime Founding Partner pricing — locked in forever' },
+  { icon: Shield, text: 'Complimentary Enterprise-level access for the full 30-day program' },
   { icon: Lock, text: 'Priority access to new features before general release' },
   { icon: Users, text: 'Direct access to the product team for feedback and requests' },
   { icon: Rocket, text: 'Shape the roadmap — your input drives what we build next' },
-  { icon: Clock, text: 'Extended free trial period during the beta program' },
+  { icon: CheckCircle, text: '"Founding Partner" designation on your account — permanently' },
 ]
 
 export default function BetaLandingPage() {

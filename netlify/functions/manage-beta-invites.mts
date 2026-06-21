@@ -70,10 +70,9 @@ function buildInviteEmailHtml(applyUrl: string, recipientEmail: string): string 
           <p style="margin: 0 0 10px; font-size: 14px; color: #0c4a6e; font-weight: 600;">As a Founding Partner, you receive:</p>
           <ul style="margin: 0; padding-left: 18px; color: #0369a1; font-size: 14px; line-height: 2;">
             <li>Complimentary full-platform access during the 30-day program</li>
-            <li><strong>25% lifetime discount</strong> on your chosen plan upon program completion</li>
+            <li><strong>Founding Partner</strong> designation on your account — permanently</li>
             <li>Direct access to the development team for feedback</li>
             <li>Early influence on platform direction and features</li>
-            <li>"Founding Partner" designation on your account</li>
           </ul>
         </div>
         <div style="text-align: center; margin: 32px 0;">
@@ -115,12 +114,12 @@ function buildAcceptanceEmailHtml(signupUrl: string, seatsRemaining: number): st
             <li><strong>Complete your profile</strong> setup</li>
             <li><strong>Create your first project</strong> and upload a document</li>
             <li><strong>Explore core features</strong> &mdash; compliance matrix, subcontractor search, Q&amp;A management</li>
-            <li><strong>Complete weekly feedback forms</strong> (4 weeks) to earn your 25% lifetime discount</li>
+            <li><strong>Complete weekly feedback forms</strong> (4 weeks) to earn your Founding Partner designation</li>
           </ol>
         </div>
 
         <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
-          <p style="margin: 0; font-size: 14px; color: #92400e;"><strong>Important:</strong> Your 30-day program begins when you first log in. Complete all 4 weekly feedback forms to earn your exclusive 25% lifetime discount on any Procuvex plan.</p>
+          <p style="margin: 0; font-size: 14px; color: #92400e;"><strong>Important:</strong> Your 30-day program begins when you first log in. Complete all 4 weekly feedback forms to earn your permanent Founding Partner designation and priority access to new features.</p>
         </div>
 
         <div style="text-align: center; margin: 32px 0;">

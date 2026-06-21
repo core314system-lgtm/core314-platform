@@ -184,10 +184,10 @@ export default function BetaApply() {
           <ul className="space-y-3">
             {[
               { icon: Shield, text: 'Complimentary full-platform access during the 30-day program' },
-              { icon: Star, text: '25% lifetime discount on your chosen plan upon program completion' },
+              { icon: Star, text: 'Founding Partner pricing priority when new plans launch' },
               { icon: MessageSquare, text: 'Direct access to the development team for feedback' },
               { icon: Users, text: 'Early influence on platform direction and features' },
-              { icon: CheckCircle, text: '"Founding Partner" designation on your account' },
+              { icon: CheckCircle, text: '"Founding Partner" designation on your account — permanently' },
             ].map((item, i) => (
               <li key={i} className="flex items-start gap-3">
                 <item.icon className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -209,7 +209,7 @@ export default function BetaApply() {
             <li className="flex items-start gap-2"><span className="text-blue-400 font-bold">2.</span> Upload at least one project and explore core features</li>
             <li className="flex items-start gap-2"><span className="text-blue-400 font-bold">3.</span> Complete 4 weekly feedback forms (progressive, covering different aspects)</li>
             <li className="flex items-start gap-2"><span className="text-blue-400 font-bold">4.</span> Report bugs and usability issues through the in-app feedback widget</li>
-            <li className="flex items-start gap-2"><span className="text-blue-400 font-bold">5.</span> Complete all program guidelines to earn your 25% lifetime discount</li>
+            <li className="flex items-start gap-2"><span className="text-blue-400 font-bold">5.</span> Complete all program guidelines to earn your Founding Partner designation</li>
           </ul>
         </section>
 
@@ -238,8 +238,8 @@ export default function BetaApply() {
             <p className="font-semibold text-slate-300 mt-3 mb-1">5. PROGRAM DURATION & ACCESS</p>
             <p>The Founding Partner Program runs for 30 days from your first login. Access to the platform during this period is complimentary. Continued access after the program requires an active subscription.</p>
 
-            <p className="font-semibold text-slate-300 mt-3 mb-1">6. DISCOUNT TERMS</p>
-            <p>Upon completing all program requirements (4 weekly feedback forms), you will receive a unique 25% lifetime discount code valid for any Procuvex subscription plan. The code must be redeemed within 5 days of program completion. The discount applies for the life of your active subscription. If your subscription is cancelled or lapses, the discount is forfeited and standard pricing applies if you re-subscribe.</p>
+            <p className="font-semibold text-slate-300 mt-3 mb-1">6. PROGRAM COMPLETION</p>
+            <p>Upon completing all program requirements (4 weekly feedback forms), you will receive the permanent "Founding Partner" designation on your account. Founding Partners receive priority access to new features and plans as they are released. Continued access after the 30-day program requires an active subscription at standard pricing.</p>
 
             <p className="font-semibold text-slate-300 mt-3 mb-1">7. ACCEPTANCE & REVIEW</p>
             <p>Submitting this application does not guarantee acceptance. Applications are reviewed by the Procuvex team, and acceptance is at our sole discretion based on available seats and applicant fit. You will be notified of the decision via email.</p>

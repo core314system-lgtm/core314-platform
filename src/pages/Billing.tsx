@@ -93,6 +93,16 @@ export default function Billing() {
     setCheckoutLoading(planId)
     try {
       const billingPlan = `${planId}_${annual ? 'annual' : 'monthly'}`
+
+      let referralCode: string | undefined
+      try {
+        const stored = localStorage.getItem('procuvex_referral')
+        if (stored) {
+          const ref = JSON.parse(stored)
+          if (ref.expires > Date.now()) referralCode = ref.code
+        }
+      } catch { /* ignore */ }
+
       const res = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,6 +110,7 @@ export default function Billing() {
           plan_id: billingPlan,
           org_id: currentOrg?.id,
           user_email: user?.email,
+          ...(referralCode ? { referral_code: referralCode } : {}),
         }),
       })
       const data = await res.json()
