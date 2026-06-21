@@ -195,8 +195,8 @@ async function sendEmail(to: string, subject: string, html: string, emailType: s
   const finalHtml = html.replace(/%%EMAIL%%/g, encodeURIComponent(to))
   await sgMail.default.send({
     to,
-    from: { email: "admin@core314.com", name: "Chris Brown — Procuvex" },
-    replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+    from: { email: "team@procuvex.com", name: "Chris Brown — Procuvex" },
+    replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
     subject,
     html: finalHtml,
     customArgs: { email_type: emailType },
@@ -236,7 +236,7 @@ export default async (req: Request, _context: Context) => {
           .in("status", ["pending", "sent", "applied", "declined"])
 
         return new Response(
-          `<html><head><title>Unsubscribed</title></head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:80px 20px;background:#f9fafb;"><div style="max-width:400px;margin:0 auto;background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><h2 style="color:#111827;margin:0 0 12px;">You've been unsubscribed</h2><p style="color:#6b7280;margin:0;">You won't receive any more emails about the Procuvex Founding Partner Program. If this was a mistake, contact us at <a href="mailto:admin@core314.com" style="color:#2563eb;">admin@core314.com</a>.</p></div></body></html>`,
+          `<html><head><title>Unsubscribed</title></head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:80px 20px;background:#f9fafb;"><div style="max-width:400px;margin:0 auto;background:white;border-radius:12px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><h2 style="color:#111827;margin:0 0 12px;">You've been unsubscribed</h2><p style="color:#6b7280;margin:0;">You won't receive any more emails about the Procuvex Founding Partner Program. If this was a mistake, contact us at <a href="mailto:team@procuvex.com" style="color:#2563eb;">team@procuvex.com</a>.</p></div></body></html>`,
           { status: 200, headers: { "Content-Type": "text/html" } }
         )
       }

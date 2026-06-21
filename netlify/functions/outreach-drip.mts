@@ -147,7 +147,7 @@ export default async (req: Request, _context: Context) => {
         await sendViaMailgun({
           to: sub.contact_email!,
           from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
-          replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+          replyTo: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown" },
           subject: `Following up — ${sub.company_name} profile on Procuvex`,
           html: buildFollowUp1Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp1Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
@@ -199,7 +199,7 @@ export default async (req: Request, _context: Context) => {
         await sendViaMailgun({
           to: sub.contact_email!,
           from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
-          replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+          replyTo: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown" },
           subject: `Last note about ${sub.company_name} on Procuvex`,
           html: buildFollowUp2Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp2Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),

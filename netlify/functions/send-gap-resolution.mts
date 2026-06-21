@@ -157,7 +157,7 @@ export default async (req: Request, _context: Context) => {
     await sgMail.default.send({
       to: sub.contact_email,
       from: { email: "team@procuvex.com", name: "Procuvex" },
-      replyTo: { email: "admin@core314.com", name: sender_name || "Evaluation Team" },
+      replyTo: { email: "team@procuvex.com", name: sender_name || "Evaluation Team" },
       subject: `Clarification Request: ${sow.sow_name} — ${taskOrder?.site_name || "Project"}`,
       html,
     })
