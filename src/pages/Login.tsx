@@ -315,6 +315,17 @@ export default function Login() {
 
   async function redirectToStripeCheckout(userEmail: string, orgId: string) {
     const planId = `${selectedPlan || 'growth'}_${selectedBilling}`
+
+    // Check for referral code from localStorage
+    let referralCode: string | undefined
+    try {
+      const stored = localStorage.getItem('procuvex_referral')
+      if (stored) {
+        const ref = JSON.parse(stored)
+        if (ref.expires > Date.now()) referralCode = ref.code
+      }
+    } catch { /* ignore */ }
+
     const res = await fetch('/.netlify/functions/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -324,6 +335,7 @@ export default function Login() {
         user_email: userEmail,
         success_url: `${window.location.origin}/dashboard?subscription=success`,
         cancel_url: `${window.location.origin}/dashboard?subscription=cancelled`,
+        ...(referralCode ? { referral_code: referralCode } : {}),
       }),
     })
     const data = await res.json()

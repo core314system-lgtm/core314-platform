@@ -22,7 +22,7 @@ function buildWeeklyReminderHtml(weekNumber: number): string {
       </div>
       <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
         <p style="font-size: 15px; color: #111827; margin-top: 0;">Your Week ${weekNumber} feedback form is now available!</p>
-        <p style="font-size: 14px; color: #374151; line-height: 1.7;">Your input directly shapes what we build next. Complete all 4 weekly feedback forms to earn your exclusive <strong>25% lifetime discount</strong> on any Procuvex plan.</p>
+        <p style="font-size: 14px; color: #374151; line-height: 1.7;">Your input directly shapes what we build next. Complete all 4 weekly feedback forms to earn your permanent <strong>Founding Partner</strong> designation and priority access to new features.</p>
         <div style="text-align: center; margin: 24px 0;">
           <a href="${siteUrl}/feedback" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">Complete Week ${weekNumber} Feedback</a>
         </div>
@@ -110,48 +110,7 @@ export default async (req: Request) => {
     }
   }
 
-  // 2. Coupon expiration reminders (day 3 and day 5)
-  const { data: completedTesters } = await supabase
-    .from("user_profiles")
-    .select("id, email, beta_coupon_code, beta_coupon_expires_at")
-    .eq("beta_program_status", "completed")
-    .not("beta_coupon_expires_at", "is", null)
-    .not("beta_coupon_code", "is", null)
-
-  if (completedTesters) {
-    for (const tester of completedTesters) {
-      const expiresAt = new Date(tester.beta_coupon_expires_at!)
-      const msRemaining = expiresAt.getTime() - Date.now()
-      const daysRemaining = Math.ceil(msRemaining / 86400000)
-
-      // Send reminder at 2 days left and on final day
-      if (daysRemaining === 2 || daysRemaining <= 1) {
-        try {
-          await sgMail.default.send({
-            to: tester.email,
-            from: { email: "team@procuvex.com", name: "Chris Brown — Procuvex" },
-            replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
-            subject: daysRemaining <= 1
-              ? "Last Chance — Your 25% Lifetime Discount Expires Today!"
-              : "Your 25% Lifetime Discount Expires in 2 Days",
-            html: buildCouponExpiringHtml(tester.beta_coupon_code!, daysRemaining),
-            customArgs: { email_type: "beta_coupon_reminder" },
-          })
-          results.push(`Sent coupon ${daysRemaining <= 1 ? "final" : "3-day"} reminder to ${tester.email}`)
-        } catch {
-          results.push(`Failed to send coupon reminder to ${tester.email}`)
-        }
-      }
-
-      // Expire coupon if past due
-      if (msRemaining < 0) {
-        await supabase.from("user_profiles").update({
-          beta_program_status: "expired",
-        }).eq("id", tester.id)
-        results.push(`Expired coupon for ${tester.email}`)
-      }
-    }
-  }
+  // 2. Coupon expiration reminders — DISABLED (25% discount removed from program)
 
   // 3. Follow-up drip for pending beta invitations (Day 3 and Day 7)
   const { data: pendingInvites } = await supabase
@@ -178,7 +137,7 @@ export default async (req: Request) => {
 
         const body = isDay3
           ? `<p style="font-size: 15px; color: #111827;">Hi — just wanted to make sure you saw my previous email.</p>
-             <p style="font-size: 15px; color: #374151; line-height: 1.7;">We're selecting 30 procurement professionals for our Founding Partner Program — complimentary access, 25% lifetime discount, and direct input on the product roadmap.</p>
+             <p style="font-size: 15px; color: #374151; line-height: 1.7;">We're selecting 30 procurement professionals for our Founding Partner Program — complimentary Enterprise access for 30 days, direct input on the product roadmap, and a permanent Founding Partner designation.</p>
              <p style="font-size: 15px; color: #374151;">Your spot is reserved for the next few days. Takes 2 minutes to apply:</p>`
           : `<p style="font-size: 15px; color: #111827;">This is my last note about this — I don't want to be a bother.</p>
              <p style="font-size: 15px; color: #374151; line-height: 1.7;">Your invitation to the Procuvex Founding Partner Program expires soon. If procurement tech isn't on your radar right now, no worries at all. But if you've been meaning to look into it, now's the time:</p>`

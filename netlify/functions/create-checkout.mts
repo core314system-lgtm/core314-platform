@@ -36,7 +36,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const { plan_id, org_id, user_email, success_url, cancel_url } = await req.json()
+    const { plan_id, org_id, user_email, success_url, cancel_url, referral_code } = await req.json()
 
     const plan = PLANS[plan_id as keyof typeof PLANS]
     if (!plan) {
@@ -80,9 +80,9 @@ export default async (req: Request, _context: Context) => {
       }],
       subscription_data: {
         trial_period_days: plan.trial_days,
-        metadata: { org_id, plan_id },
+        metadata: { org_id, plan_id, ...(referral_code ? { referral_code } : {}) },
       },
-      metadata: { org_id, plan_id },
+      metadata: { org_id, plan_id, ...(referral_code ? { referral_code } : {}) },
       success_url: success_url || 'https://procuvex.com/settings?subscription=success',
       cancel_url: cancel_url || 'https://procuvex.com/settings?subscription=cancelled',
       allow_promotion_codes: true,

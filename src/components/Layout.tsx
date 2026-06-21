@@ -29,6 +29,7 @@ import {
   Bot,
   Mail,
   KeyRound,
+  Handshake,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -98,7 +99,8 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { path: '/admin/analytics', label: 'Beta Analytics', icon: Activity },
-      { path: '/admin/invites', label: 'Partner Program', icon: MailPlus },
+      { path: '/admin/invites', label: 'Beta Invites', icon: MailPlus },
+      { path: '/admin/partners', label: 'Partner Program', icon: Handshake },
       { path: '/admin/access', label: 'Global Admin', icon: Shield },
       { path: '/admin/system-health', label: 'System Health', icon: HeartPulse },
       { path: '/master-subs', label: 'Master Sub Database', icon: Database },

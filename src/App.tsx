@@ -67,6 +67,7 @@ import AdminVerificationReview from './pages/AdminVerificationReview'
 import SubProfilePublic from './pages/SubProfilePublic'
 import ClaimLookup from './pages/ClaimLookup'
 import CreateSubProfile from './pages/CreateSubProfile'
+import AdminPartners from './pages/AdminPartners'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -94,6 +95,11 @@ import ComparePage from './landing/pages/ComparePage'
 import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
 import ExploreNetworkPage from './landing/pages/ExploreNetworkPage'
 import BetaLandingPage from './landing/pages/BetaLandingPage'
+import PartnerProgramPage from './landing/pages/PartnerProgramPage'
+import PartnerTermsPage from './landing/pages/PartnerTermsPage'
+import PartnerLoginPage from './landing/pages/PartnerLoginPage'
+import PartnerDashboardPage from './landing/pages/PartnerDashboardPage'
+import ReferralRedirectPage from './landing/pages/ReferralRedirectPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -224,6 +230,13 @@ export default function App() {
           <Route path="/beta/apply/:token" element={<BetaApply />} />
           <Route path="/beta/thank-you" element={<BetaThankYou />} />
 
+          {/* Partner Program (public, no auth) */}
+          <Route path="/partners" element={<PartnerProgramPage />} />
+          <Route path="/partners/terms" element={<PartnerTermsPage />} />
+          <Route path="/partners/login" element={<PartnerLoginPage />} />
+          <Route path="/partners/dashboard" element={<PartnerDashboardPage />} />
+          <Route path="/r/:code" element={<ReferralRedirectPage />} />
+
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
 
@@ -324,6 +337,7 @@ export default function App() {
           <Route path="/admin/invites" element={<ProtectedRoute><GlobalAdminRoute><AdminBetaInvites /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/system-health" element={<ProtectedRoute><GlobalAdminRoute><SystemHealth /></GlobalAdminRoute></ProtectedRoute>} />
+          <Route path="/admin/partners" element={<ProtectedRoute><GlobalAdminRoute><AdminPartners /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/settings/email-domain" element={<ProtectedRoute><EnterpriseEmailSettings /></ProtectedRoute>} />
           <Route path="/settings/sso" element={<ProtectedRoute><SSOSettings /></ProtectedRoute>} />
 

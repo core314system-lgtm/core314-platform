@@ -200,6 +200,34 @@ export default async (req: Request, _context: Context) => {
           sub.trial_end,
           sub.current_period_end
         )
+
+        // Track referral if referral_code is present
+        const referralCode = session.metadata?.referral_code || sub.metadata?.referral_code
+        if (referralCode && customerEmail) {
+          const planLabel = planId.includes('enterprise') ? 'Enterprise' : 'Growth'
+          const isAnnual = planId.includes('annual')
+          const monthlyAmount = planId === 'enterprise_monthly' ? 5000
+            : planId === 'enterprise_annual' ? 4000
+            : planId === 'growth_annual' ? 2000
+            : 2500
+
+          try {
+            await fetch(`${process.env.URL || 'https://procuvex.com'}/.netlify/functions/partner-program`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'track_signup',
+                referral_code: referralCode,
+                user_email: customerEmail,
+                company_name: session.customer_details?.name || '',
+                plan_name: `${planLabel}${isAnnual ? ' (Annual)' : ''}`,
+                stripe_subscription_id: sub.id,
+              }),
+            })
+          } catch (refErr) {
+            console.error('Failed to track referral:', refErr)
+          }
+        }
       }
 
       // Send welcome/subscription confirmation email
@@ -259,6 +287,26 @@ export default async (req: Request, _context: Context) => {
           sub.current_period_end
         )
       }
+
+      // Update referral signup when subscription becomes active (trial → paid)
+      const updatedReferralCode = sub.metadata?.referral_code
+      if (updatedReferralCode && sub.status === 'active') {
+        const updatedPlanId = sub.metadata?.plan_id || 'growth_monthly'
+        const monthlyAmount = updatedPlanId === 'enterprise_monthly' ? 5000
+          : updatedPlanId === 'enterprise_annual' ? 4000
+          : updatedPlanId === 'growth_annual' ? 2000
+          : 2500
+
+        await supabase
+          .from('referral_signups')
+          .update({
+            subscription_status: 'active',
+            subscription_started_at: new Date().toISOString(),
+            monthly_amount: monthlyAmount,
+            stripe_subscription_id: sub.id,
+          })
+          .eq('stripe_subscription_id', sub.id)
+      }
       break
     }
 
@@ -268,6 +316,18 @@ export default async (req: Request, _context: Context) => {
 
       if (orgId) {
         await updateOrgSubscription(orgId, 'cancelled', '', sub.id, null, null)
+      }
+
+      // Update referral signup status if this was a referred subscription
+      const cancelledReferralCode = sub.metadata?.referral_code
+      if (cancelledReferralCode) {
+        await supabase
+          .from('referral_signups')
+          .update({
+            subscription_status: 'cancelled',
+            subscription_cancelled_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', sub.id)
       }
       break
     }
