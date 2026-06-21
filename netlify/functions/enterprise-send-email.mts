@@ -20,7 +20,7 @@ const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || ""
 const PLATFORM_DOMAIN = process.env.MAILGUN_OUTREACH_DOMAIN || "outreach.procuvex.com"
 const PLATFORM_FROM_NAME = "Procuvex"
 const PLATFORM_FROM_EMAIL = `team@${PLATFORM_DOMAIN}`
-const PLATFORM_REPLY_TO = "admin@core314.com"
+const PLATFORM_REPLY_TO = "team@procuvex.com"
 
 interface SendRequest {
   action: "send" | "send-branded" | "get-config"

@@ -426,7 +426,7 @@ export default async (req: Request, _context: Context) => {
         const mailgunMessageId = await sendEmail({
           to: sub.contact_email!,
           from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
-          replyTo: { email: "admin@core314.com", name: "Chris Brown" },
+          replyTo: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown" },
           subject: `${sub.company_name} — quick question about ${(sub.trade_categories || []).slice(0, 1).join("") || "contracting"} work in ${sub.state || "your area"}`,
           html,
           text,
