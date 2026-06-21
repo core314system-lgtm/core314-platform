@@ -157,15 +157,17 @@ export default function PartnerDashboardPage() {
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">P</span>
-            </div>
-            <span className="text-lg font-bold text-white tracking-tight">
-              Procu<span className="text-purple-400">vex</span>
-            </span>
+          <div className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">P</span>
+              </div>
+              <span className="text-lg font-bold text-white tracking-tight">
+                Procu<span className="text-purple-400">vex</span>
+              </span>
+            </Link>
             <span className="text-xs text-slate-500 ml-2 border-l border-slate-700 pl-2">Partner Dashboard</span>
-          </Link>
+          </div>
           <div className="text-sm text-slate-400">
             {partner.name}
           </div>
