@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import {
   DollarSign, Users, TrendingUp, Copy, Check,
   BarChart3, Clock, AlertCircle, Loader2,
-  ArrowRight,
+  ArrowRight, LogOut,
 } from 'lucide-react'
 
 interface PartnerInfo {
@@ -74,9 +74,13 @@ function formatMonth(month: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
+const STORAGE_KEY = 'procuvex_partner_token'
+
 export default function PartnerDashboardPage() {
   const [searchParams] = useSearchParams()
-  const token = searchParams.get('token')
+  const navigate = useNavigate()
+  const urlToken = searchParams.get('token')
+  const token = urlToken || localStorage.getItem(STORAGE_KEY)
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -89,15 +93,29 @@ export default function PartnerDashboardPage() {
       return
     }
 
+    // Persist token so partner can return without the URL
+    if (urlToken) {
+      localStorage.setItem(STORAGE_KEY, urlToken)
+    }
+
     fetch(`/.netlify/functions/partner-program?action=dashboard&token=${token}`)
       .then(r => {
         if (!r.ok) throw new Error('Unauthorized')
         return r.json()
       })
       .then(setData)
-      .catch(() => setError('Failed to load dashboard. Your session may have expired.'))
+      .catch(() => {
+        // Token invalid/expired — clear stored token
+        localStorage.removeItem(STORAGE_KEY)
+        setError('Failed to load dashboard. Your session may have expired.')
+      })
       .finally(() => setLoading(false))
-  }, [token])
+  }, [token, urlToken])
+
+  function handleSignOut() {
+    localStorage.removeItem(STORAGE_KEY)
+    navigate('/partners/login')
+  }
 
   function copyLink() {
     if (!data) return
@@ -168,8 +186,16 @@ export default function PartnerDashboardPage() {
             </Link>
             <span className="text-xs text-slate-500 ml-2 border-l border-slate-700 pl-2">Partner Dashboard</span>
           </div>
-          <div className="text-sm text-slate-400">
-            {partner.name}
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-400">{partner.name}</span>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
