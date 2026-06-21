@@ -187,6 +187,11 @@ export default async (req: Request, _context: Context) => {
         return new Response(JSON.stringify({ error: 'Invalid or expired session' }), { status: 401, headers })
       }
 
+      // Check token expiry if set
+      if (partner.token_expires_at && new Date(partner.token_expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: 'Session expired. Please request a new login link.' }), { status: 401, headers })
+      }
+
       // Get all signups for this partner
       const { data: signups } = await supabase
         .from('referral_signups')
@@ -293,6 +298,7 @@ export default async (req: Request, _context: Context) => {
 
       const referralCode = generateReferralCode(name)
       const magicToken = generateMagicToken()
+      const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
       const { data: partner, error } = await supabase
         .from('referral_partners')
@@ -304,6 +310,7 @@ export default async (req: Request, _context: Context) => {
           promotion_method,
           referral_code: referralCode,
           magic_token: magicToken,
+          token_expires_at: tokenExpiresAt,
           commission_rate: 0.20,
           commission_months: 12,
           status: 'pending',
@@ -353,11 +360,12 @@ export default async (req: Request, _context: Context) => {
         return new Response(JSON.stringify({ success: true, message: 'If an active partner account exists, a login link has been sent.' }), { headers })
       }
 
-      // Rotate magic token for security
+      // Rotate magic token for security, set 7-day expiry
       const newToken = generateMagicToken()
+      const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       await supabase
         .from('referral_partners')
-        .update({ magic_token: newToken })
+        .update({ magic_token: newToken, token_expires_at: tokenExpiresAt })
         .eq('id', partner.id)
 
       const dashboardUrl = `${getSiteUrl()}/partners/dashboard?token=${newToken}`
@@ -404,9 +412,13 @@ export default async (req: Request, _context: Context) => {
       const partnerId = body.partner_id
       if (!partnerId) return new Response(JSON.stringify({ error: 'partner_id required' }), { status: 400, headers })
 
+      // Refresh token and expiry on approval so the welcome email link is valid
+      const freshToken = generateMagicToken()
+      const freshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
       const { data: partner, error } = await supabase
         .from('referral_partners')
-        .update({ status: 'active', approved_at: new Date().toISOString() })
+        .update({ status: 'active', approved_at: new Date().toISOString(), magic_token: freshToken, token_expires_at: freshExpiry })
         .eq('id', partnerId)
         .select()
         .single()
