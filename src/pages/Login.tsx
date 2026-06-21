@@ -334,7 +334,7 @@ export default function Login() {
         org_id: orgId,
         user_email: userEmail,
         success_url: `${window.location.origin}/dashboard?subscription=success`,
-        cancel_url: `${window.location.origin}/dashboard?subscription=cancelled`,
+        cancel_url: `${window.location.origin}/pricing?checkout=cancelled`,
         ...(referralCode ? { referral_code: referralCode } : {}),
       }),
     })
