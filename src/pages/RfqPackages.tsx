@@ -6,6 +6,19 @@ import type { RfqPackage, TaskOrder } from '../lib/types'
 import { Package, ArrowLeft, ChevronDown, ChevronUp, Copy } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 
+function toText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map(toText).join('\n')
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => `${k}: ${toText(v)}`)
+      .join(', ')
+  }
+  return String(value)
+}
+
 export default function RfqPackages() {
   const { id } = useParams<{ id: string }>()
   const [taskOrder, setTaskOrder] = useState<TaskOrder | null>(null)
@@ -28,33 +41,33 @@ export default function RfqPackages() {
 Task Order: ${taskOrder?.title || ''}
 
 SCOPE SUMMARY:
-${pkg.scope_summary}
+${toText(pkg.scope_summary)}
 
 REQUIRED FREQUENCY:
-${pkg.required_frequency}
+${toText(pkg.required_frequency)}
 
 SITE ASSUMPTIONS:
-${pkg.site_assumptions}
+${toText(pkg.site_assumptions)}
 
 EQUIPMENT/AREA DETAILS:
-${pkg.equipment_details}
+${toText(pkg.equipment_details)}
 
 REQUIRED LICENSES & CERTIFICATIONS:
-${pkg.licenses_certifications}
+${toText(pkg.licenses_certifications)}
 
 QUESTIONS FOR SUBCONTRACTOR:
-${pkg.questions_for_subcontractor?.map((q, i) => `${i + 1}. ${q}`).join('\n') || 'None'}
+${pkg.questions_for_subcontractor?.map((q, i) => `${i + 1}. ${toText(q)}`).join('\n') || 'None'}
 
 DUE DATE FOR QUOTES:
-${pkg.due_date_note}
+${toText(pkg.due_date_note)}
 
 QUOTE FORMAT:
-${pkg.quote_format}
+${toText(pkg.quote_format)}
 
 SALES TAX TREATMENT:
-${pkg.sales_tax_treatment}
+${toText(pkg.sales_tax_treatment)}
 
-${pkg.partnership_language}
+${toText(pkg.partnership_language)}
 `
     navigator.clipboard.writeText(text)
     alert('Copied to clipboard!')
@@ -92,7 +105,7 @@ ${pkg.partnership_language}
               >
                 <div>
                   <h3 className="font-semibold text-gray-900">{pkg.service_category}</h3>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-1">{pkg.scope_summary}</p>
+                  <p className="text-sm text-gray-500 mt-1 line-clamp-1">{toText(pkg.scope_summary)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -108,37 +121,37 @@ ${pkg.partnership_language}
 
               {expandedPkg === i && (
                 <div className="px-6 pb-6 border-t border-gray-100 pt-4 space-y-4">
-                  <Section title="Scope Summary" content={pkg.scope_summary} />
+                  <Section title="Scope Summary" content={toText(pkg.scope_summary)} />
                   {pkg.source_references && pkg.source_references.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-medium text-gray-500">Source:</span>
                       {pkg.source_references.map((ref, ri) => (
-                        <CitationBadge key={ri} sourceDocument={ref.document} pageSection={ref.page_section} compact />
+                        <CitationBadge key={ri} sourceDocument={toText(ref.document)} pageSection={toText(ref.page_section)} compact />
                       ))}
                     </div>
                   )}
-                  <Section title="Required Frequency" content={pkg.required_frequency} />
-                  <Section title="Site Assumptions" content={pkg.site_assumptions} />
-                  <Section title="Equipment / Area Details" content={pkg.equipment_details} />
-                  <Section title="Required Licenses & Certifications" content={pkg.licenses_certifications} />
+                  <Section title="Required Frequency" content={toText(pkg.required_frequency)} />
+                  <Section title="Site Assumptions" content={toText(pkg.site_assumptions)} />
+                  <Section title="Equipment / Area Details" content={toText(pkg.equipment_details)} />
+                  <Section title="Required Licenses & Certifications" content={toText(pkg.licenses_certifications)} />
 
                   {pkg.questions_for_subcontractor?.length > 0 && (
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">Questions for Subcontractor</h4>
                       <ol className="list-decimal list-inside space-y-1">
                         {pkg.questions_for_subcontractor.map((q, qi) => (
-                          <li key={qi} className="text-sm text-gray-600">{q}</li>
+                          <li key={qi} className="text-sm text-gray-600">{toText(q)}</li>
                         ))}
                       </ol>
                     </div>
                   )}
 
-                  <Section title="Due Date for Quotes" content={pkg.due_date_note} />
-                  <Section title="Quote Format" content={pkg.quote_format} />
-                  <Section title="Sales Tax Treatment" content={pkg.sales_tax_treatment} />
+                  <Section title="Due Date for Quotes" content={toText(pkg.due_date_note)} />
+                  <Section title="Quote Format" content={toText(pkg.quote_format)} />
+                  <Section title="Sales Tax Treatment" content={toText(pkg.sales_tax_treatment)} />
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-700">{pkg.partnership_language}</p>
+                    <p className="text-xs text-blue-700">{toText(pkg.partnership_language)}</p>
                   </div>
                 </div>
               )}
