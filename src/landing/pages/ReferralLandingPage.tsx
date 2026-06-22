@@ -160,7 +160,7 @@ export default function ReferralLandingPage() {
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link
-              to="/signup"
+              to="/create-account"
               className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold transition-all inline-flex items-center gap-2 text-lg"
             >
               Start Your 7-Day Free Trial <ArrowRight className="w-5 h-5" />
@@ -334,7 +334,7 @@ export default function ReferralLandingPage() {
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
               <Link
-                to="/signup"
+                to="/create-account"
                 className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold transition-all inline-flex items-center gap-2 text-lg"
               >
                 Start 7-Day Free Trial <ArrowRight className="w-5 h-5" />
