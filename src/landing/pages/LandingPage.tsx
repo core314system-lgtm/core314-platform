@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { SIGNUP_ENABLED, PRICING_VISIBLE } from '../../config/signupConfig'
 import {
   ArrowRight, ChevronDown, Shield, Lock, Server, Eye,
   FileText, Brain, Target, BarChart3, Users, Kanban,
@@ -225,10 +226,10 @@ export default function LandingPage() {
               className="flex flex-col sm:flex-row gap-3 justify-center mb-4"
             >
               <Link
-                to="/pricing"
+                to={PRICING_VISIBLE ? '/pricing' : '/demo'}
                 className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200"
               >
-                Start Free Trial
+                {SIGNUP_ENABLED ? 'Start Free Trial' : 'Request a Demo'}
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </Link>
               <Link
@@ -359,8 +360,8 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link to="/pricing" className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 bg-white text-blue-900 rounded-lg font-semibold text-sm hover:bg-blue-50 transition-colors">
-                Start Free Trial <ArrowRight className="h-4 w-4" />
+              <Link to={PRICING_VISIBLE ? '/pricing' : '/demo'} className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 bg-white text-blue-900 rounded-lg font-semibold text-sm hover:bg-blue-50 transition-colors">
+                {SIGNUP_ENABLED ? 'Start Free Trial' : 'Request a Demo'} <ArrowRight className="h-4 w-4" />
               </Link>
             </motion.div>
 
@@ -995,13 +996,23 @@ export default function LandingPage() {
             <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
               Two tiers designed for procurement teams winning $10M–$1B+ contracts. Start with a 7-day free trial.
             </p>
-            <Link
-              to="/pricing"
-              className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200"
-            >
-              View Pricing Plans
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
+            {PRICING_VISIBLE ? (
+              <Link
+                to="/pricing"
+                className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200"
+              >
+                View Pricing Plans
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            ) : (
+              <Link
+                to="/contact"
+                className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200"
+              >
+                Contact Us
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            )}
           </motion.div>
         </div>
       </section>
@@ -1105,10 +1116,10 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row gap-3 justify-center"
           >
             <Link
-              to="/pricing"
+              to={PRICING_VISIBLE ? '/pricing' : '/demo'}
               className="group inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-bold text-blue-600 bg-white hover:bg-blue-50 rounded-xl shadow-lg transition-all"
             >
-              Start Free Trial
+              {SIGNUP_ENABLED ? 'Start Free Trial' : 'Request a Demo'}
               <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link

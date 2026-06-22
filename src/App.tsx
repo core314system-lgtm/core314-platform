@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useState, lazy, Suspense } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { SIGNUP_ENABLED, PRICING_VISIBLE } from './config/signupConfig'
 import { OrgProvider } from './contexts/OrgContext'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -196,7 +197,7 @@ export default function App() {
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/solutions" element={<SolutionsPage />} />
           <Route path="/integrations-overview" element={<IntegrationsOverviewPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/pricing" element={PRICING_VISIBLE ? <PricingPage /> : <Navigate to="/" replace />} />
           <Route path="/roi" element={<ROIPage />} />
           <Route path="/demo" element={<DemoPage />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -222,7 +223,7 @@ export default function App() {
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
-          <Route path="/create-account" element={<Navigate to="/login?tab=signup" replace />} />
+          <Route path="/create-account" element={SIGNUP_ENABLED ? <Navigate to="/login?tab=signup" replace /> : <Navigate to="/" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Beta Program (public, no auth) */}

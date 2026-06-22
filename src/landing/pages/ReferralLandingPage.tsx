@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import { SIGNUP_ENABLED, PRICING_VISIBLE } from '../../config/signupConfig'
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } }
@@ -160,10 +161,10 @@ export default function ReferralLandingPage() {
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link
-              to="/create-account"
+              to={SIGNUP_ENABLED ? '/create-account' : '/demo'}
               className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold transition-all inline-flex items-center gap-2 text-lg"
             >
-              Start Your 7-Day Free Trial <ArrowRight className="w-5 h-5" />
+              {SIGNUP_ENABLED ? 'Start Your 7-Day Free Trial' : 'Request a Demo'} <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               to="/demo"
@@ -325,26 +326,29 @@ export default function ReferralLandingPage() {
             variants={stagger}
           >
             <motion.h2 variants={fadeUp} className="text-2xl md:text-3xl font-bold mb-4">
-              Start Your Free Trial Today
+              {SIGNUP_ENABLED ? 'Start Your Free Trial Today' : 'See Procuvex in Action'}
             </motion.h2>
             <motion.p variants={fadeUp} className="text-slate-400 max-w-xl mx-auto mb-8">
-              Try Procuvex free for 7 days. Plans start at $2,500/month for Growth teams
-              and $5,000/month for Enterprise. No credit card required to start your trial.
+              {SIGNUP_ENABLED
+                ? 'Try Procuvex free for 7 days. Plans start at $2,500/month for Growth teams and $5,000/month for Enterprise. No credit card required to start your trial.'
+                : 'Discover how Procuvex helps teams win more bids and waste less time. Watch the demo or get in touch to learn more.'}
             </motion.p>
 
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
               <Link
-                to="/create-account"
+                to={SIGNUP_ENABLED ? '/create-account' : '/demo'}
                 className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold transition-all inline-flex items-center gap-2 text-lg"
               >
-                Start 7-Day Free Trial <ArrowRight className="w-5 h-5" />
+                {SIGNUP_ENABLED ? 'Start 7-Day Free Trial' : 'Request a Demo'} <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link
-                to="/pricing"
-                className="px-8 py-3.5 rounded-lg border border-white/10 hover:border-white/20 text-white font-semibold transition-all inline-flex items-center gap-2 justify-center"
-              >
-                View Full Pricing
-              </Link>
+              {PRICING_VISIBLE && (
+                <Link
+                  to="/pricing"
+                  className="px-8 py-3.5 rounded-lg border border-white/10 hover:border-white/20 text-white font-semibold transition-all inline-flex items-center gap-2 justify-center"
+                >
+                  View Full Pricing
+                </Link>
+              )}
             </motion.div>
 
             <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
