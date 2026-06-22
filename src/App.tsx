@@ -99,7 +99,7 @@ import PartnerProgramPage from './landing/pages/PartnerProgramPage'
 import PartnerTermsPage from './landing/pages/PartnerTermsPage'
 import PartnerLoginPage from './landing/pages/PartnerLoginPage'
 import PartnerDashboardPage from './landing/pages/PartnerDashboardPage'
-import ReferralRedirectPage from './landing/pages/ReferralRedirectPage'
+import ReferralLandingPage from './landing/pages/ReferralLandingPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -235,7 +235,7 @@ export default function App() {
           <Route path="/partners/terms" element={<PartnerTermsPage />} />
           <Route path="/partners/login" element={<PartnerLoginPage />} />
           <Route path="/partners/dashboard" element={<PartnerDashboardPage />} />
-          <Route path="/r/:code" element={<ReferralRedirectPage />} />
+          <Route path="/r/:code" element={<ReferralLandingPage />} />
 
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />

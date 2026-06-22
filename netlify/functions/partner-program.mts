@@ -160,7 +160,7 @@ export default async (req: Request, _context: Context) => {
 
       const { data: partner } = await supabase
         .from('referral_partners')
-        .select('id, status')
+        .select('id, status, name')
         .eq('referral_code', code)
         .single()
 
@@ -168,7 +168,7 @@ export default async (req: Request, _context: Context) => {
         return new Response(JSON.stringify({ valid: false }), { headers })
       }
 
-      return new Response(JSON.stringify({ valid: true, code }), { headers })
+      return new Response(JSON.stringify({ valid: true, code, partner_name: partner.name }), { headers })
     }
 
     // Partner dashboard data — requires magic token
