@@ -182,6 +182,44 @@ export default function PartnerProgramPage() {
         </div>
       </section>
 
+      {/* Executive Overview Video */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={stagger}
+            className="text-center mb-10"
+          >
+            <motion.h2 variants={fadeUp} className="text-3xl md:text-4xl font-bold mb-4">
+              See Procuvex in Action
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-slate-400 max-w-xl mx-auto">
+              Watch a 5-minute overview of the platform, the industries we serve, and how the partner program works.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeUp}
+            className="relative rounded-xl overflow-hidden border border-white/10 bg-black shadow-2xl shadow-purple-500/10"
+          >
+            <video
+              controls
+              preload="metadata"
+              poster=""
+              className="w-full aspect-video"
+            >
+              <source src="/procuvex-executive-overview.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Earnings Potential */}
       <section className="py-20 px-4 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
