@@ -5,6 +5,7 @@ import { LogIn, UserPlus, Mail, CheckCircle, ShieldAlert, Send, Building, User, 
 import { supabase } from '../lib/supabase'
 import { logAuditEvent } from '../lib/auditLog'
 import MfaVerify from './MfaVerify'
+import { SIGNUP_ENABLED } from '../config/signupConfig'
 
 interface InviteInfo {
   org_name: string
@@ -171,7 +172,7 @@ export default function Login() {
   const selectedPlan = searchParams.get('plan') // 'growth' or 'enterprise'
   const selectedBilling = searchParams.get('billing') || 'monthly' // 'monthly' or 'annual'
 
-  const [isSignUp, setIsSignUp] = useState(!!inviteToken || !!betaInviteToken || fromPricing)
+  const [isSignUp, setIsSignUp] = useState(SIGNUP_ENABLED && (!!inviteToken || !!betaInviteToken || fromPricing))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -530,16 +531,18 @@ export default function Login() {
           >
             Sign In
           </button>
-          <button
-            onClick={() => { setIsSignUp(true); setError('') }}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-              isSignUp
-                ? 'bg-white text-slate-900 border-b-2 border-blue-600'
-                : 'bg-slate-50 text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Create Account
-          </button>
+          {SIGNUP_ENABLED && (
+            <button
+              onClick={() => { setIsSignUp(true); setError('') }}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+                isSignUp
+                  ? 'bg-white text-slate-900 border-b-2 border-blue-600'
+                  : 'bg-slate-50 text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Create Account
+            </button>
+          )}
         </div>
 
         <div className="bg-white rounded-b-xl shadow-lg p-8 border border-t-0 border-slate-200">

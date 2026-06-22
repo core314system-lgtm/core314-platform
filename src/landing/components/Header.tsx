@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { Menu, X, ChevronDown, BookOpen, GitCompareArrows } from 'lucide-react'
+import { PRICING_VISIBLE } from '../../config/signupConfig'
 
-const navLinks = [
+const allNavLinks = [
   { to: '/product', label: 'Product' },
   { to: '/demo', label: 'Demo' },
   { to: '/how-it-works', label: 'How It Works' },
@@ -13,6 +14,8 @@ const navLinks = [
   { to: '/pricing', label: 'Pricing' },
   { to: '/contact', label: 'Contact' },
 ]
+
+const navLinks = PRICING_VISIBLE ? allNavLinks : allNavLinks.filter(l => l.to !== '/pricing')
 
 const resourceLinks = {
   guides: [
@@ -153,12 +156,14 @@ export default function Header() {
           >
             Log In
           </Link>
-          <Link
-            to="/pricing"
-            className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all"
-          >
-            Start Free Trial
-          </Link>
+          {PRICING_VISIBLE && (
+            <Link
+              to="/pricing"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg shadow-blue-600/25 transition-all"
+            >
+              Start Free Trial
+            </Link>
+          )}
         </div>
 
         <button
@@ -225,12 +230,14 @@ export default function Header() {
             <Link to="/login" className="px-3 py-2.5 text-sm font-medium text-slate-700">
               Log In
             </Link>
-            <Link
-              to="/pricing"
-              className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-center"
-            >
-              Start Free Trial
-            </Link>
+            {PRICING_VISIBLE && (
+              <Link
+                to="/pricing"
+                className="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-center"
+              >
+                Start Free Trial
+              </Link>
+            )}
           </div>
         </div>
       )}
