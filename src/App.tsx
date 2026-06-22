@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useEffect, useState, lazy, Suspense } from 'react'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { SIGNUP_ENABLED, PRICING_VISIBLE } from './config/signupConfig'
 import { OrgProvider } from './contexts/OrgContext'
@@ -120,47 +120,13 @@ function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading } = useAuth()
-  const [betaAccepted, setBetaAccepted] = useState(true) // default true so existing users aren't blocked
-  const [checkingBeta, setCheckingBeta] = useState(true)
 
-  useEffect(() => {
-    if (profile) {
-      // Skip beta check if user just claimed a profile (auto-accepted during claim)
-      const params = new URLSearchParams(window.location.search)
-      if (params.get('claimed') === 'true') {
-        setBetaAccepted(true)
-        setCheckingBeta(false)
-        return
-      }
-      // Only show beta agreement if the feature is enabled and not yet accepted
-      const accepted = (profile as any).beta_agreement_accepted_at
-      setBetaAccepted(!!accepted)
-      setCheckingBeta(false)
-    } else if (!loading) {
-      setCheckingBeta(false)
-    }
-  }, [profile, loading])
-
-  if (loading || checkingBeta) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
+  if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>
   if (!user) return <Navigate to="/login" replace />
 
   // Subcontractor accounts can only access their profile and portal — not the main app
   if (profile?.account_type === 'subcontractor') {
     return <Navigate to="/my-sub-profile" replace />
-  }
-
-  // Show beta agreement modal if not yet accepted and beta mode is enabled
-  if (!betaAccepted && user) {
-    const BetaAgreementModal = lazy(() => import('./components/BetaAgreementModal'))
-    return (
-      <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-gray-500">Loading...</div>}>
-        <BetaAgreementModal
-          userId={user.id}
-          userName={user.user_metadata?.full_name || user.email || 'Tester'}
-          onAccepted={() => setBetaAccepted(true)}
-        />
-      </Suspense>
-    )
   }
 
   return (
