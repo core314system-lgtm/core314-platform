@@ -57,4 +57,5 @@ export const AI_OUTPUT_TYPES = [
   'clarification_questions',
   'pricing_risks',
   'executive_summary',
+  'post_award_checklist',
 ] as const
