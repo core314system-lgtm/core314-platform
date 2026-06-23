@@ -657,3 +657,84 @@ Return a JSON object with:
 
   return callOpenAI(systemPrompt, userPrompt, { requestType: 'project_comparison', taskOrderTitle: currentTitle })
 }
+
+export interface PostAwardChecklistItem {
+  id: string
+  category: string
+  title: string
+  description: string
+  due_offset_days: number
+  status: 'pending' | 'in_progress' | 'complete' | 'not_applicable'
+  notes: string
+}
+
+export async function generatePostAwardChecklist(
+  projectTitle: string,
+  siteName: string | null,
+  projectType: string | null,
+  analysisJson: Record<string, unknown> | null,
+  complianceJson: Record<string, unknown> | null,
+  executiveSummaryJson: Record<string, unknown> | null,
+): Promise<{ checklist: PostAwardChecklistItem[] }> {
+  const contextParts: string[] = []
+
+  if (analysisJson) {
+    const reqs = (analysisJson.requirements as Array<{ requirement: string; service_category?: string }>) || []
+    const cats = (analysisJson.service_categories as Array<{ category: string; description?: string }>) || []
+    const staffing = (analysisJson.staffing_requirements as Array<{ role: string; qualifications?: string }>) || []
+    const compliance = (analysisJson.compliance_items as Array<{ requirement: string; risk_level?: string }>) || []
+    const meta = (analysisJson.task_order_metadata as Record<string, unknown>) || {}
+
+    if (reqs.length > 0) contextParts.push(`SERVICE REQUIREMENTS (${reqs.length} total):\n${reqs.slice(0, 30).map(r => `- ${r.requirement} [${r.service_category || 'General'}]`).join('\n')}`)
+    if (cats.length > 0) contextParts.push(`SERVICE CATEGORIES:\n${cats.map(c => `- ${c.category}: ${c.description || ''}`).join('\n')}`)
+    if (staffing.length > 0) contextParts.push(`STAFFING REQUIREMENTS:\n${staffing.map(s => `- ${s.role}: ${s.qualifications || ''}`).join('\n')}`)
+    if (compliance.length > 0) contextParts.push(`COMPLIANCE ITEMS:\n${compliance.slice(0, 20).map(c => `- [${c.risk_level || 'Medium'}] ${c.requirement}`).join('\n')}`)
+    if (meta.naics_code) contextParts.push(`NAICS CODE: ${meta.naics_code}`)
+    if (meta.set_aside) contextParts.push(`SET-ASIDE: ${meta.set_aside}`)
+    if (meta.estimated_value) contextParts.push(`ESTIMATED VALUE: ${meta.estimated_value}`)
+    if (meta.period_of_performance_start) contextParts.push(`PERIOD OF PERFORMANCE START: ${meta.period_of_performance_start}`)
+    if (meta.contract_vehicle) contextParts.push(`CONTRACT VEHICLE: ${meta.contract_vehicle}`)
+  }
+
+  if (complianceJson) {
+    const items = (complianceJson.matrix as Array<{ requirement: string; status?: string }>) || (complianceJson.items as Array<{ requirement: string; status?: string }>) || []
+    if (items.length > 0) contextParts.push(`COMPLIANCE MATRIX (${items.length} items):\n${items.slice(0, 15).map(i => `- ${i.requirement} [${i.status || 'TBD'}]`).join('\n')}`)
+  }
+
+  if (executiveSummaryJson) {
+    const risks = (executiveSummaryJson.major_risks as Array<{ risk: string; severity?: string }>) || []
+    const subCats = (executiveSummaryJson.subcontractor_categories as string[]) || []
+    if (risks.length > 0) contextParts.push(`MAJOR RISKS:\n${risks.map(r => `- [${r.severity || 'Medium'}] ${r.risk}`).join('\n')}`)
+    if (subCats.length > 0) contextParts.push(`SUBCONTRACTOR CATEGORIES NEEDED:\n${subCats.map(c => `- ${c}`).join('\n')}`)
+  }
+
+  const systemPrompt = `You are a government contracting post-award transition specialist. Generate a tailored post-award mobilization checklist for the specific project described below.
+
+The checklist must be customized to this project's actual scope, compliance requirements, staffing needs, and subcontractor categories. Do NOT use a generic template — every item should be relevant to what this project actually requires.
+
+RULES:
+- Group items into 4-7 categories relevant to this project (e.g., "Contract Execution", "HVAC Subcontract Setup", "Security Clearance Processing", etc.)
+- Each category should have 2-6 items
+- Total checklist should have 15-35 items
+- Each item needs a realistic due_offset_days (days after contract award, 0-60)
+- Reference specific compliance requirements, certifications, or trades from the project data
+- If the project involves small business set-asides, include subcontracting plan items
+- If the project involves specific trades (electrical, HVAC, roofing, etc.), create category-specific mobilization items
+- If the project has security/clearance requirements, include those items
+- Order items within each category by due_offset_days
+
+Return JSON with:
+- checklist: array of {id (string like "item-0", "item-1"...), category (string), title (string), description (string), due_offset_days (number), status: "pending", notes: ""}`
+
+  const projectContext = contextParts.length > 0
+    ? contextParts.join('\n\n')
+    : 'No AI analysis available yet. Generate a reasonable default checklist for a government services contract.'
+
+  const userPrompt = `PROJECT: ${projectTitle}
+SITE: ${siteName || 'Not specified'}
+TYPE: ${projectType || 'Government Contract'}
+
+${projectContext}`
+
+  return callOpenAI(systemPrompt, userPrompt, { requestType: 'post_award_checklist', taskOrderTitle: projectTitle }) as Promise<{ checklist: PostAwardChecklistItem[] }>
+}
