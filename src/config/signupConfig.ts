@@ -1,3 +1,3 @@
-// Temporary feature flags — flip these to `true` to re-enable signup and pricing.
-export const SIGNUP_ENABLED = false
-export const PRICING_VISIBLE = false
+// Temporary feature flags — flip these to `false` to disable signup and hide pricing.
+export const SIGNUP_ENABLED = true
+export const PRICING_VISIBLE = true
