@@ -2,6 +2,24 @@
   command = "npm run build"
   publish = "dist"
 
+# Prevent browser from caching index.html (SPA shell) so new deploys take effect immediately
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Also prevent caching on the root path (which serves index.html via SPA catch-all)
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Hashed assets can be cached forever (Vite adds content hashes)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
