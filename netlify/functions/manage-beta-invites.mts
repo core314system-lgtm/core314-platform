@@ -494,9 +494,22 @@ export default async (req: Request, _context: Context) => {
     const body = await req.json()
     const { token, action } = body
 
-    // Request beta access (public — no token needed)
+    // Request beta access / Founding Partner application (public — no token needed)
     if (action === "request_access") {
-      const { email: reqEmail, name: reqName, company: reqCompany, reason: reqReason } = body
+      const {
+        email: reqEmail,
+        name: reqName,
+        company: reqCompany,
+        reason: reqReason,
+        phone: reqPhone,
+        website: reqWebsite,
+        job_title: reqJobTitle,
+        employees: reqEmployees,
+        govcon_role: reqGovconRole,
+        proposal_volume: reqProposalVolume,
+        biggest_challenge: reqBiggestChallenge,
+        why_founding_partner: reqWhyFoundingPartner,
+      } = body
 
       if (!reqEmail || typeof reqEmail !== "string") {
         return new Response(JSON.stringify({ error: "Email is required" }), { status: 400, headers })
@@ -519,7 +532,7 @@ export default async (req: Request, _context: Context) => {
           return new Response(JSON.stringify({ error: "This email already has an active invitation. Check your email for the signup link." }), { status: 400, headers })
         }
         if (existing.status === "applied" || existing.status === "pending") {
-          return new Response(JSON.stringify({ error: "A request for this email is already under review." }), { status: 400, headers })
+          return new Response(JSON.stringify({ already_requested: true, error: "A request for this email is already under review." }), { status: 400, headers })
         }
         // If previously declined/revoked/expired, allow re-request by deleting old record
         await supabase.from("beta_invitations").delete().eq("id", existing.id)
@@ -528,6 +541,14 @@ export default async (req: Request, _context: Context) => {
       const requestToken = generateToken()
       const noteParts: string[] = []
       if (reqCompany) noteParts.push(`Company: ${reqCompany}`)
+      if (reqPhone) noteParts.push(`Phone: ${reqPhone}`)
+      if (reqWebsite) noteParts.push(`Website: ${reqWebsite}`)
+      if (reqJobTitle) noteParts.push(`Job Title: ${reqJobTitle}`)
+      if (reqEmployees) noteParts.push(`Employees: ${reqEmployees}`)
+      if (reqGovconRole) noteParts.push(`GovCon Role: ${reqGovconRole}`)
+      if (reqProposalVolume) noteParts.push(`Annual Proposal Volume: ${reqProposalVolume}`)
+      if (reqBiggestChallenge) noteParts.push(`Biggest Challenge: ${reqBiggestChallenge}`)
+      if (reqWhyFoundingPartner) noteParts.push(`Why Founding Partner: ${reqWhyFoundingPartner}`)
       if (reqReason) noteParts.push(`Reason: ${reqReason}`)
 
       const { error: insertErr } = await supabase.from("beta_invitations").insert({
@@ -543,21 +564,30 @@ export default async (req: Request, _context: Context) => {
         return new Response(JSON.stringify({ error: insertErr.message }), { status: 500, headers })
       }
 
-      // Send notification email to admin
+      // Send notification email to admin with all application details
       try {
         initSendGrid()
         await sgMail.default.send({
           to: "admin@core314.com",
           from: { email: "admin@core314.com", name: "Procuvex" },
-          subject: `Beta Access Request: ${reqName.trim()} (${cleanEmail})`,
+          subject: `Founding Partner Application: ${reqName.trim()} — ${reqCompany || "No Company"} (${cleanEmail})`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 500px; padding: 20px;">
-              <h2 style="color: #1e3a5f;">New Beta Access Request</h2>
-              <p><strong>Name:</strong> ${reqName.trim()}</p>
-              <p><strong>Email:</strong> ${cleanEmail}</p>
-              ${reqCompany ? `<p><strong>Company:</strong> ${reqCompany}</p>` : ""}
-              ${reqReason ? `<p><strong>Why they want access:</strong> ${reqReason}</p>` : ""}
-              <p style="margin-top: 20px;"><a href="https://procuvex.com/admin/invites" style="background: #1e40af; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Review in Admin Panel</a></p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px;">
+              <h2 style="color: #1e3a5f;">New Founding Partner Application</h2>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; width: 180px;">Full Name</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqName.trim()}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Business Email</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${cleanEmail}</td></tr>
+                ${reqCompany ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Company</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqCompany}</td></tr>` : ""}
+                ${reqPhone ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Phone Number</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqPhone}</td></tr>` : ""}
+                ${reqWebsite ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Website</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqWebsite}</td></tr>` : ""}
+                ${reqJobTitle ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Job Title</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqJobTitle}</td></tr>` : ""}
+                ${reqEmployees ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Number of Employees</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqEmployees}</td></tr>` : ""}
+                ${reqGovconRole ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Primary GovCon Role</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqGovconRole}</td></tr>` : ""}
+                ${reqProposalVolume ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Annual Proposal Volume</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqProposalVolume}</td></tr>` : ""}
+                ${reqBiggestChallenge ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Biggest Challenge</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqBiggestChallenge}</td></tr>` : ""}
+                ${reqWhyFoundingPartner ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold;">Why Founding Partner</td><td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${reqWhyFoundingPartner}</td></tr>` : ""}
+              </table>
+              <p style="margin-top: 24px;"><a href="https://procuvex.com/admin/invites" style="background: #1e40af; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Review in Admin Panel</a></p>
             </div>
           `,
         })

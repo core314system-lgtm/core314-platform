@@ -95,7 +95,8 @@ import SamGovGuidePage from './landing/pages/SamGovGuidePage'
 import ComparePage from './landing/pages/ComparePage'
 import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
 import ExploreNetworkPage from './landing/pages/ExploreNetworkPage'
-import BetaLandingPage from './landing/pages/BetaLandingPage'
+import FoundingPartnersPage from './landing/pages/FoundingPartnersPage'
+import FoundingPartnersThankYouPage from './landing/pages/FoundingPartnersThankYouPage'
 import PartnerProgramPage from './landing/pages/PartnerProgramPage'
 import PartnerTermsPage from './landing/pages/PartnerTermsPage'
 import PartnerLoginPage from './landing/pages/PartnerLoginPage'
@@ -227,8 +228,10 @@ export default function App() {
           <Route path="/create-account" element={SIGNUP_ENABLED ? <Navigate to="/login?tab=signup" replace /> : <Navigate to="/" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Beta Program (public, no auth) */}
-          <Route path="/beta" element={<BetaLandingPage />} />
+          {/* Founding Partner Program (public, no auth) */}
+          <Route path="/founding-partners" element={<FoundingPartnersPage />} />
+          <Route path="/founding-partners/thank-you" element={<FoundingPartnersThankYouPage />} />
+          <Route path="/beta" element={<Navigate to="/founding-partners" replace />} />
           <Route path="/beta/apply/:token" element={<BetaApply />} />
           <Route path="/beta/thank-you" element={<BetaThankYou />} />
 
