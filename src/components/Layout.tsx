@@ -231,7 +231,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
-          <Link to="/dashboard" className="flex items-center gap-2">
+          <Link to="/home" className="flex items-center gap-2">
             <div className="bg-blue-600 text-white rounded-lg w-8 h-8 flex items-center justify-center font-bold text-sm">Px</div>
             <div>
               <h1 className="font-bold text-gray-900 text-sm leading-tight">Procuvex</h1>
