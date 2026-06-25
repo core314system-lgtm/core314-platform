@@ -28,9 +28,9 @@ function buildCompletionEmailHtml(couponCode: string, claimUrl: string): string 
       <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
         <p style="font-size: 16px; color: #111827; margin-top: 0;">Thank you for your dedication as a Founding Partner. Your feedback has been invaluable in shaping Procuvex.</p>
         <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
-          <p style="margin: 0 0 8px; font-size: 14px; color: #166534; font-weight: 600;">Your Exclusive 25% Lifetime Discount Code:</p>
+          <p style="margin: 0 0 8px; font-size: 14px; color: #166534; font-weight: 600;">Your Exclusive 50% Off First Month Code:</p>
           <p style="margin: 0; font-size: 28px; font-weight: bold; color: #065f46; letter-spacing: 2px; font-family: monospace;">${couponCode}</p>
-          <p style="margin: 12px 0 0; font-size: 13px; color: #16a34a;">Valid for any Procuvex plan &mdash; forever.</p>
+          <p style="margin: 12px 0 0; font-size: 13px; color: #16a34a;">Valid for the Enterprise plan &mdash; 50% off your first month.</p>
         </div>
         <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
           <p style="margin: 0; font-size: 14px; color: #92400e;"><strong>Important:</strong> You have 5 days to claim this discount and activate your subscription. After that, the code expires.</p>
@@ -56,7 +56,7 @@ function buildReminderEmailHtml(weekNumber: number, feedbackUrl: string): string
       </div>
       <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
         <p style="font-size: 15px; color: #111827; margin-top: 0;">Your Week ${weekNumber} feedback form is ready. Your input directly shapes what we build next.</p>
-        <p style="font-size: 14px; color: #374151;">Complete all 4 weekly feedback forms to earn your exclusive <strong>25% lifetime discount</strong> on any Procuvex plan.</p>
+        <p style="font-size: 14px; color: #374151;">Complete all 4 weekly feedback forms to earn your exclusive <strong>50% off your first month</strong> on the Enterprise plan.</p>
         <div style="text-align: center; margin: 24px 0;">
           <a href="${feedbackUrl}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">Complete Week ${weekNumber} Feedback</a>
         </div>
@@ -199,10 +199,10 @@ export default async (req: Request, _context: Context) => {
         // Program complete — generate Stripe coupon
         try {
           const coupon = await stripe.coupons.create({
-            percent_off: 25,
-            duration: "forever",
+            percent_off: 50,
+            duration: "once",
             max_redemptions: 1,
-            metadata: { user_id: userId, program: "founding_partner" },
+            metadata: { user_id: userId, program: "founding_partner", plan: "enterprise" },
           })
 
           const promoCode = await stripe.promotionCodes.create({
@@ -229,7 +229,7 @@ export default async (req: Request, _context: Context) => {
             await sgMail.default.send({
               to: profile.email,
               from: { email: "noreply@core314.com", name: "Procuvex" },
-              subject: "You Did It — Claim Your 25% Lifetime Discount!",
+              subject: "You Did It — 50% Off Your First Month on Enterprise!",
               html: buildCompletionEmailHtml(promoCode.code, claimUrl),
               customArgs: { email_type: "beta_completed" },
             })
