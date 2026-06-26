@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Send,
@@ -803,7 +803,8 @@ export default function AdminBetaInvites() {
                   const isExpanded = expandedRow === invite.id
 
                   return (
-                    <tr key={invite.id} className={`border-b border-gray-100 hover:bg-gray-50 ${isExpanded ? 'bg-blue-50/30' : ''}`}>
+                    <Fragment key={invite.id}>
+                    <tr className={`border-b border-gray-100 hover:bg-gray-50 ${isExpanded ? 'bg-blue-50/30' : ''}`}>
                       <td className="py-3 px-3">
                         <input
                           type="checkbox"
@@ -948,23 +949,9 @@ export default function AdminBetaInvites() {
                         </div>
                       </td>
 
-                      {/* Expanded row details */}
-                      {isExpanded && (
-                        <>
-                          {/* This is a hack — we need a second row for expanded content */}
-                        </>
-                      )}
                     </tr>
-                  )
-                })}
-
-                {/* Expanded detail rows */}
-                {filteredAndSorted.map(invite => {
-                  if (expandedRow !== invite.id) return null
-                  const activity = testerActivity[invite.email]
-
-                  return (
-                    <tr key={`${invite.id}-detail`} className="bg-gray-50/50">
+                    {isExpanded && (
+                    <tr className="bg-gray-50/50">
                       <td colSpan={7} className="px-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* Details */}
@@ -1058,6 +1045,8 @@ export default function AdminBetaInvites() {
                         </div>
                       </td>
                     </tr>
+                    )}
+                    </Fragment>
                   )
                 })}
               </tbody>
