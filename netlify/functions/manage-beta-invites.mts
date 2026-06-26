@@ -467,7 +467,7 @@ export default async (req: Request, _context: Context) => {
         continue
       }
 
-      const applyUrl = `${siteUrl}/beta/apply/${token}`
+      const applyUrl = `${siteUrl}/founding-partners`
 
       try {
         const company = getCompanyFromEmail(email)
@@ -797,7 +797,7 @@ export default async (req: Request, _context: Context) => {
       }).eq("id", invite_id)
 
       const siteUrl = process.env.URL || "https://procuvex.com"
-      const applyUrl = `${siteUrl}/beta/apply/${newToken}`
+      const applyUrl = `${siteUrl}/founding-partners`
 
       try {
         const company = getCompanyFromEmail(invite.email)
