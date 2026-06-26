@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL!,
@@ -285,6 +286,11 @@ async function sendAgentDigest(userId: string, agentType: string, actionsCount: 
           <p style="color: #9ca3af; font-size: 12px;">This is an automated notification from your Procuvex AI agent.</p>
         </div>
       `,
+      text: `Agent Update\n\nHi ${profile.full_name || 'there'},\n\nYour ${agentLabels[agentType] || agentType} agent found ${actionsCount} new item${actionsCount > 1 ? 's' : ''} that ${actionsCount > 1 ? 'need' : 'needs'} your attention.\n\nReview in Agent Hub: https://procuvex.com/agent-hub`,
+      headers: {
+        "List-Unsubscribe": "<mailto:team@procuvex.com?subject=Unsubscribe%20Agent%20Notifications>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     })
   } catch {
     // Email is best-effort

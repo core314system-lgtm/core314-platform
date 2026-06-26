@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import zipcodes from "zipcodes"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -765,6 +766,7 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           from: { email: "team@procuvex.com", name: orgName },
           subject: subjectLine,
           html: emailHtml,
+          text: htmlToPlainText(emailHtml),
           trackingSettings: { clickTracking: { enable: true }, openTracking: { enable: true } },
           customArgs: {
             email_type: "rfq_invite",
@@ -772,6 +774,10 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
             ...(portalToken ? { rfq_token: portalToken } : {}),
             ...(task_order_id ? { task_order_id } : {}),
             ...(orgId ? { org_id: orgId } : {}),
+          },
+          headers: {
+            "List-Unsubscribe": `<mailto:team@procuvex.com?subject=Unsubscribe%20RFQ%20${encodeURIComponent(sub.contact_email!)}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
           },
         })
 

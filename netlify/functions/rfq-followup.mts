@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -214,7 +215,7 @@ export default async function handler(req: Request, _context: Context) {
         await sgMail.default.send({
           to: sub.contact_email,
           from: {
-            email: process.env.SENDGRID_FROM_EMAIL || 'noreply@core314.com',
+            email: 'noreply@procuvex.com',
             name: orgName,
           },
           subject: getFollowUpSubject(followUpNumber, sowName),
@@ -226,6 +227,14 @@ export default async function handler(req: Request, _context: Context) {
             portalLink: portalLink || '#',
             daysSinceRfq: daysSince,
           }),
+          text: htmlToPlainText(getFollowUpHtml({
+            subName: sub.company_name,
+            sowName,
+            projectTitle,
+            followUpNumber,
+            portalLink: portalLink || '#',
+            daysSinceRfq: daysSince,
+          })),
           trackingSettings: {
             clickTracking: { enable: true },
             openTracking: { enable: true },
@@ -233,6 +242,10 @@ export default async function handler(req: Request, _context: Context) {
           customArgs: {
             sow_subcontractor_id: record.id,
             follow_up_number: String(followUpNumber),
+          },
+          headers: {
+            "List-Unsubscribe": `<mailto:team@procuvex.com?subject=Unsubscribe%20RFQ%20Followup%20${encodeURIComponent(sub.contact_email)}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
           },
         })
 

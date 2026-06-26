@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -228,9 +229,10 @@ export default async (req: Request, _context: Context) => {
             initSendGrid()
             await sgMail.default.send({
               to: profile.email,
-              from: { email: "noreply@core314.com", name: "Procuvex" },
+              from: { email: "noreply@procuvex.com", name: "Procuvex" },
               subject: "You Did It — 50% Off Your First Month on Enterprise!",
               html: buildCompletionEmailHtml(promoCode.code, claimUrl),
+              text: htmlToPlainText(buildCompletionEmailHtml(promoCode.code, claimUrl)),
               customArgs: { email_type: "beta_completed" },
             })
           } catch { /* non-blocking */ }

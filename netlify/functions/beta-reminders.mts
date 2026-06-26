@@ -1,5 +1,6 @@
 import type { Config } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -60,6 +61,7 @@ function buildCouponExpiringHtml(couponCode: string, daysLeft: number): string {
 export default async (req: Request) => {
   initSendGrid()
   const results: string[] = []
+  const siteUrl = process.env.URL || "https://procuvex.com"
 
   // 1. Weekly feedback reminders for active beta testers
   const { data: activeTesters } = await supabase
@@ -99,7 +101,12 @@ export default async (req: Request) => {
                 ? `Reminder: Week ${currentWeek} Feedback Still Pending — Procuvex Founding Partner Program`
                 : `Procuvex Founding Partner Program — Week ${currentWeek} Feedback Ready`,
               html: buildWeeklyReminderHtml(currentWeek),
+              text: htmlToPlainText(buildWeeklyReminderHtml(currentWeek)),
               customArgs: { email_type: "beta_feedback_reminder" },
+              headers: {
+                "List-Unsubscribe": `<${siteUrl}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=${encodeURIComponent(tester.email)}>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
             })
             results.push(`Sent week ${currentWeek} ${isFollowUp ? "follow-up" : "reminder"} to ${tester.email}`)
           } catch {
@@ -119,7 +126,7 @@ export default async (req: Request) => {
     .eq("status", "pending")
 
   if (pendingInvites) {
-    const siteUrl = process.env.URL || "https://procuvex.com"
+
     for (const inv of pendingInvites) {
       const daysSinceSent = Math.floor(
         (Date.now() - new Date(inv.created_at).getTime()) / 86400000
@@ -165,7 +172,12 @@ export default async (req: Request) => {
             replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
             subject,
             html,
+            text: htmlToPlainText(html),
             customArgs: { email_type: "beta_invite_followup" },
+            headers: {
+              "List-Unsubscribe": `<${siteUrl}/.netlify/functions/manage-beta-invites?action=unsubscribe&email=${encodeURIComponent(inv.email)}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
           })
           results.push(`Sent day ${daysSinceSent} follow-up to ${inv.email}`)
         } catch {

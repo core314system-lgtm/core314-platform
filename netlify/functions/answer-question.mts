@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -164,11 +165,12 @@ export default async (req: Request, _context: Context) => {
         await sgMail.default.send({
           to: sub.contact_email,
           from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@core314.com",
+            email: "noreply@procuvex.com",
             name: orgName,
           },
           subject: `Answer to your question — ${sowName}`,
           html: emailHtml,
+          text: htmlToPlainText(emailHtml),
           trackingSettings: {
             clickTracking: { enable: true },
             openTracking: { enable: true },

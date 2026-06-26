@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -10,7 +11,7 @@ const supabase = createClient(
 
 const sendgridKey = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY
 if (sendgridKey) sgMail.default.setApiKey(sendgridKey)
-const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@procuvex.com'
+const fromEmail = 'noreply@procuvex.com'
 
 export default async (_req: Request, _context: Context) => {
   if (!sendgridKey) {
@@ -86,6 +87,11 @@ export default async (_req: Request, _context: Context) => {
               </div>
             </div>
           `,
+          text: htmlToPlainText(`Your ${planLabel} Plan free trial for ${org.name || 'your organization'} ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Your subscription will begin automatically after the trial. Your payment method on file will be charged. To cancel, go to Billing in your dashboard before the trial ends. All your data and settings will be preserved. Manage Your Subscription: https://procuvex.com/billing`),
+          headers: {
+            "List-Unsubscribe": "<mailto:team@procuvex.com?subject=Unsubscribe%20Trial%20Reminders>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         })
         sent++
         console.log(`Trial reminder sent to ${user.user.email} for org ${org.id}`)

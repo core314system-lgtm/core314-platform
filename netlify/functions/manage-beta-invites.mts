@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import { sanitizeEmail } from "./_shared/sanitize.ts"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -198,6 +199,7 @@ async function sendEmail(to: string, subject: string, html: string, emailType: s
     replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
     subject,
     html: finalHtml,
+    text: htmlToPlainText(finalHtml),
     customArgs: { email_type: emailType },
   })
 }
@@ -560,9 +562,10 @@ export default async (req: Request, _context: Context) => {
             initSendGrid()
             await sgMail.default.send({
               to: "admin@core314.com",
-              from: { email: "admin@core314.com", name: "Procuvex" },
+              from: { email: "team@procuvex.com", name: "Procuvex" },
               subject: `Founding Partner Application: ${reqName.trim()} — ${reqCompany || "No Company"} (${cleanEmail})`,
               html: `<p>Previously invited email <strong>${cleanEmail}</strong> has submitted a Founding Partner application. View details at <a href="https://procuvex.com/admin/invites">Admin Invites</a>.</p>`,
+              text: `Previously invited email ${cleanEmail} has submitted a Founding Partner application. View details at https://procuvex.com/admin/invites`,
             })
           } catch { /* non-blocking */ }
 
@@ -603,7 +606,7 @@ export default async (req: Request, _context: Context) => {
         initSendGrid()
         await sgMail.default.send({
           to: "admin@core314.com",
-          from: { email: "admin@core314.com", name: "Procuvex" },
+          from: { email: "team@procuvex.com", name: "Procuvex" },
           subject: `Founding Partner Application: ${reqName.trim()} — ${reqCompany || "No Company"} (${cleanEmail})`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px;">
@@ -624,6 +627,23 @@ export default async (req: Request, _context: Context) => {
               <p style="margin-top: 24px;"><a href="https://procuvex.com/admin/invites" style="background: #1e40af; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Review in Admin Panel</a></p>
             </div>
           `,
+          text: [
+            "New Founding Partner Application",
+            "",
+            `Full Name: ${reqName.trim()}`,
+            `Business Email: ${cleanEmail}`,
+            reqCompany ? `Company: ${reqCompany}` : "",
+            reqPhone ? `Phone Number: ${reqPhone}` : "",
+            reqWebsite ? `Website: ${reqWebsite}` : "",
+            reqJobTitle ? `Job Title: ${reqJobTitle}` : "",
+            reqEmployees ? `Number of Employees: ${reqEmployees}` : "",
+            reqGovconRole ? `Primary GovCon Role: ${reqGovconRole}` : "",
+            reqProposalVolume ? `Annual Proposal Volume: ${reqProposalVolume}` : "",
+            reqBiggestChallenge ? `Biggest Challenge: ${reqBiggestChallenge}` : "",
+            reqWhyFoundingPartner ? `Why Founding Partner: ${reqWhyFoundingPartner}` : "",
+            "",
+            "Review in Admin Panel: https://procuvex.com/admin/invites",
+          ].filter(Boolean).join("\n"),
         })
       } catch { /* email notification is best-effort */ }
 

@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
@@ -79,6 +80,7 @@ export default async (req: Request, _context: Context) => {
           </p>
         </div>
       `,
+      text: `New Profile Claim\n\nCompany: ${sub.company_name}\nLocation: ${location}\nTrades: ${trades}\nEmail: ${sub.contact_email || "N/A"}\nClaimed: ${new Date(sub.claimed_at).toLocaleString("en-US", { timeZone: "America/New_York" })}\n\nView in Dashboard: https://procuvex.com/master-subs`,
     })
 
     // Also create in-app notification (for all org owners — uses a general approach)

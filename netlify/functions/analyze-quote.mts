@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import pdfParse from "pdf-parse"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
@@ -371,6 +372,7 @@ export default async (req: Request, _context: Context) => {
             replyTo: { email: "team@procuvex.com", name: "Procuvex Support" },
             subject: `Action Required: Your quote for ${sow.sow_name} needs revision`,
             html,
+            text: htmlToPlainText(html),
           })
           emailSent = true
 
@@ -414,6 +416,7 @@ export default async (req: Request, _context: Context) => {
               </div>
             </div>
           `,
+          text: `Quote Compliance Analysis\n\nCompany: ${sub?.company_name || "N/A"}\nSOW: ${sow.sow_name}\nScore: ${analysis.overall_score}%\nRequirements Met: ${analysis.requirements_met.length}\nRequirements Missing: ${analysis.requirements_missing.length}\nPricing Gaps: ${analysis.pricing_gaps.length}\nEmail Sent to Sub: ${emailSent ? "Yes" : "No"}\n\n${analysis.summary}`,
         })
       } catch { /* silent */ }
     }
