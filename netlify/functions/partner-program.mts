@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import { sanitizeEmail, sanitizeText } from "./_shared/sanitize.ts"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -329,6 +330,7 @@ export default async (req: Request, _context: Context) => {
                  <strong>Audience:</strong> ${audience_size}<br/>
                  <strong>How they'll promote:</strong> ${promotion_method}</p>
                  <p>Review at <a href="${getSiteUrl()}/admin/partners">Admin Panel</a></p>`,
+          text: `New partner program application received.\n\nName: ${name}\nEmail: ${email}\nCompany/Channel: ${company}\nAudience: ${audience_size}\nHow they'll promote: ${promotion_method}\n\nReview at ${getSiteUrl()}/admin/partners`,
         })
       } catch { /* non-critical */ }
 
@@ -386,6 +388,7 @@ export default async (req: Request, _context: Context) => {
               </div>
             </div>
           `,
+          text: `Hi ${partner.name},\n\nClick the link below to access your partner dashboard. This link is valid for one login session.\n\n${dashboardUrl}\n\nIf you didn't request this, you can ignore this email.\n\nProcuvex — A product of Core314 Technologies LLC`,
         })
       } catch {
         return new Response(JSON.stringify({ error: 'Failed to send login email' }), { status: 500, headers })
@@ -428,6 +431,7 @@ export default async (req: Request, _context: Context) => {
           replyTo: { email: 'team@procuvex.com', name: 'Chris Brown' },
           subject: "You're Approved — Welcome to the Procuvex Partner Program!",
           html: buildWelcomeEmailHtml(partner.name, partner.referral_code, dashboardUrl),
+          text: htmlToPlainText(buildWelcomeEmailHtml(partner.name, partner.referral_code, dashboardUrl)),
         })
       } catch { /* non-critical */ }
 
@@ -546,6 +550,7 @@ export default async (req: Request, _context: Context) => {
           replyTo: { email: 'team@procuvex.com', name: 'Chris Brown' },
           subject: `New Referral: ${companyName || userEmail} signed up through your link!`,
           html: buildReferralNotificationHtml(partner.name, companyName || userEmail, planName || 'Enterprise'),
+          text: htmlToPlainText(buildReferralNotificationHtml(partner.name, companyName || userEmail, planName || 'Enterprise')),
         })
       } catch { /* non-critical */ }
 

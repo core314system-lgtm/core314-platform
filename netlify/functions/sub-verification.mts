@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -187,6 +188,7 @@ export default async (req: Request, _context: Context) => {
           from: { email: "team@procuvex.com", name: "Procuvex" },
           subject: `Congratulations! ${sub.company_name} is now Procuvex Verified`,
           html: buildVerifiedEmail(sub.company_name),
+          text: htmlToPlainText(buildVerifiedEmail(sub.company_name)),
           customArgs: { email_type: "verification_approved" },
         })
       }
@@ -204,6 +206,7 @@ export default async (req: Request, _context: Context) => {
           from: { email: "team@procuvex.com", name: "Procuvex" },
           subject: `Verification Update for ${sub.company_name}`,
           html: buildRejectionEmail(sub.company_name, notes || "Additional documentation needed"),
+          text: htmlToPlainText(buildRejectionEmail(sub.company_name, notes || "Additional documentation needed")),
           customArgs: { email_type: "verification_rejected" },
         })
       }

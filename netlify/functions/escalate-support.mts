@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import sgMail from "@sendgrid/mail"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
@@ -72,6 +73,7 @@ export default async (req: Request, _context: Context) => {
             <hr>
             <p style="color: #6b7280; font-size: 12px;">This escalation was generated when the Procuvex AI assistant could not resolve the user's question.</p>
           `,
+          text: `Support Escalation\n\nFrom: ${user_name || 'Unknown'} (${user_email})\nPreferred Contact: ${preferred_contact || 'email'}\n\nMessage:\n${message}${conversation_context ? `\n\nContext: ${conversation_context}` : ''}\n\nTicket ID: ${ticket?.id || 'N/A'}\n\nThis escalation was generated when the Procuvex AI assistant could not resolve the user's question.`,
         })
       } catch (emailErr) {
         console.error('Failed to send escalation email:', emailErr)

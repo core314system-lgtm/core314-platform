@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
 import { sanitizeText, sanitizeAndLimit, isValidUUID } from "./_shared/sanitize.ts"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -313,9 +314,10 @@ async function sendAutoAnsweredEmail(
 
   await sgMail.default.send({
     to: subEmail,
-    from: { email: "noreply@core314.com", name: orgName },
+    from: { email: "noreply@procuvex.com", name: orgName },
     subject: `Answer to your question — ${taskOrderTitle}`,
     html: emailHtml,
+    text: htmlToPlainText(emailHtml),
   })
 }
 
@@ -357,9 +359,10 @@ async function sendPendingSubmissionEmail(
 
   await sgMail.default.send({
     to: subEmail,
-    from: { email: "noreply@core314.com", name: orgName },
+    from: { email: "noreply@procuvex.com", name: orgName },
     subject: `Question Received — ${taskOrderTitle}`,
     html: emailHtml,
+    text: htmlToPlainText(emailHtml),
   })
 }
 

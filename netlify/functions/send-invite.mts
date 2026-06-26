@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
 import { sanitizeEmail, isValidUUID } from "./_shared/sanitize.ts"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -150,11 +151,12 @@ export default async (req: Request, _context: Context) => {
       await sgMail.default.send({
         to: email.trim(),
         from: {
-          email: "noreply@core314.com",
+          email: "noreply@procuvex.com",
           name: "Procuvex",
         },
         subject: `You're invited to join ${org_name || "Procuvex"}`,
         html: emailHtml,
+        text: htmlToPlainText(emailHtml),
         customArgs: {
           org_id,
           email_type: 'invite',

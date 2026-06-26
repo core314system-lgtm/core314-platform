@@ -1,17 +1,17 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
+const sgMail = await import("@sendgrid/mail")
+
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Mailgun-only for outreach drip follow-ups
-const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
-const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "procuvex.com"
-const MAILGUN_API_URL = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY
+if (SENDGRID_API_KEY) sgMail.default.setApiKey(SENDGRID_API_KEY)
 
-async function sendViaMailgun(params: {
+async function sendDripEmail(params: {
   to: string
   from: { email: string; name: string }
   replyTo: { email: string; name: string }
@@ -21,40 +21,33 @@ async function sendViaMailgun(params: {
   tag: string
   headers?: Record<string, string>
 }): Promise<string> {
-  if (!MAILGUN_API_KEY) {
-    throw new Error("MAILGUN_API_KEY is not configured — drip emails cannot send")
+  if (!SENDGRID_API_KEY) {
+    throw new Error("SENDGRID_API_KEY is not configured — drip emails cannot send")
   }
 
-  const form = new FormData()
-  form.append("from", `${params.from.name} <${params.from.email}>`)
-  form.append("to", params.to)
-  form.append("h:Reply-To", `${params.replyTo.name} <${params.replyTo.email}>`)
-  form.append("subject", params.subject)
-  form.append("html", params.html)
-  form.append("text", params.text)
-  if (params.headers?.["List-Unsubscribe"]) {
-    form.append("h:List-Unsubscribe", params.headers["List-Unsubscribe"])
-    form.append("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
-  }
-  form.append("o:tag", params.tag)
-  form.append("o:tracking-opens", "yes")
-  form.append("o:tracking-clicks", "htmlonly")
-
-  const resp = await fetch(`${MAILGUN_API_URL}/v3/${MAILGUN_DOMAIN}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
+  const msg: Record<string, unknown> = {
+    to: params.to,
+    from: params.from,
+    replyTo: params.replyTo,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+    trackingSettings: {
+      clickTracking: { enable: true, enableText: false },
+      openTracking: { enable: true },
     },
-    body: form,
-  })
-
-  if (!resp.ok) {
-    const body = await resp.text()
-    throw new Error(`Mailgun error ${resp.status}: ${body}`)
+    customArgs: { email_type: params.tag },
   }
 
-  const data = await resp.json() as { id?: string }
-  return data.id || ""
+  if (params.headers?.["List-Unsubscribe"]) {
+    msg.headers = {
+      "List-Unsubscribe": params.headers["List-Unsubscribe"],
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+  }
+
+  const [response] = await sgMail.default.send(msg as Parameters<typeof sgMail.default.send>[0])
+  return response?.headers?.["x-message-id"] || ""
 }
 
 /**
@@ -104,8 +97,8 @@ export default async (req: Request, _context: Context) => {
   try { body = await req.json() } catch {}
   const dryRun = body.dry_run || false
 
-  if (!MAILGUN_API_KEY) {
-    return new Response(JSON.stringify({ error: "MAILGUN_API_KEY not configured" }), { status: 500, headers })
+  if (!SENDGRID_API_KEY) {
+    return new Response(JSON.stringify({ error: "SENDGRID_API_KEY not configured" }), { status: 500, headers })
   }
 
   const now = new Date()
@@ -144,10 +137,10 @@ export default async (req: Request, _context: Context) => {
         const trades = (sub.trade_categories || []).slice(0, 2).join(", ") || "your trade"
         const location = sub.state || "your area"
 
-        await sendViaMailgun({
+        await sendDripEmail({
           to: sub.contact_email!,
-          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
-          replyTo: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown" },
+          from: { email: "team@procuvex.com", name: "Chris Brown — Procuvex" },
+          replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
           subject: `Following up — ${sub.company_name} profile on Procuvex`,
           html: buildFollowUp1Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp1Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
@@ -196,10 +189,10 @@ export default async (req: Request, _context: Context) => {
         const trades = (sub.trade_categories || []).slice(0, 2).join(", ") || "your trade"
         const location = sub.state || "your area"
 
-        await sendViaMailgun({
+        await sendDripEmail({
           to: sub.contact_email!,
-          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
-          replyTo: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown" },
+          from: { email: "team@procuvex.com", name: "Chris Brown — Procuvex" },
+          replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
           subject: `Last note about ${sub.company_name} on Procuvex`,
           html: buildFollowUp2Email(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),
           text: buildFollowUp2Text(sub.company_name, claimUrl, sub.trade_categories || [], location, unsubscribeUrl),

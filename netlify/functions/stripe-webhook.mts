@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -14,7 +15,7 @@ const supabase = createClient(
 
 const sendgridKey = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY
 if (sendgridKey) sgMail.default.setApiKey(sendgridKey)
-const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@procuvex.com'
+const fromEmail = 'noreply@procuvex.com'
 
 async function updateOrgSubscription(orgId: string, status: string, planId: string, stripeSubId: string, trialEnd: number | null, currentPeriodEnd: number | null) {
   const { error } = await supabase
@@ -145,6 +146,7 @@ export default async (req: Request, _context: Context) => {
                     </div>
                   </div>
                 `,
+                text: htmlToPlainText(`Congratulations! ${companyName} now has the Procuvex Verified badge. Priority Search Placement: Your profile now appears first when prime contractors search for ${trades}. Auto-Matching Active: You'll be automatically matched to RFQ opportunities in your trade areas. Verified Badge: A green verified badge appears on your public profile, building trust with primes. Certification Alerts: We'll remind you before your certifications expire so you never miss a renewal. What to do next: 1. Complete your profile - add a company description, capability narrative, and geographic coverage. 2. Upload documents - COI, business licenses, and certifications increase your match score. 3. Share your profile - send your public Procuvex profile link to prime contractors. Go to Your Profile: https://procuvex.com/my-sub-profile`),
               })
               console.log(`Verification confirmation email sent to ${subEmail}`)
             } catch (emailErr) {
@@ -264,6 +266,7 @@ export default async (req: Request, _context: Context) => {
                 </div>
               </div>
             `,
+            text: htmlToPlainText(`Welcome to Procuvex. Your ${planLabel} Plan free trial is now active. What happens next: Your 7-day free trial starts today. Full access to all ${planLabel} features. Cancel anytime before the trial ends - no charge. After 7 days, your subscription begins automatically. Go to Your Dashboard: https://procuvex.com/login`),
           })
           console.log(`Welcome email sent to ${customerEmail}`)
         } catch (emailErr) {
@@ -371,6 +374,7 @@ export default async (req: Request, _context: Context) => {
                   </div>
                 </div>
               `,
+              text: htmlToPlainText(`Payment Failed. We were unable to process your payment for your Procuvex subscription. Please update your payment method to avoid service interruption. We'll retry the charge automatically, but updating your payment details ensures uninterrupted access. Update Payment Method: https://procuvex.com/billing`),
             })
             console.log(`Payment failure email sent to ${failedEmail}`)
           } catch (emailErr) {

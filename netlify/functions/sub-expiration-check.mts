@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -83,7 +84,12 @@ export default async (req: Request, _context: Context) => {
           from: { email: "team@procuvex.com", name: "Procuvex" },
           subject: `Action Required: ${certs.length} certification${certs.length > 1 ? "s" : ""} expiring soon`,
           html: buildExpirationEmail(sub.company_name, certList),
+          text: htmlToPlainText(buildExpirationEmail(sub.company_name, certList)),
           customArgs: { email_type: "cert_expiration_reminder" },
+          headers: {
+            "List-Unsubscribe": `<mailto:team@procuvex.com?subject=Unsubscribe%20Cert%20Reminders%20${encodeURIComponent(sub.contact_email)}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         })
 
         // Mark reminders as sent

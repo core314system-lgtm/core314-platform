@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
 import { isValidUUID } from "./_shared/sanitize.ts"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")
 
@@ -261,11 +262,12 @@ export default async (req: Request, _context: Context) => {
         const [response] = await sgMail.default.send({
           to: sub.contact_email,
           from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@core314.com",
+            email: "noreply@procuvex.com",
             name: orgName,
           },
           subject: `RFQ: ${sow.sow_name} — ${taskOrder.title}`,
           html: emailHtml,
+          text: htmlToPlainText(emailHtml),
           trackingSettings: {
             clickTracking: { enable: true },
             openTracking: { enable: true },
@@ -274,6 +276,10 @@ export default async (req: Request, _context: Context) => {
             sow_subcontractor_id: sowSub.id,
             rfq_token: token,
             task_order_id: task_order_id,
+          },
+          headers: {
+            "List-Unsubscribe": `<mailto:team@procuvex.com?subject=Unsubscribe%20RFQ%20${encodeURIComponent(sub.contact_email)}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
           },
         })
 

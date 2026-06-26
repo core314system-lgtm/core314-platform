@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
@@ -160,6 +161,7 @@ export default async (req: Request, _context: Context) => {
       replyTo: { email: "team@procuvex.com", name: sender_name || "Evaluation Team" },
       subject: `Clarification Request: ${sow.sow_name} — ${taskOrder?.site_name || "Project"}`,
       html,
+      text: htmlToPlainText(html),
     })
 
     // Log communication

@@ -1,63 +1,15 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
+const sgMail = await import("@sendgrid/mail")
+
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Mailgun-only — no fallback providers
-const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
-const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || "procuvex.com"
-const MAILGUN_API_URL = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
-const EMAIL_PROVIDER = "Mailgun"
-
-async function sendViaMailgun(params: {
-  to: string
-  from: { email: string; name: string }
-  replyTo: { email: string; name: string }
-  subject: string
-  html: string
-  text: string
-  tag?: string
-  headers?: Record<string, string>
-}): Promise<string> {
-  if (!MAILGUN_API_KEY) {
-    throw new Error("MAILGUN_API_KEY is not configured — outreach cannot send")
-  }
-
-  const form = new FormData()
-  form.append("from", `${params.from.name} <${params.from.email}>`)
-  form.append("to", params.to)
-  form.append("h:Reply-To", `${params.replyTo.name} <${params.replyTo.email}>`)
-  form.append("subject", params.subject)
-  form.append("html", params.html)
-  form.append("text", params.text)
-  if (params.headers?.["List-Unsubscribe"]) {
-    form.append("h:List-Unsubscribe", params.headers["List-Unsubscribe"])
-    form.append("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
-  }
-  form.append("o:tag", params.tag || "sub_outreach")
-  // Enable Mailgun native tracking for accurate dashboard metrics
-  form.append("o:tracking-opens", "yes")
-  form.append("o:tracking-clicks", "htmlonly")
-
-  const resp = await fetch(`${MAILGUN_API_URL}/v3/${MAILGUN_DOMAIN}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
-    },
-    body: form,
-  })
-
-  if (!resp.ok) {
-    const body = await resp.text()
-    throw new Error(`Mailgun error ${resp.status}: ${body}`)
-  }
-
-  const data = await resp.json() as { id?: string; message?: string }
-  return data.id || ""
-}
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY
+if (SENDGRID_API_KEY) sgMail.default.setApiKey(SENDGRID_API_KEY)
 
 async function sendEmail(params: {
   to: string
@@ -69,7 +21,33 @@ async function sendEmail(params: {
   tag?: string
   headers?: Record<string, string>
 }): Promise<string> {
-  return sendViaMailgun(params)
+  if (!SENDGRID_API_KEY) {
+    throw new Error("SENDGRID_API_KEY is not configured — outreach cannot send")
+  }
+
+  const msg: Record<string, unknown> = {
+    to: params.to,
+    from: params.from,
+    replyTo: params.replyTo,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+    trackingSettings: {
+      clickTracking: { enable: true, enableText: false },
+      openTracking: { enable: true },
+    },
+    customArgs: { email_type: params.tag || "sub_outreach" },
+  }
+
+  if (params.headers?.["List-Unsubscribe"]) {
+    msg.headers = {
+      "List-Unsubscribe": params.headers["List-Unsubscribe"],
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+  }
+
+  const [response] = await sgMail.default.send(msg as Parameters<typeof sgMail.default.send>[0])
+  return response?.headers?.["x-message-id"] || ""
 }
 
 // High-demand trades based on SOW item analysis — primes actively seek these
@@ -423,10 +401,10 @@ export default async (req: Request, _context: Context) => {
         let html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
         const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
-        const mailgunMessageId = await sendEmail({
+        const sendgridMessageId = await sendEmail({
           to: sub.contact_email!,
-          from: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown — Procuvex" },
-          replyTo: { email: `team@${MAILGUN_DOMAIN}`, name: "Chris Brown" },
+          from: { email: "team@procuvex.com", name: "Chris Brown — Procuvex" },
+          replyTo: { email: "team@procuvex.com", name: "Chris Brown" },
           subject: `${sub.company_name} — quick question about ${(sub.trade_categories || []).slice(0, 1).join("") || "contracting"} work in ${sub.state || "your area"}`,
           html,
           text,
@@ -436,7 +414,7 @@ export default async (req: Request, _context: Context) => {
           },
         })
 
-        // Only mark as sent AFTER Mailgun confirms acceptance
+        // Only mark as sent AFTER SendGrid confirms acceptance
         await supabase
           .from("master_subcontractors")
           .update({
@@ -446,13 +424,13 @@ export default async (req: Request, _context: Context) => {
           })
           .eq("id", sub.id)
 
-        // Log the contact with Mailgun message ID
+        // Log the contact with SendGrid message ID
         await supabase.from("master_sub_contact_log").insert({
           master_sub_id: sub.id,
           contact_type: "outreach_email",
           contact_method: "email",
           subject: "Profile verification request",
-          notes: `Sent via Mailgun to ${sub.contact_email} (${mailgunMessageId})`,
+          notes: `Sent via SendGrid to ${sub.contact_email} (${sendgridMessageId})`,
           sent_by: callerId,
         })
 
@@ -472,7 +450,7 @@ export default async (req: Request, _context: Context) => {
         ) {
           await supabase
             .from("master_subcontractors")
-            .update({ archived: true, archive_reason: "mailgun_bounce" })
+            .update({ archived: true, archive_reason: "email_bounce" })
             .eq("id", sub.id)
         }
       }
@@ -485,7 +463,7 @@ export default async (req: Request, _context: Context) => {
       daily_limit: dailyLimit,
       sent_today: (sentToday || 0) + sent,
       remaining_today: remainingToday - sent,
-      email_provider: EMAIL_PROVIDER,
+      email_provider: "SendGrid",
       errors: errors.slice(0, 5),
       priority_tiers: tierCounts,
       avg_priority_score: eligibleTargets.length > 0
