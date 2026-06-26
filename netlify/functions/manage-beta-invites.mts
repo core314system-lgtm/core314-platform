@@ -531,8 +531,42 @@ export default async (req: Request, _context: Context) => {
         if (existing.status === "accepted") {
           return new Response(JSON.stringify({ error: "This email already has an active invitation. Check your email for the signup link." }), { status: 400, headers })
         }
-        if (existing.status === "applied" || existing.status === "pending") {
+        if (existing.status === "applied") {
           return new Response(JSON.stringify({ already_requested: true, error: "A request for this email is already under review." }), { status: 400, headers })
+        }
+        if (existing.status === "pending") {
+          // Admin-invited email is now submitting an application — update with form data
+          const pendingNoteParts: string[] = []
+          if (reqCompany) pendingNoteParts.push(`Company: ${reqCompany}`)
+          if (reqPhone) pendingNoteParts.push(`Phone: ${reqPhone}`)
+          if (reqWebsite) pendingNoteParts.push(`Website: ${reqWebsite}`)
+          if (reqJobTitle) pendingNoteParts.push(`Job Title: ${reqJobTitle}`)
+          if (reqEmployees) pendingNoteParts.push(`Employees: ${reqEmployees}`)
+          if (reqGovconRole) pendingNoteParts.push(`GovCon Role: ${reqGovconRole}`)
+          if (reqProposalVolume) pendingNoteParts.push(`Annual Proposal Volume: ${reqProposalVolume}`)
+          if (reqBiggestChallenge) pendingNoteParts.push(`Biggest Challenge: ${reqBiggestChallenge}`)
+          if (reqWhyFoundingPartner) pendingNoteParts.push(`Why Founding Partner: ${reqWhyFoundingPartner}`)
+          if (reqReason) pendingNoteParts.push(`Reason: ${reqReason}`)
+
+          await supabase.from("beta_invitations").update({
+            status: "applied",
+            applicant_name: reqName.trim(),
+            notes: pendingNoteParts.length > 0 ? pendingNoteParts.join("\n") : null,
+            agreed_at: new Date().toISOString(),
+          }).eq("id", existing.id)
+
+          // Send admin notification
+          try {
+            initSendGrid()
+            await sgMail.default.send({
+              to: "admin@core314.com",
+              from: { email: "admin@core314.com", name: "Procuvex" },
+              subject: `Founding Partner Application: ${reqName.trim()} — ${reqCompany || "No Company"} (${cleanEmail})`,
+              html: `<p>Previously invited email <strong>${cleanEmail}</strong> has submitted a Founding Partner application. View details at <a href="https://procuvex.com/admin/invites">Admin Invites</a>.</p>`,
+            })
+          } catch { /* non-blocking */ }
+
+          return new Response(JSON.stringify({ success: true }), { headers })
         }
         // If previously declined/revoked/expired, allow re-request by deleting old record
         await supabase.from("beta_invitations").delete().eq("id", existing.id)
