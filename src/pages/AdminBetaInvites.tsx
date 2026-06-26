@@ -45,6 +45,7 @@ interface BetaInvite {
   expires_at: string | null
   created_by: string | null
   notes: string | null
+  applicant_name: string | null
 }
 
 type SortField = 'email' | 'status' | 'created_at' | 'claimed_at'
@@ -365,11 +366,12 @@ export default function AdminBetaInvites() {
   }
 
   function exportCSV() {
-    const rows = [['Email', 'Status', 'Invited', 'Claimed', 'Expires', 'Notes', 'Days Since Signup', 'Projects', 'Last Active']]
+    const rows = [['Name', 'Email', 'Status', 'Invited', 'Claimed', 'Expires', 'Notes', 'Days Since Signup', 'Projects', 'Last Active']]
     for (const inv of filteredAndSorted) {
       const activity = testerActivity[inv.email]
       const daysSince = inv.claimed_at ? Math.floor((Date.now() - new Date(inv.claimed_at).getTime()) / 86400000) : ''
       rows.push([
+        inv.applicant_name || '',
         inv.email,
         inv.status,
         new Date(inv.created_at).toLocaleDateString(),
@@ -436,7 +438,7 @@ export default function AdminBetaInvites() {
     let list = filter === 'all' ? invites : invites.filter(i => i.status === filter)
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      list = list.filter(i => i.email.toLowerCase().includes(q) || (i.notes && i.notes.toLowerCase().includes(q)))
+      list = list.filter(i => i.email.toLowerCase().includes(q) || (i.applicant_name && i.applicant_name.toLowerCase().includes(q)) || (i.notes && i.notes.toLowerCase().includes(q)))
     }
     list.sort((a, b) => {
       let cmp = 0
@@ -711,7 +713,7 @@ export default function AdminBetaInvites() {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by email or notes..."
+            placeholder="Search by name, email, or notes..."
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           {searchQuery && (
@@ -812,11 +814,14 @@ export default function AdminBetaInvites() {
                       </td>
                       <td className="py-3 px-4">
                         <div>
-                          <span className="font-medium text-gray-900">{invite.email}</span>
+                          {invite.applicant_name && (
+                            <span className="font-semibold text-gray-900 block">{invite.applicant_name}</span>
+                          )}
+                          <span className={`${invite.applicant_name ? 'text-sm text-gray-500' : 'font-medium text-gray-900'}`}>{invite.email}</span>
                           {invite.notes && (
                             <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                               <StickyNote className="h-3 w-3" />
-                              {invite.notes.length > 40 ? invite.notes.slice(0, 40) + '...' : invite.notes}
+                              {invite.notes.length > 50 ? invite.notes.slice(0, 50) + '...' : invite.notes}
                             </p>
                           )}
                         </div>
@@ -988,18 +993,21 @@ export default function AdminBetaInvites() {
                             </div>
                           )}
 
-                          {/* Notes */}
+                          {/* Application Details / Notes */}
                           <div className="space-y-2">
                             <h4 className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                              <StickyNote className="h-3 w-3" /> Notes
+                              <StickyNote className="h-3 w-3" /> {invite.applicant_name ? 'Application Details' : 'Notes'}
                             </h4>
+                            {invite.applicant_name && (
+                              <p className="text-xs text-gray-700 font-medium">Applicant: {invite.applicant_name}</p>
+                            )}
                             {editingNote === invite.id ? (
                               <div className="space-y-2">
                                 <textarea
                                   value={noteText}
                                   onChange={e => setNoteText(e.target.value)}
                                   placeholder="Add a note (e.g., referral source, vertical, feedback)..."
-                                  rows={2}
+                                  rows={4}
                                   className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                 />
                                 <div className="flex gap-1">
@@ -1021,7 +1029,20 @@ export default function AdminBetaInvites() {
                             ) : (
                               <div>
                                 {invite.notes ? (
-                                  <p className="text-xs text-gray-600 mb-1">{invite.notes}</p>
+                                  <div className="text-xs text-gray-600 mb-1 space-y-0.5">
+                                    {invite.notes.split('\n').map((line, i) => {
+                                      const colonIdx = line.indexOf(':')
+                                      if (colonIdx > 0 && colonIdx < 30) {
+                                        return (
+                                          <p key={i}>
+                                            <span className="font-semibold text-gray-700">{line.slice(0, colonIdx + 1)}</span>
+                                            {line.slice(colonIdx + 1)}
+                                          </p>
+                                        )
+                                      }
+                                      return <p key={i}>{line}</p>
+                                    })}
+                                  </div>
                                 ) : (
                                   <p className="text-xs text-gray-400 mb-1">No notes</p>
                                 )}
