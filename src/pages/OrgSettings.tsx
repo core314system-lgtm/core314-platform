@@ -92,6 +92,12 @@ export default function OrgSettings() {
   }, [currentOrg])
 
   useEffect(() => {
+    if (currentOrg?.name && !orgName) {
+      setOrgName(currentOrg.name)
+    }
+  }, [currentOrg?.name])
+
+  useEffect(() => {
     if (isMultiTenantEnabled && currentOrg && !rfqTemplateLoaded) {
       loadRfqTemplate()
     }
