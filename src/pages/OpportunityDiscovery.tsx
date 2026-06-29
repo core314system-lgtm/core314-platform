@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -103,24 +103,26 @@ const US_STATES = [
 
 const PREFS_KEY = 'procuvex_opportunity_preferences'
 
+const DEFAULT_PREFS: SearchPreferences = {
+  naicsCodes: [],
+  setAsides: [],
+  keywords: [],
+  agencies: [],
+  solicitationTypes: ['o', 'k'],
+  states: [],
+  postedWithinDays: 30,
+  deadlineWithinDays: null,
+}
+
 function loadPreferences(): SearchPreferences {
   try {
     const stored = localStorage.getItem(PREFS_KEY)
     if (stored) return JSON.parse(stored)
   } catch { /* ignore */ }
-  return {
-    naicsCodes: [],
-    setAsides: [],
-    keywords: [],
-    agencies: [],
-    solicitationTypes: ['o', 'k'],
-    states: [],
-    postedWithinDays: 30,
-    deadlineWithinDays: null,
-  }
+  return { ...DEFAULT_PREFS }
 }
 
-function savePreferences(prefs: SearchPreferences) {
+function savePreferencesLocal(prefs: SearchPreferences) {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
 }
 
@@ -259,6 +261,46 @@ export default function OpportunityDiscovery() {
   const [naicsInput, setNaicsInput] = useState('')
   const [keywordInput, setKeywordInput] = useState('')
   const [savedPrefs, setSavedPrefs] = useState(false)
+  const prefsRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to preferences panel when it opens
+  useEffect(() => {
+    if (showPreferences && prefsRef.current) {
+      prefsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [showPreferences])
+
+  // Load preferences from database on mount
+  useEffect(() => {
+    async function loadFromDb() {
+      try {
+        const { data } = await supabase
+          .from('company_profile')
+          .select('opportunity_preferences')
+          .limit(1)
+          .single()
+        if (data?.opportunity_preferences && typeof data.opportunity_preferences === 'object') {
+          const dbPrefs = data.opportunity_preferences as Partial<SearchPreferences>
+          const merged: SearchPreferences = {
+            naicsCodes: dbPrefs.naicsCodes || DEFAULT_PREFS.naicsCodes,
+            setAsides: dbPrefs.setAsides || DEFAULT_PREFS.setAsides,
+            keywords: dbPrefs.keywords || DEFAULT_PREFS.keywords,
+            agencies: dbPrefs.agencies || DEFAULT_PREFS.agencies,
+            solicitationTypes: dbPrefs.solicitationTypes || DEFAULT_PREFS.solicitationTypes,
+            states: dbPrefs.states || DEFAULT_PREFS.states,
+            postedWithinDays: dbPrefs.postedWithinDays || DEFAULT_PREFS.postedWithinDays,
+            deadlineWithinDays: dbPrefs.deadlineWithinDays ?? DEFAULT_PREFS.deadlineWithinDays,
+          }
+          // Only use DB prefs if they have meaningful content
+          if (merged.naicsCodes.length > 0 || merged.keywords.length > 0 || merged.setAsides.length > 0) {
+            setPrefs(merged)
+            savePreferencesLocal(merged)
+          }
+        }
+      } catch { /* company_profile table or column may not exist yet */ }
+    }
+    loadFromDb()
+  }, [])
 
   // Search state
   const [results, setResults] = useState<Opportunity[]>([])
@@ -284,11 +326,31 @@ export default function OpportunityDiscovery() {
   // Expanded opportunity
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // Save preferences
-  function handleSavePreferences() {
-    savePreferences(prefs)
+  // Save preferences to localStorage and database
+  async function handleSavePreferences() {
+    savePreferencesLocal(prefs)
     setSavedPrefs(true)
     setTimeout(() => setSavedPrefs(false), 2000)
+
+    // Persist to database
+    try {
+      const { data: existing } = await supabase
+        .from('company_profile')
+        .select('id')
+        .limit(1)
+        .single()
+
+      if (existing) {
+        await supabase
+          .from('company_profile')
+          .update({ opportunity_preferences: prefs, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      } else {
+        await supabase
+          .from('company_profile')
+          .insert({ company_name: 'My Company', opportunity_preferences: prefs })
+      }
+    } catch { /* column may not exist yet — localStorage fallback still works */ }
   }
 
   // Add NAICS code
@@ -507,7 +569,7 @@ export default function OpportunityDiscovery() {
 
       {/* Preferences Panel */}
       {showPreferences && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-6">
+        <div ref={prefsRef} className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Settings2 size={20} className="text-blue-600" />
@@ -1069,7 +1131,7 @@ export default function OpportunityDiscovery() {
       )}
 
       {/* Empty State / Getting Started */}
-      {!hasSearched && !error && (
+      {!hasSearched && !error && !showPreferences && !searching && (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
           <div className="max-w-lg mx-auto text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
