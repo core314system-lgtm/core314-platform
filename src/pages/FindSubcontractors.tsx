@@ -115,7 +115,7 @@ export default function FindSubcontractors() {
   const [includeOrgSubs, setIncludeOrgSubs] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(0)
-  const [stats, setStats] = useState({ total: 0, verified: 0, trades: 0 })
+  const [stats, setStats] = useState<{ total: number; verified: number; trades: number } | null>(null)
 
   // Enterprise AI Match
   const [showAiMatch, setShowAiMatch] = useState(false)
@@ -154,7 +154,7 @@ export default function FindSubcontractors() {
   async function fetchStats() {
     let masterCount = 0
     let verifiedCount = 0
-    let orgCount = 0
+    let orgSubCount = 0
 
     // Count contactable subs from master database (may not exist in all envs)
     try {
@@ -171,19 +171,16 @@ export default function FindSubcontractors() {
       if (!ve) verifiedCount = vc || 0
     } catch { /* view may not exist */ }
 
-    // Also count org's own subs
-    if (currentOrg) {
-      try {
-        const { count: oc, error: oe } = await supabase
-          .from('org_subcontractors')
-          .select('*', { count: 'exact', head: true })
-          .eq('org_id', currentOrg.id)
-        if (!oe) orgCount = oc || 0
-      } catch { /* table may not exist */ }
-    }
+    // Count org's own subcontractors (RLS-scoped)
+    try {
+      const { count: oc, error: oe } = await supabase
+        .from('subcontractors')
+        .select('*', { count: 'exact', head: true })
+      if (!oe) orgSubCount = oc || 0
+    } catch { /* table may not exist */ }
 
     setStats({
-      total: masterCount + orgCount,
+      total: masterCount + orgSubCount,
       verified: verifiedCount,
       trades: TRADE_CATEGORIES.length,
     })
@@ -346,25 +343,25 @@ export default function FindSubcontractors() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Find Subcontractors</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Search {stats.total.toLocaleString()} subcontractors with verified contact information across {stats.trades} trade categories
+          {stats ? `Search ${stats.total.toLocaleString()} subcontractors with verified contact information across ${stats.trades} trade categories` : 'Loading subcontractor database...'}
         </p>
       </div>
 
       {/* Stats Banner */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Contactable Subs</div>
-          <div className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</div>
-          <div className="text-xs text-gray-400">all have email or phone</div>
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Database size={14} /> Subcontractors</div>
+          <div className="text-2xl font-bold text-gray-900">{stats ? stats.total.toLocaleString() : '—'}</div>
+          <div className="text-xs text-gray-400">in network</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><BadgeCheck size={14} /> Verified</div>
-          <div className="text-2xl font-bold text-green-600">{stats.verified.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-green-600">{stats ? stats.verified.toLocaleString() : '—'}</div>
           <div className="text-xs text-gray-400">certified & validated</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Building size={14} /> Trade Categories</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.trades}</div>
+          <div className="text-2xl font-bold text-blue-600">{stats ? stats.trades : '—'}</div>
           <div className="text-xs text-gray-400">specializations covered</div>
         </div>
       </div>
@@ -921,7 +918,7 @@ export default function FindSubcontractors() {
                   <div className="flex items-center gap-2">
                     {sub._source === 'org' ? (
                       <Link
-                        to="/my-subs"
+                        to="/subcontractors"
                         className="text-base font-semibold text-gray-900 hover:text-indigo-600 truncate"
                       >
                         {sub.company_name}
