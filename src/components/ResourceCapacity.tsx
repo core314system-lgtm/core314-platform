@@ -29,10 +29,11 @@ export default function ResourceCapacity({ compact = false }: Props) {
     try {
       const { data: projects } = await supabase
         .from('task_orders')
-        .select('id, title, status, due_date, estimated_value')
-        .in('status', ['draft', 'in_progress', 'under_review', 'submitted', 'awarded'])
+        .select('*')
 
-      const allProjects = projects || []
+      const allProjects = (projects || []).filter(p =>
+        ['draft', 'in_progress', 'under_review', 'submitted', 'awarded'].includes(p.status)
+      )
       const inProgress = allProjects.filter(p => ['in_progress', 'under_review'].includes(p.status))
       const awarded = allProjects.filter(p => p.status === 'awarded')
 

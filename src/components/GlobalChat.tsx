@@ -22,14 +22,14 @@ interface ChatMessage {
 const SUGGESTED_QUESTIONS = [
   'How many active projects do we have?',
   'Which projects are missing subcontractor quotes?',
-  'What is my current subscription plan and status?',
   'What is the total estimated value across all projects?',
-  'Show me quotes with compliance issues.',
-  'How is our outreach campaign performing?',
   'Summarize our subcontractor coverage by service category.',
-  'What quotes need AI compliance review?',
-  'How do I set up SSO for my organization?',
-  'What security features are available on my plan?',
+  'How does the AI compliance engine analyze quotes?',
+  'How does opportunity scoring work?',
+  'What security features does Procuvex provide?',
+  'How does the pricing decision matrix work?',
+  'What capabilities does the Master Sub Database offer?',
+  'What is my current subscription plan and status?',
 ]
 
 const SMART_NOTES_SUGGESTIONS = [
