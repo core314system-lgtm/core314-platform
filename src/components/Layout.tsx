@@ -74,7 +74,7 @@ const navGroups: NavGroup[] = [
     label: 'Subcontractors',
     icon: Users,
     items: [
-      { path: '/my-subs', label: 'My Subcontractors', icon: Building2 },
+      { path: '/subcontractors', label: 'My Subcontractors', icon: Building2 },
       { path: '/find-subs', label: 'Find Subcontractors', icon: ScanSearch },
       { path: '/subcontractor-capture', label: 'Procuvex Capture', icon: Radar },
     ],

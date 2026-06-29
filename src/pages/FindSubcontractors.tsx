@@ -918,7 +918,7 @@ export default function FindSubcontractors() {
                   <div className="flex items-center gap-2">
                     {sub._source === 'org' ? (
                       <Link
-                        to="/my-subs"
+                        to="/subcontractors"
                         className="text-base font-semibold text-gray-900 hover:text-indigo-600 truncate"
                       >
                         {sub.company_name}

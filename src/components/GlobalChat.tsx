@@ -882,7 +882,7 @@ NAVIGATION & SETTINGS:
 - Dashboard: /dashboard — overview of projects, activity, and key metrics.
 - Projects: /projects — list and manage all projects/task orders.
 - Find Subcontractors: /find-subs — search and discover subcontractors.
-- My Subcontractors: /my-subs — manage your organization's subcontractor database.
+- My Subcontractors: /subcontractors — manage your organization's subcontractor database.
 - Analytics: /analytics — cross-project metrics and insights.
 - Intelligence Library: /intelligence — win/loss debriefs and competitive intelligence.
 - Integrations: /integrations — SAM.gov search, CSV import, API access.
