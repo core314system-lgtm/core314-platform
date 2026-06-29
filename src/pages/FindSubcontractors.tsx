@@ -152,18 +152,39 @@ export default function FindSubcontractors() {
   }
 
   async function fetchStats() {
-    // Only count contactable subs (with email or phone)
-    const { count } = await supabase
-      .from('master_subcontractors_safe')
-      .select('*', { count: 'exact', head: true })
-      .or('contact_email.not.is.null,contact_phone.not.is.null')
-    const { count: verifiedCount } = await supabase
-      .from('master_subcontractors_safe')
-      .select('*', { count: 'exact', head: true })
-      .eq('verification_status', 'verified')
+    let masterCount = 0
+    let verifiedCount = 0
+    let orgCount = 0
+
+    // Count contactable subs from master database (may not exist in all envs)
+    try {
+      const { count, error } = await supabase
+        .from('master_subcontractors_safe')
+        .select('*', { count: 'exact', head: true })
+        .or('contact_email.not.is.null,contact_phone.not.is.null')
+      if (!error) masterCount = count || 0
+
+      const { count: vc, error: ve } = await supabase
+        .from('master_subcontractors_safe')
+        .select('*', { count: 'exact', head: true })
+        .eq('verification_status', 'verified')
+      if (!ve) verifiedCount = vc || 0
+    } catch { /* view may not exist */ }
+
+    // Also count org's own subs
+    if (currentOrg) {
+      try {
+        const { count: oc, error: oe } = await supabase
+          .from('org_subcontractors')
+          .select('*', { count: 'exact', head: true })
+          .eq('org_id', currentOrg.id)
+        if (!oe) orgCount = oc || 0
+      } catch { /* table may not exist */ }
+    }
+
     setStats({
-      total: count || 0,
-      verified: verifiedCount || 0,
+      total: masterCount + orgCount,
+      verified: verifiedCount,
       trades: TRADE_CATEGORIES.length,
     })
   }

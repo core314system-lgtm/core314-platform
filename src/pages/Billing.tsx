@@ -71,16 +71,31 @@ export default function Billing() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
 
   useEffect(() => {
-    if (currentOrg) loadStatus()
+    if (currentOrg) {
+      loadStatus()
+    } else {
+      const timer = setTimeout(() => {
+        if (loading) {
+          setSubStatus({ status: 'no_subscription', plan: null, trial_ends_at: null, subscription_ends_at: null })
+          setLoading(false)
+        }
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
   }, [currentOrg])
 
   async function loadStatus() {
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
       const res = await fetch('/.netlify/functions/manage-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'status', org_id: currentOrg?.id }),
+        signal: controller.signal,
       })
+      clearTimeout(timeout)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setSubStatus(data)
     } catch {
