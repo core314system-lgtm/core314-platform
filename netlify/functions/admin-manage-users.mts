@@ -117,17 +117,55 @@ export default async (req: Request, _context: Context) => {
         user_metadata: { full_name: full_name || email.split('@')[0] },
       })
 
-      // If user already exists (soft-deleted ghost), purge via direct SQL and retry
+      // If user already exists (ghost from incomplete deletion), find and purge
       if (authError && authError.message?.toLowerCase().includes('already')) {
-        await supabase.rpc('purge_auth_user_by_email', { target_email: email })
-        const retry = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { full_name: full_name || email.split('@')[0] },
-        })
-        authData = retry.data
-        authError = retry.error
+        let purged = false
+
+        // generateLink finds users including soft-deleted (unlike listUsers)
+        try {
+          const { data: linkData } = await supabase.auth.admin.generateLink({
+            type: 'magiclink',
+            email,
+          })
+          if (linkData?.user?.id) {
+            const ghostId = linkData.user.id
+
+            // Clear all FK references to auth.users before deleting
+            await Promise.all([
+              supabase.from('task_orders').update({ created_by: null }).eq('created_by', ghostId),
+              supabase.from('documents').update({ uploaded_by: null }).eq('uploaded_by', ghostId),
+              supabase.from('workflow_history').delete().eq('changed_by', ghostId),
+              supabase.from('organization_members').delete().eq('user_id', ghostId),
+              supabase.from('user_profiles').delete().eq('id', ghostId),
+            ].map(p => p.catch(() => {})))
+
+            const { error: delErr } = await supabase.auth.admin.deleteUser(ghostId, false)
+            if (!delErr) purged = true
+          }
+        } catch {
+          // fall through to RPC fallback
+        }
+
+        // Fallback: try RPC function if migration has been applied
+        if (!purged) {
+          try {
+            await supabase.rpc('purge_auth_user_by_email', { target_email: email })
+            purged = true
+          } catch {
+            // Function may not exist yet
+          }
+        }
+
+        if (purged) {
+          const retry = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name: full_name || email.split('@')[0] },
+          })
+          authData = retry.data
+          authError = retry.error
+        }
       }
 
       if (authError) {
@@ -233,6 +271,14 @@ export default async (req: Request, _context: Context) => {
 
     // Delete user profile
     await supabase.from('user_profiles').delete().eq('id', user_id)
+
+    // Clear all FK references to auth.users before deleting
+    // (without this, deleteUser fails with FK constraint violations)
+    await Promise.all([
+      supabase.from('task_orders').update({ created_by: null }).eq('created_by', user_id),
+      supabase.from('documents').update({ uploaded_by: null }).eq('uploaded_by', user_id),
+      supabase.from('workflow_history').delete().eq('changed_by', user_id),
+    ].map(p => p.catch(() => {})))
 
     // Hard-delete auth user (not soft-delete) so email can be reused
     const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id, false)
