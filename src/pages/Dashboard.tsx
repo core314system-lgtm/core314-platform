@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
 import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen, AlertTriangle } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
-import ResourceCapacity from '../components/ResourceCapacity'
 import OnboardingGuide from '../components/OnboardingGuide'
 import BetaClaimBanner from '../components/BetaClaimBanner'
 
@@ -236,9 +235,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      {/* Resource Capacity */}
-      <ResourceCapacity />
 
       {/* Recently Viewed Documents */}
       {recentDocs.length > 0 && (
