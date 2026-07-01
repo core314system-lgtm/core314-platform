@@ -117,17 +117,45 @@ export default async (req: Request, _context: Context) => {
         user_metadata: { full_name: full_name || email.split('@')[0] },
       })
 
-      // If user already exists (soft-deleted ghost), purge via direct SQL and retry
+      // If user already exists (soft-deleted ghost), find via generateLink and hard-delete
       if (authError && authError.message?.toLowerCase().includes('already')) {
-        await supabase.rpc('purge_auth_user_by_email', { target_email: email })
-        const retry = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { full_name: full_name || email.split('@')[0] },
-        })
-        authData = retry.data
-        authError = retry.error
+        let purged = false
+
+        // generateLink uses FindUserByEmailAndAudience which does NOT filter deleted_at,
+        // so it finds soft-deleted ghost users that listUsers() cannot see
+        try {
+          const { data: linkData } = await supabase.auth.admin.generateLink({
+            type: 'magiclink',
+            email,
+          })
+          if (linkData?.user?.id) {
+            await supabase.auth.admin.deleteUser(linkData.user.id, false)
+            purged = true
+          }
+        } catch {
+          // generateLink may fail — fall through to RPC fallback
+        }
+
+        // Fallback: try RPC function if migration has been applied
+        if (!purged) {
+          try {
+            await supabase.rpc('purge_auth_user_by_email', { target_email: email })
+            purged = true
+          } catch {
+            // Function may not exist yet
+          }
+        }
+
+        if (purged) {
+          const retry = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name: full_name || email.split('@')[0] },
+          })
+          authData = retry.data
+          authError = retry.error
+        }
       }
 
       if (authError) {
