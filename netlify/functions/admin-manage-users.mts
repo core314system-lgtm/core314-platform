@@ -110,12 +110,29 @@ export default async (req: Request, _context: Context) => {
       }
 
       // Create auth user (auto-confirm)
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      let { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
         user_metadata: { full_name: full_name || email.split('@')[0] },
       })
+
+      // If user already exists (soft-deleted), hard-delete and retry
+      if (authError && authError.message?.toLowerCase().includes('already')) {
+        const { data: existingUsers } = await supabase.auth.admin.listUsers()
+        const ghost = existingUsers?.users?.find(u => u.email === email)
+        if (ghost) {
+          await supabase.auth.admin.deleteUser(ghost.id, false)
+          const retry = await supabase.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name: full_name || email.split('@')[0] },
+          })
+          authData = retry.data
+          authError = retry.error
+        }
+      }
 
       if (authError) {
         return new Response(JSON.stringify({ error: authError.message }), { status: 400, headers })
@@ -221,8 +238,8 @@ export default async (req: Request, _context: Context) => {
     // Delete user profile
     await supabase.from('user_profiles').delete().eq('id', user_id)
 
-    // Delete auth user
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id)
+    // Hard-delete auth user (not soft-delete) so email can be reused
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id, false)
     if (deleteError) {
       return new Response(JSON.stringify({ error: deleteError.message }), { status: 500, headers })
     }
