@@ -117,21 +117,17 @@ export default async (req: Request, _context: Context) => {
         user_metadata: { full_name: full_name || email.split('@')[0] },
       })
 
-      // If user already exists (soft-deleted), hard-delete and retry
+      // If user already exists (soft-deleted ghost), purge via direct SQL and retry
       if (authError && authError.message?.toLowerCase().includes('already')) {
-        const { data: existingUsers } = await supabase.auth.admin.listUsers()
-        const ghost = existingUsers?.users?.find(u => u.email === email)
-        if (ghost) {
-          await supabase.auth.admin.deleteUser(ghost.id, false)
-          const retry = await supabase.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            user_metadata: { full_name: full_name || email.split('@')[0] },
-          })
-          authData = retry.data
-          authError = retry.error
-        }
+        await supabase.rpc('purge_auth_user_by_email', { target_email: email })
+        const retry = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: full_name || email.split('@')[0] },
+        })
+        authData = retry.data
+        authError = retry.error
       }
 
       if (authError) {
