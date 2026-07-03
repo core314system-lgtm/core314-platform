@@ -169,10 +169,11 @@ export default function Login() {
   const inviteToken = searchParams.get('invite')
   const betaInviteToken = searchParams.get('beta_invite')
   const fromPricing = searchParams.get('from') === 'pricing' || document.referrer.includes('/pricing')
+  const tabSignup = searchParams.get('tab') === 'signup'
   const selectedPlan = searchParams.get('plan') // 'growth' or 'enterprise'
   const selectedBilling = searchParams.get('billing') || 'monthly' // 'monthly' or 'annual'
 
-  const [isSignUp, setIsSignUp] = useState(SIGNUP_ENABLED && (!!inviteToken || !!betaInviteToken || fromPricing))
+  const [isSignUp, setIsSignUp] = useState(SIGNUP_ENABLED && (!!inviteToken || !!betaInviteToken || fromPricing || tabSignup))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
