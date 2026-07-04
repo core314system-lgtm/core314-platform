@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen, AlertTriangle } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen, AlertTriangle, Play, ChevronRight } from 'lucide-react'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import OnboardingGuide from '../components/OnboardingGuide'
 import BetaClaimBanner from '../components/BetaClaimBanner'
@@ -317,6 +317,9 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* Platform Walkthrough */}
+      <PlatformWalkthrough />
+
       {/* Recent Task Orders */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -357,6 +360,103 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+const WALKTHROUGH_STEPS = [
+  {
+    title: 'Find Opportunities',
+    description: 'Search SAM.gov with AI-powered match scoring. Import opportunities directly into projects.',
+    path: '/opportunities',
+    icon: Compass,
+    color: 'bg-cyan-100 text-cyan-700',
+  },
+  {
+    title: 'Create a Project',
+    description: 'Upload SOW/RFP documents. AI extracts requirements, generates compliance matrices, and identifies risks.',
+    path: '/projects/new',
+    icon: ClipboardList,
+    color: 'bg-blue-100 text-blue-700',
+  },
+  {
+    title: 'Build Your Team',
+    description: 'Search 132K+ subcontractors, send RFQs, track quotes. Auto-generate SB subcontracting plans.',
+    path: '/subcontractors',
+    icon: Users,
+    color: 'bg-green-100 text-green-700',
+  },
+  {
+    title: 'Run Gate Reviews',
+    description: 'Shipley-aligned GO/NO-GO decisions at each capture stage. Color team reviews for proposal quality.',
+    path: '/projects',
+    icon: Shield,
+    color: 'bg-purple-100 text-purple-700',
+  },
+  {
+    title: 'Price to Win',
+    description: 'AI-powered pricing analysis, competitive intelligence from federal award data, and win probability.',
+    path: '/competitive-intelligence',
+    icon: BarChart3,
+    color: 'bg-amber-100 text-amber-700',
+  },
+]
+
+function PlatformWalkthrough() {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem('procuvex_walkthrough_dismissed') === 'true' } catch { return false }
+  })
+
+  if (dismissed) return null
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Play size={16} className="text-indigo-600" />
+          <h2 className="font-semibold text-gray-900">How Procuvex Works</h2>
+          <span className="text-xs text-gray-400">End-to-end capture workflow</span>
+        </div>
+        <button
+          onClick={() => {
+            setDismissed(true)
+            try { localStorage.setItem('procuvex_walkthrough_dismissed', 'true') } catch { /* noop */ }
+          }}
+          className="text-gray-400 hover:text-gray-600"
+          title="Dismiss"
+        >
+          <X size={14} />
+        </button>
+      </div>
+      <div className="p-4">
+        <div className="flex flex-col md:flex-row gap-2">
+          {WALKTHROUGH_STEPS.map((step, i) => (
+            <Link
+              key={i}
+              to={step.path}
+              className="flex-1 group p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-start gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs font-bold text-gray-300">{i + 1}</span>
+                  <div className={`rounded-lg p-1.5 ${step.color}`}>
+                    <step.icon size={14} />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-900 group-hover:text-indigo-900">{step.title}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{step.description}</p>
+                </div>
+              </div>
+              {i < WALKTHROUGH_STEPS.length - 1 && (
+                <div className="hidden md:flex justify-end mt-1">
+                  <ChevronRight size={12} className="text-gray-300" />
+                </div>
+              )}
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   )
