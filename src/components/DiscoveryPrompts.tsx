@@ -19,7 +19,7 @@ const DISCOVERY_ITEMS: DiscoveryItem[] = [
   {
     id: 'past_performance',
     label: 'Past Performance Library',
-    description: 'Build a citation library for proposals — track CPARS ratings, contract history, and reusable narratives.',
+    description: 'Upload documents for AI extraction or manually build a citation library — CPARS ratings, contract history, and reusable narratives.',
     path: '/past-performance',
     icon: Award,
   },
