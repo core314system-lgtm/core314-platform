@@ -30,6 +30,11 @@ import {
   Mail,
   KeyRound,
   Handshake,
+  Award,
+  Truck,
+  UserCheck,
+  FileStack,
+  TrendingUp,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -67,6 +72,11 @@ const navGroups: NavGroup[] = [
       { path: '/opportunities', label: 'Opportunities', icon: Compass },
       { path: '/agent-hub', label: 'Agent Hub', icon: Bot, enterpriseOnly: true },
       { path: '/documents', label: 'Documents', icon: FolderOpen },
+      { path: '/past-performance', label: 'Past Performance', icon: Award },
+      { path: '/contract-vehicles', label: 'Contract Vehicles', icon: Truck },
+      { path: '/contracts', label: 'Contracts', icon: FileStack },
+      { path: '/labor-categories', label: 'Personnel & LCAT', icon: UserCheck },
+      { path: '/competitive-intelligence', label: 'Market Intel', icon: TrendingUp },
     ],
   },
   {
@@ -115,6 +125,9 @@ const navGroups: NavGroup[] = [
 const ROUTE_GROUP_OVERRIDES: Record<string, string> = {
   '/pipeline': 'main',
   '/contracts': 'main',
+  '/past-performance': 'main',
+  '/contract-vehicles': 'main',
+  '/labor-categories': 'main',
   '/compliance': 'main',
   '/comparison': 'main',
   '/analytics': 'main',

@@ -184,7 +184,7 @@ export default function LandingPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
               </span>
-              AI-Powered Procurement for Every Industry
+              Trusted by Government Contractors & Construction Teams
             </motion.div>
 
             <motion.h1
@@ -194,9 +194,9 @@ export default function LandingPage() {
               className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-6"
               style={{ fontFamily: 'Poppins, sans-serif' }}
             >
-              Win More Bids.{' '}
+              Win More Government Contracts.{' '}
               <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Waste Less Time.
+                In Less Time.
               </span>
             </motion.h1>
 

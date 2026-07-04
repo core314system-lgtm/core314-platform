@@ -69,6 +69,15 @@ import SubProfilePublic from './pages/SubProfilePublic'
 import ClaimLookup from './pages/ClaimLookup'
 import CreateSubProfile from './pages/CreateSubProfile'
 import AdminPartners from './pages/AdminPartners'
+import PastPerformance from './pages/PastPerformance'
+import ContractVehicles from './pages/ContractVehicles'
+import CaptureGates from './pages/CaptureGates'
+import ColorTeamReviews from './pages/ColorTeamReviews'
+import LaborCategories from './pages/LaborCategories'
+import SBSubcontractingPlan from './pages/SBSubcontractingPlan'
+import SectionLMAnalysis from './pages/SectionLMAnalysis'
+import CompetitiveIntelligence from './pages/CompetitiveIntelligence'
+import PriceToWin from './pages/PriceToWin'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -285,6 +294,17 @@ export default function App() {
           <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />
           <Route path="/contracts/new" element={<ProtectedRoute><NewContract /></ProtectedRoute>} />
           <Route path="/contracts/:id" element={<ProtectedRoute><ContractDetail /></ProtectedRoute>} />
+
+          {/* GovCon Features */}
+          <Route path="/past-performance" element={<ProtectedRoute><PastPerformance /></ProtectedRoute>} />
+          <Route path="/contract-vehicles" element={<ProtectedRoute><ContractVehicles /></ProtectedRoute>} />
+          <Route path="/labor-categories" element={<ProtectedRoute><LaborCategories /></ProtectedRoute>} />
+          <Route path="/projects/:id/capture-gates" element={<ProtectedRoute><CaptureGates /></ProtectedRoute>} />
+          <Route path="/projects/:id/color-team" element={<ProtectedRoute><ColorTeamReviews /></ProtectedRoute>} />
+          <Route path="/projects/:id/sb-plan" element={<ProtectedRoute><SBSubcontractingPlan /></ProtectedRoute>} />
+          <Route path="/projects/:id/section-lm" element={<ProtectedRoute><SectionLMAnalysis /></ProtectedRoute>} />
+          <Route path="/projects/:id/price-to-win" element={<ProtectedRoute><PriceToWin /></ProtectedRoute>} />
+          <Route path="/competitive-intelligence" element={<ProtectedRoute><CompetitiveIntelligence /></ProtectedRoute>} />
 
           {/* Document Library */}
           <Route path="/documents" element={<ProtectedRoute><DocumentLibrary /></ProtectedRoute>} />
