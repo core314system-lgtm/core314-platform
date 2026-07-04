@@ -79,6 +79,7 @@ import SectionLMAnalysis from './pages/SectionLMAnalysis'
 import CompetitiveIntelligence from './pages/CompetitiveIntelligence'
 import PriceToWin from './pages/PriceToWin'
 import ProjectPastPerformance from './pages/ProjectPastPerformance'
+import GateTemplates from './pages/GateTemplates'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -367,6 +368,7 @@ export default function App() {
           <Route path="/admin/partners" element={<ProtectedRoute><GlobalAdminRoute><AdminPartners /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/settings/email-domain" element={<ProtectedRoute><EnterpriseEmailSettings /></ProtectedRoute>} />
           <Route path="/settings/sso" element={<ProtectedRoute><SSOSettings /></ProtectedRoute>} />
+          <Route path="/settings/gate-templates" element={<ProtectedRoute><GateTemplates /></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />

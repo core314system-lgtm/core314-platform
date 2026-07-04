@@ -99,6 +99,7 @@ const navGroups: NavGroup[] = [
       { path: '/settings', label: 'Organization', icon: Building },
       { path: '/settings/email-domain', label: 'Email Domain', icon: Mail },
       { path: '/settings/sso', label: 'SSO / SAML', icon: KeyRound },
+      { path: '/settings/gate-templates', label: 'Gate Templates', icon: ShieldCheck },
       { path: '/billing', label: 'Billing', icon: CreditCard },
       { path: '/account', label: 'Account', icon: User },
       { path: '/help', label: 'Help Center', icon: HelpCircle },
