@@ -47,6 +47,14 @@ export default function GlobalChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [showWelcomeTip, setShowWelcomeTip] = useState(() => {
+    try { return !localStorage.getItem('procuvex-chat-welcomed') } catch { return true }
+  })
+
+  function dismissWelcomeTip() {
+    setShowWelcomeTip(false)
+    try { localStorage.setItem('procuvex-chat-welcomed', 'true') } catch { /* noop */ }
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1035,22 +1043,41 @@ ${freshContext}`
 
   if (!open) {
     return (
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2">
-        <button
-          onClick={handleHide}
-          className="bg-white text-gray-400 rounded-full p-2 shadow-md hover:text-gray-600 hover:bg-gray-50 transition-all border border-gray-200"
-          title="Hide chatbot"
-        >
-          <EyeOff size={16} />
-        </button>
-        <button
-          onClick={() => setOpen(true)}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full p-4 shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:scale-105 flex items-center gap-2"
-          title="Ask Procuvex Intelligence"
-        >
-          <Sparkles size={24} />
-          <span className="text-sm font-medium hidden md:inline">Ask Procuvex Intelligence</span>
-        </button>
+      <div className="fixed bottom-6 right-6 z-50 flex items-end gap-2">
+        {showWelcomeTip && (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-3 max-w-[220px] mb-1 animate-fade-in">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-gray-700">
+                <span className="font-semibold">Need help?</span> Ask me anything about your projects, bids, or how to use Procuvex.
+              </p>
+              <button onClick={dismissWelcomeTip} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col items-end gap-2">
+          <button
+            onClick={handleHide}
+            className="bg-white text-gray-400 rounded-full p-2 shadow-md hover:text-gray-600 hover:bg-gray-50 transition-all border border-gray-200"
+            title="Hide chatbot"
+          >
+            <EyeOff size={16} />
+          </button>
+          <div className="relative">
+            {showWelcomeTip && (
+              <span className="absolute inset-0 rounded-full bg-indigo-400 animate-ping opacity-30" />
+            )}
+            <button
+              onClick={() => { setOpen(true); dismissWelcomeTip() }}
+              className="relative bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full p-4 shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all hover:scale-105 flex items-center gap-2"
+              title="Ask Procuvex Intelligence"
+            >
+              <Sparkles size={24} />
+              <span className="text-sm font-medium hidden md:inline">Ask Procuvex Intelligence</span>
+            </button>
+          </div>
+        </div>
       </div>
     )
   }

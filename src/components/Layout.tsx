@@ -41,6 +41,7 @@ import GlobalChat from './GlobalChat'
 import NotificationCenter from './NotificationCenter'
 import OnboardingGuide from './OnboardingGuide'
 import OnboardingChecklist from './OnboardingChecklist'
+import DiscoveryPrompts from './DiscoveryPrompts'
 import { getOnboardingState, saveOnboardingState, resetOnboarding, markStepComplete } from '../lib/onboarding'
 import { useOrg } from '../contexts/OrgContext'
 import { useTier } from '../hooks/useTier'
@@ -51,6 +52,7 @@ interface NavItem {
   icon: React.ElementType
   adminOnly?: boolean
   enterpriseOnly?: boolean
+  advanced?: boolean
 }
 
 interface NavGroup {
@@ -72,11 +74,11 @@ const navGroups: NavGroup[] = [
       { path: '/opportunities', label: 'Opportunities', icon: Compass },
       { path: '/agent-hub', label: 'Agent Hub', icon: Bot, enterpriseOnly: true },
       { path: '/documents', label: 'Documents', icon: FolderOpen },
-      { path: '/past-performance', label: 'Past Performance', icon: Award },
-      { path: '/contract-vehicles', label: 'Contract Vehicles', icon: Truck },
+      { path: '/past-performance', label: 'Past Performance', icon: Award, advanced: true },
+      { path: '/contract-vehicles', label: 'Contract Vehicles', icon: Truck, advanced: true },
       { path: '/contracts', label: 'Contracts', icon: FileStack },
-      { path: '/labor-categories', label: 'Personnel & LCAT', icon: UserCheck },
-      { path: '/competitive-intelligence', label: 'Market Intel', icon: TrendingUp },
+      { path: '/labor-categories', label: 'Personnel & LCAT', icon: UserCheck, advanced: true },
+      { path: '/competitive-intelligence', label: 'Market Intel', icon: TrendingUp, advanced: true },
     ],
   },
   {
@@ -164,6 +166,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    try { return localStorage.getItem('procuvex_show_advanced_nav') === 'true' } catch { return false }
+  })
+
+  const onboardingComplete = useMemo(() => {
+    const state = getOnboardingState()
+    return state.completed
+  }, [location.pathname])
 
   // Detect subcontractor-only users (no org = just claimed, not an enterprise user)
   const isSubOnly = !currentOrg && !profile?.is_global_admin
@@ -328,7 +338,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                   {isExpanded && (
                     <div className="mt-0.5 mb-1 space-y-0.5">
-                      {group.items.filter(item => !item.adminOnly || profile?.is_global_admin).map(item => {
+                      {group.items
+                        .filter(item => !item.adminOnly || profile?.is_global_admin)
+                        .filter(item => {
+                          if (!item.advanced) return true
+                          if (group.id !== 'main') return true
+                          return showAdvanced || onboardingComplete
+                        })
+                        .map(item => {
                         const isActive = item.path === '/dashboard'
                           ? location.pathname === '/dashboard'
                           : location.pathname.startsWith(item.path)
@@ -353,6 +370,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           </Link>
                         )
                       })}
+                      {group.id === 'main' && !showAdvanced && !onboardingComplete && (
+                        <button
+                          onClick={() => {
+                            setShowAdvanced(true)
+                            try { localStorage.setItem('procuvex_show_advanced_nav', 'true') } catch { /* noop */ }
+                          }}
+                          className="flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors w-full"
+                        >
+                          <ChevronDown size={14} />
+                          <span>Show more features</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -399,6 +428,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
         <div className="p-6 max-w-7xl mx-auto">
           {!isSubOnly && <OnboardingChecklist onLaunchGuide={handleLaunchGuide} />}
+          {!isSubOnly && <DiscoveryPrompts />}
           {children}
         </div>
       </main>
