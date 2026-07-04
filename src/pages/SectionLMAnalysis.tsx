@@ -5,6 +5,7 @@ import {
   BookOpen, ArrowLeft, Sparkles, FileText,
   CheckCircle, AlertTriangle, ChevronDown, ChevronUp,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface EvalFactor {
   id: string
@@ -94,6 +95,18 @@ export default function SectionLMAnalysis() {
       {!result ? (
         /* Input Phase */
         <div className="space-y-6">
+          <FeatureGuidance
+            title="Section L/M Analysis"
+            description="Paste the text from your RFP's Section L (Instructions to Offerors) and Section M (Evaluation Criteria). The AI will extract and structure the evaluation factors, proposal requirements, and page limits."
+            storageKey="section_lm"
+            accentColor="blue"
+            steps={[
+              { title: 'Copy Section L & M from your RFP', description: 'Open your RFP document and copy the full text of Section L and/or Section M. Include all evaluation factors, subfactors, and instructions.' },
+              { title: 'Paste into the text area below', description: 'Paste the copied text into the large text field. The more complete the text, the better the analysis.' },
+              { title: 'Click "Analyze with AI"', description: 'The AI will parse the text and extract evaluation factors with relative weights, proposal outline, page limits, submission requirements, and compliance warnings.' },
+              { title: 'Review the structured output', description: 'Use the extracted factors to build your compliance matrix, assign writing sections, and ensure your proposal addresses every evaluation criterion.' },
+            ]}
+          />
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Paste Section L/M Text</h2>
             <p className="text-sm text-gray-500 mb-4">

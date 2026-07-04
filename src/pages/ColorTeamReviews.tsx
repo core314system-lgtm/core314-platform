@@ -5,6 +5,7 @@ import {
   Palette, Plus, ArrowLeft, CheckCircle, AlertTriangle, XCircle,
   Calendar, X, Save, ChevronDown, ChevronUp,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface Finding {
   section: string
@@ -210,6 +211,19 @@ export default function ColorTeamReviews() {
           <Plus size={16} /> Schedule Review
         </button>
       </div>
+
+      <FeatureGuidance
+        title="Color Team Reviews"
+        description="Schedule and track proposal quality reviews following the industry-standard color team methodology. Each review type serves a specific purpose in the proposal lifecycle."
+        storageKey="color_team_reviews"
+        accentColor="pink"
+        steps={[
+          { title: 'Schedule a Pink Team first', description: 'Click "Schedule Review" and select Pink Team. This is your earliest compliance check — verify the outline is complete and writing assignments are clear.' },
+          { title: 'Progress through review colors', description: 'Pink → Red → Gold → Blue. Red Team simulates evaluator scoring. Gold Team is executive sign-off. Blue Team checks formatting and submission compliance.' },
+          { title: 'Use Black Hat for competitive analysis', description: 'Schedule a Black Hat review to evaluate your proposal from a competitor\'s perspective. Identify where competitors might outscore you.' },
+          { title: 'Track findings and action items', description: 'Expand each review to add findings with severity levels, assign action items to team members, and record the overall rating (Green/Yellow/Red).' },
+        ]}
+      />
 
       {/* Timeline View */}
       {reviews.length === 0 ? (

@@ -7,7 +7,7 @@ import { parseFile } from '../lib/documentParser'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { analyzeDocuments, generateComplianceMatrix, generateRfqPackages, generateClarificationQuestions, generatePricingRisks, generateExecutiveSummary, matchSubcontractors, matchSubcontractorsPerRequirement, discoverSubsForRequirements } from '../lib/api'
 import type { SubMatch, RequirementMatch, RequirementDiscovery, DiscoveredBusiness } from '../lib/api'
-import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack, Search, Globe, Database, Plus, Star, ExternalLink, X } from 'lucide-react'
+import { Upload, FileText, Trash2, Brain, CheckCircle, Clock, AlertTriangle, ChevronDown, ChevronUp, Users, MapPin, BookOpen, FileStack, Search, Globe, Database, Plus, Star, ExternalLink, X, Shield } from 'lucide-react'
 import CitationBadge from '../components/CitationBadge'
 import TaskOrderChat from '../components/TaskOrderChat'
 import WorkflowBar from '../components/WorkflowBar'
@@ -82,6 +82,7 @@ export default function TaskOrderDetail() {
   const [projectSubs, setProjectSubs] = useState<ProjectSubcontractor[]>([])
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [projectSubsTableExists, setProjectSubsTableExists] = useState(true)
+  const [gateStatuses, setGateStatuses] = useState<{ gate_number: number; gate_name: string; status: string; decision: string | null; checklist: { checked: boolean }[] }[]>([])
   const [selfPerformReqs, setSelfPerformReqs] = useState<string[]>([])
   const [searchingGap, setSearchingGap] = useState<string | null>(null)
   const [sowCoverage, setSowCoverage] = useState<SowCoverageItem[]>([])
@@ -260,8 +261,20 @@ export default function TaskOrderDetail() {
       loadProjectSubcontractors()
       loadSelfPerformReqs()
       loadSowCoverage()
+      fetchGateStatuses()
     }
   }, [id])
+
+  async function fetchGateStatuses() {
+    const { data } = await supabase
+      .from('capture_gates')
+      .select('gate_number, gate_name, status, decision, checklist')
+      .eq('task_order_id', id)
+      .order('gate_number')
+    if (data && data.length > 0) {
+      setGateStatuses(data as { gate_number: number; gate_name: string; status: string; decision: string | null; checklist: { checked: boolean }[] }[])
+    }
+  }
 
   async function fetchTaskOrder() {
     const { data } = await supabase.from('task_orders').select('*').eq('id', id).single()
@@ -1091,6 +1104,49 @@ export default function TaskOrderDetail() {
           sowCoverage={sowCoverage}
         />
       </div>
+
+      {/* Capture Gate Status Summary */}
+      {gateStatuses.length > 0 && (
+        <Link to={`/projects/${id}/capture-gates`} className="block bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:border-blue-300 transition-colors">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Shield size={18} className="text-blue-600" />
+              <h3 className="text-sm font-semibold text-gray-900">Capture Gate Progress</h3>
+            </div>
+            <span className="text-xs text-blue-600 font-medium">View Details &rarr;</span>
+          </div>
+          <div className="flex gap-2">
+            {gateStatuses.map(g => {
+              const progress = g.checklist.length > 0 ? Math.round((g.checklist.filter(c => c.checked).length / g.checklist.length) * 100) : 0
+              const isGo = g.decision === 'go'
+              const isNoGo = g.decision === 'no_go'
+              const isConditional = g.decision === 'conditional_go'
+              return (
+                <div key={g.gate_number} className="flex-1 text-center">
+                  <div className={`text-[10px] font-bold mb-1 ${
+                    isGo ? 'text-green-700' : isNoGo ? 'text-red-700' : isConditional ? 'text-yellow-700' : 'text-gray-500'
+                  }`}>
+                    G{g.gate_number}
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        isGo ? 'bg-green-500' : isNoGo ? 'bg-red-500' : isConditional ? 'bg-yellow-500' : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className={`text-[9px] mt-0.5 ${
+                    isGo ? 'text-green-600 font-semibold' : isNoGo ? 'text-red-600 font-semibold' : isConditional ? 'text-yellow-600 font-semibold' : 'text-gray-400'
+                  }`}>
+                    {isGo ? 'GO' : isNoGo ? 'NO-GO' : isConditional ? 'COND' : `${progress}%`}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Link>
+      )}
 
       {/* Bid Readiness + Smart Recommendations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
