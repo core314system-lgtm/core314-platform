@@ -37,6 +37,24 @@ function setCache(data: Omit<NetworkStats, 'loading'>) {
   } catch { /* ignore */ }
 }
 
+async function fetchViaFunction(): Promise<Omit<NetworkStats, 'loading'> | null> {
+  try {
+    const res = await fetch('/.netlify/functions/network-stats')
+    if (!res.ok) return null
+    const json = await res.json()
+    return {
+      total: json.total || 0,
+      contactable: 0,
+      smallBusiness: 0,
+      verified: json.verified || 0,
+      statesCovered: json.statesCovered || 50,
+      tradeCategories: json.tradeCategories || 45,
+    }
+  } catch {
+    return null
+  }
+}
+
 export function useNetworkStats(): NetworkStats {
   const cached = getCached()
   const [stats, setStats] = useState<NetworkStats>({
@@ -54,6 +72,7 @@ export function useNetworkStats(): NetworkStats {
 
     async function fetchStats() {
       try {
+        // Try direct Supabase first (works for authenticated users)
         const [totalRes, emailRes, smallBizRes, verifiedRes] = await Promise.all([
           supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }),
           supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).not('contact_email', 'is', null),
@@ -61,8 +80,20 @@ export function useNetworkStats(): NetworkStats {
           supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).in('verification_status', ['verified', 'claimed']),
         ])
 
+        const total = totalRes.count || 0
+
+        // If direct query returned 0, fall back to Netlify function (public access)
+        if (total === 0) {
+          const fnData = await fetchViaFunction()
+          if (fnData && fnData.total > 0) {
+            setCache(fnData)
+            setStats({ ...fnData, loading: false })
+            return
+          }
+        }
+
         const data = {
-          total: totalRes.count || 0,
+          total,
           contactable: emailRes.count || 0,
           smallBusiness: smallBizRes.count || 0,
           verified: verifiedRes.count || 0,
@@ -73,6 +104,13 @@ export function useNetworkStats(): NetworkStats {
         setCache(data)
         setStats({ ...data, loading: false })
       } catch (err) {
+        // On any error, try the Netlify function as fallback
+        const fnData = await fetchViaFunction()
+        if (fnData && fnData.total > 0) {
+          setCache(fnData)
+          setStats({ ...fnData, loading: false })
+          return
+        }
         console.error('Failed to fetch network stats:', err)
         setStats(prev => ({ ...prev, loading: false }))
       }
