@@ -793,6 +793,15 @@ AI MATCH SCORING:
 - When discovering subcontractors via SAM.gov or Google Places, the platform assigns a match score (0-100%) based on NAICS codes, service categories, geographic coverage, set-aside eligibility, and past performance.
 - Match scores are calculated by comparing the opportunity requirements against the subcontractor's profile attributes.
 
+PAST PERFORMANCE LIBRARY:
+- The Past Performance Library (/past-performance) is an organization-wide master repository of all past performance citations.
+- Users can add citations manually or use "Upload & Analyze" to upload CPARS reports, proposal past performance volumes, contract summaries, or SF-330s.
+- The AI Upload feature extracts contract details, CPARS ratings, NAICS codes, dollar values, performance narratives, and key personnel from uploaded documents automatically.
+- After AI extraction, users can review and edit each citation before saving to the library.
+- Citations are categorized by contract type (FFP, T&M, CPFF, CPAF, CPIF, IDIQ, BPA), CPARS rating (Exceptional through Unsatisfactory), role (Prime, Subcontractor, JV Partner), and tagged with relevance tags and service categories.
+- Strong past performance is typically 25-40% of the evaluation score in government proposals.
+- Citations can be linked to specific projects for inclusion in proposal past performance volumes.
+
 COMPLIANCE MATRICES:
 - The AI analyzes uploaded documents (SOWs, RFPs, PWS) and extracts compliance requirements.
 - Requirements are mapped against subcontractor capabilities and project deliverables.
