@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useOrg } from '../contexts/OrgContext'
 import {
   Award, Plus, Search, ChevronDown, ChevronUp,
   DollarSign, Building2, X, Edit2, Trash2,
+  Upload, FileText, Sparkles, Check, AlertCircle, Loader2,
 } from 'lucide-react'
 import FeatureGuidance from '../components/FeatureGuidance'
+import { parseFile } from '../lib/documentParser'
 
 interface Citation {
   id: string
@@ -98,6 +100,19 @@ export default function PastPerformance() {
   const [catInput, setCatInput] = useState('')
   const [personnelInput, setPersonnelInput] = useState('')
 
+  // AI Upload state
+  const [showUpload, setShowUpload] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [extractedCitations, setExtractedCitations] = useState<Partial<Citation>[]>([])
+  const [analysisNotes, setAnalysisNotes] = useState('')
+  const [reviewIndex, setReviewIndex] = useState(0)
+  const [savingAll, setSavingAll] = useState(false)
+  const [savedCount, setSavedCount] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+
   useEffect(() => {
     if (currentOrg?.id) fetchCitations()
   }, [currentOrg?.id])
@@ -113,8 +128,23 @@ export default function PastPerformance() {
     setLoading(false)
   }
 
+  const [isReviewingExtracted, setIsReviewingExtracted] = useState(false)
+
   async function handleSave() {
-    if (!currentOrg?.id || !form.contract_title?.trim()) return
+    if (!form.contract_title?.trim()) return
+
+    // If reviewing an extracted citation, just update the local list
+    if (isReviewingExtracted && extractedCitations.length > 0) {
+      const updated = [...extractedCitations]
+      updated[reviewIndex] = form
+      setExtractedCitations(updated)
+      setShowForm(false)
+      setForm(emptyCitation)
+      setIsReviewingExtracted(false)
+      return
+    }
+
+    if (!currentOrg?.id) return
     setSaving(true)
 
     const payload = {
@@ -180,6 +210,148 @@ export default function PastPerformance() {
     setForm({ ...form, [field]: current.filter((_, i) => i !== index) })
   }
 
+  async function handleFileSelect(file: File) {
+    const validTypes = ['application/pdf', 'text/plain', 'text/csv',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword']
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const validExts = ['pdf', 'txt', 'doc', 'docx', 'csv', 'md']
+    if (!validTypes.includes(file.type) && !validExts.includes(ext)) {
+      setAnalysisError('Unsupported file type. Please upload a PDF, Word document, or text file.')
+      return
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setAnalysisError('File too large. Maximum size is 20MB.')
+      return
+    }
+    setUploadFile(file)
+    setAnalysisError(null)
+  }
+
+  async function handleAnalyze() {
+    if (!uploadFile) return
+    setAnalyzing(true)
+    setAnalysisError(null)
+    setExtractedCitations([])
+    setAnalysisNotes('')
+    setReviewIndex(0)
+    setSavedCount(0)
+
+    try {
+      const documentText = await parseFile(uploadFile)
+      if (!documentText || documentText.length < 50 || documentText.startsWith('[Error') || documentText.startsWith('[File:')) {
+        setAnalysisError('Could not extract text from this file. For scanned PDFs, try a text-based PDF or Word document.')
+        setAnalyzing(false)
+        return
+      }
+
+      const res = await fetch('/.netlify/functions/ai-past-performance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_text: documentText, file_name: uploadFile.name }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Analysis failed' }))
+        setAnalysisError(err.error || 'AI analysis failed. Please try again.')
+        setAnalyzing(false)
+        return
+      }
+
+      const data = await res.json()
+      if (!data.citations || data.citations.length === 0) {
+        setAnalysisError('No past performance citations found in this document. Try a CPARS report, proposal past performance volume, or contract summary.')
+        setAnalyzing(false)
+        return
+      }
+
+      const mapped: Partial<Citation>[] = data.citations.map((c: Record<string, unknown>) => ({
+        contract_title: (c.contract_title as string) || '',
+        contract_number: (c.contract_number as string) || '',
+        agency: (c.agency as string) || '',
+        client_name: (c.client_name as string) || '',
+        contract_type: (c.contract_type as string) || '',
+        naics_code: (c.naics_code as string) || '',
+        set_aside: (c.set_aside as string) || '',
+        contract_value: typeof c.contract_value === 'number' ? c.contract_value : null,
+        period_of_performance_start: (c.period_of_performance_start as string) || null,
+        period_of_performance_end: (c.period_of_performance_end as string) || null,
+        relevance_tags: Array.isArray(c.relevance_tags) ? c.relevance_tags as string[] : [],
+        service_categories: Array.isArray(c.service_categories) ? c.service_categories as string[] : [],
+        description: (c.description as string) || '',
+        our_role: (c.our_role as string) || 'prime',
+        key_personnel: Array.isArray(c.key_personnel) ? c.key_personnel as string[] : [],
+        cpars_rating: (c.cpars_rating as string) || null,
+        past_performance_narrative: (c.past_performance_narrative as string) || '',
+        lessons_learned: (c.lessons_learned as string) || '',
+        reusable_content: {},
+      }))
+
+      setExtractedCitations(mapped)
+      setAnalysisNotes(data.analysis_notes || '')
+    } catch {
+      setAnalysisError('Failed to analyze document. Please check your connection and try again.')
+    }
+    setAnalyzing(false)
+  }
+
+  function openReviewCitation(index: number) {
+    setReviewIndex(index)
+    setForm(extractedCitations[index])
+    setEditingId(null)
+    setIsReviewingExtracted(true)
+    setShowForm(true)
+  }
+
+  async function handleSaveAllExtracted() {
+    if (!currentOrg?.id || extractedCitations.length === 0) return
+    setSavingAll(true)
+    setSavedCount(0)
+    for (let i = 0; i < extractedCitations.length; i++) {
+      const c = extractedCitations[i]
+      const payload = {
+        org_id: currentOrg.id,
+        contract_title: c.contract_title || 'Untitled Citation',
+        contract_number: c.contract_number || null,
+        agency: c.agency || null,
+        client_name: c.client_name || null,
+        contract_type: c.contract_type || null,
+        naics_code: c.naics_code || null,
+        set_aside: c.set_aside || null,
+        contract_value: c.contract_value || null,
+        period_of_performance_start: c.period_of_performance_start || null,
+        period_of_performance_end: c.period_of_performance_end || null,
+        relevance_tags: c.relevance_tags || [],
+        service_categories: c.service_categories || [],
+        description: c.description || null,
+        our_role: c.our_role || null,
+        key_personnel: c.key_personnel || [],
+        cpars_rating: c.cpars_rating || null,
+        past_performance_narrative: c.past_performance_narrative || null,
+        lessons_learned: c.lessons_learned || null,
+        reusable_content: c.reusable_content || {},
+      }
+      await supabase.from('past_performance_citations').insert(payload)
+      setSavedCount(i + 1)
+    }
+    setSavingAll(false)
+    setShowUpload(false)
+    setExtractedCitations([])
+    setUploadFile(null)
+    fetchCitations()
+  }
+
+  function resetUpload() {
+    setUploadFile(null)
+    setExtractedCitations([])
+    setAnalysisError(null)
+    setAnalysisNotes('')
+    setReviewIndex(0)
+    setSavedCount(0)
+    setSavingAll(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const filtered = citations.filter(c => {
     const matchesSearch = !search ||
       c.contract_title.toLowerCase().includes(search.toLowerCase()) ||
@@ -203,12 +375,20 @@ export default function PastPerformance() {
             Manage past performance citations for proposals — {citations.length} citation{citations.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={() => { setForm(emptyCitation); setEditingId(null); setShowForm(true) }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-        >
-          <Plus size={16} /> Add Citation
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { resetUpload(); setShowUpload(true) }}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-colors text-sm font-medium shadow-sm"
+          >
+            <Sparkles size={16} /> Upload & Analyze
+          </button>
+          <button
+            onClick={() => { setForm(emptyCitation); setEditingId(null); setShowForm(true) }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <Plus size={16} /> Add Citation
+          </button>
+        </div>
       </div>
 
       <FeatureGuidance
@@ -217,7 +397,8 @@ export default function PastPerformance() {
         storageKey="past_performance"
         accentColor="green"
         steps={[
-          { title: 'Add your completed contracts', description: 'Click "Add Citation" and fill in the contract details — title, agency, NAICS, contract value, and your role (prime, sub, JV partner).' },
+          { title: 'Upload documents for AI extraction', description: 'Click "Upload & Analyze" to drop in a CPARS report, proposal past performance volume, or contract summary. AI will automatically extract citations, ratings, and narratives.' },
+          { title: 'Or add citations manually', description: 'Click "Add Citation" and fill in the contract details — title, agency, NAICS, contract value, and your role (prime, sub, JV partner).' },
           { title: 'Include CPARS ratings', description: 'Select the CPARS rating from the dropdown (Exceptional through Unsatisfactory). Color-coded badges make it easy to identify your strongest citations.' },
           { title: 'Write reusable narratives', description: 'Add a performance narrative and lessons learned. These can be directly reused when writing past performance volumes for new proposals.' },
           { title: 'Tag for easy searching', description: 'Add relevance tags and service categories so you can quickly find the right citations when matching to new RFP requirements.' },
@@ -273,12 +454,20 @@ export default function PastPerformance() {
               : 'Try adjusting your search or filters.'}
           </p>
           {citations.length === 0 && (
-            <button
-              onClick={() => { setForm(emptyCitation); setEditingId(null); setShowForm(true) }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-            >
-              <Plus size={16} className="inline mr-1" /> Add Your First Citation
-            </button>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => { resetUpload(); setShowUpload(true) }}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 shadow-sm"
+              >
+                <Sparkles size={16} /> Upload & Analyze Document
+              </button>
+              <button
+                onClick={() => { setForm(emptyCitation); setEditingId(null); setShowForm(true) }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+              >
+                <Plus size={16} className="inline mr-1" /> Add Manually
+              </button>
+            </div>
           )}
         </div>
       ) : (
@@ -415,9 +604,9 @@ export default function PastPerformance() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">
-                {editingId ? 'Edit Citation' : 'Add Past Performance Citation'}
+                {isReviewingExtracted ? 'Review AI-Extracted Citation' : editingId ? 'Edit Citation' : 'Add Past Performance Citation'}
               </h2>
-              <button onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyCitation) }} className="p-2 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyCitation); setIsReviewingExtracted(false) }} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -675,7 +864,7 @@ export default function PastPerformance() {
             {/* Actions */}
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <button
-                onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyCitation) }}
+                onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyCitation); setIsReviewingExtracted(false) }}
                 className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
               >
                 Cancel
@@ -685,9 +874,228 @@ export default function PastPerformance() {
                 disabled={saving || !form.contract_title?.trim()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? 'Saving...' : editingId ? 'Update Citation' : 'Add Citation'}
+                {saving ? 'Saving...' : isReviewingExtracted ? 'Update & Return' : editingId ? 'Update Citation' : 'Add Citation'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload & Analyze Modal */}
+      {showUpload && (
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-10 overflow-y-auto pb-10">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles className="text-purple-600" size={24} />
+                Upload & AI Analyze Past Performance
+              </h2>
+              <button onClick={() => { setShowUpload(false); resetUpload() }} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Step 1: File Upload */}
+            {extractedCitations.length === 0 && !analyzing && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Upload a CPARS report, proposal past performance volume, contract summary, or SF-330 — AI will extract and categorize all citations automatically.
+                </p>
+
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                    dragOver ? 'border-purple-400 bg-purple-50' : uploadFile ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50/30'
+                  }`}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOver(false)
+                    const file = e.dataTransfer.files[0]
+                    if (file) handleFileSelect(file)
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt,.csv,.md"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileSelect(file)
+                    }}
+                  />
+                  {uploadFile ? (
+                    <div className="space-y-3">
+                      <FileText className="mx-auto text-green-600" size={40} />
+                      <div>
+                        <p className="font-medium text-gray-900">{uploadFile.name}</p>
+                        <p className="text-sm text-gray-500">{(uploadFile.size / 1024).toFixed(0)} KB</p>
+                      </div>
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => { setUploadFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                          className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+                        >
+                          Change File
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Upload className="mx-auto text-gray-400" size={40} />
+                      <div>
+                        <p className="font-medium text-gray-700">Drag & drop your document here</p>
+                        <p className="text-sm text-gray-500 mt-1">or click to browse</p>
+                      </div>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+                      >
+                        Choose File
+                      </button>
+                      <p className="text-xs text-gray-400 mt-2">Supported: PDF, Word (.doc/.docx), Text (.txt), CSV</p>
+                    </div>
+                  )}
+                </div>
+
+                {analysisError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={16} />
+                    <p className="text-sm text-red-700">{analysisError}</p>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    onClick={() => { setShowUpload(false); resetUpload() }}
+                    className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={!uploadFile}
+                    className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles size={16} /> Analyze with AI
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Analyzing State */}
+            {analyzing && (
+              <div className="text-center py-16 space-y-4">
+                <Loader2 className="mx-auto text-purple-600 animate-spin" size={48} />
+                <div>
+                  <p className="font-semibold text-gray-900">Analyzing Document...</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    AI is extracting contract details, CPARS ratings, and performance narratives from your document.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Review Extracted Citations */}
+            {extractedCitations.length > 0 && !analyzing && (
+              <div className="space-y-4">
+                {analysisNotes && (
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Sparkles className="text-blue-500 flex-shrink-0 mt-0.5" size={16} />
+                    <p className="text-sm text-blue-700">{analysisNotes}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">
+                    Extracted {extractedCitations.length} Citation{extractedCitations.length !== 1 ? 's' : ''}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={resetUpload}
+                      className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50"
+                    >
+                      Upload Another
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {extractedCitations.map((c, i) => (
+                    <div key={i} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">{i + 1}</span>
+                            <h4 className="font-semibold text-gray-900 truncate">{c.contract_title || 'Untitled'}</h4>
+                            {c.cpars_rating && CPARS_LABELS[c.cpars_rating] && (
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CPARS_LABELS[c.cpars_rating].color}`}>
+                                {CPARS_LABELS[c.cpars_rating].label}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            {c.agency && <span className="flex items-center gap-1"><Building2 size={12} /> {c.agency}</span>}
+                            {c.contract_type && <span>{c.contract_type}</span>}
+                            {c.contract_value && <span className="flex items-center gap-1"><DollarSign size={12} /> ${(c.contract_value / 1000000).toFixed(1)}M</span>}
+                            {c.naics_code && <span>NAICS: {c.naics_code}</span>}
+                            {c.our_role && <span>{ROLE_LABELS[c.our_role] || c.our_role}</span>}
+                          </div>
+                          {c.description && (
+                            <p className="text-sm text-gray-600 mt-2 line-clamp-2">{c.description}</p>
+                          )}
+                          {(c.relevance_tags || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {(c.relevance_tags || []).slice(0, 5).map((t, j) => (
+                                <span key={j} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{t}</span>
+                              ))}
+                              {(c.relevance_tags || []).length > 5 && (
+                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">+{(c.relevance_tags || []).length - 5}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => openReviewCitation(i)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-purple-700 hover:bg-purple-50 rounded-lg ml-3 flex-shrink-0"
+                        >
+                          <Edit2 size={14} /> Review
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <p className="text-sm text-gray-500">
+                    {savingAll
+                      ? `Saving ${savedCount}/${extractedCitations.length}...`
+                      : 'Review each citation or save all to your library.'
+                    }
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setShowUpload(false); resetUpload() }}
+                      className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveAllExtracted}
+                      disabled={savingAll}
+                      className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {savingAll ? (
+                        <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                      ) : (
+                        <><Check size={16} /> Save All {extractedCitations.length} Citation{extractedCitations.length !== 1 ? 's' : ''}</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
