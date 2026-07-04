@@ -1886,6 +1886,7 @@ export default function TaskOrderDetail() {
                 { label: 'Clarification Questions', link: `/projects/${id}/clarifications`, key: 'clarification_questions', desc: 'Questions for the contracting officer' },
                 { label: 'Pricing Risk Review', link: `/projects/${id}/pricing-risks`, key: 'pricing_risks', desc: 'Pricing gaps, risks, and action items' },
                 { label: 'Executive Bid Summary', link: `/projects/${id}/executive-summary`, key: 'executive_summary', desc: 'Management-ready bid overview' },
+                { label: 'Past Performance', link: `/projects/${id}/past-performance`, key: '', desc: 'AI-matched past performance citations from your library for this project' },
                 { label: 'Capture Gate Reviews', link: `/projects/${id}/capture-gates`, key: '', desc: 'Shipley-aligned gate review process — qualification through submission' },
                 { label: 'Color Team Reviews', link: `/projects/${id}/color-team`, key: '', desc: 'Pink, Red, Gold team proposal quality reviews' },
                 { label: 'SB Subcontracting Plan', link: `/projects/${id}/sb-plan`, key: '', desc: 'FAR 52.219-9 compliant small business subcontracting plan' },

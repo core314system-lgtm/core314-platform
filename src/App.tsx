@@ -78,6 +78,7 @@ import SBSubcontractingPlan from './pages/SBSubcontractingPlan'
 import SectionLMAnalysis from './pages/SectionLMAnalysis'
 import CompetitiveIntelligence from './pages/CompetitiveIntelligence'
 import PriceToWin from './pages/PriceToWin'
+import ProjectPastPerformance from './pages/ProjectPastPerformance'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -304,6 +305,7 @@ export default function App() {
           <Route path="/projects/:id/sb-plan" element={<ProtectedRoute><SBSubcontractingPlan /></ProtectedRoute>} />
           <Route path="/projects/:id/section-lm" element={<ProtectedRoute><SectionLMAnalysis /></ProtectedRoute>} />
           <Route path="/projects/:id/price-to-win" element={<ProtectedRoute><PriceToWin /></ProtectedRoute>} />
+          <Route path="/projects/:id/past-performance" element={<ProtectedRoute><ProjectPastPerformance /></ProtectedRoute>} />
           <Route path="/competitive-intelligence" element={<ProtectedRoute><CompetitiveIntelligence /></ProtectedRoute>} />
 
           {/* Document Library */}
