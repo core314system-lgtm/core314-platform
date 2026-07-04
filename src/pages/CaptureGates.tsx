@@ -5,6 +5,7 @@ import {
   Shield, CheckCircle, XCircle, Clock, AlertTriangle,
   Save, ArrowLeft,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface GateChecklist {
   item: string
@@ -121,6 +122,7 @@ export default function CaptureGates() {
   const [gates, setGates] = useState<CaptureGate[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedGate, setExpandedGate] = useState<number | null>(null)
+  const [autoExpanded, setAutoExpanded] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -136,7 +138,13 @@ export default function CaptureGates() {
       .order('gate_number', { ascending: true })
 
     if (data && data.length > 0) {
-      setGates(data as CaptureGate[])
+      const loaded = data as CaptureGate[]
+      setGates(loaded)
+      if (!autoExpanded) {
+        const firstIncomplete = loaded.findIndex(g => g.status === 'not_started' || g.status === 'in_progress')
+        if (firstIncomplete >= 0) setExpandedGate(firstIncomplete)
+        setAutoExpanded(true)
+      }
     } else {
       // Initialize default gates for this project
       await initializeGates()
@@ -219,6 +227,19 @@ export default function CaptureGates() {
           <p className="text-sm text-gray-500 mt-0.5">Shipley-aligned gate review process — track decisions from qualification through submission</p>
         </div>
       </div>
+
+      <FeatureGuidance
+        title="How Capture Gate Reviews Work"
+        description="Shipley-aligned gate reviews help your team make disciplined GO/NO-GO decisions at each stage of the capture lifecycle."
+        storageKey="capture_gates"
+        accentColor="blue"
+        steps={[
+          { title: 'Start with Gate 0', description: 'Click on Gate 0 below to evaluate whether this opportunity is worth pursuing. Review each checklist item and check off what applies.' },
+          { title: 'Complete the checklist', description: 'Each gate has specific criteria. Check items as you verify them — the progress bar updates automatically.' },
+          { title: 'Make your decision', description: 'Choose GO (proceed), NO-GO (stop), or CONDITIONAL GO (proceed with caveats). Add your rationale for the record.' },
+          { title: 'Progress through gates sequentially', description: 'Gates 0 through 4 follow the capture lifecycle: Qualification → Capture Strategy → Win Strategy → Proposal Ready → Submit Decision.' },
+        ]}
+      />
 
       {/* Progress Overview */}
       <div className="grid grid-cols-5 gap-3 mb-8">

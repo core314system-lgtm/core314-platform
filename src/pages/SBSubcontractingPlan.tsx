@@ -6,6 +6,7 @@ import {
   FileText, ArrowLeft, Save, RefreshCw, Users,
   CheckCircle, AlertTriangle, DollarSign,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface SBPlan {
   id: string
@@ -279,6 +280,19 @@ export default function SBSubcontractingPlan() {
           </button>
         </div>
       </div>
+
+      <FeatureGuidance
+        title="Small Business Subcontracting Plan"
+        description="Required by FAR 52.219-9 for contracts over $750K. This tool auto-populates your plan using your existing subcontractor network and federal SB goal percentages."
+        storageKey="sb_plan"
+        accentColor="amber"
+        steps={[
+          { title: 'Enter your total subcontracting dollars', description: 'This is the total dollar value you plan to subcontract. Enter it in the field below, then click "Recalculate Goals" to auto-compute each category.' },
+          { title: 'Review the default goal percentages', description: 'Goals are pre-set to federal minimums: SB 23%, SDB/8(a) 5%, WOSB 5%, HUBZone 3%, SDVOSB 3%. Adjust these if the solicitation specifies different targets.' },
+          { title: 'Auto-populate from your subcontractor network', description: 'Click "Auto-Populate from Network" to pull in your small business subcontractors automatically. Then assign planned dollar amounts to each sub.' },
+          { title: 'Complete the narrative sections', description: 'The Plan Narrative and Good Faith Efforts sections are pre-filled with compliant language. Customize them for your specific opportunity and teaming arrangement.' },
+        ]}
+      />
 
       {/* Total Subcontracting Dollars */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">

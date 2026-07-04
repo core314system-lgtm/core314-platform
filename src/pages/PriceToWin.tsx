@@ -5,6 +5,7 @@ import {
   Target, ArrowLeft, Sparkles, DollarSign, TrendingUp,
   TrendingDown, AlertTriangle, CheckCircle,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface PTWResult {
   recommended_price_range: {
@@ -126,6 +127,19 @@ export default function PriceToWin() {
 
       {!result ? (
         <div className="space-y-6">
+          <FeatureGuidance
+            title="Price-to-Win Analysis"
+            description="AI-assisted pricing framework that analyzes competitive landscape and market rates to recommend an optimal bid price. Aligns with FAR 15.101-1 best value scoring."
+            storageKey="price_to_win"
+            accentColor="indigo"
+            steps={[
+              { title: 'Fill in the opportunity details', description: 'Enter the contract type (FFP, T&M, etc.), estimated value, NAICS code, agency, and period of performance. The more detail you provide, the better the analysis.' },
+              { title: 'Describe the scope of work', description: 'Write a summary of the scope including key deliverables, staffing requirements, and performance standards. This is the most important input for accurate pricing.' },
+              { title: 'Add incumbent information (optional)', description: 'If you know the current contractor, their contract value, or any known performance issues, add that context to sharpen the competitive pricing analysis.' },
+              { title: 'Generate the analysis', description: 'Click "Generate PTW Analysis" to get a recommended price range (aggressive/target/conservative), pricing strategies with win probabilities, and labor rate benchmarks.' },
+            ]}
+          />
+
           {/* Input Form */}
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Opportunity Details</h2>

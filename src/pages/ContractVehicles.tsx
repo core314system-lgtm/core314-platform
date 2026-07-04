@@ -5,6 +5,7 @@ import {
   Truck, Plus, Search, Calendar, DollarSign, Edit2, Trash2, X,
   CheckCircle, AlertTriangle, Clock,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface ContractVehicle {
   id: string
@@ -175,6 +176,18 @@ export default function ContractVehicles() {
           <Plus size={16} /> Add Vehicle
         </button>
       </div>
+
+      <FeatureGuidance
+        title="Managing Your Contract Vehicles"
+        description="Track your active contract vehicles (GSA Schedules, GWACs, IDIQs, BPAs) to quickly identify which vehicles you can compete on for new opportunities."
+        storageKey="contract_vehicles"
+        accentColor="purple"
+        steps={[
+          { title: 'Register your vehicles', description: 'Click "Add Vehicle" and enter the vehicle name, type, contract number, and ceiling value. Set the ordering period dates to track expiration.' },
+          { title: 'Monitor expiration dates', description: 'Vehicles expiring within 90 days show a warning badge automatically. Use the status filter to see what needs renewal.' },
+          { title: 'Add NAICS and SIN codes', description: 'Tag each vehicle with its eligible NAICS codes and SIN numbers to easily match vehicles to opportunities.' },
+        ]}
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">

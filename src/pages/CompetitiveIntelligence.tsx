@@ -4,6 +4,7 @@ import {
   TrendingUp, Search, Building2, DollarSign,
   ChevronDown, ChevronUp, Sparkles, AlertTriangle,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface AwardRecord {
   vendor_name: string
@@ -96,6 +97,19 @@ export default function CompetitiveIntelligence() {
           AI-powered analysis of federal award data — identify competitors, market trends, and positioning strategies
         </p>
       </div>
+
+      <FeatureGuidance
+        title="Competitive Intelligence"
+        description="Analyze the federal contracting landscape for any NAICS code or agency. The AI synthesizes public procurement data to identify competitors, market trends, and strategic positioning opportunities."
+        storageKey="competitive_intel"
+        accentColor="green"
+        steps={[
+          { title: 'Enter your NAICS code', description: 'Start with the NAICS code for your target market (e.g., 541512 for Computer Systems Design). This is the primary search parameter.' },
+          { title: 'Optionally narrow by agency or keyword', description: 'Add an agency name (e.g., Department of Defense) or keywords (e.g., "facility maintenance") to focus the competitive analysis.' },
+          { title: 'Click "Analyze Competition"', description: 'The AI will return market summary stats, competitor profiles with strengths and weaknesses, and strategic recommendations for your positioning.' },
+          { title: 'Review competitor profiles', description: 'Click any competitor to expand their profile — see their award history, primary agencies, NAICS coverage, and estimated win rates to understand the competitive landscape.' },
+        ]}
+      />
 
       {/* Search Parameters */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">

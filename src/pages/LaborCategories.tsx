@@ -5,6 +5,7 @@ import {
   Users, Plus, Search, Edit2, Trash2, X,
   Briefcase, GraduationCap, Shield, DollarSign, UserCheck,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface LaborCategory {
   id: string
@@ -222,6 +223,18 @@ export default function LaborCategories() {
           <Plus size={16} /> {tab === 'categories' ? 'Add Category' : 'Add Person'}
         </button>
       </div>
+
+      <FeatureGuidance
+        title="Labor Categories & Key Personnel"
+        description="Define your labor categories with rate ranges and clearance requirements, then track key personnel who can be proposed on contracts."
+        storageKey="labor_categories"
+        accentColor="indigo"
+        steps={[
+          { title: 'Define labor categories first', description: 'Start on the "Labor Categories" tab. Add categories like Program Manager, Systems Engineer, etc. with hourly rate ranges, experience requirements, and clearance levels.' },
+          { title: 'Then add your key personnel', description: 'Switch to the "Key Personnel" tab and add team members. Link each person to their labor category, set their clearance level, and mark their availability.' },
+          { title: 'Use for proposal staffing', description: 'When building a proposal, reference this database to quickly identify available personnel who meet the RFP requirements and clearance needs.' },
+        ]}
+      />
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">

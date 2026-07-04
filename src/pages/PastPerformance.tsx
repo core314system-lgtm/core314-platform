@@ -5,6 +5,7 @@ import {
   Award, Plus, Search, ChevronDown, ChevronUp,
   DollarSign, Building2, X, Edit2, Trash2,
 } from 'lucide-react'
+import FeatureGuidance from '../components/FeatureGuidance'
 
 interface Citation {
   id: string
@@ -209,6 +210,19 @@ export default function PastPerformance() {
           <Plus size={16} /> Add Citation
         </button>
       </div>
+
+      <FeatureGuidance
+        title="Getting Started with Past Performance"
+        description="Build a library of your contract performance history to quickly reference in future proposals. Strong past performance is typically 25–40% of the evaluation score."
+        storageKey="past_performance"
+        accentColor="green"
+        steps={[
+          { title: 'Add your completed contracts', description: 'Click "Add Citation" and fill in the contract details — title, agency, NAICS, contract value, and your role (prime, sub, JV partner).' },
+          { title: 'Include CPARS ratings', description: 'Select the CPARS rating from the dropdown (Exceptional through Unsatisfactory). Color-coded badges make it easy to identify your strongest citations.' },
+          { title: 'Write reusable narratives', description: 'Add a performance narrative and lessons learned. These can be directly reused when writing past performance volumes for new proposals.' },
+          { title: 'Tag for easy searching', description: 'Add relevance tags and service categories so you can quickly find the right citations when matching to new RFP requirements.' },
+        ]}
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
