@@ -80,6 +80,16 @@ import CompetitiveIntelligence from './pages/CompetitiveIntelligence'
 import PriceToWin from './pages/PriceToWin'
 import ProjectPastPerformance from './pages/ProjectPastPerformance'
 import GateTemplates from './pages/GateTemplates'
+import ProposalOutline from './pages/ProposalOutline'
+import WinThemes from './pages/WinThemes'
+import OciScreening from './pages/OciScreening'
+import ProposalSchedule from './pages/ProposalSchedule'
+import TeamingEvaluator from './pages/TeamingEvaluator'
+import CparsTracker from './pages/CparsTracker'
+import FiscalCalendar from './pages/FiscalCalendar'
+import ProtestRisk from './pages/ProtestRisk'
+import OralPresPrep from './pages/OralPresPrep'
+import SourceSelection from './pages/SourceSelection'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -308,6 +318,16 @@ export default function App() {
           <Route path="/projects/:id/price-to-win" element={<ProtectedRoute><PriceToWin /></ProtectedRoute>} />
           <Route path="/projects/:id/past-performance" element={<ProtectedRoute><ProjectPastPerformance /></ProtectedRoute>} />
           <Route path="/competitive-intelligence" element={<ProtectedRoute><CompetitiveIntelligence /></ProtectedRoute>} />
+          <Route path="/projects/:id/proposal-outline" element={<ProtectedRoute><ProposalOutline /></ProtectedRoute>} />
+          <Route path="/projects/:id/win-themes" element={<ProtectedRoute><WinThemes /></ProtectedRoute>} />
+          <Route path="/projects/:id/oci-screening" element={<ProtectedRoute><OciScreening /></ProtectedRoute>} />
+          <Route path="/projects/:id/proposal-schedule" element={<ProtectedRoute><ProposalSchedule /></ProtectedRoute>} />
+          <Route path="/projects/:id/teaming-evaluator" element={<ProtectedRoute><TeamingEvaluator /></ProtectedRoute>} />
+          <Route path="/projects/:id/protest-risk" element={<ProtectedRoute><ProtestRisk /></ProtectedRoute>} />
+          <Route path="/projects/:id/oral-prep" element={<ProtectedRoute><OralPresPrep /></ProtectedRoute>} />
+          <Route path="/projects/:id/source-selection" element={<ProtectedRoute><SourceSelection /></ProtectedRoute>} />
+          <Route path="/cpars-tracker" element={<ProtectedRoute><CparsTracker /></ProtectedRoute>} />
+          <Route path="/government-fiscal-calendar" element={<ProtectedRoute><FiscalCalendar /></ProtectedRoute>} />
 
           {/* Document Library */}
           <Route path="/documents" element={<ProtectedRoute><DocumentLibrary /></ProtectedRoute>} />
