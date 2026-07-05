@@ -37,9 +37,6 @@ const chapters = [
   { time: '29:58', title: 'Getting Started Guide', icon: Play },
   { time: '30:25', title: 'Business Impact & ROI', icon: BarChart3 },
   { time: '31:43', title: 'Start Your Free Trial', icon: ArrowRight },
-]
-
-const govconChapters = [
   { time: '32:54', title: 'GovCon Features Introduction', icon: ShieldCheck },
   { time: '33:12', title: 'Past Performance Library & AI Upload', icon: Award },
   { time: '33:51', title: 'AI Past Performance Matching', icon: Brain },
@@ -146,34 +143,6 @@ export default function DemoPage() {
                 >
                   <Icon className="h-4 w-4 text-blue-400 flex-shrink-0" />
                   <span className="text-sm font-mono text-slate-500 flex-shrink-0">{ch.time}</span>
-                  <span className="text-sm text-slate-300">{ch.title}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* GOVCON ADVANCED FEATURES */}
-      <section className="py-16 px-4 border-t border-slate-800">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-4">
-              GovCon Capture Management
-            </span>
-            <h2 className="text-2xl font-bold">Advanced GovCon Features</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {govconChapters.map((ch) => {
-              const Icon = ch.icon
-              return (
-                <button
-                  key={ch.time}
-                  onClick={() => jumpTo(ch.time)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-900/20 border border-emerald-800/30 hover:border-emerald-500/40 hover:bg-emerald-900/30 transition-colors cursor-pointer text-left"
-                >
-                  <Icon className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                  <span className="text-sm font-mono text-emerald-500/70 flex-shrink-0">{ch.time}</span>
                   <span className="text-sm text-slate-300">{ch.title}</span>
                 </button>
               )
