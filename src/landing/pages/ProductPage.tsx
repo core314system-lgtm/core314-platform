@@ -4,7 +4,8 @@ import {
   FileText, Brain, Shield, Users, DollarSign, ClipboardCheck,
   Target, Kanban, BarChart3, Zap, Building2, ArrowRight,
   Upload, CheckCircle, FileCheck, Scale, Crosshair, Mail,
-  Database,
+  Database, Award, ShieldCheck, Briefcase, Palette, UserCheck,
+  ListChecks, Search, KeyRound, Clipboard,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -127,6 +128,84 @@ const modules = [
     desc: 'Enterprise teams send all communications — RFQs, notifications, and outreach — from their own domain. DNS verification, custom branding, and deliverability tracking included.',
     features: ['Your domain, your reputation', 'Guided SPF/DKIM/DMARC setup', 'Custom logo & brand colors', 'Per-domain analytics'],
   },
+  {
+    icon: Award,
+    title: 'Past Performance Library',
+    desc: 'Organization-wide citation repository. Upload CPARS reports, SF-330s, and proposal volumes — AI extracts contract details, ratings, and narratives. Search and filter by agency, NAICS, rating, and contract type.',
+    features: ['AI document extraction', 'CPARS rating tracking', 'Relevance tags & service categories', 'Reusable narratives & key personnel'],
+  },
+  {
+    icon: Brain,
+    title: 'AI Past Performance Matching',
+    desc: 'When working on a project, AI analyzes your library and recommends the most relevant citations. Scored 0–100% by NAICS match, agency, scope, value, recency, and CPARS rating.',
+    features: ['AI-powered relevance scoring', 'Match reasons explained', 'One-click linking to project', 'Library search & browse'],
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Capture Gate Reviews',
+    desc: 'Customizable Shipley-aligned gate review process. 5 default gates (Qualification through Submit) with checklists, GO/NO-GO decisions, and rationale tracking.',
+    features: ['Customizable at org and project level', 'Checklist progress tracking', 'Decision rationale logging', 'Date scheduling & completion'],
+  },
+  {
+    icon: Briefcase,
+    title: 'Contract Vehicle Registry',
+    desc: 'Track all your contract vehicles — GSA Schedule, OASIS, SEWP, agency IDIQs. Monitor expiration dates, ceiling values, and NAICS scope.',
+    features: ['Vehicle type categorization', 'Expiration monitoring', 'NAICS & SIN tracking', 'Status management'],
+  },
+  {
+    icon: Palette,
+    title: 'Color Team Reviews',
+    desc: 'Structured proposal quality reviews at Pink, Red, and Gold team stages. Track reviewers, findings, action items, and overall ratings.',
+    features: ['5 review types (Pink through Gold)', 'Findings & action items', 'Reviewer assignments', 'Summary & scoring'],
+  },
+  {
+    icon: UserCheck,
+    title: 'Personnel & Labor Categories',
+    desc: 'Maintain a database of labor categories with rate ranges and a key personnel directory with clearances, certifications, and availability.',
+    features: ['Labor category definitions', 'Key personnel profiles', 'Clearance & certification tracking', 'Project staffing assignments'],
+  },
+  {
+    icon: ListChecks,
+    title: 'SB Subcontracting Plan Generator',
+    desc: 'Auto-generate FAR 52.219-9 compliant small business subcontracting plans. Pre-populated SB/SDB/WOSB/HUBZone/SDVOSB goals with dollar auto-calculation.',
+    features: ['Federal default percentages', 'Dollar goal auto-calculation', 'Planned subcontractor listing', 'Plan narrative generation'],
+  },
+  {
+    icon: FileText,
+    title: 'Section L/M Analysis',
+    desc: 'Upload RFP Section L & M documents. AI extracts evaluation criteria, scoring methodology, and proposal structure requirements.',
+    features: ['AI evaluation factor extraction', 'Scoring methodology identification', 'Proposal structure recommendations', 'Compliance mapping'],
+  },
+  {
+    icon: Search,
+    title: 'Competitive Intelligence',
+    desc: 'Pull historical FPDS.gov award data. See who won similar contracts, identify incumbents, and analyze spending trends by agency.',
+    features: ['FPDS award history lookup', 'Incumbent identification', 'Competitor profiling', 'Strategic recommendations'],
+  },
+  {
+    icon: Scale,
+    title: 'Price-to-Win Analysis',
+    desc: 'AI-assisted competitive pricing. Analyze market rates, competitor positioning, and historical award data to determine optimal pricing strategy.',
+    features: ['Market rate analysis', 'Competitor price positioning', 'Win probability scenarios', 'Pricing strategy recommendations'],
+  },
+  {
+    icon: Clipboard,
+    title: 'Bid/No-Bid Decision Engine',
+    desc: 'AI-powered opportunity scoring across 10 evaluation criteria. Data-driven recommendation to bid or pass based on strategic fit, competitive position, and resource availability.',
+    features: ['10-factor scoring matrix', 'AI recommendation engine', 'Risk/reward visualization', 'Decision audit trail'],
+  },
+  {
+    icon: ListChecks,
+    title: 'Post-Award Transition',
+    desc: 'Mobilization checklist with phase tracking for awarded contracts. Manage subcontract execution, NTP tracking, and key milestone dates.',
+    features: ['Phase-based checklist', 'Subcontract execution tracking', 'Key milestone dates', 'Status monitoring'],
+  },
+  {
+    icon: KeyRound,
+    title: 'MFA & SAML SSO',
+    desc: 'Multi-factor authentication (TOTP) for all accounts. SAML single sign-on for enterprise customers. Enforce org-wide security policies from Settings.',
+    features: ['TOTP authenticator app', 'SAML SSO configuration', 'Org-wide enforcement', 'Self-service setup'],
+  },
 ]
 
 export default function ProductPage() {
@@ -142,7 +221,7 @@ export default function ProductPage() {
               Every Tool Your <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Bid Team</span> Needs
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
-              19 integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
+              30+ integrated modules that take you from document upload to bid submission — with AI doing the heavy lifting.
             </motion.p>
           </div>
         </div>
