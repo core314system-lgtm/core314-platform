@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Play, ArrowRight, Clock, FileText, Users, Brain, Shield, BarChart3, Kanban, Bot, Award, ShieldCheck, Briefcase, Palette, UserCheck, ListChecks, Search, Scale } from 'lucide-react'
+import { Play, ArrowRight, Clock, FileText, Users, Brain, Shield, BarChart3, Kanban, Bot, Award, ShieldCheck, Palette, UserCheck, ListChecks, Search, Scale, Truck } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 
@@ -40,17 +40,19 @@ const chapters = [
 ]
 
 const govconChapters = [
-  { title: 'Past Performance Library & AI Upload', icon: Award, desc: 'Browse citations, upload CPARS/SF-330 documents, AI extraction' },
-  { title: 'AI Past Performance Matching', icon: Brain, desc: 'AI recommends relevant citations for each project' },
-  { title: 'Capture Gate Reviews', icon: ShieldCheck, desc: 'Shipley gates, checklists, GO/NO-GO decisions' },
-  { title: 'Gate Template Customization', icon: ShieldCheck, desc: 'Org-level and project-level gate configuration' },
-  { title: 'Contract Vehicle Registry', icon: Briefcase, desc: 'Track GSA Schedules, OASIS, SEWP, IDIQs' },
-  { title: 'Color Team Reviews', icon: Palette, desc: 'Pink, Red, Gold team reviews with findings' },
-  { title: 'Personnel & LCAT Database', icon: UserCheck, desc: 'Labor categories, key personnel, clearances' },
-  { title: 'SB Subcontracting Plan', icon: ListChecks, desc: 'FAR 52.219-9 compliant plan generation' },
-  { title: 'Section L/M Analysis', icon: FileText, desc: 'AI evaluation criteria extraction' },
-  { title: 'Competitive Intelligence', icon: Search, desc: 'FPDS award history & competitor profiling' },
-  { title: 'Price-to-Win Analysis', icon: Scale, desc: 'AI competitive pricing strategy' },
+  { time: '32:54', title: 'GovCon Features Introduction', icon: ShieldCheck },
+  { time: '33:12', title: 'Past Performance Library & AI Upload', icon: Award },
+  { time: '33:51', title: 'AI Past Performance Matching', icon: Brain },
+  { time: '34:31', title: 'Capture Gate Reviews', icon: ShieldCheck },
+  { time: '35:13', title: 'Gate Template Customization', icon: ShieldCheck },
+  { time: '35:54', title: 'Contract Vehicle Registry', icon: Truck },
+  { time: '36:18', title: 'Color Team Reviews', icon: Palette },
+  { time: '36:48', title: 'Labor Categories & Key Personnel', icon: UserCheck },
+  { time: '37:14', title: 'SB Subcontracting Plan', icon: ListChecks },
+  { time: '37:48', title: 'Section L/M Analysis', icon: FileText },
+  { time: '38:14', title: 'Competitive Intelligence', icon: Search },
+  { time: '38:41', title: 'Price-to-Win Analysis', icon: Scale },
+  { time: '39:01', title: 'GovCon Features Summary', icon: Award },
 ]
 
 export default function DemoPage() {
@@ -79,7 +81,7 @@ export default function DemoPage() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-6"
           >
             <Clock className="h-4 w-4" />
-            33-Minute Full Platform Demo
+            40-Minute Full Platform Demo
           </motion.div>
 
           <motion.h1
@@ -152,30 +154,28 @@ export default function DemoPage() {
         </div>
       </section>
 
-      {/* GOVCON ADVANCED FEATURES — COMING SOON */}
+      {/* GOVCON ADVANCED FEATURES */}
       <section className="py-16 px-4 border-t border-slate-800">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-4">
+          <div className="text-center mb-10">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-4">
               GovCon Capture Management
             </span>
-            <h2 className="text-2xl font-bold mb-2">Advanced GovCon Features</h2>
-            <p className="text-slate-400 text-sm">These features are live in the platform. Demo video chapters coming soon.</p>
+            <h2 className="text-2xl font-bold">Advanced GovCon Features</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {govconChapters.map((ch) => {
               const Icon = ch.icon
               return (
-                <div
-                  key={ch.title}
-                  className="flex items-start gap-3 px-4 py-3 rounded-lg bg-emerald-900/20 border border-emerald-800/30 text-left"
+                <button
+                  key={ch.time}
+                  onClick={() => jumpTo(ch.time)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-900/20 border border-emerald-800/30 hover:border-emerald-500/40 hover:bg-emerald-900/30 transition-colors cursor-pointer text-left"
                 >
-                  <Icon className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-sm text-white font-medium">{ch.title}</span>
-                    <p className="text-xs text-slate-400 mt-0.5">{ch.desc}</p>
-                  </div>
-                </div>
+                  <Icon className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                  <span className="text-sm font-mono text-emerald-500/70 flex-shrink-0">{ch.time}</span>
+                  <span className="text-sm text-slate-300">{ch.title}</span>
+                </button>
               )
             })}
           </div>
