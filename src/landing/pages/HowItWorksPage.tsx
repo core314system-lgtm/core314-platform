@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Upload, Brain, Shield, FileText, Users,
-  BarChart3, Crosshair, Mail,
+  BarChart3, Crosshair, Mail, ShieldCheck, Award, CheckCircle,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -36,7 +36,14 @@ const steps = [
     icon: Shield,
     title: 'Generate Compliance & Outputs',
     desc: 'Generate a compliance matrix, RFQ packages, pricing risk report, clarification questions, and an executive summary — all derived from the AI analysis.',
-    detail: 'Each output is immediately usable: export compliance matrices to Excel, send RFQ packages to subcontractors via email, and share executive summaries with leadership.',
+    detail: 'Each output is immediately usable: export compliance matrices to Excel, send RFQ packages to subcontractors via email, and share executive summaries with leadership. For government RFPs, AI also extracts Section L/M evaluation criteria to align your proposal structure.',
+  },
+  {
+    num: '4b',
+    icon: ShieldCheck,
+    title: 'Capture Gate Review (GovCon)',
+    desc: 'Before proceeding to the next phase, run a Shipley-aligned gate review. Check off criteria, assign reviewers, and make a GO/NO-GO/CONDITIONAL GO decision with documented rationale.',
+    detail: 'Gates are customizable at both the organization level (Settings → Gate Templates) and per-project. Default Shipley gates: Qualify, Capture Strategy, Win Strategy, Proposal Ready, and Submit. AI Past Performance Matching also recommends the most relevant citations from your library for the proposal.',
   },
   {
     num: '5',
@@ -56,15 +63,15 @@ const steps = [
     num: '7',
     icon: Users,
     title: 'Collaborate & Track',
-    desc: 'Assign team members and subcontractors to the project. Track workflow stages from intake through submission. Monitor the bid readiness checklist.',
-    detail: 'The workflow engine supports stage changes with audit trails, approval notes, and team notifications. Every action is logged for accountability.',
+    desc: 'Assign team members and subcontractors to the project. Track workflow stages from intake through submission. Run Color Team Reviews (Pink, Red, Gold) with structured findings and action items.',
+    detail: 'The workflow engine supports stage changes with audit trails, approval notes, and team notifications. Every action is logged for accountability. Color Team Reviews provide formal quality checkpoints before submission, with reviewer assignments and scored findings.',
   },
   {
     num: '8',
-    icon: BarChart3,
+    icon: Award,
     title: 'Win & Learn',
-    desc: 'After the outcome, complete a structured debrief. The Intelligence Library aggregates patterns across all your bids — win rates, competitor insights, pricing benchmarks.',
-    detail: 'Over time, your organization builds a knowledge base that makes every future bid stronger. Smart recommendations draw from this history to guide active projects.',
+    desc: 'After the outcome, complete a structured debrief. Upload CPARS reports and past performance documents — AI extracts citations into your Past Performance Library for future proposals.',
+    detail: 'Over time, your organization builds a knowledge base that makes every future bid stronger. The Past Performance Library stores citations with CPARS ratings, narratives, and relevance tags. AI automatically matches the best citations to future projects based on NAICS, agency, scope, and contract value.',
   },
 ]
 
@@ -78,7 +85,7 @@ export default function HowItWorksPage() {
           <div className="max-w-3xl mx-auto text-center">
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-blue-600 text-sm font-semibold uppercase tracking-wider mb-3">How It Works</motion.p>
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              From Upload to <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Award</span> in Eight Steps
+              From Upload to <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Award</span> in Ten Steps
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-lg text-slate-600 leading-relaxed">
               Procuvex streamlines the entire bid lifecycle. Here is exactly how your team will use it.

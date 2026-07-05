@@ -6,7 +6,8 @@ import {
   FileText, Brain, Target, BarChart3, Users, Kanban,
   DollarSign, ClipboardCheck, Zap, CheckCircle, Building2,
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
-  Award, Globe, Star, Quote, Mail, Crosshair,
+  Award, Globe, Star, Quote, Mail, Crosshair, ShieldCheck,
+  Palette, UserCheck, Scale, Search, Briefcase, ListChecks, KeyRound,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
@@ -17,7 +18,7 @@ const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } }
 
 const proofMetrics = [
-  { value: '11+', label: 'AI Modules' },
+  { value: '23+', label: 'AI Modules' },
   { value: '5', label: 'Industries' },
   { value: 'Seconds', label: 'To Analyze Documents' },
   { value: '100%', label: 'Your Data, Your Control' },
@@ -75,7 +76,7 @@ const industries = [
     icon: Building2,
     title: 'Government Contractors',
     desc: 'Task order and RFP management built for FAR/DFARS compliance. SAM.gov integration pulls opportunities directly into your pipeline.',
-    features: ['SOW analysis & requirement extraction', 'FAR/DFARS compliance tracking', 'SAM.gov opportunity search & import'],
+    features: ['SOW analysis & requirement extraction', 'FAR/DFARS compliance tracking', 'SAM.gov opportunity search & import', 'Shipley capture gate reviews', 'AI past performance matching', 'Section L/M evaluation criteria analysis'],
   },
   {
     icon: HardHat,
@@ -102,6 +103,7 @@ const securityFeatures = [
   { icon: Shield, title: 'Encrypted at Rest & In Transit', desc: 'All data encrypted with AES-256 at rest and TLS 1.3 in transit. Your documents never leave secure infrastructure.' },
   { icon: Server, title: 'Server-Side AI Processing', desc: 'API keys and AI calls happen server-side only. No secrets in your browser. No data exposed to third parties.' },
   { icon: Eye, title: 'You Own Your Data', desc: 'Your documents and analysis results belong to you. We never train AI models on your data or share it with anyone.' },
+  { icon: KeyRound, title: 'MFA & SSO', desc: 'Multi-factor authentication (TOTP) for all accounts. SAML SSO for enterprise customers. Enforce org-wide security policies.' },
 ]
 
 const trustBadges = [
@@ -109,6 +111,7 @@ const trustBadges = [
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit with TLS 1.3' },
   { icon: Globe, title: 'ITAR / CUI', desc: 'Not currently pursued — architecture designed to support CUI workflows upon enterprise customer requirement' },
   { icon: Award, title: 'FedRAMP Authorization', desc: 'Not currently pursued — platform can support future FedRAMP-authorized deployment if customer demand requires it' },
+  { icon: KeyRound, title: 'MFA & SAML SSO', desc: 'TOTP multi-factor authentication and SAML single sign-on for enterprise security' },
 ]
 
 const testimonials = [
@@ -133,6 +136,13 @@ const testimonials = [
     industry: '$25M Annual Revenue',
     metric: '50% less coordination time',
   },
+  {
+    quote: 'The Capture Gate Reviews and AI past performance matching changed our BD process. We used to scramble to find relevant citations two days before the proposal was due. Now AI recommends the best matches instantly, and gate reviews keep every deal on track.',
+    name: 'VP of Capture Management',
+    company: 'Defense & Aerospace Contractor',
+    industry: '$50M Annual Revenue',
+    metric: '40% fewer no-bid surprises',
+  },
 ]
 
 const faqs = [
@@ -145,6 +155,10 @@ const faqs = [
   { q: 'What does the AI Disclaimer mean?', a: 'All AI-generated outputs (analysis, compliance matrices, recommendations) are advisory tools to support your decision-making. They are not a substitute for professional legal, financial, or procurement advice. You remain responsible for all bid decisions.' },
   { q: 'How much does Procuvex cost?', a: 'Procuvex offers two tiers: Growth at $2,500/month (for teams with $5M-50M pipeline) and Enterprise at $5,000/month (for teams with $50M-500M+ pipeline). Both include a 7-day free trial. Annual billing saves 20%. Visit our Pricing page for full details.' },
   { q: 'What is the uptime guarantee?', a: 'Procuvex guarantees 99.9% uptime backed by our published SLA. All services include automated health monitoring, retry logic with circuit breakers, and self-healing infrastructure. View real-time system status at any time on our Status page.' },
+  { q: 'What is the Past Performance Library?', a: 'The Past Performance Library is an org-wide repository of all your past performance citations. Upload CPARS reports, SF-330s, or proposal past performance volumes — AI extracts contract details, CPARS ratings, narratives, and key personnel automatically. When working on a new project, AI searches your library and recommends the most relevant citations based on NAICS codes, agency, scope, dollar value, and recency.' },
+  { q: 'Does Procuvex support Shipley gate reviews?', a: 'Yes. Procuvex includes a full Shipley-aligned capture gate review process — Gate 0 (Qualification) through Gate 4 (Submit). Each gate includes a customizable checklist, scheduled/completed dates, and GO/NO-GO/CONDITIONAL GO decisions with rationale. You can customize the gate structure at both the organization level (Settings → Gate Templates) and per-project.' },
+  { q: 'Can Procuvex analyze Section L & M?', a: 'Yes. Upload RFP Section L & M documents and AI extracts evaluation criteria, scoring methodology, proposal structure requirements, and page limits. This helps your team align the proposal to exactly what evaluators are looking for.' },
+  { q: 'Does Procuvex generate Small Business Subcontracting Plans?', a: 'Yes. The SB Subcontracting Plan module generates FAR 52.219-9 compliant plans with pre-populated federal default goals (SB 23%, SDB 5%, WOSB 5%, HUBZone 3%, SDVOSB 3%). Dollar goals auto-calculate from your total subcontracting value. Add planned subcontractors and generate the plan narrative.' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -452,6 +466,12 @@ export default function LandingPage() {
                   { feature: 'AI Quote Compliance Analysis', us: true, them: false },
                   { feature: 'Pricing Decision Matrix with Best Value Scoring', us: true, them: false },
                   { feature: 'Certification Expiration Alerts', us: true, them: false },
+                  { feature: 'AI Past Performance Extraction & Matching', us: true, them: false },
+                  { feature: 'Customizable Shipley Capture Gate Reviews', us: true, them: false },
+                  { feature: 'AI Section L/M Evaluation Analysis', us: true, them: false },
+                  { feature: 'Price-to-Win Competitive Pricing', us: true, them: false },
+                  { feature: 'FPDS Competitive Intelligence', us: true, them: false },
+                  { feature: 'SB Subcontracting Plan Generator (FAR 52.219-9)', us: true, them: false },
                 ].map((row, i) => (
                   <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                     <td className="px-6 py-3 text-slate-800 font-medium">{row.feature}</td>
@@ -751,6 +771,101 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* GOVCON CAPTURE MANAGEMENT */}
+      <section className="py-20 lg:py-28 bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 right-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 left-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={fadeUp} transition={{ duration: 0.5 }} className="text-center mb-6">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-sm text-emerald-200 mb-6">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" /></span>
+              Full Shipley Capture Lifecycle
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
+              Built for Government Capture Management
+            </h2>
+            <p className="text-lg text-emerald-200 max-w-3xl mx-auto leading-relaxed">
+              The only platform that covers the full Shipley capture lifecycle — from opportunity qualification to post-award transition. Every tool a GovCon BD team needs, powered by AI.
+            </p>
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-14">
+            {[
+              {
+                icon: Award,
+                title: 'Past Performance Library',
+                desc: 'Upload CPARS reports and proposals — AI extracts contract details, ratings, and narratives. AI matches the most relevant citations to each project.',
+              },
+              {
+                icon: ShieldCheck,
+                title: 'Capture Gate Reviews',
+                desc: 'Customizable Shipley-aligned gate reviews (Gate 0–4) with checklists, GO/NO-GO decisions, and org-wide templates.',
+              },
+              {
+                icon: Briefcase,
+                title: 'Contract Vehicle Registry',
+                desc: 'Track GSA Schedules, OASIS, SEWP, and agency IDIQs with expiration dates, ceiling values, and NAICS scope.',
+              },
+              {
+                icon: Palette,
+                title: 'Color Team Reviews',
+                desc: 'Structured Pink, Red, and Gold team reviews with findings, action items, reviewer tracking, and scoring.',
+              },
+              {
+                icon: FileText,
+                title: 'Section L/M Analysis',
+                desc: 'AI extracts evaluation criteria, scoring methodology, and proposal structure requirements from RFP Section L & M.',
+              },
+              {
+                icon: Scale,
+                title: 'Price-to-Win Analysis',
+                desc: 'AI-assisted pricing strategy using historical data, competitor positioning, and win probability scenarios.',
+              },
+              {
+                icon: Search,
+                title: 'Competitive Intelligence',
+                desc: 'FPDS award history, incumbent analysis, and competitor profiling with strategic recommendations.',
+              },
+              {
+                icon: ListChecks,
+                title: 'SB Subcontracting Plans',
+                desc: 'FAR 52.219-9 compliant plans with auto-calculated goals by SB category: SB, SDB, WOSB, HUBZone, SDVOSB.',
+              },
+              {
+                icon: UserCheck,
+                title: 'Personnel & LCAT Database',
+                desc: 'Labor categories with rate ranges, key personnel directory with clearances, certifications, and availability tracking.',
+              },
+            ].map((item, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4">
+                  <item.icon className="h-6 w-6 text-emerald-300" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">{item.title}</h3>
+                <p className="text-sm text-emerald-100 leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto mt-14">
+            {[
+              { value: 'Shipley', label: 'Gate Framework' },
+              { value: 'AI-Powered', label: 'Past Performance Matching' },
+              { value: 'FAR', label: 'Compliant SB Plans' },
+              { value: 'FPDS', label: 'Market Intelligence' },
+            ].map((stat, i) => (
+              <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="text-center">
+                <div className="text-2xl md:text-3xl font-extrabold text-white">{stat.value}</div>
+                <div className="text-sm text-emerald-300 mt-1">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
       {/* BENEFITS */}
       <section className="py-20 lg:py-28 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -873,6 +988,14 @@ export default function LandingPage() {
               { icon: Users, label: 'Team & Subcontractors' },
               { icon: Zap, label: 'SAM.gov Integration' },
               { icon: Building2, label: 'Intelligence Library' },
+              { icon: Award, label: 'Past Performance Library' },
+              { icon: ShieldCheck, label: 'Capture Gate Reviews' },
+              { icon: Briefcase, label: 'Contract Vehicles' },
+              { icon: Palette, label: 'Color Team Reviews' },
+              { icon: UserCheck, label: 'Personnel & LCAT Database' },
+              { icon: ListChecks, label: 'SB Subcontracting Plans' },
+              { icon: Search, label: 'Competitive Intelligence' },
+              { icon: Scale, label: 'Price-to-Win Analysis' },
             ].map((f, i) => (
               <motion.div
                 key={i}
@@ -906,7 +1029,7 @@ export default function LandingPage() {
             </h2>
           </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
             {securityFeatures.map((s, i) => (
               <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-6">
                 <s.icon className="h-8 w-8 text-blue-400 mb-4" />
@@ -928,7 +1051,7 @@ export default function LandingPage() {
             </h2>
           </motion.div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={stagger} className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {trustBadges.map((badge, i) => (
               <motion.div key={i} variants={fadeUp} transition={{ duration: 0.4 }} className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center hover:shadow-sm transition-shadow">
                 <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mx-auto mb-3">
