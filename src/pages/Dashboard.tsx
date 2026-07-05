@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import type { TaskOrder } from '../lib/types'
-import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen, AlertTriangle, Play, ChevronRight } from 'lucide-react'
+import { ClipboardList, Clock, Users, Plus, FileText, Upload, Shield, Building, GitCompareArrows, Kanban, Plug, BarChart3, FileStack, PartyPopper, Rocket, X, ArrowRight, Compass, FolderOpen, AlertTriangle, Play, ChevronRight, Beaker } from 'lucide-react'
+import { seedDemoProject } from '../lib/demoProject'
 import { getWorkflowStage, getStageColor } from '../lib/projectTypes'
 import OnboardingGuide from '../components/OnboardingGuide'
 import BetaClaimBanner from '../components/BetaClaimBanner'
 
 export default function Dashboard() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [taskOrders, setTaskOrders] = useState<TaskOrder[]>([])
   const [subCount, setSubCount] = useState(0)
   const [docCount, setDocCount] = useState(0)
@@ -17,6 +18,8 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showWelcome, setShowWelcome] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [seedingDemo, setSeedingDemo] = useState(false)
+  const navigate = useNavigate()
   const [recentDocs, setRecentDocs] = useState<{ id: string; file_name: string; project_title: string; task_order_id: string }[]>([])
 
   useEffect(() => {
@@ -329,7 +332,24 @@ export default function Dashboard() {
         {taskOrders.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <p>No projects registered yet.</p>
-            <Link to="/projects/new" className="text-blue-600 hover:underline text-sm mt-2 inline-block">Create your first project</Link>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <Link to="/projects/new" className="text-blue-600 hover:underline text-sm">Create your first project</Link>
+              <span className="text-gray-300">or</span>
+              <button
+                onClick={async () => {
+                  if (!user?.id || !profile?.current_org_id) return
+                  setSeedingDemo(true)
+                  const projectId = await seedDemoProject(user.id, profile.current_org_id)
+                  setSeedingDemo(false)
+                  if (projectId) navigate(`/projects/${projectId}`)
+                }}
+                disabled={seedingDemo}
+                className="inline-flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+              >
+                <Beaker size={14} />
+                {seedingDemo ? 'Creating...' : 'Explore Demo Project'}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
