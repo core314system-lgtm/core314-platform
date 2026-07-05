@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Upload, Brain, Shield, FileText, Users,
-  BarChart3, Crosshair, Mail, ShieldCheck, Award, CheckCircle,
+  Crosshair, Mail, ShieldCheck, Award,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
