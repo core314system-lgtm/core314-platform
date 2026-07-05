@@ -84,14 +84,14 @@ export default function CparsTracker() {
     loadEntries()
   }
 
-  function averageRating(field: string): number | null {
-    const vals = entries.map(e => (e as Record<string, unknown>)[field] as number | null).filter((v): v is number => v !== null)
+  function averageRating(field: keyof CparsEntry): number | null {
+    const vals = entries.map(e => e[field]).filter((v): v is number => typeof v === 'number')
     if (vals.length === 0) return null
     return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
   }
 
-  function trend(field: string): 'up' | 'down' | 'flat' {
-    const vals = entries.map(e => (e as Record<string, unknown>)[field] as number | null).filter((v): v is number => v !== null)
+  function trend(field: keyof CparsEntry): 'up' | 'down' | 'flat' {
+    const vals = entries.map(e => e[field]).filter((v): v is number => typeof v === 'number')
     if (vals.length < 2) return 'flat'
     return vals[0] > vals[vals.length - 1] ? 'up' : vals[0] < vals[vals.length - 1] ? 'down' : 'flat'
   }

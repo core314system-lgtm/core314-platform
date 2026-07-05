@@ -337,9 +337,9 @@ export default function Dashboard() {
               <span className="text-gray-300">or</span>
               <button
                 onClick={async () => {
-                  if (!user?.id || !profile?.org_id) return
+                  if (!user?.id || !profile?.current_org_id) return
                   setSeedingDemo(true)
-                  const projectId = await seedDemoProject(user.id, profile.org_id)
+                  const projectId = await seedDemoProject(user.id, profile.current_org_id)
                   setSeedingDemo(false)
                   if (projectId) navigate(`/projects/${projectId}`)
                 }}

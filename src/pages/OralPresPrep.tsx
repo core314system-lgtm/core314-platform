@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase'
 import { fetchAIProxy } from '../lib/api'
 import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import {
-  Mic, ArrowLeft, Sparkles, Plus, Trash2, Edit2, Check,
-  Users, Clock, AlertTriangle, CheckCircle, Save,
+  Mic, ArrowLeft, Sparkles, Plus, Trash2,
+  Clock, AlertTriangle, CheckCircle, Save,
 } from 'lucide-react'
 import FeatureGuidance from '../components/FeatureGuidance'
 
