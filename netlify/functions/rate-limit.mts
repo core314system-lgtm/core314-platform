@@ -32,14 +32,25 @@ export default async (req: Request, _context: Context) => {
       return new Response(JSON.stringify({ error: 'org_id and action_type required' }), { status: 400 })
     }
 
-    // Get org subscription plan
+    // Get org subscription plan and check if user is global admin
     const { data: org } = await supabase
       .from('organizations')
       .select('subscription_plan, subscription_status')
       .eq('id', org_id)
       .single()
 
-    const planKey = org?.subscription_status === 'trialing' ? 'trialing' : (org?.subscription_plan || 'no_subscription')
+    // Check if the org has any global admin members (platform owner orgs get enterprise limits)
+    const { data: adminMembers } = await supabase
+      .from('user_profiles')
+      .select('is_global_admin')
+      .eq('org_id', org_id)
+      .eq('is_global_admin', true)
+      .limit(1)
+
+    const hasGlobalAdmin = (adminMembers?.length ?? 0) > 0
+    const planKey = hasGlobalAdmin
+      ? 'enterprise_monthly'
+      : org?.subscription_status === 'trialing' ? 'trialing' : (org?.subscription_plan || 'no_subscription')
     const limits = PLAN_LIMITS[planKey] || PLAN_LIMITS.no_subscription
 
     // Check usage in last hour
