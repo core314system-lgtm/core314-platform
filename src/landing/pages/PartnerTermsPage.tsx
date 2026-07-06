@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 
@@ -7,6 +8,13 @@ export default function PartnerTermsPage() {
       <Header />
       <div className="pt-28 pb-20 px-4">
         <div className="max-w-3xl mx-auto">
+          <div className="mb-8 p-4 rounded-lg bg-amber-900/30 border border-amber-700/50">
+            <p className="text-amber-200 text-sm leading-relaxed">
+              <strong>Notice:</strong> The Partner Referral Commission Program is not currently accepting new applications.
+              These terms are retained for reference only.{' '}
+              <Link to="/founding-partners" className="text-amber-300 underline hover:text-amber-100">Learn about our Founding Partners Program →</Link>
+            </p>
+          </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Partner Program Terms & Conditions</h1>
           <p className="text-slate-400 text-sm mb-10">Last updated: June 2026</p>
 

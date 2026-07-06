@@ -118,11 +118,7 @@ import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
 import ExploreNetworkPage from './landing/pages/ExploreNetworkPage'
 import FoundingPartnersPage from './landing/pages/FoundingPartnersPage'
 import FoundingPartnersThankYouPage from './landing/pages/FoundingPartnersThankYouPage'
-import PartnerProgramPage from './landing/pages/PartnerProgramPage'
 import PartnerTermsPage from './landing/pages/PartnerTermsPage'
-import PartnerLoginPage from './landing/pages/PartnerLoginPage'
-import PartnerDashboardPage from './landing/pages/PartnerDashboardPage'
-import ReferralLandingPage from './landing/pages/ReferralLandingPage'
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -256,12 +252,12 @@ export default function App() {
           <Route path="/beta/apply/:token" element={<BetaApply />} />
           <Route path="/beta/thank-you" element={<BetaThankYou />} />
 
-          {/* Partner Program (public, no auth) */}
-          <Route path="/partners" element={<PartnerProgramPage />} />
+          {/* Partner Program (archived — redirects to Founding Partners) */}
+          <Route path="/partners" element={<Navigate to="/founding-partners" replace />} />
           <Route path="/partners/terms" element={<PartnerTermsPage />} />
-          <Route path="/partners/login" element={<PartnerLoginPage />} />
-          <Route path="/partners/dashboard" element={<PartnerDashboardPage />} />
-          <Route path="/r/:code" element={<ReferralLandingPage />} />
+          <Route path="/partners/login" element={<Navigate to="/founding-partners" replace />} />
+          <Route path="/partners/dashboard" element={<Navigate to="/founding-partners" replace />} />
+          <Route path="/r/:code" element={<Navigate to="/founding-partners" replace />} />
 
           {/* Public Subcontractor Portal (no auth required) */}
           <Route path="/portal/:token" element={<SubcontractorPortal />} />
