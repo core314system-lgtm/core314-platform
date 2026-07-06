@@ -62,9 +62,19 @@ const PLANS = [
   },
 ]
 
+function resolvePlanLabel(plan: string | null | undefined, isGlobalAdmin: boolean): string {
+  if (isGlobalAdmin) return 'Enterprise'
+  if (!plan) return 'Growth'
+  if (plan.includes('agentic')) return 'Agentic'
+  if (plan.includes('enterprise')) return 'Enterprise'
+  if (plan.includes('growth')) return 'Growth'
+  return 'Growth'
+}
+
 export default function Billing() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { currentOrg } = useOrg()
+  const isGlobalAdmin = profile?.is_global_admin === true
   const [subStatus, setSubStatus] = useState<SubscriptionStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [annual, setAnnual] = useState(false)
@@ -155,6 +165,11 @@ export default function Billing() {
   }
 
   function StatusBadge() {
+    if (isGlobalAdmin) return (
+      <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+        <CheckCircle size={18} /> Active subscription
+      </div>
+    )
     if (!subStatus) return null
     const s = subStatus.status
 
@@ -189,7 +204,7 @@ export default function Billing() {
     return <div className="text-center py-12 text-gray-500">Loading billing information...</div>
   }
 
-  const hasActiveSubscription = subStatus?.status === 'active' || subStatus?.status === 'trialing'
+  const hasActiveSubscription = isGlobalAdmin || subStatus?.status === 'active' || subStatus?.status === 'trialing'
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -206,9 +221,11 @@ export default function Billing() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-gray-900">Current Plan: {subStatus?.plan?.includes('enterprise') ? 'Enterprise' : 'Growth'}</h3>
+              <h3 className="font-semibold text-gray-900">Current Plan: {resolvePlanLabel(subStatus?.plan, isGlobalAdmin)}</h3>
               <p className="text-sm text-gray-500 mt-1">
-                {subStatus?.plan?.includes('annual') ? 'Billed annually' : 'Billed monthly'}
+                {isGlobalAdmin && !subStatus?.plan
+                  ? 'Platform administrator'
+                  : subStatus?.plan?.includes('annual') ? 'Billed annually' : 'Billed monthly'}
                 {subStatus?.subscription_ends_at && ` · Renews ${new Date(subStatus.subscription_ends_at).toLocaleDateString()}`}
               </p>
             </div>

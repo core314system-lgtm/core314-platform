@@ -38,9 +38,20 @@ export async function checkRateLimit(orgId: string, actionType: ActionType): Pro
       .eq("id", orgId)
       .single()
 
-    const planKey = org?.subscription_status === "trialing"
-      ? "trialing"
-      : (org?.subscription_plan || "no_subscription")
+    // Check if org has global admin members (platform owner orgs get enterprise limits)
+    const { data: adminMembers } = await supabase
+      .from("user_profiles")
+      .select("is_global_admin")
+      .eq("org_id", orgId)
+      .eq("is_global_admin", true)
+      .limit(1)
+
+    const hasGlobalAdmin = (adminMembers?.length ?? 0) > 0
+    const planKey = hasGlobalAdmin
+      ? "enterprise_monthly"
+      : org?.subscription_status === "trialing"
+        ? "trialing"
+        : (org?.subscription_plan || "no_subscription")
     const limits = PLAN_LIMITS[planKey] || PLAN_LIMITS.no_subscription
 
     const isMinuteWindow = actionType === "api_call"

@@ -17,6 +17,24 @@ const sendgridKey = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGR
 if (sendgridKey) sgMail.default.setApiKey(sendgridKey)
 const fromEmail = 'noreply@procuvex.com'
 
+function detectPlanFromPrice(sub: Stripe.Subscription): string {
+  const item = sub.items?.data?.[0]
+  if (!item?.price) return 'growth_monthly'
+  const amount = item.price.unit_amount || 0
+  const interval = item.price.recurring?.interval || 'month'
+  // Enterprise: $5,000/mo or $48,000/yr; Growth: $2,500/mo or $24,000/yr
+  if (amount >= 4800000 || (amount >= 480000 && interval === 'month')) {
+    return interval === 'year' ? 'enterprise_annual' : 'enterprise_monthly'
+  }
+  if (amount >= 2400000 || (amount >= 240000 && interval === 'month')) {
+    return interval === 'year' ? 'growth_annual' : 'growth_monthly'
+  }
+  // Fallback: use price amount thresholds for monthly
+  if (amount >= 500000) return 'enterprise_monthly' // >= $5,000
+  if (amount >= 400000) return 'enterprise_annual'   // >= $4,000 (annual effective monthly)
+  return 'growth_monthly'
+}
+
 async function updateOrgSubscription(orgId: string, status: string, planId: string, stripeSubId: string, trialEnd: number | null, currentPeriodEnd: number | null) {
   const { error } = await supabase
     .from('organizations')
@@ -162,7 +180,17 @@ export default async (req: Request, _context: Context) => {
 
       // --- Org/Platform Subscription Checkout ---
       let orgId = session.metadata?.org_id
-      const planId = session.metadata?.plan_id || 'growth_monthly'
+      let planId = session.metadata?.plan_id
+      // If plan_id is missing from metadata, detect it from the Stripe subscription price
+      if (!planId && session.subscription) {
+        try {
+          const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+          planId = detectPlanFromPrice(sub)
+        } catch {
+          planId = 'growth_monthly'
+        }
+      }
+      if (!planId) planId = 'growth_monthly'
 
       // Auto-confirm the user in Supabase if they haven't confirmed yet
       if (customerEmail) {
@@ -284,7 +312,7 @@ export default async (req: Request, _context: Context) => {
         await updateOrgSubscription(
           orgId,
           sub.status === 'trialing' ? 'trialing' : sub.status,
-          sub.metadata?.plan_id || 'growth_monthly',
+          sub.metadata?.plan_id || detectPlanFromPrice(sub),
           sub.id,
           sub.trial_end,
           sub.current_period_end

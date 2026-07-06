@@ -54,7 +54,11 @@ export default async (_req: Request, _context: Context) => {
 
       const trialEnd = new Date(org.trial_ends_at)
       const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      const planLabel = org.subscription_plan?.includes('enterprise') ? 'Enterprise' : 'Growth'
+      const rawPlan = org.subscription_plan || ''
+      const planLabel = rawPlan.includes('agentic') ? 'Agentic'
+        : rawPlan.includes('enterprise') ? 'Enterprise'
+        : rawPlan.includes('growth') ? 'Growth'
+        : 'Growth'
 
       try {
         await sgMail.default.send({
