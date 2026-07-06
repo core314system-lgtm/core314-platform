@@ -30,7 +30,7 @@ const footerLinks = {
     { label: 'SLA', to: '/sla' },
     { label: 'System Status', to: '/status' },
     { label: 'Why Procuvex', to: '/roi' },
-    { label: 'Partner Program', to: '/partners' },
+    { label: 'Founding Partners', to: '/founding-partners' },
     { label: 'Privacy Policy', to: '/privacy' },
     { label: 'Terms of Service', to: '/terms' },
   ],
@@ -123,14 +123,7 @@ export default function Footer() {
             All other trademarks are the property of their respective owners. Procuvex is not affiliated with or endorsed by the U.S. government.
             AI-generated outputs are advisory only and do not constitute legal, financial, or professional advice.
           </p>
-          <p className="text-xs text-slate-600 leading-relaxed text-center mt-4">
-            <strong>Income Disclaimer:</strong> Earnings shown on the Partner Program page are examples only and not guarantees.
-            Actual earnings depend on the number of referred customers who subscribe and maintain active paid subscriptions.
-            Commissions are paid only on active subscriptions and stop if a customer cancels.
-            Past results do not guarantee future performance. See full{' '}
-            <Link to="/partners/terms" className="text-slate-500 hover:text-slate-400 underline">Partner Program Terms &amp; Conditions</Link>{' '}
-            for details.
-          </p>
+
         </div>
       </div>
     </footer>
