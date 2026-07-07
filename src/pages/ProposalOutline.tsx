@@ -46,6 +46,8 @@ export default function ProposalOutline() {
   const [editForm, setEditForm] = useState<Partial<VolumeSection>>({})
   const [draftingSection, setDraftingSection] = useState<string | null>(null)
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null)
+  const [draftingAll, setDraftingAll] = useState(false)
+  const [draftProgress, setDraftProgress] = useState({ done: 0, total: 0 })
   const { canAccess } = useTier()
   const canDraft = canAccess('proposal_draft_generation')
 
@@ -192,8 +194,24 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
     }
   }
 
+  async function generateAllDrafts() {
+    if (!projectId || !canDraft) return
+    setDraftingAll(true)
+    const allSections = volumes.flatMap(v => v.sections.map(s => ({ volumeId: v.id, section: s })))
+    const undrafted = allSections.filter(({ section }) => !section.draft_content)
+    setDraftProgress({ done: 0, total: undrafted.length })
+
+    for (let i = 0; i < undrafted.length; i++) {
+      const { volumeId, section } = undrafted[i]
+      await generateDraft(volumeId, section)
+      setDraftProgress({ done: i + 1, total: undrafted.length })
+    }
+    setDraftingAll(false)
+  }
+
   const totalSections = volumes.reduce((sum, v) => sum + v.sections.length, 0)
   const completeSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.status === 'complete').length, 0)
+  const draftedSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.draft_content).length, 0)
 
   const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
     not_started: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Not Started' },
@@ -234,7 +252,7 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
         accentColor="indigo"
         steps={[
           { title: 'Generate outline from AI', description: 'Click "Generate with AI" to create a proposal outline based on your project analysis and Section L/M results.' },
-          { title: 'Generate section drafts', description: 'Click the wand icon on any section to generate an AI proposal draft using your win themes, past performance, and requirements.' },
+          { title: 'Generate section drafts', description: 'Click "Generate All Drafts" to draft every section at once, or click the "Draft" button on individual sections. AI uses your win themes, past performance, and requirements.' },
           { title: 'Customize and assign', description: 'Edit drafts inline, assign team members to each section, and track progress from Not Started → Complete.' },
         ]}
       />
@@ -262,7 +280,27 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {canDraft ? (
+                <button
+                  onClick={generateAllDrafts}
+                  disabled={draftingAll || draftingSection !== null}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium text-sm hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 shadow-sm"
+                >
+                  <Wand2 size={16} />
+                  {draftingAll ? `Generating ${draftProgress.done}/${draftProgress.total}...` : 'Generate All Drafts'}
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm">
+                  <Wand2 size={16} />
+                  Draft Generation — <Link to="/billing" className="text-purple-600 underline">Enterprise Feature</Link>
+                </div>
+              )}
+              {draftedSections > 0 && (
+                <span className="text-xs text-gray-500">{draftedSections}/{totalSections} sections drafted</span>
+              )}
+            </div>
             <button
               onClick={generateOutline}
               disabled={generating}
@@ -366,22 +404,37 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button
-                                onClick={() => generateDraft(volume.id, section)}
-                                disabled={draftingSection === section.id || !canDraft}
-                                className={`p-1 ${canDraft ? 'text-purple-400 hover:text-purple-600' : 'text-gray-300 cursor-not-allowed'} disabled:animate-pulse`}
-                                title={canDraft ? 'Generate AI Draft' : 'Enterprise feature — upgrade to unlock'}
-                              >
-                                <Wand2 size={12} />
-                              </button>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {canDraft ? (
+                                <button
+                                  onClick={() => generateDraft(volume.id, section)}
+                                  disabled={draftingSection === section.id || draftingAll}
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                    section.draft_content
+                                      ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                                      : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+                                  } disabled:opacity-50`}
+                                  title={section.draft_content ? 'Regenerate AI Draft' : 'Generate AI Draft'}
+                                >
+                                  <Wand2 size={12} />
+                                  {section.draft_content ? 'Redraft' : 'Draft'}
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-purple-500 bg-purple-50 border border-purple-100" title="Enterprise feature — upgrade to unlock">
+                                  <Wand2 size={10} /> ENT
+                                </span>
+                              )}
                               {section.draft_content && (
                                 <button
                                   onClick={() => setExpandedDraft(expandedDraft === section.id ? null : section.id)}
-                                  className="p-1 text-blue-400 hover:text-blue-600"
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs border transition-colors ${
+                                    expandedDraft === section.id
+                                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                  }`}
                                   title={expandedDraft === section.id ? 'Hide draft' : 'View draft'}
                                 >
-                                  {expandedDraft === section.id ? <EyeOff size={12} /> : <Eye size={12} />}
+                                  {expandedDraft === section.id ? <><EyeOff size={12} /> Hide</> : <><Eye size={12} /> View</>}
                                 </button>
                               )}
                               <select
