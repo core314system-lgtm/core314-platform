@@ -37,6 +37,8 @@ import {
   TrendingUp,
   Calendar,
   Contact2,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -168,7 +170,7 @@ function findActiveGroup(pathname: string): string {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { signOut, profile } = useAuth()
   const { currentOrg, isMultiTenantEnabled } = useOrg()
-  const { isEnterprise } = useTier()
+  const { isEnterprise, hasActiveSubscription, status: subStatus, trialDaysLeft } = useTier()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
@@ -433,6 +435,47 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <NotificationCenter />
         </div>
         <div className="p-6 max-w-7xl mx-auto">
+          {/* Subscription status banners */}
+          {!profile?.is_global_admin && subStatus === 'cancelled' && (
+            <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
+              <AlertTriangle size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium">Your subscription has been cancelled.</span>{' '}
+                <span className="text-sm">Some features are restricted. Reactivate to restore full access.</span>
+              </div>
+              <Link to="/billing" className="text-sm font-medium text-red-700 hover:text-red-900 whitespace-nowrap">Reactivate →</Link>
+            </div>
+          )}
+          {!profile?.is_global_admin && subStatus === 'past_due' && (
+            <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+              <AlertTriangle size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium">Payment past due.</span>{' '}
+                <span className="text-sm">Please update your payment method to avoid service interruption.</span>
+              </div>
+              <Link to="/billing" className="text-sm font-medium text-amber-700 hover:text-amber-900 whitespace-nowrap">Update Payment →</Link>
+            </div>
+          )}
+          {!profile?.is_global_admin && subStatus === 'trialing' && trialDaysLeft !== null && trialDaysLeft <= 3 && (
+            <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800">
+              <Clock size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium">Trial ending {trialDaysLeft === 0 ? 'today' : `in ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''}`}.</span>{' '}
+                <span className="text-sm">Subscribe now to keep full access to all features.</span>
+              </div>
+              <Link to="/billing" className="text-sm font-medium text-blue-700 hover:text-blue-900 whitespace-nowrap">Subscribe →</Link>
+            </div>
+          )}
+          {!profile?.is_global_admin && !hasActiveSubscription && subStatus !== 'cancelled' && subStatus !== 'past_due' && (
+            <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-800">
+              <AlertTriangle size={18} className="shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium">No active subscription.</span>{' '}
+                <span className="text-sm">Subscribe to access all platform features.</span>
+              </div>
+              <Link to="/billing" className="text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap">View Plans →</Link>
+            </div>
+          )}
           {!isSubOnly && <OnboardingChecklist onLaunchGuide={handleLaunchGuide} />}
           {!isSubOnly && <DiscoveryPrompts />}
           {children}

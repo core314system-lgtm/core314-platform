@@ -36,6 +36,26 @@
 [functions."agent-cron"]
   schedule = "0 6 * * *"
 
+# Scheduled function: weekly executive digest (Monday 8am ET / 12pm UTC — Enterprise only)
+[functions."weekly-digest"]
+  schedule = "0 12 * * 1"
+
+# Scheduled function: deadline alerts (daily at 7am ET / 11am UTC — notify upcoming deadlines)
+[functions."deadline-alerts"]
+  schedule = "0 11 * * *"
+
+# Scheduled function: subcontractor verification expiry check (daily at 5am UTC)
+[functions."sub-expiration-check"]
+  schedule = "0 5 * * *"
+
+# Scheduled function: database hygiene (Sundays at 3am UTC — cleanup stale data)
+[functions."database-hygiene"]
+  schedule = "0 3 * * 0"
+
+# Scheduled function: RFQ follow-up reminders (daily at 10am ET / 2pm UTC)
+[functions."rfq-followup"]
+  schedule = "0 14 * * *"
+
 # API routes for Netlify Functions
 [[redirects]]
   from = "/api/*"
