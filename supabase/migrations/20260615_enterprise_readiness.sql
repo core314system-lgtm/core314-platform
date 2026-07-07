@@ -118,12 +118,20 @@ CREATE INDEX IF NOT EXISTS idx_project_tasks_status ON project_tasks(status);
 -- =====================================================
 -- 5. Organization Settings (Slack webhook + future config)
 -- =====================================================
+CREATE TABLE IF NOT EXISTS organization_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+  slack_webhook_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE organization_settings ENABLE ROW LEVEL SECURITY;
+
 DO $$ BEGIN
-  -- Add slack_webhook_url column if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'organization_settings' AND column_name = 'slack_webhook_url'
-  ) THEN
-    ALTER TABLE organization_settings ADD COLUMN slack_webhook_url TEXT;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'organization_settings' AND policyname = 'org_settings_policy') THEN
+    CREATE POLICY org_settings_policy ON organization_settings FOR ALL TO authenticated
+      USING (org_id IN (SELECT org_id FROM user_profiles WHERE id = auth.uid()))
+      WITH CHECK (org_id IN (SELECT org_id FROM user_profiles WHERE id = auth.uid()));
   END IF;
 END $$;
