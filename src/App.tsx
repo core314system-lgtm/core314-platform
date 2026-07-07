@@ -302,7 +302,7 @@ export default function App() {
           <Route path="/task-orders/*" element={<Navigate to="/projects" replace />} />
 
           {/* Contacts */}
-          <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
+          <Route path="/contacts" element={<ProtectedRoute><TierGate feature="contacts_crm"><ContactsPage /></TierGate></ProtectedRoute>} />
 
           {/* Contracts */}
           <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />

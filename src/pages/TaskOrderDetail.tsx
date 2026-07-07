@@ -17,6 +17,7 @@ import ProjectTeam from '../components/ProjectTeam'
 import ProjectContacts from '../components/ProjectContacts'
 import ProjectActivityFeed from '../components/ProjectActivityFeed'
 import ProjectTasks from '../components/ProjectTasks'
+import TierGate from '../components/TierGate'
 import BidReadiness from '../components/BidReadiness'
 import SmartRecommendations from '../components/SmartRecommendations'
 import QAManagement from '../components/QAManagement'
@@ -1171,11 +1172,17 @@ export default function TaskOrderDetail() {
       {/* Project Team + Audit Trail side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ProjectTeam taskOrderId={id!} />
-        <ProjectContacts projectId={id!} />
+        <TierGate feature="project_contacts" fallback={null}>
+          <ProjectContacts projectId={id!} />
+        </TierGate>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ProjectTasks projectId={id!} />
-        <ProjectActivityFeed projectId={id!} />
+        <TierGate feature="task_assignments" fallback={null}>
+          <ProjectTasks projectId={id!} />
+        </TierGate>
+        <TierGate feature="activity_feed" fallback={null}>
+          <ProjectActivityFeed projectId={id!} />
+        </TierGate>
         <AuditTrail key={auditKey} taskOrderId={id!} projectTypeId={taskOrder.project_type} />
       </div>
 

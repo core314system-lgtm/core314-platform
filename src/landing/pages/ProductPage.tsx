@@ -5,7 +5,8 @@ import {
   Target, Kanban, BarChart3, Zap, Building2, ArrowRight,
   Upload, CheckCircle, FileCheck, Scale, Crosshair, Mail,
   Database, Award, ShieldCheck, Briefcase, Palette, UserCheck,
-  ListChecks, Search, KeyRound, Clipboard,
+  ListChecks, Search, KeyRound, Clipboard, Contact2, MessageSquare,
+  CheckSquare, Wand2, Bell, Sparkles,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -13,7 +14,15 @@ import Footer from '../components/Footer'
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
 const stagger = { visible: { transition: { staggerChildren: 0.06 } } }
 
-const modules = [
+interface Module {
+  icon: React.ElementType
+  title: string
+  desc: string
+  features: string[]
+  enterpriseOnly?: boolean
+}
+
+const modules: Module[] = [
   {
     icon: Upload,
     title: 'Document Upload & Organization',
@@ -195,10 +204,53 @@ const modules = [
     features: ['10-factor scoring matrix', 'AI recommendation engine', 'Risk/reward visualization', 'Decision audit trail'],
   },
   {
+    icon: Contact2,
+    title: 'Contact & Relationship Management',
+    desc: 'Purpose-built GovCon CRM. Track government contacts, partner POCs, and subcontractor relationships. Link contacts to projects with role assignments (COTR, KO, Capture Lead).',
+    features: ['Contact types: Government, Partner, Sub, Internal', 'Project-contact linking with roles', 'Search, filter, and tag contacts', 'Agency and organization tracking'],
+    enterpriseOnly: true,
+  },
+  {
+    icon: CheckSquare,
+    title: 'Project Task Assignments',
+    desc: 'Assign and track capture tasks within each project. Set priorities, cycle status (todo/in-progress/done), and keep your team aligned on deliverables.',
+    features: ['Task creation with priority levels', 'Status cycling (todo → in-progress → done)', 'Assignee tracking', 'Due date management'],
+    enterpriseOnly: true,
+  },
+  {
+    icon: MessageSquare,
+    title: 'Activity Feed & Comments',
+    desc: 'Real-time project activity feed with threaded comments. Keep your capture team in sync with timestamped updates and user attribution.',
+    features: ['Real-time comment thread per project', 'User attribution and timestamps', 'Activity log of project changes', 'Team collaboration hub'],
+    enterpriseOnly: true,
+  },
+  {
+    icon: Wand2,
+    title: 'AI Proposal Draft Generation',
+    desc: 'Generate proposal section drafts from your outline using AI. One click produces narrative content aligned with your SOW analysis and compliance requirements.',
+    features: ['AI-generated proposal sections', 'Aligned with SOW requirements', 'One-click draft from outline', 'Editable output for refinement'],
+    enterpriseOnly: true,
+  },
+  {
+    icon: Bell,
+    title: 'Slack Integration & Notifications',
+    desc: 'Push capture gate updates, document uploads, deadline reminders, and task assignments directly to your Slack workspace via webhook.',
+    features: ['Incoming webhook configuration', 'Gate review notifications', 'Document upload alerts', 'Task assignment notifications'],
+    enterpriseOnly: true,
+  },
+  {
+    icon: Mail,
+    title: 'Weekly Executive Digest',
+    desc: 'Automated weekly email summarizing pipeline activity, upcoming deadlines, gate review status, and team productivity across all projects.',
+    features: ['Automated weekly delivery', 'Pipeline status summary', 'Upcoming deadline alerts', 'Per-project activity overview'],
+    enterpriseOnly: true,
+  },
+  {
     icon: ListChecks,
     title: 'Post-Award Transition',
     desc: 'Mobilization checklist with phase tracking for awarded contracts. Manage subcontract execution, NTP tracking, and key milestone dates.',
     features: ['Phase-based checklist', 'Subcontract execution tracking', 'Key milestone dates', 'Status monitoring'],
+    enterpriseOnly: true,
   },
   {
     icon: KeyRound,
@@ -245,7 +297,14 @@ export default function ProductPage() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-slate-900 mb-2" style={{ fontFamily: 'Poppins, sans-serif' }}>{mod.title}</h3>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>{mod.title}</h3>
+                    {mod.enterpriseOnly && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 border border-purple-200 rounded-full text-[10px] font-bold text-purple-600 uppercase tracking-wider">
+                        <Sparkles className="h-3 w-3" /> Enterprise
+                      </span>
+                    )}
+                  </div>
                   <p className="text-slate-600 leading-relaxed mb-4">{mod.desc}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {mod.features.map((f, j) => (

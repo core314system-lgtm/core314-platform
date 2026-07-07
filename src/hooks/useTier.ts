@@ -25,6 +25,13 @@ const ENTERPRISE_ONLY_FEATURES = new Set([
   'sub_recruitment_agent',
   'quote_analysis_agent',
   'agent_autonomous_mode',
+  'contacts_crm',
+  'project_contacts',
+  'task_assignments',
+  'activity_feed',
+  'slack_integration',
+  'weekly_digest',
+  'proposal_draft_generation',
 ])
 
 // Growth tier limits

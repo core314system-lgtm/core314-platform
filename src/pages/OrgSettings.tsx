@@ -6,6 +6,7 @@ import { Settings, Users, UserPlus, Shield, Crown, Trash2, Check, Building2, Mai
 import OrgDefaultTemplate from '../components/OrgDefaultTemplate'
 import NotificationPreferences from '../components/NotificationPreferences'
 import SlackWebhookConfig from '../components/SlackWebhookConfig'
+import TierGate from '../components/TierGate'
 import type { OrgMember } from '../contexts/OrgContext'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -666,7 +667,13 @@ export default function OrgSettings() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <NotificationPreferences />
           </div>
-          <SlackWebhookConfig orgId={currentOrg?.id || ''} isAdmin={canManage} />
+          <TierGate feature="slack_integration" fallback={
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+              <p className="text-sm text-gray-500">Slack integration is available on the Enterprise plan.</p>
+            </div>
+          }>
+            <SlackWebhookConfig orgId={currentOrg?.id || ''} isAdmin={canManage} />
+          </TierGate>
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import {
   HardHat, Monitor, ShoppingCart, AlertTriangle, Clock, TrendingUp,
   Award, Globe, Star, Quote, Mail, Crosshair, ShieldCheck,
   Palette, UserCheck, Scale, Search, Briefcase, ListChecks, KeyRound,
+  Contact2, CheckSquare, MessageSquare, Wand2, Bell,
 } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
@@ -18,7 +19,7 @@ const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } }
 const stagger = { visible: { transition: { staggerChildren: 0.08 } } }
 
 const proofMetrics = [
-  { value: '23+', label: 'AI Modules' },
+  { value: '30+', label: 'AI Modules' },
   { value: '5', label: 'Industries' },
   { value: 'Seconds', label: 'To Analyze Documents' },
   { value: '100%', label: 'Your Data, Your Control' },
@@ -996,6 +997,11 @@ export default function LandingPage() {
               { icon: ListChecks, label: 'SB Subcontracting Plans' },
               { icon: Search, label: 'Competitive Intelligence' },
               { icon: Scale, label: 'Price-to-Win Analysis' },
+              { icon: Contact2, label: 'Contact Management (CRM)' },
+              { icon: CheckSquare, label: 'Task Assignments' },
+              { icon: MessageSquare, label: 'Activity Feed & Comments' },
+              { icon: Wand2, label: 'AI Proposal Drafting' },
+              { icon: Bell, label: 'Slack & Email Notifications' },
             ].map((f, i) => (
               <motion.div
                 key={i}

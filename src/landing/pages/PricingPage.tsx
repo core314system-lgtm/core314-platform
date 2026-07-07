@@ -47,6 +47,12 @@ const tiers = [
       'Subcontractor relationship intelligence',
       'Vendor performance scoring & tiers',
       'Custom quote form builder',
+      'Contact & relationship management (CRM)',
+      'Project task assignments & tracking',
+      'Activity feed & team comments',
+      'AI proposal draft generation',
+      'Slack integration & notifications',
+      'Weekly executive digest emails',
       'REST API access',
       'Custom workflow stages',
       'Intelligence library',
@@ -78,6 +84,12 @@ const comparison = [
   { name: 'Teaming & JV Management', growth: false, ent: true },
   { name: 'Resource Capacity Tracking', growth: false, ent: true },
   { name: 'Relationship Intelligence', growth: false, ent: true },
+  { name: 'Contact & Relationship Management', growth: false, ent: true },
+  { name: 'Project Task Assignments', growth: false, ent: true },
+  { name: 'Activity Feed & Comments', growth: false, ent: true },
+  { name: 'AI Proposal Draft Generation', growth: false, ent: true },
+  { name: 'Slack Integration', growth: false, ent: true },
+  { name: 'Weekly Executive Digest', growth: false, ent: true },
   { name: 'Custom Email Domain & Branding', growth: false, ent: true },
   { name: 'Custom Quote Forms', growth: false, ent: true },
   { name: 'REST API Access', growth: false, ent: true },
@@ -96,6 +108,7 @@ const faqs = [
   { q: 'Can I export my data?', a: 'Yes. Full data portability is guaranteed. Export your entire account — projects, subcontractors, documents, quotes, and analytics — in CSV or JSON format at any time.' },
   { q: 'What support is included?', a: 'All plans include our AI-powered support assistant that can answer platform and account-specific questions 24/7. If the AI cannot resolve your issue, it escalates to a human specialist with callback scheduling.' },
   { q: 'Do you support government contractors specifically?', a: 'Yes. Procuvex is built for government procurement from the ground up — SAM.gov integration, compliance matrices, set-aside tracking, NAICS code matching, and wage determination handling are all native to the platform.' },
+  { q: 'What Enterprise-only features are included?', a: 'Enterprise includes everything in Growth plus: Contact & Relationship Management (CRM), project task assignments, activity feed & team comments, AI proposal draft generation, Slack integration, weekly executive digest emails, REST API access, custom email domain & branding, SAML SSO, and dedicated onboarding. These collaboration and integration features are designed for multi-user capture teams.' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {
