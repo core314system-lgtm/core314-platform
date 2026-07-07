@@ -3,7 +3,10 @@ import { createClient } from "@supabase/supabase-js"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+const supabase = createClient(
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
