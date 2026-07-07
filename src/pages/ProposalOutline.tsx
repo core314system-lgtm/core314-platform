@@ -5,7 +5,8 @@ import { saveAiOutput, loadAiOutput } from '../lib/aiStorage'
 import { fetchAIProxy } from '../lib/api'
 import {
   BookOpen, ArrowLeft, Sparkles, FileText, ChevronDown, ChevronUp,
-  GripVertical, Plus, Trash2, Edit2, Check, AlertTriangle,
+  GripVertical, Plus, Trash2, Edit2, Check, AlertTriangle, Wand2, Copy,
+  Eye, EyeOff,
 } from 'lucide-react'
 import FeatureGuidance from '../components/FeatureGuidance'
 
@@ -18,6 +19,7 @@ interface VolumeSection {
   status: 'not_started' | 'drafting' | 'review' | 'complete'
   assigned_to: string
   notes: string
+  draft_content?: string
 }
 
 interface ProposalVolume {
@@ -41,6 +43,8 @@ export default function ProposalOutline() {
   const [expandedVolume, setExpandedVolume] = useState<string | null>(null)
   const [editingSection, setEditingSection] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<VolumeSection>>({})
+  const [draftingSection, setDraftingSection] = useState<string | null>(null)
+  const [expandedDraft, setExpandedDraft] = useState<string | null>(null)
 
   useEffect(() => {
     if (!projectId) return
@@ -142,6 +146,49 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
     })
   }
 
+  async function generateDraft(volumeId: string, section: VolumeSection) {
+    if (!projectId) return
+    setDraftingSection(section.id)
+
+    try {
+      const analysis = await loadAiOutput<{ requirements: { text: string; category: string }[]; summary: string }>(projectId, 'analysis')
+      const winThemes = await loadAiOutput<{ themes: { theme: string; evidence: string }[] }>(projectId, 'win_themes')
+      const pastPerf = await loadAiOutput<{ citations: { title: string; relevance: string }[] }>(projectId, 'past_performance_match')
+
+      const context = [
+        `Project: ${projectTitle}`,
+        analysis?.summary ? `Project Summary: ${analysis.summary}` : '',
+        `Section: ${section.title}`,
+        `Description: ${section.description}`,
+        section.eval_factors.length > 0 ? `Evaluation Factors: ${section.eval_factors.join(', ')}` : '',
+        section.page_limit ? `Page Limit: ${section.page_limit}` : '',
+        winThemes?.themes ? `Win Themes:\n${winThemes.themes.map(t => `- ${t.theme}: ${t.evidence}`).join('\n')}` : '',
+        pastPerf?.citations ? `Relevant Past Performance:\n${pastPerf.citations.slice(0, 3).map(c => `- ${c.title}: ${c.relevance}`).join('\n')}` : '',
+        analysis?.requirements ? `Key Requirements:\n${analysis.requirements.slice(0, 10).map(r => `- ${r.text}`).join('\n')}` : '',
+      ].filter(Boolean).join('\n\n')
+
+      const res = await fetchAIProxy({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert GovCon proposal writer. Generate a professional proposal draft for the specified section. Write in formal proposal language suitable for federal government evaluation. Include specific, substantive content — not placeholder text. Reference win themes and past performance where relevant. Structure with clear headings, paragraphs, and bullet points where appropriate. Return ONLY the proposal text content, no JSON wrapper.`,
+          },
+          { role: 'user', content: context },
+        ],
+        temperature: 0.4,
+      })
+
+      const draft = res.choices[0].message.content
+      updateSection(volumeId, section.id, { draft_content: draft, status: 'drafting' })
+      setExpandedDraft(section.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Draft generation failed')
+    } finally {
+      setDraftingSection(null)
+    }
+  }
+
   const totalSections = volumes.reduce((sum, v) => sum + v.sections.length, 0)
   const completeSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.status === 'complete').length, 0)
 
@@ -179,13 +226,13 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
 
       <FeatureGuidance
         title="Proposal Outline & Volume Builder"
-        description="Organize your proposal response into volumes and sections mapped to RFP evaluation criteria. AI generates the initial structure based on your project analysis and Section L/M."
+        description="Organize your proposal response into volumes and sections mapped to RFP evaluation criteria. AI generates the structure and drafts proposal content based on your project analysis, win themes, and past performance."
         storageKey="proposal_outline"
         accentColor="indigo"
         steps={[
           { title: 'Generate outline from AI', description: 'Click "Generate with AI" to create a proposal outline based on your project analysis and Section L/M results.' },
-          { title: 'Customize volumes and sections', description: 'Add, remove, or reorder sections within each volume. Edit titles, descriptions, and page limits.' },
-          { title: 'Assign writers and track status', description: 'Assign team members to each section and track progress from Not Started → Drafting → Review → Complete.' },
+          { title: 'Generate section drafts', description: 'Click the wand icon on any section to generate an AI proposal draft using your win themes, past performance, and requirements.' },
+          { title: 'Customize and assign', description: 'Edit drafts inline, assign team members to each section, and track progress from Not Started → Complete.' },
         ]}
       />
 
@@ -291,6 +338,7 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
                             </div>
                           </div>
                         ) : (
+                          <>
                           <div className="flex items-start gap-3">
                             <GripVertical size={14} className="text-gray-300 mt-1 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
@@ -316,6 +364,23 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
                               )}
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => generateDraft(volume.id, section)}
+                                disabled={draftingSection === section.id}
+                                className="p-1 text-purple-400 hover:text-purple-600 disabled:animate-pulse"
+                                title="Generate AI Draft"
+                              >
+                                <Wand2 size={12} />
+                              </button>
+                              {section.draft_content && (
+                                <button
+                                  onClick={() => setExpandedDraft(expandedDraft === section.id ? null : section.id)}
+                                  className="p-1 text-blue-400 hover:text-blue-600"
+                                  title={expandedDraft === section.id ? 'Hide draft' : 'View draft'}
+                                >
+                                  {expandedDraft === section.id ? <EyeOff size={12} /> : <Eye size={12} />}
+                                </button>
+                              )}
                               <select
                                 value={section.status}
                                 onChange={e => updateSection(volume.id, section.id, { status: e.target.value as VolumeSection['status'] })}
@@ -340,6 +405,31 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
                               </button>
                             </div>
                           </div>
+                          {draftingSection === section.id && (
+                            <div className="mt-2 p-3 bg-purple-50 rounded-lg text-sm text-purple-700 flex items-center gap-2">
+                              <Sparkles size={14} className="animate-pulse" />
+                              Generating proposal draft for "{section.title}"...
+                            </div>
+                          )}
+                          {expandedDraft === section.id && section.draft_content && (
+                            <div className="mt-2 border border-gray-200 rounded-lg">
+                              <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                                <span className="text-xs font-medium text-gray-600">AI-Generated Draft</span>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(section.draft_content || '') }}
+                                  className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                                >
+                                  <Copy size={10} /> Copy
+                                </button>
+                              </div>
+                              <textarea
+                                value={section.draft_content}
+                                onChange={e => updateSection(volume.id, section.id, { draft_content: e.target.value })}
+                                className="w-full px-3 py-2 text-sm text-gray-700 min-h-[200px] resize-y border-0 focus:ring-0 rounded-b-lg"
+                              />
+                            </div>
+                          )}
+                          </>
                         )}
                       </div>
                     )

@@ -36,6 +36,7 @@ import {
   FileStack,
   TrendingUp,
   Calendar,
+  Contact2,
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import GlobalChat from './GlobalChat'
@@ -81,6 +82,7 @@ const navGroups: NavGroup[] = [
       { path: '/labor-categories', label: 'Personnel & LCAT', icon: UserCheck, advanced: true },
       { path: '/competitive-intelligence', label: 'Market Intel', icon: TrendingUp, advanced: true },
       { path: '/cpars-tracker', label: 'CPARS Tracker', icon: Award, advanced: true },
+      { path: '/contacts', label: 'Contacts', icon: Contact2 },
       { path: '/government-fiscal-calendar', label: 'Gov FY Calendar', icon: Calendar, advanced: true },
     ],
   },
