@@ -6,7 +6,7 @@ import { fetchAIProxy } from '../lib/api'
 import {
   BookOpen, ArrowLeft, Sparkles, FileText, ChevronDown, ChevronUp,
   GripVertical, Plus, Trash2, Edit2, Check, AlertTriangle, Wand2, Copy,
-  Eye, EyeOff,
+  Eye, EyeOff, Download,
 } from 'lucide-react'
 import FeatureGuidance from '../components/FeatureGuidance'
 import { useTier } from '../hooks/useTier'
@@ -48,6 +48,7 @@ export default function ProposalOutline() {
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null)
   const [draftingAll, setDraftingAll] = useState(false)
   const [draftProgress, setDraftProgress] = useState({ done: 0, total: 0 })
+  const [compiling, setCompiling] = useState(false)
   const { canAccess } = useTier()
   const canDraft = canAccess('proposal_draft_generation')
 
@@ -209,6 +210,150 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
     setDraftingAll(false)
   }
 
+  async function compileProposal() {
+    if (draftedSections === 0) { alert('No drafted sections to compile. Generate drafts first.'); return }
+    setCompiling(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 72
+      const contentWidth = pageWidth - margin * 2
+      let y = margin
+
+      const addPageIfNeeded = (needed: number) => {
+        if (y + needed > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage()
+          y = margin
+        }
+      }
+
+      // Title page
+      doc.setFontSize(24)
+      doc.setFont('helvetica', 'bold')
+      y = 200
+      const titleLines = doc.splitTextToSize(projectTitle || 'Proposal', contentWidth)
+      doc.text(titleLines, pageWidth / 2, y, { align: 'center' })
+      y += titleLines.length * 30 + 20
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Proposal Document', pageWidth / 2, y, { align: 'center' })
+      y += 30
+      doc.setFontSize(11)
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, y, { align: 'center' })
+      doc.setTextColor(0, 0, 0)
+
+      // Table of Contents
+      doc.addPage()
+      y = margin
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Table of Contents', margin, y)
+      y += 30
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      for (const volume of volumes) {
+        doc.setFont('helvetica', 'bold')
+        doc.text(volume.name, margin, y)
+        y += 18
+        doc.setFont('helvetica', 'normal')
+        for (const section of volume.sections) {
+          doc.text(`    ${section.title}${section.draft_content ? '' : ' (no draft)'}`, margin, y)
+          y += 15
+          addPageIfNeeded(15)
+        }
+        y += 6
+      }
+
+      // Volume content
+      for (const volume of volumes) {
+        doc.addPage()
+        y = margin
+
+        // Volume heading
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 58, 95)
+        const volLines = doc.splitTextToSize(volume.name, contentWidth)
+        doc.text(volLines, margin, y)
+        y += volLines.length * 22 + 10
+        doc.setDrawColor(30, 58, 95)
+        doc.setLineWidth(2)
+        doc.line(margin, y, pageWidth - margin, y)
+        y += 20
+        doc.setTextColor(0, 0, 0)
+
+        for (const section of volume.sections) {
+          addPageIfNeeded(60)
+
+          // Section heading
+          doc.setFontSize(14)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(45, 85, 140)
+          doc.text(section.title, margin, y)
+          y += 20
+          doc.setTextColor(0, 0, 0)
+
+          if (section.page_limit) {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'italic')
+            doc.setTextColor(120, 120, 120)
+            doc.text(`Page Limit: ${section.page_limit}`, margin, y)
+            y += 14
+            doc.setTextColor(0, 0, 0)
+          }
+
+          if (section.draft_content) {
+            doc.setFontSize(11)
+            doc.setFont('helvetica', 'normal')
+            const paragraphs = section.draft_content.split('\n')
+            for (const para of paragraphs) {
+              if (!para.trim()) { y += 6; continue }
+              const isBullet = para.trim().startsWith('- ') || para.trim().startsWith('• ')
+              const isHeading = para.trim().startsWith('#')
+              if (isHeading) {
+                addPageIfNeeded(24)
+                doc.setFontSize(12)
+                doc.setFont('helvetica', 'bold')
+                doc.text(para.replace(/^#+\s*/, ''), margin, y)
+                y += 18
+                doc.setFontSize(11)
+                doc.setFont('helvetica', 'normal')
+              } else if (isBullet) {
+                const bulletText = para.trim().replace(/^[-•]\s*/, '')
+                const bulletLines = doc.splitTextToSize(bulletText, contentWidth - 20)
+                addPageIfNeeded(bulletLines.length * 14 + 4)
+                doc.text('•', margin + 10, y)
+                doc.text(bulletLines, margin + 22, y)
+                y += bulletLines.length * 14 + 4
+              } else {
+                const paraLines = doc.splitTextToSize(para, contentWidth)
+                addPageIfNeeded(paraLines.length * 14 + 4)
+                doc.text(paraLines, margin, y)
+                y += paraLines.length * 14 + 8
+              }
+            }
+          } else {
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'italic')
+            doc.setTextColor(150, 150, 150)
+            doc.text('[Draft not yet generated for this section]', margin, y)
+            y += 16
+            doc.setTextColor(0, 0, 0)
+          }
+          y += 16
+        }
+      }
+
+      doc.save(`Proposal_${projectTitle?.replace(/\s+/g, '_') || 'export'}.pdf`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Compile failed')
+    } finally {
+      setCompiling(false)
+    }
+  }
+
   const totalSections = volumes.reduce((sum, v) => sum + v.sections.length, 0)
   const completeSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.status === 'complete').length, 0)
   const draftedSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.draft_content).length, 0)
@@ -254,6 +399,7 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
           { title: 'Generate outline from AI', description: 'Click "Generate with AI" to create a proposal outline based on your project analysis and Section L/M results.' },
           { title: 'Generate section drafts', description: 'Click "Generate All Drafts" to draft every section at once, or click the "Draft" button on individual sections. AI uses your win themes, past performance, and requirements.' },
           { title: 'Customize and assign', description: 'Edit drafts inline, assign team members to each section, and track progress from Not Started → Complete.' },
+          { title: 'Compile & download', description: 'Click "Compile Proposal PDF" to assemble all drafted sections into a formatted, downloadable proposal document with title page and table of contents.' },
         ]}
       />
 
@@ -299,6 +445,16 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
               )}
               {draftedSections > 0 && (
                 <span className="text-xs text-gray-500">{draftedSections}/{totalSections} sections drafted</span>
+              )}
+              {draftedSections > 0 && (
+                <button
+                  onClick={compileProposal}
+                  disabled={compiling}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
+                >
+                  <Download size={16} />
+                  {compiling ? 'Compiling...' : 'Compile Proposal PDF'}
+                </button>
               )}
             </div>
             <button
