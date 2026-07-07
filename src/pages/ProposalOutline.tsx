@@ -428,6 +428,150 @@ Return ONLY the proposal section text. Use Markdown formatting (bold, headers, b
     }
   }
 
+  async function compileProposalWord() {
+    if (draftedSections === 0) { alert('No drafted sections to compile. Generate drafts first.'); return }
+    setCompiling(true)
+    try {
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak, TableOfContents, BorderStyle } = await import('docx')
+      const { saveAs } = await import('file-saver')
+
+      const titlePage = [
+        new Paragraph({ spacing: { before: 3000 } }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 },
+          children: [new TextRun({ text: projectTitle || 'Proposal', bold: true, size: 56, font: 'Calibri' })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: 'Proposal Document', size: 28, color: '666666', font: 'Calibri' })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, size: 22, color: '999999', font: 'Calibri' })],
+        }),
+        new Paragraph({ children: [new PageBreak()] }),
+      ]
+
+      const tocSection = [
+        new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'Table of Contents', bold: true })] }),
+        new TableOfContents('Table of Contents', { hyperlink: true, headingStyleRange: '1-3' }),
+        new Paragraph({ children: [new PageBreak()] }),
+      ]
+
+      const contentSections: (typeof Paragraph extends new (...args: infer _) => infer R ? R : never)[] = []
+      for (const volume of volumes) {
+        contentSections.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+            children: [new TextRun({ text: volume.name, bold: true, size: 32, font: 'Calibri' })],
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1E3A5F' } },
+          })
+        )
+
+        for (const section of volume.sections) {
+          contentSections.push(
+            new Paragraph({
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 300, after: 100 },
+              children: [new TextRun({ text: section.title, bold: true, size: 26, font: 'Calibri', color: '2D558C' })],
+            })
+          )
+
+          if (section.page_limit) {
+            contentSections.push(
+              new Paragraph({
+                spacing: { after: 100 },
+                children: [new TextRun({ text: `Page Limit: ${section.page_limit}`, italics: true, size: 18, color: '888888' })],
+              })
+            )
+          }
+
+          if (section.draft_content) {
+            const paragraphs = section.draft_content.split('\n')
+            for (const para of paragraphs) {
+              if (!para.trim()) { contentSections.push(new Paragraph({ spacing: { after: 100 } })); continue }
+              const trimmed = para.trim()
+              if (trimmed.startsWith('### ')) {
+                contentSections.push(new Paragraph({
+                  heading: HeadingLevel.HEADING_3,
+                  spacing: { before: 200, after: 80 },
+                  children: [new TextRun({ text: trimmed.replace(/^###\s*/, ''), bold: true, size: 22 })],
+                }))
+              } else if (trimmed.startsWith('## ')) {
+                contentSections.push(new Paragraph({
+                  heading: HeadingLevel.HEADING_2,
+                  spacing: { before: 240, after: 100 },
+                  children: [new TextRun({ text: trimmed.replace(/^##\s*/, ''), bold: true, size: 24 })],
+                }))
+              } else if (trimmed.startsWith('# ')) {
+                contentSections.push(new Paragraph({
+                  heading: HeadingLevel.HEADING_1,
+                  spacing: { before: 280, after: 120 },
+                  children: [new TextRun({ text: trimmed.replace(/^#\s*/, ''), bold: true, size: 28 })],
+                }))
+              } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+                const bulletText = trimmed.replace(/^[-•]\s*/, '')
+                const runs: InstanceType<typeof TextRun>[] = []
+                const boldParts = bulletText.split(/\*\*(.*?)\*\*/)
+                for (let i = 0; i < boldParts.length; i++) {
+                  if (boldParts[i]) runs.push(new TextRun({ text: boldParts[i], bold: i % 2 === 1, size: 22 }))
+                }
+                contentSections.push(new Paragraph({ bullet: { level: 0 }, spacing: { after: 60 }, children: runs }))
+              } else if (/^\d+\.\s/.test(trimmed)) {
+                const numText = trimmed.replace(/^\d+\.\s*/, '')
+                const runs: InstanceType<typeof TextRun>[] = []
+                const boldParts = numText.split(/\*\*(.*?)\*\*/)
+                for (let i = 0; i < boldParts.length; i++) {
+                  if (boldParts[i]) runs.push(new TextRun({ text: boldParts[i], bold: i % 2 === 1, size: 22 }))
+                }
+                contentSections.push(new Paragraph({ numbering: { reference: 'proposal-numbering', level: 0 }, spacing: { after: 60 }, children: runs }))
+              } else {
+                const runs: InstanceType<typeof TextRun>[] = []
+                const boldParts = trimmed.split(/\*\*(.*?)\*\*/)
+                for (let i = 0; i < boldParts.length; i++) {
+                  if (boldParts[i]) runs.push(new TextRun({ text: boldParts[i], bold: i % 2 === 1, size: 22 }))
+                }
+                contentSections.push(new Paragraph({ spacing: { after: 120 }, children: runs }))
+              }
+            }
+          } else {
+            contentSections.push(
+              new Paragraph({
+                spacing: { after: 200 },
+                children: [new TextRun({ text: '[Draft not yet generated for this section]', italics: true, size: 20, color: 'AAAAAA' })],
+              })
+            )
+          }
+        }
+      }
+
+      const doc = new Document({
+        features: { updateFields: true },
+        numbering: {
+          config: [{
+            reference: 'proposal-numbering',
+            levels: [{ level: 0, format: 'decimal', text: '%1.', alignment: AlignmentType.LEFT }],
+          }],
+        },
+        sections: [{
+          properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
+          children: [...titlePage, ...tocSection, ...contentSections],
+        }],
+      })
+
+      const blob = await Packer.toBlob(doc)
+      saveAs(blob, `Proposal_${projectTitle?.replace(/\s+/g, '_') || 'export'}.docx`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Word export failed')
+    } finally {
+      setCompiling(false)
+    }
+  }
+
   const totalSections = volumes.reduce((sum, v) => sum + v.sections.length, 0)
   const completeSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.status === 'complete').length, 0)
   const draftedSections = volumes.reduce((sum, v) => sum + v.sections.filter(s => s.draft_content).length, 0)
@@ -521,14 +665,25 @@ Return ONLY the proposal section text. Use Markdown formatting (bold, headers, b
                 <span className="text-xs text-gray-500">{draftedSections}/{totalSections} sections drafted</span>
               )}
               {draftedSections > 0 && (
-                <button
-                  onClick={compileProposal}
-                  disabled={compiling}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
-                >
-                  <Download size={16} />
-                  {compiling ? 'Compiling...' : 'Compile Proposal PDF'}
-                </button>
+                <div className="inline-flex items-center gap-1 bg-emerald-600 rounded-lg shadow-sm overflow-hidden">
+                  <button
+                    onClick={compileProposal}
+                    disabled={compiling}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-sm hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    <Download size={16} />
+                    {compiling ? 'Compiling...' : 'PDF'}
+                  </button>
+                  <div className="w-px h-6 bg-emerald-500" />
+                  <button
+                    onClick={compileProposalWord}
+                    disabled={compiling}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-white font-medium text-sm hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    <FileText size={16} />
+                    Word
+                  </button>
+                </div>
               )}
             </div>
             <button
