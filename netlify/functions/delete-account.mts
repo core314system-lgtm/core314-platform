@@ -38,10 +38,16 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
-    // 2. Delete user data from org-related tables
+    // 2. Delete user data from org-related tables (GDPR right to erasure)
     if (org_id) {
-      // Delete account_usage records
+      // Delete usage tracking records
       await supabase.from('account_usage').delete().eq('org_id', org_id)
+
+      // Delete access logs (contains PII: user_id, IP, browsing behavior)
+      await supabase.from('sub_access_log').delete().eq('org_id', org_id)
+
+      // Delete subcontractor connections
+      await supabase.from('sub_connections').delete().eq('org_id', org_id)
 
       // Delete support tickets
       await supabase.from('support_tickets').delete().eq('org_id', org_id)
@@ -62,7 +68,10 @@ export default async (req: Request, _context: Context) => {
         .eq('id', org_id)
     }
 
-    // 3. Delete the user's auth account
+    // 3. Delete user profile (PII: name, email preferences)
+    await supabase.from('user_profiles').delete().eq('id', user_id)
+
+    // 4. Delete the user's auth account
     const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id)
     if (deleteError) {
       return new Response(JSON.stringify({ error: deleteError.message }), { status: 500 })
