@@ -9,6 +9,7 @@ import {
   Eye, EyeOff,
 } from 'lucide-react'
 import FeatureGuidance from '../components/FeatureGuidance'
+import { useTier } from '../hooks/useTier'
 
 interface VolumeSection {
   id: string
@@ -45,6 +46,8 @@ export default function ProposalOutline() {
   const [editForm, setEditForm] = useState<Partial<VolumeSection>>({})
   const [draftingSection, setDraftingSection] = useState<string | null>(null)
   const [expandedDraft, setExpandedDraft] = useState<string | null>(null)
+  const { canAccess } = useTier()
+  const canDraft = canAccess('proposal_draft_generation')
 
   useEffect(() => {
     if (!projectId) return
@@ -366,9 +369,9 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <button
                                 onClick={() => generateDraft(volume.id, section)}
-                                disabled={draftingSection === section.id}
-                                className="p-1 text-purple-400 hover:text-purple-600 disabled:animate-pulse"
-                                title="Generate AI Draft"
+                                disabled={draftingSection === section.id || !canDraft}
+                                className={`p-1 ${canDraft ? 'text-purple-400 hover:text-purple-600' : 'text-gray-300 cursor-not-allowed'} disabled:animate-pulse`}
+                                title={canDraft ? 'Generate AI Draft' : 'Enterprise feature — upgrade to unlock'}
                               >
                                 <Wand2 size={12} />
                               </button>

@@ -20,8 +20,8 @@ const benefits = [
   },
   {
     icon: Crown,
-    title: 'Enterprise Access',
-    desc: 'Receive full Enterprise access throughout the Founding Partner Program.',
+    title: 'Full Enterprise Access',
+    desc: 'Receive full Enterprise access including CRM, task assignments, activity feeds, AI proposal drafting, Slack integration, and weekly digest — all features, no restrictions.',
   },
   {
     icon: MessageSquare,
