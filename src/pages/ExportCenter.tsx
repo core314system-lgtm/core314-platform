@@ -171,6 +171,155 @@ export default function ExportCenter() {
     }
   }
 
+  async function exportProposalWord() {
+    if (!id) return
+    setExporting('proposal_word')
+    try {
+      interface VolumeSection { id: string; title: string; description: string; page_limit: string | null; eval_factors: string[]; status: string; assigned_to: string; notes: string; draft_content?: string }
+      interface ProposalVolume { id: string; name: string; sections: VolumeSection[] }
+      const data = await loadAiOutput<{ volumes: ProposalVolume[] }>(id, 'proposal_outline')
+      if (!data?.volumes?.length) { alert('No proposal outline data — generate an outline first'); return }
+      const hasDrafts = data.volumes.some(v => v.sections.some(s => s.draft_content))
+      if (!hasDrafts) { alert('No drafted sections — generate AI drafts in the Proposal Outline page first'); return }
+
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak, TableOfContents, BorderStyle } = await import('docx')
+      const { saveAs } = await import('file-saver')
+
+      const titlePage = [
+        new Paragraph({ spacing: { before: 3000 } }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 },
+          children: [new TextRun({ text: taskOrder?.title || 'Proposal', bold: true, size: 56, font: 'Calibri' })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: 'Proposal Document', size: 28, color: '666666', font: 'Calibri' })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, size: 22, color: '999999', font: 'Calibri' })],
+        }),
+        new Paragraph({ children: [new PageBreak()] }),
+      ]
+
+      const tocSection = [
+        new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: 'Table of Contents', bold: true })] }),
+        new TableOfContents('Table of Contents', { hyperlink: true, headingStyleRange: '1-3' }),
+        new Paragraph({ children: [new PageBreak()] }),
+      ]
+
+      const contentSections: (typeof Paragraph extends new (...args: infer _) => infer R ? R : never)[] = []
+      for (const volume of data.volumes) {
+        contentSections.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 400, after: 200 },
+            children: [new TextRun({ text: volume.name, bold: true, size: 32, font: 'Calibri' })],
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1E3A5F' } },
+          })
+        )
+
+        for (const section of volume.sections) {
+          contentSections.push(
+            new Paragraph({
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 300, after: 100 },
+              children: [new TextRun({ text: section.title, bold: true, size: 26, font: 'Calibri', color: '2D558C' })],
+            })
+          )
+
+          if (section.page_limit) {
+            contentSections.push(
+              new Paragraph({
+                spacing: { after: 100 },
+                children: [new TextRun({ text: `Page Limit: ${section.page_limit}`, italics: true, size: 18, color: '888888' })],
+              })
+            )
+          }
+
+          if (section.draft_content) {
+            const paragraphs = section.draft_content.split('\n')
+            for (const para of paragraphs) {
+              if (!para.trim()) { contentSections.push(new Paragraph({ spacing: { after: 100 } })); continue }
+              const trimmed = para.trim()
+              if (trimmed.startsWith('### ')) {
+                contentSections.push(new Paragraph({
+                  heading: HeadingLevel.HEADING_3,
+                  spacing: { before: 200, after: 80 },
+                  children: [new TextRun({ text: trimmed.replace(/^###\s*/, ''), bold: true, size: 22 })],
+                }))
+              } else if (trimmed.startsWith('## ')) {
+                contentSections.push(new Paragraph({
+                  heading: HeadingLevel.HEADING_2,
+                  spacing: { before: 240, after: 100 },
+                  children: [new TextRun({ text: trimmed.replace(/^##\s*/, ''), bold: true, size: 24 })],
+                }))
+              } else if (trimmed.startsWith('# ')) {
+                contentSections.push(new Paragraph({
+                  heading: HeadingLevel.HEADING_1,
+                  spacing: { before: 280, after: 120 },
+                  children: [new TextRun({ text: trimmed.replace(/^#\s*/, ''), bold: true, size: 28 })],
+                }))
+              } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+                const bulletText = trimmed.replace(/^[-•]\s*/, '')
+                const runs: InstanceType<typeof TextRun>[] = []
+                const boldParts = bulletText.split(/\*\*(.*?)\*\*/)
+                for (let i = 0; i < boldParts.length; i++) {
+                  if (boldParts[i]) runs.push(new TextRun({ text: boldParts[i], bold: i % 2 === 1, size: 22 }))
+                }
+                contentSections.push(new Paragraph({ bullet: { level: 0 }, spacing: { after: 60 }, children: runs }))
+              } else if (/^\d+\.\s/.test(trimmed)) {
+                const numText = trimmed.replace(/^\d+\.\s*/, '')
+                const runs: InstanceType<typeof TextRun>[] = []
+                const boldParts = numText.split(/\*\*(.*?)\*\*/)
+                for (let i = 0; i < boldParts.length; i++) {
+                  if (boldParts[i]) runs.push(new TextRun({ text: boldParts[i], bold: i % 2 === 1, size: 22 }))
+                }
+                contentSections.push(new Paragraph({ numbering: { reference: 'proposal-numbering', level: 0 }, spacing: { after: 60 }, children: runs }))
+              } else {
+                const runs: InstanceType<typeof TextRun>[] = []
+                const boldParts = trimmed.split(/\*\*(.*?)\*\*/)
+                for (let i = 0; i < boldParts.length; i++) {
+                  if (boldParts[i]) runs.push(new TextRun({ text: boldParts[i], bold: i % 2 === 1, size: 22 }))
+                }
+                contentSections.push(new Paragraph({ spacing: { after: 120 }, children: runs }))
+              }
+            }
+          } else {
+            contentSections.push(
+              new Paragraph({
+                spacing: { after: 200 },
+                children: [new TextRun({ text: '[Draft not yet generated for this section]', italics: true, size: 20, color: 'AAAAAA' })],
+              })
+            )
+          }
+        }
+      }
+
+      const wordDoc = new Document({
+        features: { updateFields: true },
+        numbering: {
+          config: [{
+            reference: 'proposal-numbering',
+            levels: [{ level: 0, format: 'decimal', text: '%1.', alignment: AlignmentType.LEFT }],
+          }],
+        },
+        sections: [{
+          properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
+          children: [...titlePage, ...tocSection, ...contentSections],
+        }],
+      })
+
+      const blob = await Packer.toBlob(wordDoc)
+      saveAs(blob, `Proposal_${taskOrder?.title?.replace(/\s+/g, '_') || 'export'}.docx`)
+    } finally {
+      setExporting('')
+    }
+  }
+
   async function exportComplianceMatrixExcel() {
     if (!id) return
     setExporting('compliance_excel')
@@ -530,6 +679,7 @@ export default function ExportCenter() {
 
   const exports = [
     { label: 'Compiled Proposal', format: 'PDF', icon: BookOpen, action: exportProposalPdf, key: 'proposal_outline', exportKey: 'proposal_pdf' },
+    { label: 'Compiled Proposal', format: 'Word (.docx)', icon: FileText, action: exportProposalWord, key: 'proposal_outline', exportKey: 'proposal_word' },
     { label: 'Compliance Matrix', format: 'Excel (.xlsx)', icon: FileSpreadsheet, action: exportComplianceMatrixExcel, key: 'compliance_matrix', exportKey: 'compliance_excel' },
     { label: 'Quote Comparison', format: 'Excel (.xlsx)', icon: FileSpreadsheet, action: exportQuoteComparisonExcel, key: '', exportKey: 'quote_excel' },
     { label: 'Executive Summary', format: 'PDF', icon: FileText, action: exportExecutiveSummaryPdf, key: 'executive_summary', exportKey: 'exec_pdf' },
