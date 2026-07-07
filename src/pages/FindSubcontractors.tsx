@@ -14,7 +14,7 @@ import {
   Search, MapPin, Mail, Phone,
   Users, BadgeCheck, Eye, Loader2,
   Database, Building, Building2, Globe, Star, Filter, Zap, Send, CheckCircle, Unlock,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Shield, Lock, AlertTriangle,
 } from 'lucide-react'
 
 interface SubResult {
@@ -97,11 +97,16 @@ const US_STATES = [
 const PAGE_SIZE = 20
 
 export default function FindSubcontractors() {
-  const { isEnterprise } = useTier()
+  const { isEnterprise, isGrowth, hasActiveSubscription, status: subStatus } = useTier()
   const { user, profile } = useAuth()
   const { currentOrg } = useOrg()
   const { isConnected, connect, connectionsUsedThisMonth, connectionsLimit, canConnect } = useSubConnections()
   const isAdmin = profile?.is_global_admin === true
+  const isPaidUser = isAdmin || isEnterprise || isGrowth
+  const isTrialUser = !isPaidUser && subStatus === 'trialing'
+  const TRIAL_RESULT_LIMIT = 5
+  const [dailySearchCount, setDailySearchCount] = useState(0)
+  const [rateLimited, setRateLimited] = useState(false)
   const [connectingId, setConnectingId] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
   const [results, setResults] = useState<SubResult[]>([])
@@ -135,6 +140,45 @@ export default function FindSubcontractors() {
   const [localRadius, setLocalRadius] = useState(50)
   const [projectZip, setProjectZip] = useState('')
   const [showRfqCompose, setShowRfqCompose] = useState(false)
+
+  // Load daily search count for rate limit display
+  useEffect(() => {
+    if (user && currentOrg?.id) {
+      const dayStart = new Date()
+      dayStart.setHours(0, 0, 0, 0)
+      supabase
+        .from('sub_access_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .in('action_type', ['search', 'page_browse'])
+        .gte('created_at', dayStart.toISOString())
+        .then(({ count }) => { setDailySearchCount(count || 0) })
+    }
+  }, [user, currentOrg?.id])
+
+  // Audit logger for subcontractor access
+  async function logAccess(actionType: 'search' | 'connect' | 'view_profile' | 'page_browse', metadata: Record<string, any> = {}) {
+    if (!user || !currentOrg?.id) return
+    try {
+      await supabase.from('sub_access_log').insert({
+        user_id: user.id,
+        org_id: currentOrg.id,
+        action_type: actionType,
+        metadata,
+      })
+      if (actionType === 'search' || actionType === 'page_browse') {
+        setDailySearchCount(prev => prev + 1)
+      }
+    } catch {} // Graceful fallback if table doesn't exist
+  }
+
+  // Get daily search limit based on plan
+  function getDailySearchLimit(): number {
+    if (isAdmin) return Infinity
+    if (isEnterprise) return 200
+    if (isGrowth) return 50
+    return 15 // Trial/no subscription
+  }
 
   useEffect(() => {
     fetchStats()
@@ -211,8 +255,30 @@ export default function FindSubcontractors() {
   }
 
   const performSearch = useCallback(async (pageNum: number = 0) => {
+    // Enforce rate limit check
+    const limit = getDailySearchLimit()
+    if (dailySearchCount >= limit && !isAdmin) {
+      setRateLimited(true)
+      setLoading(false)
+      return
+    }
+
+    // Block access for inactive subscriptions (not trial, not active)
+    if (!hasActiveSubscription && !isAdmin) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setSearched(true)
+
+    // Log the search for audit trail
+    logAccess(pageNum === 0 ? 'search' : 'page_browse', {
+      search: searchRef.current,
+      trade: filterTradeRef.current,
+      state: filterStateRef.current,
+      page: pageNum,
+    })
 
     // Always read from refs — guaranteed to be current regardless of closure timing
     const activeTrade = filterTradeRef.current
@@ -307,14 +373,20 @@ export default function FindSubcontractors() {
 
     if (!error) {
       // Tag master results with source
-      const masterResults = (data || []).map(s => ({ ...s, _source: 'master' as const }))
+      let masterResults = (data || []).map(s => ({ ...s, _source: 'master' as const }))
+      
+      // Trial users: limit to TRIAL_RESULT_LIMIT results as a preview
+      if (isTrialUser && !isAdmin) {
+        masterResults = masterResults.slice(0, TRIAL_RESULT_LIMIT)
+      }
+
       // Merge: org subs first (on page 0), then master
       if (pageNum === 0 && orgResults.length > 0) {
         setResults([...orgResults, ...masterResults])
       } else {
         setResults(masterResults)
       }
-      setTotalCount((count || 0) + orgResults.length)
+      setTotalCount(isTrialUser ? Math.min((count || 0), TRIAL_RESULT_LIMIT) : (count || 0) + orgResults.length)
       setPage(pageNum)
     }
     setLoading(false)
@@ -337,8 +409,57 @@ export default function FindSubcontractors() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
+  // No subscription at all — show full gate
+  if (!hasActiveSubscription && !isAdmin) {
+    return (
+      <div className="max-w-2xl mx-auto mt-16 text-center space-y-6">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+          <Lock size={32} className="text-red-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Subscription Required</h1>
+        <p className="text-gray-600">
+          Access to the subcontractor database requires an active subscription.
+          Our network includes 18,000+ verified subcontractors across all trade categories.
+        </p>
+        <a href="/pricing" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
+          View Plans
+        </a>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {/* Security & Usage Banner */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Rate limit warning */}
+        {rateLimited && (
+          <div className="w-full flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+            <AlertTriangle size={16} />
+            <span className="font-medium">Daily search limit reached ({getDailySearchLimit()} searches/day).</span>
+            <span>Upgrade your plan for higher limits. Resets at midnight.</span>
+          </div>
+        )}
+        {/* Trial user limitation notice */}
+        {isTrialUser && (
+          <div className="w-full flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+            <Shield size={16} />
+            <span className="font-medium">Trial Preview Mode</span>
+            <span>— You can see up to {TRIAL_RESULT_LIMIT} results per search. Subscribe to a paid plan for full access to all {stats?.total.toLocaleString() || '18,000+'} subcontractors.</span>
+            <a href="/pricing" className="ml-auto text-amber-700 font-medium underline hover:text-amber-900">Upgrade</a>
+          </div>
+        )}
+        {/* Connection usage indicator */}
+        {!isAdmin && isPaidUser && (
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Shield size={12} />
+            Connections: {connectionsUsedThisMonth}/{connectionsLimit === Infinity ? '∞' : connectionsLimit} this month
+            {' · '}
+            Searches: {dailySearchCount}/{getDailySearchLimit()} today
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Find Subcontractors</h1>
@@ -1022,6 +1143,11 @@ export default function FindSubcontractors() {
                     <Eye size={14} /> View Profile
                   </Link>
                   {!isAdmin && !isConnected(sub.id) ? (
+                    isTrialUser ? (
+                      <span className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded-lg">
+                        <Lock size={12} /> Subscribe to Connect
+                      </span>
+                    ) : (
                     <button
                       onClick={async (e) => {
                         e.stopPropagation()
@@ -1037,6 +1163,7 @@ export default function FindSubcontractors() {
                       {connectingId === sub.id ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
                       Reveal Contact
                     </button>
+                    )
                   ) : !isAdmin ? (
                     <span className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 bg-emerald-50 rounded-lg">
                       <CheckCircle size={12} /> Connected
@@ -1060,8 +1187,25 @@ export default function FindSubcontractors() {
             </div>
           ))}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Trial user upsell after results */}
+          {isTrialUser && searched && results.length > 0 && (
+            <div className="mt-4 p-5 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl text-center space-y-3">
+              <div className="flex items-center justify-center gap-2 text-blue-800 font-semibold">
+                <Lock size={16} />
+                Showing {TRIAL_RESULT_LIMIT} of {stats?.total.toLocaleString() || '18,000+'} subcontractors
+              </div>
+              <p className="text-sm text-blue-700">
+                Subscribe to a Growth or Enterprise plan to unlock the full database, including advanced AI matching,
+                contact reveal capabilities, and RFQ distribution to matched subcontractors.
+              </p>
+              <a href="/pricing" className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+                View Plans & Unlock Full Access
+              </a>
+            </div>
+          )}
+
+          {/* Pagination — hidden for trial users */}
+          {totalPages > 1 && !isTrialUser && (
             <div className="flex items-center justify-center gap-2 pt-4">
               <button
                 onClick={() => performSearch(page - 1)}
