@@ -7,120 +7,124 @@ import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
 import TierGate from './components/TierGate'
 import NotFound from './pages/NotFound'
+import CookieConsent from './components/CookieConsent'
+// Critical pages loaded eagerly (login, dashboard, landing)
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import TaskOrders from './pages/TaskOrders'
-import NewTaskOrder from './pages/NewTaskOrder'
-import TaskOrderDetail from './pages/TaskOrderDetail'
-import Subcontractors from './pages/Subcontractors'
-import ComplianceMatrices from './pages/ComplianceMatrices'
-import ComplianceMatrix from './pages/ComplianceMatrix'
-import RfqPackages from './pages/RfqPackages'
-import ClarificationQuestions from './pages/ClarificationQuestions'
-import PricingRisks from './pages/PricingRisks'
-import ExecutiveSummaryPage from './pages/ExecutiveSummary'
-import QuoteManagement from './pages/QuoteManagement'
-import VendorTracker from './pages/VendorTracker'
-import TaskOrderComparisonPage from './pages/TaskOrderComparison'
-import ExportCenter from './pages/ExportCenter'
-import SowTracker from './pages/SowTracker'
-import BidSummary from './pages/BidSummary'
-import PricingMatrix from './pages/PricingMatrix'
-import HelpCenter from './pages/HelpCenter'
-import DebriefPage from './pages/Debrief'
-import IntelligenceLibrary from './pages/IntelligenceLibrary'
-import SubcontractorCapture from './pages/SubcontractorCapture'
-import SubcontractorPortal from './pages/SubcontractorPortal'
-import QuoteFormBuilder from './pages/QuoteFormBuilder'
-import OrgSettings from './pages/OrgSettings'
-import PipelineView from './pages/PipelineView'
-import Integrations from './pages/Integrations'
-import Analytics from './pages/Analytics'
-import Contracts from './pages/Contracts'
-import NewContract from './pages/NewContract'
-import ContractDetail from './pages/ContractDetail'
-import BidDecisionEngine from './pages/BidDecisionEngine'
-import PostAward from './pages/PostAward'
-import TeamingTracker from './pages/TeamingTracker'
-import Billing from './pages/Billing'
-import ResetPassword from './pages/ResetPassword'
-import AccountSettings from './pages/AccountSettings'
-import AdminAnalytics from './pages/AdminAnalytics'
-import GlobalAdminSettings from './pages/GlobalAdminSettings'
-import EnterpriseEmailSettings from './pages/EnterpriseEmailSettings'
-import SSOSettings from './pages/SSOSettings'
-import AgentHub from './pages/AgentHub'
-import AdminBetaInvites from './pages/AdminBetaInvites'
-import BetaApply from './pages/BetaApply'
-import BetaThankYou from './pages/BetaThankYou'
-import BetaFeedback from './pages/BetaFeedback'
-import OpportunityDiscovery from './pages/OpportunityDiscovery'
-import SystemHealth from './pages/SystemHealth'
-import DocumentLibrary from './pages/DocumentLibrary'
-import AiAuditLog from './pages/AiAuditLog'
-import AuditLog from './pages/AuditLog'
-import MasterSubDatabase from './pages/MasterSubDatabase'
-import FindSubcontractors from './pages/FindSubcontractors'
-import OrgSubcontractors from './pages/OrgSubcontractors'
-import ClaimProfile from './pages/ClaimProfile'
-import MySubProfile from './pages/MySubProfile'
-import AdminVerificationReview from './pages/AdminVerificationReview'
-import SubProfilePublic from './pages/SubProfilePublic'
-import ClaimLookup from './pages/ClaimLookup'
-import CreateSubProfile from './pages/CreateSubProfile'
-import AdminPartners from './pages/AdminPartners'
-import PastPerformance from './pages/PastPerformance'
-import ContractVehicles from './pages/ContractVehicles'
-import CaptureGates from './pages/CaptureGates'
-import ColorTeamReviews from './pages/ColorTeamReviews'
-import LaborCategories from './pages/LaborCategories'
-import SBSubcontractingPlan from './pages/SBSubcontractingPlan'
-import SectionLMAnalysis from './pages/SectionLMAnalysis'
-import CompetitiveIntelligence from './pages/CompetitiveIntelligence'
-import PriceToWin from './pages/PriceToWin'
-import ProjectPastPerformance from './pages/ProjectPastPerformance'
-import GateTemplates from './pages/GateTemplates'
-import ProposalOutline from './pages/ProposalOutline'
-import WinThemes from './pages/WinThemes'
-import OciScreening from './pages/OciScreening'
-import ProposalSchedule from './pages/ProposalSchedule'
-import TeamingEvaluator from './pages/TeamingEvaluator'
-import CparsTracker from './pages/CparsTracker'
-import FiscalCalendar from './pages/FiscalCalendar'
-import ProtestRisk from './pages/ProtestRisk'
-import OralPresPrep from './pages/OralPresPrep'
-import SourceSelection from './pages/SourceSelection'
-import ContactsPage from './pages/Contacts'
-
 import LandingPage from './landing/pages/LandingPage'
-import ProductPage from './landing/pages/ProductPage'
-import HowItWorksPage from './landing/pages/HowItWorksPage'
-import SolutionsPage from './landing/pages/SolutionsPage'
-import IntegrationsOverviewPage from './landing/pages/IntegrationsPage'
-import PricingPage from './landing/pages/PricingPage'
-import ContactPage from './landing/pages/ContactPage'
-import PrivacyPage from './landing/pages/PrivacyPage'
-import TermsPage from './landing/pages/TermsPage'
-import CookiesPage from './landing/pages/CookiesPage'
-import DPAPage from './landing/pages/DPAPage'
-import AIDisclaimerPage from './landing/pages/AIDisclaimerPage'
-import ROIPage from './landing/pages/ROIPage'
-import DemoPage from './landing/pages/DemoPage'
-import AiDataProcessingPage from './landing/pages/AiDataProcessingPage'
-import AboutPage from './landing/pages/AboutPage'
-import SLAPage from './landing/pages/SLAPage'
-import SecurityPage from './landing/pages/SecurityPage'
-import ApiDocsPage from './landing/pages/ApiDocsPage'
-import StatusPage from './landing/pages/StatusPage'
-import ComplianceMatrixGuidePage from './landing/pages/ComplianceMatrixGuidePage'
-import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
-import SamGovGuidePage from './landing/pages/SamGovGuidePage'
-import ComparePage from './landing/pages/ComparePage'
-import ForSubcontractorsPage from './landing/pages/ForSubcontractorsPage'
-import ExploreNetworkPage from './landing/pages/ExploreNetworkPage'
-import FoundingPartnersPage from './landing/pages/FoundingPartnersPage'
-import FoundingPartnersThankYouPage from './landing/pages/FoundingPartnersThankYouPage'
-import PartnerTermsPage from './landing/pages/PartnerTermsPage'
+
+// All other pages lazy-loaded for code splitting
+const TaskOrders = lazy(() => import('./pages/TaskOrders'))
+const NewTaskOrder = lazy(() => import('./pages/NewTaskOrder'))
+const TaskOrderDetail = lazy(() => import('./pages/TaskOrderDetail'))
+const Subcontractors = lazy(() => import('./pages/Subcontractors'))
+const ComplianceMatrices = lazy(() => import('./pages/ComplianceMatrices'))
+const ComplianceMatrix = lazy(() => import('./pages/ComplianceMatrix'))
+const RfqPackages = lazy(() => import('./pages/RfqPackages'))
+const ClarificationQuestions = lazy(() => import('./pages/ClarificationQuestions'))
+const PricingRisks = lazy(() => import('./pages/PricingRisks'))
+const ExecutiveSummaryPage = lazy(() => import('./pages/ExecutiveSummary'))
+const QuoteManagement = lazy(() => import('./pages/QuoteManagement'))
+const VendorTracker = lazy(() => import('./pages/VendorTracker'))
+const TaskOrderComparisonPage = lazy(() => import('./pages/TaskOrderComparison'))
+const ExportCenter = lazy(() => import('./pages/ExportCenter'))
+const SowTracker = lazy(() => import('./pages/SowTracker'))
+const BidSummary = lazy(() => import('./pages/BidSummary'))
+const PricingMatrix = lazy(() => import('./pages/PricingMatrix'))
+const HelpCenter = lazy(() => import('./pages/HelpCenter'))
+const DebriefPage = lazy(() => import('./pages/Debrief'))
+const IntelligenceLibrary = lazy(() => import('./pages/IntelligenceLibrary'))
+const SubcontractorCapture = lazy(() => import('./pages/SubcontractorCapture'))
+const SubcontractorPortal = lazy(() => import('./pages/SubcontractorPortal'))
+const QuoteFormBuilder = lazy(() => import('./pages/QuoteFormBuilder'))
+const OrgSettings = lazy(() => import('./pages/OrgSettings'))
+const PipelineView = lazy(() => import('./pages/PipelineView'))
+const Integrations = lazy(() => import('./pages/Integrations'))
+const Analytics = lazy(() => import('./pages/Analytics'))
+const Contracts = lazy(() => import('./pages/Contracts'))
+const NewContract = lazy(() => import('./pages/NewContract'))
+const ContractDetail = lazy(() => import('./pages/ContractDetail'))
+const BidDecisionEngine = lazy(() => import('./pages/BidDecisionEngine'))
+const PostAward = lazy(() => import('./pages/PostAward'))
+const TeamingTracker = lazy(() => import('./pages/TeamingTracker'))
+const Billing = lazy(() => import('./pages/Billing'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const AccountSettings = lazy(() => import('./pages/AccountSettings'))
+const AdminAnalytics = lazy(() => import('./pages/AdminAnalytics'))
+const GlobalAdminSettings = lazy(() => import('./pages/GlobalAdminSettings'))
+const EnterpriseEmailSettings = lazy(() => import('./pages/EnterpriseEmailSettings'))
+const SSOSettings = lazy(() => import('./pages/SSOSettings'))
+const AgentHub = lazy(() => import('./pages/AgentHub'))
+const AdminBetaInvites = lazy(() => import('./pages/AdminBetaInvites'))
+const BetaApply = lazy(() => import('./pages/BetaApply'))
+const BetaThankYou = lazy(() => import('./pages/BetaThankYou'))
+const BetaFeedback = lazy(() => import('./pages/BetaFeedback'))
+const OpportunityDiscovery = lazy(() => import('./pages/OpportunityDiscovery'))
+const SystemHealth = lazy(() => import('./pages/SystemHealth'))
+const DocumentLibrary = lazy(() => import('./pages/DocumentLibrary'))
+const AiAuditLog = lazy(() => import('./pages/AiAuditLog'))
+const AuditLog = lazy(() => import('./pages/AuditLog'))
+const MasterSubDatabase = lazy(() => import('./pages/MasterSubDatabase'))
+const FindSubcontractors = lazy(() => import('./pages/FindSubcontractors'))
+const OrgSubcontractors = lazy(() => import('./pages/OrgSubcontractors'))
+const ClaimProfile = lazy(() => import('./pages/ClaimProfile'))
+const MySubProfile = lazy(() => import('./pages/MySubProfile'))
+const AdminVerificationReview = lazy(() => import('./pages/AdminVerificationReview'))
+const SubProfilePublic = lazy(() => import('./pages/SubProfilePublic'))
+const ClaimLookup = lazy(() => import('./pages/ClaimLookup'))
+const CreateSubProfile = lazy(() => import('./pages/CreateSubProfile'))
+const AdminPartners = lazy(() => import('./pages/AdminPartners'))
+const PastPerformance = lazy(() => import('./pages/PastPerformance'))
+const ContractVehicles = lazy(() => import('./pages/ContractVehicles'))
+const CaptureGates = lazy(() => import('./pages/CaptureGates'))
+const ColorTeamReviews = lazy(() => import('./pages/ColorTeamReviews'))
+const LaborCategories = lazy(() => import('./pages/LaborCategories'))
+const SBSubcontractingPlan = lazy(() => import('./pages/SBSubcontractingPlan'))
+const SectionLMAnalysis = lazy(() => import('./pages/SectionLMAnalysis'))
+const CompetitiveIntelligence = lazy(() => import('./pages/CompetitiveIntelligence'))
+const PriceToWin = lazy(() => import('./pages/PriceToWin'))
+const ProjectPastPerformance = lazy(() => import('./pages/ProjectPastPerformance'))
+const GateTemplates = lazy(() => import('./pages/GateTemplates'))
+const ProposalOutline = lazy(() => import('./pages/ProposalOutline'))
+const WinThemes = lazy(() => import('./pages/WinThemes'))
+const OciScreening = lazy(() => import('./pages/OciScreening'))
+const ProposalSchedule = lazy(() => import('./pages/ProposalSchedule'))
+const TeamingEvaluator = lazy(() => import('./pages/TeamingEvaluator'))
+const CparsTracker = lazy(() => import('./pages/CparsTracker'))
+const FiscalCalendar = lazy(() => import('./pages/FiscalCalendar'))
+const ProtestRisk = lazy(() => import('./pages/ProtestRisk'))
+const OralPresPrep = lazy(() => import('./pages/OralPresPrep'))
+const SourceSelection = lazy(() => import('./pages/SourceSelection'))
+const ContactsPage = lazy(() => import('./pages/Contacts'))
+
+const ProductPage = lazy(() => import('./landing/pages/ProductPage'))
+const HowItWorksPage = lazy(() => import('./landing/pages/HowItWorksPage'))
+const SolutionsPage = lazy(() => import('./landing/pages/SolutionsPage'))
+const IntegrationsOverviewPage = lazy(() => import('./landing/pages/IntegrationsPage'))
+const PricingPage = lazy(() => import('./landing/pages/PricingPage'))
+const ContactPage = lazy(() => import('./landing/pages/ContactPage'))
+const PrivacyPage = lazy(() => import('./landing/pages/PrivacyPage'))
+const TermsPage = lazy(() => import('./landing/pages/TermsPage'))
+const CookiesPage = lazy(() => import('./landing/pages/CookiesPage'))
+const DPAPage = lazy(() => import('./landing/pages/DPAPage'))
+const AIDisclaimerPage = lazy(() => import('./landing/pages/AIDisclaimerPage'))
+const ROIPage = lazy(() => import('./landing/pages/ROIPage'))
+const DemoPage = lazy(() => import('./landing/pages/DemoPage'))
+const AiDataProcessingPage = lazy(() => import('./landing/pages/AiDataProcessingPage'))
+const AboutPage = lazy(() => import('./landing/pages/AboutPage'))
+const SLAPage = lazy(() => import('./landing/pages/SLAPage'))
+const SecurityPage = lazy(() => import('./landing/pages/SecurityPage'))
+const ApiDocsPage = lazy(() => import('./landing/pages/ApiDocsPage'))
+const StatusPage = lazy(() => import('./landing/pages/StatusPage'))
+const ComplianceMatrixGuidePage = lazy(() => import('./landing/pages/ComplianceMatrixGuidePage'))
+const GovProposalGuidePage = lazy(() => import('./landing/pages/GovProposalGuidePage'))
+const SamGovGuidePage = lazy(() => import('./landing/pages/SamGovGuidePage'))
+const ComparePage = lazy(() => import('./landing/pages/ComparePage'))
+const ForSubcontractorsPage = lazy(() => import('./landing/pages/ForSubcontractorsPage'))
+const ExploreNetworkPage = lazy(() => import('./landing/pages/ExploreNetworkPage'))
+const FoundingPartnersPage = lazy(() => import('./landing/pages/FoundingPartnersPage'))
+const FoundingPartnersThankYouPage = lazy(() => import('./landing/pages/FoundingPartnersThankYouPage'))
+const PartnerTermsPage = lazy(() => import('./landing/pages/PartnerTermsPage'))
 
 function GlobalAdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
@@ -210,6 +214,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <AuthProvider>
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
         <Routes>
           {/* Public landing pages */}
           <Route path="/" element={<HomePage />} />
@@ -395,6 +400,8 @@ export default function App() {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
+        <CookieConsent />
       </AuthProvider>
     </BrowserRouter>
   )

@@ -70,6 +70,9 @@ export default async (req: Request, _context: Context) => {
     if (action === "full-cycle" || action === "engagement-decay") {
       results.engagement_decay = await runEngagementDecay()
     }
+    if (action === "full-cycle" || action === "prune-usage") {
+      results.prune_usage = await pruneOldUsageRecords()
+    }
     if (action === "archive-no-email") {
       results.archive_no_email = await archiveNoEmailRecords()
     }
@@ -532,4 +535,29 @@ async function logHygieneAction(subId: string, email: string, action: string, re
       performed_at: new Date().toISOString(),
     })
   } catch { /* logging is best-effort */ }
+}
+
+/**
+ * PRUNE OLD USAGE RECORDS
+ * Delete account_usage and sub_access_log records older than 90 days
+ * to keep these tables small and query-performant.
+ */
+async function pruneOldUsageRecords() {
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { count: usagePruned } = await supabase
+    .from("account_usage")
+    .delete({ count: "exact" })
+    .lt("created_at", ninetyDaysAgo)
+
+  const { count: accessLogPruned } = await supabase
+    .from("sub_access_log")
+    .delete({ count: "exact" })
+    .lt("created_at", ninetyDaysAgo)
+
+  return {
+    account_usage_deleted: usagePruned || 0,
+    sub_access_log_deleted: accessLogPruned || 0,
+    cutoff_date: ninetyDaysAgo,
+  }
 }
