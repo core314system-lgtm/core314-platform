@@ -8,7 +8,7 @@ const supabase = createClient(
 
 interface NotificationPayload {
   org_id: string
-  type: 'quote_received' | 'question_asked' | 'profile_claimed' | 'compliance_gap' | 'deadline_approaching' | 'system' | 'outreach'
+  type: 'quote_received' | 'question_asked' | 'profile_claimed' | 'compliance_gap' | 'deadline_approaching' | 'system' | 'outreach' | 'gate_decision' | 'task_assigned' | 'comment_added' | 'document_uploaded'
   title: string
   message: string
   link?: string

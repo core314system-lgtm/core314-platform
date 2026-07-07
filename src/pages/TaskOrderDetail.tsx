@@ -14,6 +14,9 @@ import WorkflowBar from '../components/WorkflowBar'
 import type { SowCoverageItem } from '../components/WorkflowBar'
 import AuditTrail from '../components/AuditTrail'
 import ProjectTeam from '../components/ProjectTeam'
+import ProjectContacts from '../components/ProjectContacts'
+import ProjectActivityFeed from '../components/ProjectActivityFeed'
+import ProjectTasks from '../components/ProjectTasks'
 import BidReadiness from '../components/BidReadiness'
 import SmartRecommendations from '../components/SmartRecommendations'
 import QAManagement from '../components/QAManagement'
@@ -1168,6 +1171,11 @@ export default function TaskOrderDetail() {
       {/* Project Team + Audit Trail side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ProjectTeam taskOrderId={id!} />
+        <ProjectContacts projectId={id!} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ProjectTasks projectId={id!} />
+        <ProjectActivityFeed projectId={id!} />
         <AuditTrail key={auditKey} taskOrderId={id!} projectTypeId={taskOrder.project_type} />
       </div>
 

@@ -63,6 +63,23 @@ const compliance = [
   { label: 'HIPAA', desc: 'Platform can be configured for HIPAA-compliant use cases with BAA', status: 'On Request' },
 ]
 
+const dataHandling = [
+  { title: 'What Procuvex Processes', items: [
+    'Publicly available SAM.gov opportunity data and entity registrations',
+    'RFP/SOW documents you upload for AI analysis (stored in your isolated tenant)',
+    'Your past performance citations, compliance matrices, and capture data',
+    'Subcontractor profiles sourced from public SAM.gov registrations',
+    'Your team\'s project management data (tasks, gates, timelines)',
+  ]},
+  { title: 'What Procuvex Does NOT Handle', items: [
+    'Classified or Secret-level information (no facility clearance)',
+    'Controlled Unclassified Information (CUI) unless enterprise CUI controls are activated',
+    'Payment card data (handled entirely by Stripe PCI DSS Level 1)',
+    'Government network credentials or CAC/PIV authentication',
+    'Source selection sensitive information or pre-decisional data',
+  ]},
+]
+
 const practices = [
   'Input sanitization and XSS prevention on all user inputs',
   'CSRF protection on all authenticated endpoints',
@@ -178,8 +195,46 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      {/* Security Practices */}
+      {/* Data Handling Transparency */}
       <section className="py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
+            <motion.h2 variants={fadeUp} className="text-2xl font-bold text-slate-900 mb-4 text-center">
+              Data Handling Transparency
+            </motion.h2>
+            <motion.p variants={fadeUp} className="text-sm text-slate-500 text-center mb-10 max-w-2xl mx-auto">
+              Government contractors need to know exactly what data touches our platform. Here is a clear breakdown of what Procuvex processes and what it does not.
+            </motion.p>
+            <div className="grid sm:grid-cols-2 gap-6">
+              {dataHandling.map(section => (
+                <motion.div key={section.title} variants={fadeUp} className="bg-white rounded-xl border border-slate-200 p-6">
+                  <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    {section.title.includes('NOT') ? (
+                      <Shield className="w-4 h-4 text-red-500" />
+                    ) : (
+                      <Database className="w-4 h-4 text-blue-500" />
+                    )}
+                    {section.title}
+                  </h4>
+                  <ul className="space-y-2">
+                    {section.items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                        <CheckCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                          section.title.includes('NOT') ? 'text-slate-400' : 'text-green-500'
+                        }`} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Security Practices */}
+      <section className="py-16 bg-slate-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-2xl font-bold text-slate-900 mb-10 text-center">

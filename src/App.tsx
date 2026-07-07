@@ -90,6 +90,7 @@ import FiscalCalendar from './pages/FiscalCalendar'
 import ProtestRisk from './pages/ProtestRisk'
 import OralPresPrep from './pages/OralPresPrep'
 import SourceSelection from './pages/SourceSelection'
+import ContactsPage from './pages/Contacts'
 
 import LandingPage from './landing/pages/LandingPage'
 import ProductPage from './landing/pages/ProductPage'
@@ -109,6 +110,7 @@ import AiDataProcessingPage from './landing/pages/AiDataProcessingPage'
 import AboutPage from './landing/pages/AboutPage'
 import SLAPage from './landing/pages/SLAPage'
 import SecurityPage from './landing/pages/SecurityPage'
+import ApiDocsPage from './landing/pages/ApiDocsPage'
 import StatusPage from './landing/pages/StatusPage'
 import ComplianceMatrixGuidePage from './landing/pages/ComplianceMatrixGuidePage'
 import GovProposalGuidePage from './landing/pages/GovProposalGuidePage'
@@ -229,6 +231,7 @@ export default function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/sla" element={<SLAPage />} />
           <Route path="/security" element={<SecurityPage />} />
+          <Route path="/api-docs" element={<ApiDocsPage />} />
           <Route path="/status" element={<StatusPage />} />
 
           {/* Resource Guides (SEO) */}
@@ -297,6 +300,9 @@ export default function App() {
           <Route path="/task-orders" element={<Navigate to="/projects" replace />} />
           <Route path="/task-orders/new" element={<Navigate to="/projects/new" replace />} />
           <Route path="/task-orders/*" element={<Navigate to="/projects" replace />} />
+
+          {/* Contacts */}
+          <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
 
           {/* Contracts */}
           <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />

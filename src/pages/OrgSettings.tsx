@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Settings, Users, UserPlus, Shield, Crown, Trash2, Check, Building2, Mail, Clock, X, RefreshCw, FileText, Eye, EyeOff, LayoutTemplate, Bell } from 'lucide-react'
 import OrgDefaultTemplate from '../components/OrgDefaultTemplate'
 import NotificationPreferences from '../components/NotificationPreferences'
+import SlackWebhookConfig from '../components/SlackWebhookConfig'
 import type { OrgMember } from '../contexts/OrgContext'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -661,8 +662,11 @@ export default function OrgSettings() {
       )}
 
       {tab === 'notifications' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <NotificationPreferences />
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <NotificationPreferences />
+          </div>
+          <SlackWebhookConfig orgId={currentOrg?.id || ''} isAdmin={canManage} />
         </div>
       )}
     </div>

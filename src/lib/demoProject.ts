@@ -131,5 +131,98 @@ export async function seedDemoProject(userId: string, orgId: string): Promise<st
     await supabase.from('capture_gates').insert(gates)
   } catch { /* gates table might not exist */ }
 
+  // Seed past performance citations
+  try {
+    const pastPerf = [
+      {
+        org_id: orgId,
+        contract_title: 'Base Operations Support — Fort Hood',
+        contract_number: 'W91247-20-C-0018',
+        agency: 'US Army Installation Management Command',
+        period_of_performance: '2020-2025',
+        contract_value: '$38,200,000',
+        description: 'Comprehensive facility management, grounds maintenance, custodial services, pest control, refuse collection, and minor repairs for 1,800+ buildings on Fort Hood. Managed 320+ employees with zero safety incidents over 5 years.',
+        relevance_tags: ['BOSS', 'Facility Management', 'Grounds Maintenance', 'Army'],
+        cpars_quality: 5,
+        cpars_schedule: 4,
+        cpars_cost: 5,
+        cpars_management: 5,
+        cpars_small_business: 4,
+      },
+      {
+        org_id: orgId,
+        contract_title: 'Installation Support Services — Fort Stewart',
+        contract_number: 'W911SE-18-C-0092',
+        agency: 'US Army Garrison Fort Stewart',
+        period_of_performance: '2018-2023',
+        contract_value: '$29,500,000',
+        description: 'Integrated base operations including facility maintenance, grounds care, pest management, and environmental services. Successfully transitioned from incumbent within 60-day phase-in period.',
+        relevance_tags: ['Installation Support', 'Transition', 'Environmental', 'Army'],
+        cpars_quality: 4,
+        cpars_schedule: 5,
+        cpars_cost: 4,
+        cpars_management: 4,
+        cpars_small_business: 5,
+      },
+    ]
+    await supabase.from('past_performance').insert(pastPerf)
+  } catch { /* table might not exist */ }
+
+  // Seed contract vehicles
+  try {
+    const vehicles = [
+      {
+        org_id: orgId,
+        vehicle_name: 'GSA OASIS SB Pool 1',
+        vehicle_type: 'gwac',
+        contract_number: '47QRAA20D0001',
+        ordering_period_start: '2020-07-01',
+        ordering_period_end: '2030-06-30',
+        ceiling_value: 60000000000,
+        naics_codes: ['561210', '561720', '562111'],
+        sin_numbers: [],
+        scope_description: 'Management, Scientific, and Technical Consulting Services — Small Business pool for facility management and support services.',
+        contracting_agency: 'GSA',
+        status: 'active',
+      },
+      {
+        org_id: orgId,
+        vehicle_name: 'Army BOSS III IDIQ',
+        vehicle_type: 'agency_idiq',
+        contract_number: 'W911KB-22-D-0045',
+        ordering_period_start: '2022-10-01',
+        ordering_period_end: '2027-09-30',
+        ceiling_value: 500000000,
+        naics_codes: ['561210'],
+        sin_numbers: [],
+        scope_description: 'Base Operations Support Services III — Multiple installations across CONUS.',
+        contracting_agency: 'US Army',
+        status: 'active',
+      },
+    ]
+    await supabase.from('contract_vehicles').insert(vehicles)
+  } catch { /* table might not exist */ }
+
+  // Seed competitive intelligence
+  await saveAiOutput(project.id, 'competitive_intel', {
+    analysis_date: new Date().toISOString(),
+    competitors: [
+      { name: 'Vectrus (now V2X)', strengths: 'Incumbent on Fort Liberty BOSS. 8 years of institutional knowledge. Strong Army relationships.', weaknesses: 'Recent merger integration challenges. Higher overhead rates post-V2X consolidation.', estimated_win_probability: '35%' },
+      { name: 'KBR', strengths: 'Massive BOSS portfolio across DoD. Deep bench of key personnel. Price competitive at scale.', weaknesses: 'May not prioritize $47.5M contract given larger pursuits. Less agile than smaller competitors.', estimated_win_probability: '25%' },
+      { name: 'Akima (NANA Regional)', strengths: 'Alaska Native Corporation — 8(a) eligible. Strong SB subcontracting record.', weaknesses: 'Less experience in southeast US region. Smaller BOSS portfolio.', estimated_win_probability: '15%' },
+    ],
+    our_position: 'Strong contender with 2 directly relevant BOSS contracts (Fort Hood, Fort Stewart). Key differentiator: proven 60-day transition capability and zero safety incidents over 5 years. Need to address price competitiveness against V2X incumbent advantage.',
+  })
+
+  // Seed win themes
+  await saveAiOutput(project.id, 'win_themes', {
+    themes: [
+      { theme: 'Proven BOSS Excellence', evidence: 'Two completed Army BOSS contracts with Exceptional CPARS ratings — Fort Hood ($38.2M) and Fort Stewart ($29.5M). Zero safety incidents across 5 years of performance.', discriminator: 'No other competitor can demonstrate consecutive Exceptional ratings on comparable Army installations.' },
+      { theme: 'Rapid Transition Specialists', evidence: 'Completed Fort Stewart transition in 60 days (vs. 90-day requirement), retaining 85% of incumbent workforce. Proprietary transition methodology with knowledge capture framework.', discriminator: 'Documented transition playbook eliminates the #1 risk factor in BOSS contract changeovers.' },
+      { theme: 'Local Workforce Investment', evidence: 'Partnership with Fayetteville Technical Community College for workforce pipeline. Wages 12% above area median to ensure retention.', discriminator: 'Reduces workforce turnover risk that plagues competitors relying on minimum-wage labor models.' },
+    ],
+    generated_at: new Date().toISOString(),
+  })
+
   return project.id
 }
