@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useOrg } from '../contexts/OrgContext'
 import {
   Award, Plus, Trash2, Edit2, TrendingUp, TrendingDown,
   Minus, BarChart3, X, Save,
@@ -39,6 +40,7 @@ const RATING_FIELDS = [
 ] as const
 
 export default function CparsTracker() {
+  const { currentOrg } = useOrg()
   const [entries, setEntries] = useState<CparsEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -47,13 +49,14 @@ export default function CparsTracker() {
   const [form, setForm] = useState<Partial<CparsEntry>>({})
 
   useEffect(() => {
-    loadEntries()
-  }, [])
+    if (currentOrg?.id) loadEntries()
+  }, [currentOrg?.id])
 
   async function loadEntries() {
     const { data } = await supabase
       .from('cpars_ratings')
       .select('*')
+      .eq('org_id', currentOrg!.id)
       .order('created_at', { ascending: false })
 
     if (data) setEntries(data)
@@ -61,6 +64,7 @@ export default function CparsTracker() {
   }
 
   async function handleSave() {
+    if (!currentOrg?.id) return
     setSaving(true)
     const overall = RATING_FIELDS
       .map(f => form[f.key] as number | null)
@@ -70,7 +74,7 @@ export default function CparsTracker() {
     if (editingId) {
       await supabase.from('cpars_ratings').update({ ...form, overall: avg }).eq('id', editingId)
     } else {
-      await supabase.from('cpars_ratings').insert({ ...form, overall: avg })
+      await supabase.from('cpars_ratings').insert({ ...form, overall: avg, org_id: currentOrg.id })
     }
     setSaving(false)
     setShowForm(false)
