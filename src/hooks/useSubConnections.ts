@@ -39,16 +39,18 @@ export function useSubConnections(): SubConnectionsInfo {
     }
 
     try {
-      // Fetch all connections for this org
+      // Fetch all non-frozen connections for this org
       const { data: connections } = await supabase
         .from('sub_connections')
-        .select('sub_id, created_at')
+        .select('sub_id, created_at, frozen')
         .eq('org_id', currentOrg.id)
 
       if (connections) {
-        setConnectedSubIds(new Set(connections.map(c => c.sub_id)))
+        // Only active (non-frozen) connections count
+        const activeConnections = connections.filter(c => !c.frozen)
+        setConnectedSubIds(new Set(activeConnections.map(c => c.sub_id)))
 
-        // Count connections created this calendar month
+        // Count connections created this calendar month (all, including frozen)
         const now = new Date()
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
         const thisMonthCount = connections.filter(c => c.created_at >= monthStart).length
