@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { loadAiOutput } from '../lib/aiStorage'
 import type { TaskOrder, ComplianceItem, ExecutiveSummary, RfqPackage, ClarificationQuestion, PricingRisk, AnalysisResult } from '../lib/types'
-import { Download, ArrowLeft, FileSpreadsheet, FileText, Presentation } from 'lucide-react'
+import { Download, ArrowLeft, FileSpreadsheet, FileText, Presentation, BookOpen } from 'lucide-react'
 
 export default function ExportCenter() {
   const { id } = useParams<{ id: string }>()
@@ -28,7 +28,7 @@ export default function ExportCenter() {
 
   async function checkOutputs() {
     if (!id) return
-    const types = ['analysis', 'compliance_matrix', 'rfq_packages', 'clarification_questions', 'pricing_risks', 'executive_summary']
+    const types = ['analysis', 'compliance_matrix', 'rfq_packages', 'clarification_questions', 'pricing_risks', 'executive_summary', 'proposal_outline']
     const status: Record<string, boolean> = {}
     for (const t of types) {
       const data = await loadAiOutput(id, t)
@@ -36,6 +36,139 @@ export default function ExportCenter() {
     }
     setAiStatus(status)
     setLoading(false)
+  }
+
+  async function exportProposalPdf() {
+    if (!id) return
+    setExporting('proposal_pdf')
+    try {
+      interface VolumeSection { id: string; title: string; description: string; page_limit: string | null; eval_factors: string[]; status: string; assigned_to: string; notes: string; draft_content?: string }
+      interface ProposalVolume { id: string; name: string; sections: VolumeSection[] }
+      const data = await loadAiOutput<{ volumes: ProposalVolume[] }>(id, 'proposal_outline')
+      if (!data?.volumes?.length) { alert('No proposal outline data — generate an outline first'); return }
+      const hasDrafts = data.volumes.some(v => v.sections.some(s => s.draft_content))
+      if (!hasDrafts) { alert('No drafted sections — generate AI drafts in the Proposal Outline page first'); return }
+
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 72
+      const contentWidth = pageWidth - margin * 2
+      let y = margin
+
+      const addPageIfNeeded = (needed: number) => {
+        if (y + needed > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin }
+      }
+
+      // Title page
+      doc.setFontSize(24)
+      doc.setFont('helvetica', 'bold')
+      y = 200
+      const titleLines = doc.splitTextToSize(taskOrder?.title || 'Proposal', contentWidth)
+      doc.text(titleLines, pageWidth / 2, y, { align: 'center' })
+      y += titleLines.length * 30 + 20
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Proposal Document', pageWidth / 2, y, { align: 'center' })
+      y += 30
+      doc.setFontSize(11)
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, y, { align: 'center' })
+      doc.setTextColor(0, 0, 0)
+
+      // Table of Contents
+      doc.addPage()
+      y = margin
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Table of Contents', margin, y)
+      y += 30
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      for (const volume of data.volumes) {
+        doc.setFont('helvetica', 'bold')
+        doc.text(volume.name, margin, y)
+        y += 18
+        doc.setFont('helvetica', 'normal')
+        for (const section of volume.sections) {
+          doc.text(`    ${section.title}${section.draft_content ? '' : ' (no draft)'}`, margin, y)
+          y += 15
+          addPageIfNeeded(15)
+        }
+        y += 6
+      }
+
+      // Volume content
+      for (const volume of data.volumes) {
+        doc.addPage()
+        y = margin
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 58, 95)
+        const volLines = doc.splitTextToSize(volume.name, contentWidth)
+        doc.text(volLines, margin, y)
+        y += volLines.length * 22 + 10
+        doc.setDrawColor(30, 58, 95)
+        doc.setLineWidth(2)
+        doc.line(margin, y, pageWidth - margin, y)
+        y += 20
+        doc.setTextColor(0, 0, 0)
+
+        for (const section of volume.sections) {
+          addPageIfNeeded(60)
+          doc.setFontSize(14)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(45, 85, 140)
+          doc.text(section.title, margin, y)
+          y += 20
+          doc.setTextColor(0, 0, 0)
+
+          if (section.draft_content) {
+            doc.setFontSize(11)
+            doc.setFont('helvetica', 'normal')
+            const paragraphs = section.draft_content.split('\n')
+            for (const para of paragraphs) {
+              if (!para.trim()) { y += 6; continue }
+              const isBullet = para.trim().startsWith('- ') || para.trim().startsWith('\u2022 ')
+              const isHeading = para.trim().startsWith('#')
+              if (isHeading) {
+                addPageIfNeeded(24)
+                doc.setFontSize(12)
+                doc.setFont('helvetica', 'bold')
+                doc.text(para.replace(/^#+\s*/, ''), margin, y)
+                y += 18
+                doc.setFontSize(11)
+                doc.setFont('helvetica', 'normal')
+              } else if (isBullet) {
+                const bulletText = para.trim().replace(/^[-\u2022]\s*/, '')
+                const bulletLines = doc.splitTextToSize(bulletText, contentWidth - 20)
+                addPageIfNeeded(bulletLines.length * 14 + 4)
+                doc.text('\u2022', margin + 10, y)
+                doc.text(bulletLines, margin + 22, y)
+                y += bulletLines.length * 14 + 4
+              } else {
+                const paraLines = doc.splitTextToSize(para, contentWidth)
+                addPageIfNeeded(paraLines.length * 14 + 4)
+                doc.text(paraLines, margin, y)
+                y += paraLines.length * 14 + 8
+              }
+            }
+          } else {
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'italic')
+            doc.setTextColor(150, 150, 150)
+            doc.text('[Draft not yet generated for this section]', margin, y)
+            y += 16
+            doc.setTextColor(0, 0, 0)
+          }
+          y += 16
+        }
+      }
+
+      doc.save(`Proposal_${taskOrder?.title?.replace(/\s+/g, '_') || 'export'}.pdf`)
+    } finally {
+      setExporting('')
+    }
   }
 
   async function exportComplianceMatrixExcel() {
@@ -396,6 +529,7 @@ export default function ExportCenter() {
   if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>
 
   const exports = [
+    { label: 'Compiled Proposal', format: 'PDF', icon: BookOpen, action: exportProposalPdf, key: 'proposal_outline', exportKey: 'proposal_pdf' },
     { label: 'Compliance Matrix', format: 'Excel (.xlsx)', icon: FileSpreadsheet, action: exportComplianceMatrixExcel, key: 'compliance_matrix', exportKey: 'compliance_excel' },
     { label: 'Quote Comparison', format: 'Excel (.xlsx)', icon: FileSpreadsheet, action: exportQuoteComparisonExcel, key: '', exportKey: 'quote_excel' },
     { label: 'Executive Summary', format: 'PDF', icon: FileText, action: exportExecutiveSummaryPdf, key: 'executive_summary', exportKey: 'exec_pdf' },
