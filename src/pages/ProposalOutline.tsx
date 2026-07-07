@@ -157,32 +157,106 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
     setDraftingSection(section.id)
 
     try {
-      const analysis = await loadAiOutput<{ requirements: { text: string; category: string }[]; summary: string }>(projectId, 'analysis')
-      const winThemes = await loadAiOutput<{ themes: { theme: string; evidence: string }[] }>(projectId, 'win_themes')
-      const pastPerf = await loadAiOutput<{ citations: { title: string; relevance: string }[] }>(projectId, 'past_performance_match')
+      const [analysis, winThemes, pastPerf, sectionLM, complianceData, compIntel] = await Promise.all([
+        loadAiOutput<{ requirements: { text: string; category: string }[]; summary: string }>(projectId, 'analysis'),
+        loadAiOutput<{ themes: { theme: string; evidence: string }[] }>(projectId, 'win_themes'),
+        loadAiOutput<{ citations: { title: string; relevance: string; agency?: string; contract_value?: string }[] }>(projectId, 'past_performance_match'),
+        loadAiOutput<{ evaluation_factors: { factor_name: string; weight: string; description?: string }[]; proposal_outline: { volume: string; section: string }[] }>(projectId, 'section_lm_analysis'),
+        loadAiOutput<{ items: { requirement: string; source: string; compliance_status: string; risk_level: string }[] }>(projectId, 'compliance_matrix'),
+        loadAiOutput<{ competitors: { name: string; strengths: string[]; weaknesses: string[] }[] }>(projectId, 'competitive_intel'),
+      ])
+
+      const relevantRequirements = complianceData?.items
+        ?.filter(item => item.requirement && (item.risk_level === 'High' || item.risk_level === 'Medium'))
+        ?.slice(0, 8)
+
+      const volumeName = volumes.find(v => v.id === volumeId)?.name || ''
 
       const context = [
+        `# PROPOSAL SECTION TO DRAFT`,
         `Project: ${projectTitle}`,
-        analysis?.summary ? `Project Summary: ${analysis.summary}` : '',
-        `Section: ${section.title}`,
-        `Description: ${section.description}`,
-        section.eval_factors.length > 0 ? `Evaluation Factors: ${section.eval_factors.join(', ')}` : '',
-        section.page_limit ? `Page Limit: ${section.page_limit}` : '',
-        winThemes?.themes ? `Win Themes:\n${winThemes.themes.map(t => `- ${t.theme}: ${t.evidence}`).join('\n')}` : '',
-        pastPerf?.citations ? `Relevant Past Performance:\n${pastPerf.citations.slice(0, 3).map(c => `- ${c.title}: ${c.relevance}`).join('\n')}` : '',
-        analysis?.requirements ? `Key Requirements:\n${analysis.requirements.slice(0, 10).map(r => `- ${r.text}`).join('\n')}` : '',
-      ].filter(Boolean).join('\n\n')
+        `Volume: ${volumeName}`,
+        `Section Title: ${section.title}`,
+        `Section Description: ${section.description}`,
+        section.page_limit ? `Page Limit: ${section.page_limit} pages` : '',
+        section.eval_factors.length > 0 ? `\n# EVALUATION FACTORS FOR THIS SECTION\n${section.eval_factors.map(f => `- ${f}`).join('\n')}` : '',
+        sectionLM?.evaluation_factors ? `\n# RFP EVALUATION CRITERIA (from Section M)\n${sectionLM.evaluation_factors.map(f => `- ${f.factor_name} (Weight: ${f.weight})${f.description ? ` — ${f.description}` : ''}`).join('\n')}` : '',
+        analysis?.summary ? `\n# PROJECT CONTEXT\n${analysis.summary}` : '',
+        winThemes?.themes ? `\n# WIN THEMES (must be reinforced in this section)\n${winThemes.themes.map(t => `- THEME: ${t.theme}\n  EVIDENCE: ${t.evidence}`).join('\n')}` : '',
+        pastPerf?.citations ? `\n# PAST PERFORMANCE CITATIONS (weave naturally into narrative)\n${pastPerf.citations.slice(0, 4).map(c => `- ${c.title}${c.agency ? ` (${c.agency})` : ''}${c.contract_value ? ` — $${c.contract_value}` : ''}: ${c.relevance}`).join('\n')}` : '',
+        relevantRequirements && relevantRequirements.length > 0 ? `\n# KEY COMPLIANCE REQUIREMENTS (from Compliance Matrix — must address)\n${relevantRequirements.map(r => `- [${r.risk_level}] ${r.requirement} (Source: ${r.source})`).join('\n')}` : '',
+        analysis?.requirements ? `\n# SOW/PWS REQUIREMENTS\n${analysis.requirements.slice(0, 12).map(r => `- [${r.category}] ${r.text}`).join('\n')}` : '',
+        compIntel?.competitors ? `\n# COMPETITIVE LANDSCAPE (ghost weaknesses, emphasize our differentiators)\n${compIntel.competitors.slice(0, 3).map(c => `- ${c.name}: Strengths=[${c.strengths?.slice(0, 2).join(', ')}] Weaknesses=[${c.weaknesses?.slice(0, 2).join(', ')}]`).join('\n')}` : '',
+      ].filter(Boolean).join('\n')
+
+      const shipleySystemPrompt = `You are a senior GovCon proposal writer trained in the Shipley Business Development Lifecycle and APMP (Association of Proposal Management Professionals) best practices. You write proposals that consistently earn "Outstanding" and "Excellent" adjectival ratings from federal evaluators.
+
+## WRITING METHODOLOGY — SHIPLEY PROPOSAL STANDARDS
+
+Follow these rules strictly for every section you draft:
+
+### 1. THEME STATEMENT (Required — First Element)
+Open EVERY section with a **bolded theme statement** (1-2 sentences) that:
+- Directly ties your approach to the government's evaluation criteria
+- Contains a clear discriminator — what makes your solution superior
+- Uses the exact terminology from the RFP/SOW (mirror their language)
+Example: "**[Company] delivers proven facility maintenance excellence through our ISO 9001-certified Quality Management System, reducing unplanned downtime by 40% across 12 similar federal courthouse facilities.**"
+
+### 2. FEATURES → BENEFITS → PROOF STRUCTURE
+For each major point, follow this pattern:
+- **Feature**: What you will do (your approach/capability)
+- **Benefit**: Why it matters to the government (reduced risk, cost savings, mission impact)
+- **Proof**: Evidence you've done it before (past performance citation, metric, or credential)
+
+### 3. EVALUATION CRITERIA ALIGNMENT
+- Structure your response to DIRECTLY map to the evaluation factors listed
+- Use **headers that mirror evaluation criteria labels** so evaluators can easily find and score content
+- Bold key compliance phrases that demonstrate you meet requirements
+- Every "shall" from the SOW must be explicitly addressed
+
+### 4. PAST PERFORMANCE THREADING
+- Weave past performance citations NATURALLY into the narrative (don't bolt them on at the end)
+- Use phrases like "Drawing on our experience at [contract name]..." or "As demonstrated in our [agency] program..."
+- Include specific metrics (cost savings %, on-time delivery rates, performance ratings)
+
+### 5. COMPETITIVE GHOSTING
+- Subtly highlight your strengths in areas where competitors are weak
+- Use phrases like "Unlike approaches that rely on..." or "Our proven methodology avoids the risks of..."
+- Never name competitors directly — ghost their weaknesses implicitly
+
+### 6. WIN THEME REINFORCEMENT
+- Every major section must reinforce at least 1-2 win themes
+- Themes should appear in the opening statement AND be woven throughout
+- End sections by circling back to how this approach supports the overall win theme
+
+### 7. GOVERNMENT EVALUATOR PSYCHOLOGY
+- **Make it easy to score**: Use clear headers, numbered lists for multi-part requirements
+- **Reduce evaluator workload**: Bold key compliance language
+- **Show risk mitigation**: Explicitly state "This approach mitigates risk by..."
+- **Be specific, not generic**: Use numbers, dates, certifications — never vague claims
+
+### 8. PAGE LIMIT AWARENESS
+- If a page limit is specified, calibrate content length accordingly (~400 words per page)
+- Prioritize quality over quantity — every sentence must earn its place
+- Use tables and bullet points to maximize information density within constraints
+
+### 9. FORMATTING STANDARDS
+- Use **bold** for theme statements, key terms, and compliance phrases
+- Use numbered lists for sequential processes or multi-step approaches
+- Use bullet points for capabilities, qualifications, and feature lists
+- Use headers (## or ###) to organize by evaluation criteria
+- Include action captions for any referenced figures/tables
+
+## OUTPUT FORMAT
+Return ONLY the proposal section text. Use Markdown formatting (bold, headers, bullets). Do not include any JSON, metadata, or instructions. Write substantive, specific content — never placeholder or generic text.`
 
       const res = await fetchAIProxy({
         model: 'gpt-4o-mini',
         messages: [
-          {
-            role: 'system',
-            content: `You are an expert GovCon proposal writer. Generate a professional proposal draft for the specified section. Write in formal proposal language suitable for federal government evaluation. Include specific, substantive content — not placeholder text. Reference win themes and past performance where relevant. Structure with clear headings, paragraphs, and bullet points where appropriate. Return ONLY the proposal text content, no JSON wrapper.`,
-          },
+          { role: 'system', content: shipleySystemPrompt },
           { role: 'user', content: context },
         ],
-        temperature: 0.4,
+        temperature: 0.35,
       })
 
       const draft = res.choices[0].message.content
