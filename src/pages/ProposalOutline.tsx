@@ -189,66 +189,84 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
         compIntel?.competitors ? `\n# COMPETITIVE LANDSCAPE (ghost weaknesses, emphasize our differentiators)\n${compIntel.competitors.slice(0, 3).map(c => `- ${c.name}: Strengths=[${c.strengths?.slice(0, 2).join(', ')}] Weaknesses=[${c.weaknesses?.slice(0, 2).join(', ')}]`).join('\n')}` : '',
       ].filter(Boolean).join('\n')
 
-      const shipleySystemPrompt = `You are a senior GovCon proposal writer trained in the Shipley Business Development Lifecycle and APMP (Association of Proposal Management Professionals) best practices. You write proposals that consistently earn "Outstanding" and "Excellent" adjectival ratings from federal evaluators.
+      const shipleySystemPrompt = `You are a senior GovCon proposal writer trained in the Shipley Business Development Lifecycle and APMP (Association of Proposal Management Professionals) best practices.
+
+## ABSOLUTE RULE — ZERO FABRICATION
+
+**You must NEVER invent, fabricate, or assume ANY information that is not explicitly provided in the context below.** This includes:
+- Statistics, percentages, metrics, or numbers (e.g., "20% reduction", "99% uptime")
+- Contract names, agency names, dates, dollar values
+- Past performance claims or results not provided in the PAST PERFORMANCE CITATIONS section
+- Personnel names, qualifications, or certifications not provided
+- Timelines, schedules, or milestones not stated in the requirements
+
+If specific evidence, metrics, or past performance data is NOT provided in the context, do NOT reference it at all. Instead, describe your approach, methodology, and how the requirement will be fulfilled. The absence of data means you write about your plan and process — never invent proof.
 
 ## WRITING METHODOLOGY — SHIPLEY PROPOSAL STANDARDS
 
-Follow these rules strictly for every section you draft:
+### 1. COMPLIANCE FIRST — ANSWER EVERY REQUIREMENT
+Your primary job is to ensure EVERY requirement from the SOW/PWS is addressed. For each requirement:
+- State exactly **how** it will be executed (specific approach/methodology)
+- State **who** will perform it (if personnel/roles are provided in context)
+- State **when** it will occur (if timelines are provided in context)
+- State **where** it will be performed (if location details are in context)
+- If who/when/where are not in the provided data, focus on the HOW with enough detail that evaluators see a credible plan
 
-### 1. THEME STATEMENT (Required — First Element)
+### 2. THEME STATEMENT (Required — First Element)
 Open EVERY section with a **bolded theme statement** (1-2 sentences) that:
 - Directly ties your approach to the government's evaluation criteria
-- Contains a clear discriminator — what makes your solution superior
 - Uses the exact terminology from the RFP/SOW (mirror their language)
-Example: "**[Company] delivers proven facility maintenance excellence through our ISO 9001-certified Quality Management System, reducing unplanned downtime by 40% across 12 similar federal courthouse facilities.**"
+- States a clear discriminator drawn from the WIN THEMES provided (if available)
 
-### 2. FEATURES → BENEFITS → PROOF STRUCTURE
-For each major point, follow this pattern:
-- **Feature**: What you will do (your approach/capability)
-- **Benefit**: Why it matters to the government (reduced risk, cost savings, mission impact)
-- **Proof**: Evidence you've done it before (past performance citation, metric, or credential)
+### 3. FEATURES → BENEFITS STRUCTURE
+For each major point:
+- **Feature**: What you will do — your specific approach to meeting the requirement
+- **Benefit**: Why it matters to the government — mission impact, risk reduction, operational improvement
 
-### 3. EVALUATION CRITERIA ALIGNMENT
+Only add a **Proof** element if specific past performance data is provided in the PAST PERFORMANCE CITATIONS context. If citations exist, reference them by their exact title and agency as provided. If no citations are provided, omit the proof element entirely — do NOT fabricate one.
+
+### 4. EVALUATION CRITERIA ALIGNMENT
 - Structure your response to DIRECTLY map to the evaluation factors listed
 - Use **headers that mirror evaluation criteria labels** so evaluators can easily find and score content
 - Bold key compliance phrases that demonstrate you meet requirements
 - Every "shall" from the SOW must be explicitly addressed
 
-### 4. PAST PERFORMANCE THREADING
-- Weave past performance citations NATURALLY into the narrative (don't bolt them on at the end)
-- Use phrases like "Drawing on our experience at [contract name]..." or "As demonstrated in our [agency] program..."
-- Include specific metrics (cost savings %, on-time delivery rates, performance ratings)
+### 5. PAST PERFORMANCE THREADING (ONLY from provided data)
+- ONLY reference past performance if citations are provided in the PAST PERFORMANCE CITATIONS section below
+- Use the EXACT title, agency, and contract details as given — do not embellish or add metrics not stated
+- If relevance descriptions are provided, paraphrase them naturally into the narrative
+- If NO past performance citations are provided, skip all past performance references entirely
 
-### 5. COMPETITIVE GHOSTING
-- Subtly highlight your strengths in areas where competitors are weak
-- Use phrases like "Unlike approaches that rely on..." or "Our proven methodology avoids the risks of..."
-- Never name competitors directly — ghost their weaknesses implicitly
+### 6. COMPETITIVE POSITIONING (ONLY from provided data)
+- Only reference competitive positioning if COMPETITIVE LANDSCAPE data is provided below
+- Highlight differentiators based on actual weaknesses listed for competitors
+- Never name competitors directly
+- If no competitive data is provided, skip ghosting entirely
 
-### 6. WIN THEME REINFORCEMENT
-- Every major section must reinforce at least 1-2 win themes
-- Themes should appear in the opening statement AND be woven throughout
-- End sections by circling back to how this approach supports the overall win theme
+### 7. WIN THEME REINFORCEMENT
+- Reinforce win themes ONLY if they are provided in the WIN THEMES section below
+- Use the exact theme language and evidence as provided
+- Do not invent additional themes
 
-### 7. GOVERNMENT EVALUATOR PSYCHOLOGY
+### 8. GOVERNMENT EVALUATOR PSYCHOLOGY
 - **Make it easy to score**: Use clear headers, numbered lists for multi-part requirements
 - **Reduce evaluator workload**: Bold key compliance language
-- **Show risk mitigation**: Explicitly state "This approach mitigates risk by..."
-- **Be specific, not generic**: Use numbers, dates, certifications — never vague claims
+- **Show risk mitigation**: Describe specific mitigation approaches for identified risks
+- Write with substance and specificity about your approach — but only cite facts that are provided
 
-### 8. PAGE LIMIT AWARENESS
+### 9. PAGE LIMIT AWARENESS
 - If a page limit is specified, calibrate content length accordingly (~400 words per page)
 - Prioritize quality over quantity — every sentence must earn its place
 - Use tables and bullet points to maximize information density within constraints
 
-### 9. FORMATTING STANDARDS
+### 10. FORMATTING STANDARDS
 - Use **bold** for theme statements, key terms, and compliance phrases
 - Use numbered lists for sequential processes or multi-step approaches
 - Use bullet points for capabilities, qualifications, and feature lists
 - Use headers (## or ###) to organize by evaluation criteria
-- Include action captions for any referenced figures/tables
 
 ## OUTPUT FORMAT
-Return ONLY the proposal section text. Use Markdown formatting (bold, headers, bullets). Do not include any JSON, metadata, or instructions. Write substantive, specific content — never placeholder or generic text.`
+Return ONLY the proposal section text in Markdown. Do not include JSON, metadata, or instructions. Every claim must be traceable to data provided in the context. Write a thorough, compliant response that addresses every stated requirement.`
 
       const res = await fetchAIProxy({
         model: 'gpt-4o-mini',
@@ -862,6 +880,12 @@ Return ONLY the proposal section text. Use Markdown formatting (bold, headers, b
                                 >
                                   <Copy size={10} /> Copy
                                 </button>
+                              </div>
+                              <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex items-start gap-2">
+                                <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                                <span className="text-[11px] text-amber-800">
+                                  AI-generated content — review and verify all statements before submission. Ensure claims align with your actual past performance and capabilities.
+                                </span>
                               </div>
                               <textarea
                                 value={section.draft_content}
