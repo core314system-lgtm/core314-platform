@@ -5,13 +5,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.TASKORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
 )
 
-interface RateLimitConfig {
+export interface RateLimitConfig {
   ai_calls_per_hour: number
   emails_per_hour: number
   api_calls_per_minute: number
 }
 
-const PLAN_LIMITS: Record<string, RateLimitConfig> = {
+export const PLAN_LIMITS: Record<string, RateLimitConfig> = {
   growth_monthly:     { ai_calls_per_hour: 30,  emails_per_hour: 50,  api_calls_per_minute: 60 },
   growth_annual:      { ai_calls_per_hour: 30,  emails_per_hour: 50,  api_calls_per_minute: 60 },
   enterprise_monthly: { ai_calls_per_hour: 999, emails_per_hour: 200, api_calls_per_minute: 120 },
@@ -20,7 +20,27 @@ const PLAN_LIMITS: Record<string, RateLimitConfig> = {
   no_subscription:    { ai_calls_per_hour: 5,   emails_per_hour: 10,  api_calls_per_minute: 20 },
 }
 
-type ActionType = "ai_call" | "email" | "api_call"
+export type ActionType = "ai_call" | "email" | "api_call"
+
+/** Resolve which PLAN_LIMITS key applies given org state. Pure + testable. */
+export function resolvePlanKey(params: {
+  hasGlobalAdmin: boolean
+  subscriptionStatus?: string | null
+  subscriptionPlan?: string | null
+}): string {
+  const { hasGlobalAdmin, subscriptionStatus, subscriptionPlan } = params
+  if (hasGlobalAdmin) return "enterprise_monthly"
+  if (subscriptionStatus === "trialing") return "trialing"
+  return subscriptionPlan || "no_subscription"
+}
+
+/** The numeric limit for a given plan key + action. Falls back to no_subscription. */
+export function limitFor(planKey: string, actionType: ActionType): number {
+  const limits = PLAN_LIMITS[planKey] || PLAN_LIMITS.no_subscription
+  if (actionType === "ai_call") return limits.ai_calls_per_hour
+  if (actionType === "email") return limits.emails_per_hour
+  return limits.api_calls_per_minute
+}
 
 interface RateLimitResult {
   allowed: boolean
@@ -47,12 +67,11 @@ export async function checkRateLimit(orgId: string, actionType: ActionType): Pro
       .limit(1)
 
     const hasGlobalAdmin = (adminMembers?.length ?? 0) > 0
-    const planKey = hasGlobalAdmin
-      ? "enterprise_monthly"
-      : org?.subscription_status === "trialing"
-        ? "trialing"
-        : (org?.subscription_plan || "no_subscription")
-    const limits = PLAN_LIMITS[planKey] || PLAN_LIMITS.no_subscription
+    const planKey = resolvePlanKey({
+      hasGlobalAdmin,
+      subscriptionStatus: org?.subscription_status,
+      subscriptionPlan: org?.subscription_plan,
+    })
 
     const isMinuteWindow = actionType === "api_call"
     const windowMs = isMinuteWindow ? 60 * 1000 : 60 * 60 * 1000
@@ -66,10 +85,7 @@ export async function checkRateLimit(orgId: string, actionType: ActionType): Pro
       .gte("created_at", windowStart)
 
     const currentCount = count || 0
-    let limit: number
-    if (actionType === "ai_call") limit = limits.ai_calls_per_hour
-    else if (actionType === "email") limit = limits.emails_per_hour
-    else limit = limits.api_calls_per_minute
+    const limit = limitFor(planKey, actionType)
 
     if (currentCount >= limit) {
       return {
