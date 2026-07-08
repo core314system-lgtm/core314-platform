@@ -1,69 +1,26 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOrgSafe } from '../contexts/OrgContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import {
+  resolvePlan,
+  computeTierFlags,
+  canAccessFeature,
+  getTierLimit,
+  trialDaysLeft as computeTrialDaysLeft,
+  type TierPlan,
+  type SubStatus,
+  type TierLimitKey,
+} from '../lib/tierLogic'
 
-export type TierPlan = 'growth' | 'enterprise' | 'agentic' | 'none'
-export type SubStatus = 'active' | 'trialing' | 'past_due' | 'cancelled' | 'no_subscription'
-
-// Features gated to Enterprise only
-const ENTERPRISE_ONLY_FEATURES = new Set([
-  'post_award',
-  'teaming_jv',
-  'resource_capacity',
-  'relationship_intelligence',
-  'custom_quote_forms',
-  'api_access',
-  'custom_workflows',
-  'intelligence_library',
-  'vendor_performance_scoring',
-  'dedicated_onboarding',
-  'sla_guarantee',
-  'agent_hub',
-  'compliance_watchdog',
-  'opportunity_hunter',
-  'sub_recruitment_agent',
-  'quote_analysis_agent',
-  'agent_autonomous_mode',
-  'contacts_crm',
-  'project_contacts',
-  'task_assignments',
-  'activity_feed',
-  'slack_integration',
-  'weekly_digest',
-  'proposal_draft_generation',
-])
-
-// Growth tier limits
-const GROWTH_LIMITS = {
-  max_projects: 25,
-  max_seats: 10,
-  max_subcontractors: 500,
-  max_connections_per_month: 25,
-}
-
-// Enterprise tier limits
-const ENTERPRISE_LIMITS = {
-  max_projects: Infinity,
-  max_seats: Infinity,
-  max_subcontractors: Infinity,
-  max_connections_per_month: 100,
-}
-
-// Agentic tier limits (kept for backward compatibility if orgs still have 'agentic' plan)
-const AGENTIC_LIMITS = {
-  max_projects: Infinity,
-  max_seats: Infinity,
-  max_subcontractors: Infinity,
-  max_connections_per_month: Infinity,
-}
+export type { TierPlan, SubStatus } from '../lib/tierLogic'
 
 interface TierInfo {
   plan: TierPlan
   status: SubStatus
   loading: boolean
   canAccess: (feature: string) => boolean
-  getLimit: (key: 'max_projects' | 'max_seats' | 'max_subcontractors' | 'max_connections_per_month') => number
+  getLimit: (key: TierLimitKey) => number
   isEnterprise: boolean
   isGrowth: boolean
   isAgentic: boolean
@@ -96,16 +53,7 @@ export function useTier(): TierInfo {
         .single()
 
       if (data) {
-        const rawPlan = (data.subscription_plan || '') as string
-        if (rawPlan.includes('agentic')) {
-          setPlan('agentic')
-        } else if (rawPlan.includes('enterprise')) {
-          setPlan('enterprise')
-        } else if (rawPlan.includes('growth')) {
-          setPlan('growth')
-        } else {
-          setPlan('none')
-        }
+        setPlan(resolvePlan(data.subscription_plan as string | null))
         setStatus((data.subscription_status || 'no_subscription') as SubStatus)
         setTrialEndsAt(data.trial_ends_at)
       }
@@ -119,35 +67,21 @@ export function useTier(): TierInfo {
     loadTier()
   }, [loadTier])
 
-  const hasActiveSubscription = isGlobalAdmin || status === 'active' || status === 'trialing'
-  const isAgentic = isGlobalAdmin || (plan === 'agentic' && hasActiveSubscription)
-  const isEnterprise = isGlobalAdmin || ((plan === 'enterprise' || plan === 'agentic') && hasActiveSubscription)
-  const isGrowth = plan === 'growth' && hasActiveSubscription
+  const flags = useMemo(
+    () => computeTierFlags({ plan, status, isGlobalAdmin }),
+    [plan, status, isGlobalAdmin],
+  )
+  const { hasActiveSubscription, isAgentic, isEnterprise, isGrowth } = flags
 
   const canAccess = useCallback((feature: string): boolean => {
-    // Global admin bypasses all tier restrictions
-    if (isGlobalAdmin) return true
-    if (!hasActiveSubscription) return false
-    if (isAgentic) return true
-    if (isEnterprise) {
-      // Enterprise can access all features including agents
-      return true
-    }
-    // Growth users can access everything except enterprise-only features
-    return !ENTERPRISE_ONLY_FEATURES.has(feature)
-  }, [isGlobalAdmin, hasActiveSubscription, isEnterprise, isAgentic])
+    return canAccessFeature(feature, { isGlobalAdmin, flags })
+  }, [isGlobalAdmin, flags])
 
-  const getLimit = useCallback((key: 'max_projects' | 'max_seats' | 'max_subcontractors' | 'max_connections_per_month'): number => {
-    if (isGlobalAdmin) return Infinity
-    if (isAgentic) return AGENTIC_LIMITS[key]
-    if (isEnterprise) return ENTERPRISE_LIMITS[key]
-    if (isGrowth) return GROWTH_LIMITS[key]
-    return 0
-  }, [isGlobalAdmin, isAgentic, isEnterprise, isGrowth])
+  const getLimit = useCallback((key: TierLimitKey): number => {
+    return getTierLimit(key, { isGlobalAdmin, flags })
+  }, [isGlobalAdmin, flags])
 
-  const trialDaysLeft = trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
-    : null
+  const trialDaysLeft = computeTrialDaysLeft(trialEndsAt)
 
   return {
     plan,
