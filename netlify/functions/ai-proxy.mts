@@ -1,6 +1,33 @@
 import type { Context } from "@netlify/functions"
+import { createClient } from "@supabase/supabase-js"
 import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
 import { sanitizeText } from "./_shared/sanitize.ts"
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY!
+
+/**
+ * Resolve the caller from their Supabase JWT. We never trust an org_id sent in
+ * the request body — otherwise anyone could dodge rate limits (or spend another
+ * org's quota) by supplying an arbitrary UUID. Returns null when the token is
+ * missing/invalid. `orgId` falls back to the user id so users without an org
+ * are still rate limited (per-user) rather than unlimited.
+ */
+async function resolveCaller(authHeader: string | null): Promise<{ userId: string; orgId: string } | null> {
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim()
+  if (!token) return null
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const { data: { user }, error } = await sb.auth.getUser()
+  if (error || !user) return null
+  const { data: profile } = await sb
+    .from("user_profiles")
+    .select("current_org_id")
+    .eq("id", user.id)
+    .single()
+  return { userId: user.id, orgId: profile?.current_org_id ?? user.id }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,18 +51,22 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
+    // AI is an authenticated feature. Derive the org from the caller's JWT and
+    // rate limit against it — never trust an org_id from the request body.
+    const caller = await resolveCaller(req.headers.get("authorization"))
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Authentication required." }), { status: 401, headers: corsHeaders })
+    }
+
     const body = await req.json()
-    const { messages, model, temperature, max_tokens, response_format, org_id } = body
+    const { messages, model, temperature, max_tokens, response_format } = body
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "Missing 'messages' array" }), { status: 400, headers: corsHeaders })
     }
 
-    // Rate limit by org if provided
-    if (org_id) {
-      const rl = await checkRateLimit(org_id, "ai_call")
-      if (!rl.allowed) return rateLimitResponse(rl, "AI analysis")
-    }
+    const rl = await checkRateLimit(caller.orgId, "ai_call")
+    if (!rl.allowed) return rateLimitResponse(rl, "AI analysis")
 
     // Sanitize message content to prevent prompt injection of HTML/scripts
     const sanitizedMessages = messages.map((m: { role: string; content: string }) => ({
