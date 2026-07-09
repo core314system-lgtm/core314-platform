@@ -1,0 +1,33 @@
+name: Production Health Check
+
+on:
+  schedule:
+    # Every 30 minutes.
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+concurrency:
+  group: health-check
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    name: Probe procuvex.com and alert on failure
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run health check
+        env:
+          SUPABASE_URL: https://psmicdfnvgwsjkhkwoub.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SITE_URL: https://procuvex.com
+          ALERT_EMAIL: team@procuvex.com
+          FROM_EMAIL: support@core314.com
+          BACKUP_BUCKET: db-backups
+          MAX_BACKUP_AGE_HOURS: "26"
+        run: |
+          chmod +x scripts/health-check.sh
+          ./scripts/health-check.sh
