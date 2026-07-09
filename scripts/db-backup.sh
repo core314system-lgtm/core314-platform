@@ -40,11 +40,27 @@ echo "[db-backup] using $("${PG_DUMP}" --version)"
 echo "[db-backup] pg_dump start ${timestamp}"
 # Custom format (-Fc) is compressed and restorable with pg_restore.
 # --no-owner / --no-privileges keep the dump portable across projects.
-"${PG_DUMP}" "${SUPABASE_DB_URL}" \
-  --format=custom \
-  --no-owner \
-  --no-privileges \
-  --file="${dump_file}"
+# Retry a few times: the Supabase session pooler can transiently reject a valid
+# password on individual nodes (e.g. during a password rotation or a provider
+# incident) before the credential propagates fleet-wide, so a single retry loop
+# lets one run self-heal instead of requiring a manual re-run.
+dump_ok=0
+for attempt in 1 2 3 4 5 6; do
+  if "${PG_DUMP}" "${SUPABASE_DB_URL}" \
+      --format=custom \
+      --no-owner \
+      --no-privileges \
+      --file="${dump_file}"; then
+    dump_ok=1
+    break
+  fi
+  echo "[db-backup] pg_dump attempt ${attempt} failed; retrying in 20s"
+  sleep 20
+done
+if [ "${dump_ok}" != "1" ]; then
+  echo "[db-backup] ERROR: pg_dump failed after multiple attempts"
+  exit 1
+fi
 echo "[db-backup] dump complete: ${dump_file} ($(du -h "${dump_file}" | cut -f1))"
 
 echo "[db-backup] uploading to ${BUCKET}/${object_key}"
