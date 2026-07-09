@@ -18,7 +18,7 @@ const securityLayers = [
       'AES-256 encryption for all data at rest',
       'TLS 1.3 for all data in transit',
       'Database-level encryption via Supabase enterprise infrastructure',
-      'Encrypted backups with point-in-time recovery',
+      'Encrypted automated daily backups',
     ],
   },
   {
@@ -46,8 +46,8 @@ const securityLayers = [
     icon: Database,
     title: 'Data Management',
     items: [
-      'Automated daily backups with 30-day retention',
-      'Point-in-time recovery capability',
+      'Automated daily backups with 7-day retention',
+      'Backups stored on encrypted, managed infrastructure (Supabase)',
       'Customer data exported on demand (CSV, JSON, PDF)',
       'Complete data deletion within 30 days of account closure',
     ],

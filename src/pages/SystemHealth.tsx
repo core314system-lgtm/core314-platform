@@ -36,7 +36,7 @@ const RUNBOOK_ENTRIES: Array<{ service: string; scenario: string; steps: string[
       'Check if connection pool is exhausted (Supabase → Settings → Database → Connection Pooling)',
       'Verify VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in Netlify env vars',
       'If outage persists > 15 min, check Supabase status page: https://status.supabase.com',
-      'For data recovery: Supabase provides daily backups with 7-day retention + point-in-time recovery',
+      'For data recovery: Supabase provides automated daily backups with 7-day retention',
     ],
   },
   {
