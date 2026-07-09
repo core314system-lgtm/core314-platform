@@ -136,3 +136,30 @@ Fill in and commit (or store in the ops log):
 - Confirm **Storage bucket** contents (uploaded documents, capability statements)
   are covered by a backup/restore path — PITR covers Postgres, not necessarily
   Storage objects.
+
+## Off-platform nightly backup (GitHub Actions → S3)
+
+To reduce the effective RPO and keep a copy that survives a Supabase-side
+incident, a nightly logical dump is shipped to a private, encrypted S3 bucket.
+
+- **Workflow:** `.github/workflows/db-backup.yml` (cron `10 7 * * *` UTC, plus
+  `workflow_dispatch` for manual runs).
+- **Script:** `scripts/db-backup.sh` — `pg_dump --format=custom` via the session
+  pooler, uploaded with SSE-AES256 to `s3://$BACKUP_S3_BUCKET/daily/`.
+- **Destination hardening:** bucket has public access blocked, default
+  encryption on, and a 14-day lifecycle expiry. The IAM user used by CI has
+  `s3:PutObject` on that bucket only (write-only, least privilege).
+- **Required GitHub Actions secrets:** `SUPABASE_DB_URL`, `BACKUP_S3_BUCKET`,
+  `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+
+### Restore from an S3 dump
+
+```bash
+aws s3 cp s3://$BACKUP_S3_BUCKET/daily/<file>.dump ./restore.dump
+# Restore into a throwaway/target project (bypass RI during bulk load):
+pg_restore --no-owner --no-privileges --dbname "$TARGET_DB_URL" restore.dump
+```
+
+Note: this dump is Postgres only. Storage objects and `auth.users` handling
+follow the same caveats documented above (load `auth.users` before public data
+when doing a full cross-project restore).
