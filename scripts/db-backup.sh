@@ -28,10 +28,19 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 dump_file="procuvex-db-${timestamp}.dump"
 object_key="daily/${dump_file}"
 
+# Prefer the newest installed pg_dump. Ubuntu/CI runners often ship an older
+# client (e.g. 16) on PATH; pg_dump refuses to dump a newer server, so pick the
+# highest-versioned binary under /usr/lib/postgresql/*/bin when available.
+PG_DUMP="pg_dump"
+for d in $(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V -r); do
+  if [ -x "${d}/pg_dump" ]; then PG_DUMP="${d}/pg_dump"; break; fi
+done
+echo "[db-backup] using $("${PG_DUMP}" --version)"
+
 echo "[db-backup] pg_dump start ${timestamp}"
 # Custom format (-Fc) is compressed and restorable with pg_restore.
 # --no-owner / --no-privileges keep the dump portable across projects.
-pg_dump "${SUPABASE_DB_URL}" \
+"${PG_DUMP}" "${SUPABASE_DB_URL}" \
   --format=custom \
   --no-owner \
   --no-privileges \
