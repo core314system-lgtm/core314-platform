@@ -1,12 +1,41 @@
-# Backup & Restore Runbook (Supabase PITR)
+# Backup & Restore Runbook (Supabase daily backups)
 
 Verifies that we can actually **recover** the Procuvex database — not just that
 backups exist. "Have backups" ≠ "verified we can restore." This drill must be
 performed once before the paid launch and re-run quarterly.
 
 - **Production project ref:** `psmicdfnvgwsjkhkwoub`
-- **Backup mechanism:** Supabase automated backups + Point-in-Time Recovery (PITR)
-- **Owner:** (assign) · **Last drill:** _not yet performed_
+- **Backup mechanism:** Supabase automated **daily** physical backups (WAL-G). PITR add-on is **NOT enabled** (`pitr_enabled: false`), so the effective recovery granularity is the daily backup cadence, not arbitrary point-in-time.
+- **Retention:** ~7 days of daily backups.
+- **Owner:** (assign) · **Last drill:** **2026-07-09 — PASS** (see "Drill results" below).
+
+## Drill results — 2026-07-09
+
+Method: logical dump/restore into a throwaway Supabase **free-tier** project
+(`procuvex-restore-drill`), then row-count / timestamp / RLS parity checks, then
+teardown. No production data was modified.
+
+| Metric | Result |
+| --- | --- |
+| Public tables restored | 64 / 64, **row counts identical** to prod |
+| `auth.users` | 30 / 30 restored |
+| RLS policies (`public`) | 125 / 125 present |
+| Latest `created_at` parity | identical on `organizations`, `master_subcontractors`, `account_usage`, `audit_events` |
+| Security fixes present | `account_usage`→orgs FK absent (#794); admin-only `master_subcontractors` read (#792/#785); `shares_org_with()` present |
+| **RTO** (dump + restore, ~28 MB / 176k+ rows) | **~40 s** (+ ~1 min one-time to provision a fresh target) |
+| **RPO** (real prod posture) | **up to 24 h** — daily backups, no PITR. If sub-daily RPO is ever required, enable the paid PITR add-on and update the SLA text accordingly. |
+
+### Gotchas discovered (bake into any future restore)
+- Connect via the **session pooler** (`aws-1-us-west-2.pooler.supabase.com:5432`,
+  user `postgres.<ref>`). The direct `db.<ref>.supabase.co` host is IPv6-only and
+  unreachable from most CI/dev boxes; the transaction pooler (`:6543`) breaks `pg_dump`.
+- The Supabase `postgres` role is **not a superuser**, so
+  `pg_restore --disable-triggers` fails (`permission denied: "RI_ConstraintTrigger..." is a system trigger`).
+  Instead load data in a **single session** with `SET session_replication_role = replica;`
+  prepended — the `postgres` role IS allowed to set this, and it bypasses FK/RI
+  and normal triggers during bulk load.
+- A `--data-only` restore fails FK checks against `auth.users` unless auth data is
+  present. Dump+load `auth.users` (data-only) **before** the public data.
 
 > ⚠️ Do the drill by restoring into a **separate throwaway project**, never by
 > rolling back production. A production PITR restore is destructive and
@@ -16,11 +45,12 @@ performed once before the paid launch and re-run quarterly.
 
 Supabase Dashboard → Project `psmicdfnvgwsjkhkwoub` → **Database → Backups**.
 
-- [ ] PITR is **enabled** (requires at least the Pro plan + PITR add-on).
-- [ ] Note the **retention window** (e.g. 7 days). This is the real max age we
-      can recover to — reconcile it with the SLA text (`/sla` promises "point-in-time
-      recovery"; make sure the promised window matches what's actually enabled).
-- [ ] Note the earliest restorable timestamp and that WAL is current.
+- [ ] Confirm **daily backups** are current (most recent should be < 24 h old).
+- [ ] Note the **retention window** (~7 days). This is the real max age we can
+      recover to. Recovery granularity is the daily cadence — **PITR is not
+      enabled**, so there is no arbitrary point-in-time restore.
+- [ ] Reconcile with SLA text: `/sla` and the Security page must NOT promise
+      "point-in-time recovery" while the PITR add-on is off (fixed in #796).
 
 ## 1. Prepare a restore target (10 min)
 
