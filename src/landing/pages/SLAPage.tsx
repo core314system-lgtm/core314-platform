@@ -155,7 +155,7 @@ export default function SLAPage() {
                 4. Data Protection & Backup
               </h2>
               <ul className="list-disc pl-6 space-y-2">
-                <li><strong>Automated backups:</strong> Database backups run every 24 hours with point-in-time recovery capability</li>
+                <li><strong>Automated backups:</strong> Database backups run every 24 hours with 7-day retention</li>
                 <li><strong>Data retention:</strong> Customer data is retained for the duration of the subscription plus 30 days after cancellation</li>
                 <li><strong>Data export:</strong> Customers may export their data at any time through the platform&apos;s export functionality (CSV, JSON, PDF)</li>
                 <li><strong>Data deletion:</strong> Upon request, all customer data is permanently deleted within 30 days of account closure</li>
