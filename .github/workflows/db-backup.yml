@@ -1,4 +1,4 @@
-name: Nightly DB Backup to S3
+name: Nightly DB Backup to Supabase Storage
 
 on:
   schedule:
@@ -13,7 +13,7 @@ concurrency:
 jobs:
   backup:
     runs-on: ubuntu-latest
-    name: Dump prod DB and upload to S3
+    name: Dump prod DB and upload to Supabase Storage
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,10 +29,12 @@ jobs:
       - name: Run backup
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Project URL is not a secret (the ref is public); kept inline to
+          # minimise required secrets. Override via repo variable if it changes.
+          SUPABASE_URL: https://psmicdfnvgwsjkhkwoub.supabase.co
+          BACKUP_BUCKET: db-backups
+          RETENTION_DAYS: "14"
         run: |
           chmod +x scripts/db-backup.sh
           ./scripts/db-backup.sh

@@ -137,26 +137,36 @@ Fill in and commit (or store in the ops log):
   are covered by a backup/restore path — PITR covers Postgres, not necessarily
   Storage objects.
 
-## Off-platform nightly backup (GitHub Actions → S3)
+## Nightly logical backup (GitHub Actions → Supabase Storage)
 
-To reduce the effective RPO and keep a copy that survives a Supabase-side
-incident, a nightly logical dump is shipped to a private, encrypted S3 bucket.
+To reduce the effective RPO and keep a portable, downloadable copy of the
+database, a nightly logical dump is uploaded to a **private** Supabase Storage
+bucket (`db-backups`). This protects against the most common risks — accidental
+deletes, bad migrations, logical corruption — and gives a copy you can pull down
+and restore anywhere. (Note: it lives in the same Supabase project, so it is not
+isolated from a project-level Supabase incident; that trade-off was accepted to
+avoid a second vendor.)
 
 - **Workflow:** `.github/workflows/db-backup.yml` (cron `10 7 * * *` UTC, plus
-  `workflow_dispatch` for manual runs).
+  `workflow_dispatch` for manual runs). Installs the pg17 client (prod is 17.x).
 - **Script:** `scripts/db-backup.sh` — `pg_dump --format=custom` via the session
-  pooler, uploaded with SSE-AES256 to `s3://$BACKUP_S3_BUCKET/daily/`.
-- **Destination hardening:** bucket has public access blocked, default
-  encryption on, and a 14-day lifecycle expiry. The IAM user used by CI has
-  `s3:PutObject` on that bucket only (write-only, least privilege).
-- **Required GitHub Actions secrets:** `SUPABASE_DB_URL`, `BACKUP_S3_BUCKET`,
-  `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+  pooler, uploaded to `db-backups/daily/procuvex-db-<ts>.dump` via the Storage
+  REST API, then prunes archives older than `RETENTION_DAYS` (default 14).
+- **Destination:** private bucket (not public), encrypted at rest by Supabase.
+  The project's global Storage file-size limit was raised to 500 MB to allow for
+  growth (dump is ~28 MB today).
+- **Required GitHub Actions secrets:** `SUPABASE_DB_URL`,
+  `SUPABASE_SERVICE_ROLE_KEY`. (`SUPABASE_URL`, bucket, and retention are set
+  inline in the workflow.)
 
-### Restore from an S3 dump
+### Restore from a Supabase Storage dump
 
 ```bash
-aws s3 cp s3://$BACKUP_S3_BUCKET/daily/<file>.dump ./restore.dump
-# Restore into a throwaway/target project (bypass RI during bulk load):
+# Download the dump (service-role key required — the bucket is private):
+curl -s "$SUPABASE_URL/storage/v1/object/db-backups/daily/<file>.dump" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -o restore.dump
+# Restore into a throwaway/target project:
 pg_restore --no-owner --no-privileges --dbname "$TARGET_DB_URL" restore.dump
 ```
 
