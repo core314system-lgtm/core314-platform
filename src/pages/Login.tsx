@@ -362,15 +362,23 @@ export default function Login() {
         return
       }
 
-      // Account created successfully — claim beta invite token if present
+      // Account created successfully — claim beta invite token if present.
+      // The claim provisions the org + 30-day Enterprise trial, so surface
+      // failures instead of silently swallowing them.
       if (betaInviteInfo) {
         try {
-          await fetch('/.netlify/functions/manage-beta-invites', {
+          const claimRes = await fetch('/.netlify/functions/manage-beta-invites', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: betaInviteInfo.token, action: 'claim' }),
           })
-        } catch { /* best effort */ }
+          if (!claimRes.ok) {
+            const claimData = await claimRes.json().catch(() => ({}))
+            console.error('Beta partner provisioning failed:', claimData.error || claimRes.status)
+          }
+        } catch (err) {
+          console.error('Beta partner provisioning request failed:', err)
+        }
       }
 
       if (inviteToken) {

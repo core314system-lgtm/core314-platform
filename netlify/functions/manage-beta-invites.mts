@@ -34,6 +34,98 @@ async function verifyGlobalAdmin(userId: string): Promise<boolean> {
   return !!data?.is_global_admin
 }
 
+const BETA_TRIAL_DAYS = 30
+
+// Provision a newly-signed-up Founding Partner: guarantee they have an
+// organization + membership and grant the promised 30-day Enterprise trial via
+// the subscription fields the runtime tier logic (useTier) actually reads.
+// Idempotent, and never clobbers a real (active) paid subscription.
+async function provisionBetaPartner(
+  email: string,
+): Promise<{ ok: boolean; org_id?: string; error?: string }> {
+  const normalized = email.toLowerCase()
+
+  // The profile is created by the on_auth_user_created trigger during signUp;
+  // retry briefly in case the claim request races the trigger commit.
+  let profile: { id: string; current_org_id: string | null; full_name: string | null } | null = null
+  for (let attempt = 0; attempt < 5 && !profile; attempt++) {
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("id, current_org_id, full_name")
+      .eq("email", normalized)
+      .maybeSingle()
+    profile = data ?? null
+    if (!profile) await new Promise((r) => setTimeout(r, 400))
+  }
+
+  if (!profile) return { ok: false, error: "profile_not_found" }
+
+  // Resolve the org: existing current_org_id, else an existing membership,
+  // else create a fresh org owned by the partner.
+  let orgId: string | null = profile.current_org_id
+  if (!orgId) {
+    const { data: membership } = await supabase
+      .from("organization_members")
+      .select("org_id")
+      .eq("user_id", profile.id)
+      .limit(1)
+      .maybeSingle()
+    orgId = membership?.org_id ?? null
+  }
+
+  if (!orgId) {
+    const slug = "org-" + Math.random().toString(36).slice(2, 10)
+    const { data: org, error: orgErr } = await supabase
+      .from("organizations")
+      .insert({
+        name: (profile.full_name || normalized.split("@")[0]) + "'s Organization",
+        slug,
+      })
+      .select("id")
+      .single()
+    if (orgErr || !org) return { ok: false, error: `org_create_failed: ${orgErr?.message}` }
+    orgId = org.id
+
+    const { error: memberErr } = await supabase
+      .from("organization_members")
+      .insert({ org_id: orgId, user_id: profile.id, role: "owner" })
+    if (memberErr) return { ok: false, error: `member_create_failed: ${memberErr.message}` }
+  }
+
+  if (profile.current_org_id !== orgId) {
+    await supabase.from("user_profiles").update({ current_org_id: orgId }).eq("id", profile.id)
+  }
+
+  // Grant the Enterprise trial unless a real paid subscription is already active.
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("subscription_status, settings")
+    .eq("id", orgId)
+    .single()
+
+  if (!org || org.subscription_status !== "active") {
+    const trialEnds = new Date()
+    trialEnds.setDate(trialEnds.getDate() + BETA_TRIAL_DAYS)
+    const { error: subErr } = await supabase
+      .from("organizations")
+      .update({
+        subscription_plan: "enterprise",
+        subscription_status: "trialing",
+        trial_ends_at: trialEnds.toISOString(),
+        settings: { ...(org?.settings || {}), tier: "enterprise" },
+      })
+      .eq("id", orgId)
+    if (subErr) return { ok: false, error: `trial_grant_failed: ${subErr.message}` }
+  }
+
+  await supabase
+    .from("user_profiles")
+    .update({ beta_program_status: "active", beta_start_date: new Date().toISOString() })
+    .eq("id", profile.id)
+
+  return { ok: true, org_id: orgId }
+}
+
 async function getAcceptedCount(): Promise<number> {
   const { count } = await supabase
     .from("beta_invitations")
@@ -721,10 +813,18 @@ export default async (req: Request, _context: Context) => {
         return new Response(JSON.stringify({ error: "Invalid or not yet approved invitation" }), { status: 400, headers })
       }
 
-      // Don't update status — keep as "accepted" since that means they're in the program
-      // The claimed_at is already set when admin accepted them
+      // Status stays "accepted" (that's what marks them in-program). Provision
+      // the org + 30-day Enterprise trial now so the partner can actually use
+      // the platform on first login.
+      const provision = await provisionBetaPartner(invite.email)
+      if (!provision.ok) {
+        return new Response(JSON.stringify({ error: provision.error || "provisioning_failed" }), { status: 500, headers })
+      }
 
-      return new Response(JSON.stringify({ success: true, email: invite.email }), { headers })
+      return new Response(
+        JSON.stringify({ success: true, email: invite.email, org_id: provision.org_id, provisioned: true }),
+        { headers },
+      )
     }
 
     // Get info for apply page (public — just need token validity + email + seats)
