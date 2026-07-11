@@ -362,7 +362,9 @@ export default function Login() {
         return
       }
 
-      // Account created successfully — claim beta invite token if present
+      // Account created successfully — claim beta invite token if present.
+      // The claim provisions the org + 30-day Enterprise trial server-side and
+      // only responds once provisioning is complete.
       if (betaInviteInfo) {
         try {
           await fetch('/.netlify/functions/manage-beta-invites', {
@@ -371,6 +373,12 @@ export default function Login() {
             body: JSON.stringify({ token: betaInviteInfo.token, action: 'claim' }),
           })
         } catch { /* best effort */ }
+        // Full navigation (not SPA) so Auth/Org/Tier contexts initialize from the
+        // freshly provisioned state — prevents a stale "no subscription / 0 projects"
+        // flash that a soft navigate would show because the cached profile predates
+        // the claim.
+        window.location.assign('/dashboard')
+        return
       }
 
       if (inviteToken) {
