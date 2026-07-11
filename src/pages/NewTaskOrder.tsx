@@ -61,6 +61,8 @@ export default function NewTaskOrder() {
 
   const projectLimit = getLimit('max_projects')
   const atLimit = !isEnterprise && projectCount >= projectLimit
+  const missingOrg = isMultiTenantEnabled && !currentOrg
+  const cannotCreate = atLimit || missingOrg
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -68,6 +70,14 @@ export default function NewTaskOrder() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+
+    // Never create an orphaned project: a task order must belong to an org.
+    if (missingOrg) {
+      alert('Your account is not linked to an organization yet, so a project cannot be created. Please contact support so we can finish setting up your workspace.')
+      return
+    }
+    if (atLimit) return
+
     setLoading(true)
 
     const insertData: Record<string, unknown> = {
@@ -83,7 +93,8 @@ export default function NewTaskOrder() {
       created_by: user?.id,
     }
 
-    // Include project_type, org_id, and contract_id if available
+    // Include project_type, org_id, and contract_id if available.
+    // org_id is required whenever multi-tenancy is on (guarded above).
     const extraFields: Record<string, unknown> = { project_type: form.project_type }
     if (isMultiTenantEnabled && currentOrg) {
       extraFields.org_id = currentOrg.id
@@ -147,6 +158,19 @@ export default function NewTaskOrder() {
             <Link to="/billing" className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
               <Sparkles size={12} /> Upgrade Plan
             </Link>
+          </div>
+        </div>
+      )}
+
+      {missingOrg && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+          <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Workspace not ready yet</p>
+            <p className="text-xs text-amber-600 mt-1">
+              Your account isn't linked to an organization yet, so projects can't be created.
+              Please contact support at team@procuvex.com so we can finish setting up your workspace.
+            </p>
           </div>
         </div>
       )}
@@ -340,8 +364,8 @@ export default function NewTaskOrder() {
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            disabled={loading || cannotCreate}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Upload size={18} />
             {loading ? 'Creating...' : 'Create Project & Upload Documents'}
