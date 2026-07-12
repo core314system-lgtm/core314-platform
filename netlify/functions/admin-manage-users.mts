@@ -15,6 +15,18 @@ async function verifyCaller(callerId: string) {
   return data?.is_global_admin === true
 }
 
+// Map an admin-selected tier to the subscription columns the runtime tier
+// logic (useTier / tierLogic) actually reads. Writing only settings.tier had
+// no effect on entitlements.
+function tierToSubscription(tier: string): { plan: string | null; status: string } {
+  switch (tier) {
+    case 'enterprise': return { plan: 'enterprise', status: 'active' }
+    case 'agentic': return { plan: 'agentic', status: 'active' }
+    case 'growth': return { plan: 'growth', status: 'active' }
+    default: return { plan: null, status: 'no_subscription' }
+  }
+}
+
 export default async (req: Request, _context: Context) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -147,12 +159,16 @@ export default async (req: Request, _context: Context) => {
 
       // Create an organization for the user
       const orgSlug = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now()
+      const createTier = tier || 'growth'
+      const createSub = tierToSubscription(createTier)
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert({
           name: full_name ? `${full_name}'s Organization` : `${email.split('@')[0]}'s Organization`,
           slug: orgSlug,
-          settings: { tier: tier || 'growth' },
+          settings: { tier: createTier },
+          subscription_plan: createSub.plan,
+          subscription_status: createSub.status,
         })
         .select()
         .single()
@@ -186,9 +202,19 @@ export default async (req: Request, _context: Context) => {
         return new Response(JSON.stringify({ error: 'org_id and tier required' }), { status: 400, headers })
       }
 
+      const sub = tierToSubscription(tier)
+      const { data: existingOrg } = await supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', org_id)
+        .single()
       const { error } = await supabase
         .from('organizations')
-        .update({ settings: { tier } })
+        .update({
+          settings: { ...(existingOrg?.settings || {}), tier },
+          subscription_plan: sub.plan,
+          subscription_status: sub.status,
+        })
         .eq('id', org_id)
 
       if (error) {

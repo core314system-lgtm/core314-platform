@@ -367,12 +367,18 @@ export default function Login() {
       // only responds once provisioning is complete.
       if (betaInviteInfo) {
         try {
-          await fetch('/.netlify/functions/manage-beta-invites', {
+          const claimRes = await fetch('/.netlify/functions/manage-beta-invites', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: betaInviteInfo.token, action: 'claim' }),
           })
-        } catch { /* best effort */ }
+          if (!claimRes.ok) {
+            const claimData = await claimRes.json().catch(() => ({}))
+            console.error('Beta partner provisioning failed:', claimData.error || claimRes.status)
+          }
+        } catch (err) {
+          console.error('Beta partner provisioning request failed:', err)
+        }
         // Full navigation (not SPA) so Auth/Org/Tier contexts initialize from the
         // freshly provisioned state — prevents a stale "no subscription / 0 projects"
         // flash that a soft navigate would show because the cached profile predates
