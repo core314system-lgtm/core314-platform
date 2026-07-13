@@ -170,7 +170,7 @@ function findActiveGroup(pathname: string): string {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { signOut, profile } = useAuth()
   const { currentOrg, isMultiTenantEnabled } = useOrg()
-  const { isEnterprise, hasActiveSubscription, status: subStatus, trialDaysLeft } = useTier()
+  const { isEnterprise, hasActiveSubscription, status: subStatus, trialDaysLeft, loading: tierLoading } = useTier()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
@@ -365,14 +365,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             className={`flex items-center gap-3 pl-8 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                               isActive
                                 ? 'bg-blue-50 text-blue-700'
-                                : item.enterpriseOnly && !isEnterprise
+                                : item.enterpriseOnly && !isEnterprise && !tierLoading
                                   ? 'text-gray-400 hover:bg-gray-50 hover:text-gray-500'
                                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                             }`}
                           >
                             <item.icon size={16} />
                             <span className="flex-1">{item.label}</span>
-                            {item.enterpriseOnly && !isEnterprise && (
+                            {item.enterpriseOnly && !isEnterprise && !tierLoading && (
                               <span className="text-[10px] font-bold text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded">ENT</span>
                             )}
                           </Link>
@@ -466,7 +466,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Link to="/billing" className="text-sm font-medium text-blue-700 hover:text-blue-900 whitespace-nowrap">Subscribe →</Link>
             </div>
           )}
-          {!profile?.is_global_admin && !hasActiveSubscription && subStatus !== 'cancelled' && subStatus !== 'past_due' && (
+          {!tierLoading && !profile?.is_global_admin && !hasActiveSubscription && subStatus !== 'cancelled' && subStatus !== 'past_due' && (
             <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-800">
               <AlertTriangle size={18} className="shrink-0" />
               <div className="flex-1">

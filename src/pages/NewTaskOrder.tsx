@@ -27,8 +27,8 @@ export default function NewTaskOrder() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
-  const { currentOrg, isMultiTenantEnabled } = useOrg()
-  const { getLimit, isEnterprise } = useTier()
+  const { currentOrg, isMultiTenantEnabled, loading: orgLoading } = useOrg()
+  const { getLimit, isEnterprise, loading: tierLoading } = useTier()
   const [loading, setLoading] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [projectCount, setProjectCount] = useState(0)
@@ -59,10 +59,14 @@ export default function NewTaskOrder() {
     }
   }, [currentOrg?.id])
 
+  // Don't surface any entitlement gate until org + tier have finished loading,
+  // otherwise a just-provisioned partner sees a false "0/0 / no subscription"
+  // flash on the first render before their Enterprise trial resolves.
+  const entitlementsLoading = orgLoading || tierLoading
   const projectLimit = getLimit('max_projects')
-  const atLimit = !isEnterprise && projectCount >= projectLimit
-  const missingOrg = isMultiTenantEnabled && !currentOrg
-  const cannotCreate = atLimit || missingOrg
+  const atLimit = !entitlementsLoading && !isEnterprise && projectCount >= projectLimit
+  const missingOrg = !entitlementsLoading && isMultiTenantEnabled && !currentOrg
+  const cannotCreate = entitlementsLoading || atLimit || missingOrg
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -368,7 +372,7 @@ export default function NewTaskOrder() {
             className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <Upload size={18} />
-            {loading ? 'Creating...' : 'Create Project & Upload Documents'}
+            {loading ? 'Creating...' : entitlementsLoading ? 'Loading workspace…' : 'Create Project & Upload Documents'}
           </button>
           <Link
             to="/projects"
