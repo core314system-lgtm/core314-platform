@@ -839,7 +839,7 @@ AI QUOTE COMPLIANCE ENGINE:
 - Quotes can be re-analyzed at any time.
 
 MASTER SUBCONTRACTOR DATABASE:
-- A database of 18,000+ subcontractors sourced from SAM.gov bulk data files.
+- A database of 130,000+ subcontractors sourced from public government records (SBA, SAM.gov, GSA eLibrary, and state small-business directories).
 - Each record includes: company name, UEI, CAGE code, city, state, trade categories, small business status, contact email.
 - Outreach system sends emails to subcontractors inviting them to claim their profile on Procuvex.
 - Claimed subs can edit their profile, upload documents, and optionally pay $99/yr for "Procuvex Verified" status.
