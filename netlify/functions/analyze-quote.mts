@@ -24,6 +24,8 @@ interface AnalysisResult {
   summary: string
 }
 
+const _diag: any = {}
+
 async function extractPdfText(fileBuffer: Buffer): Promise<string> {
   try {
     // Use pdfjs-dist directly for text extraction — no native canvas needed.
@@ -43,12 +45,11 @@ async function extractPdfText(fileBuffer: Buffer): Promise<string> {
       text += content.items.map((it: any) => ("str" in it ? it.str : "")).join(" ") + "\n"
     }
     return text.trim()
-  } catch {
+  } catch (e: any) {
+    _diag.extractErr = e?.message || String(e)
     return ""
   }
 }
-
-export const _diag: any = {}
 
 async function getDocumentTexts(
   taskOrderId: string,
