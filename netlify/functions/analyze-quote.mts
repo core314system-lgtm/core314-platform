@@ -28,23 +28,14 @@ const _diag: any = {}
 
 async function extractPdfText(fileBuffer: Buffer): Promise<string> {
   try {
-    // Use pdfjs-dist directly for text extraction — no native canvas needed.
-    // Imported lazily inside try/catch so any load/parse failure degrades to
-    // description-based analysis instead of crashing the whole function.
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs")
-    const doc = await pdfjs.getDocument({
-      data: new Uint8Array(fileBuffer),
-      disableWorker: true,
-      isEvalSupported: false,
-      useSystemFonts: false,
-    }).promise
-    let text = ""
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i)
-      const content = await page.getTextContent()
-      text += content.items.map((it: any) => ("str" in it ? it.str : "")).join(" ") + "\n"
-    }
-    return text.trim()
+    // Import the pdf-parse lib entry directly (not the package index, which runs
+    // debug code that reads a test file at load). pdf-parse@1 is pure JS with no
+    // native/DOM deps, so it works in the Netlify Lambda runtime. Imported lazily
+    // inside try/catch so any failure degrades to description-based analysis.
+    const mod: any = await import("pdf-parse/lib/pdf-parse.js")
+    const pdfParse = mod.default || mod
+    const parsed = await pdfParse(fileBuffer)
+    return (parsed.text || "").trim()
   } catch (e: any) {
     _diag.extractErr = e?.message || String(e)
     return ""
