@@ -74,10 +74,10 @@ export function useNetworkStats(): NetworkStats {
       try {
         // Try direct Supabase first (works for authenticated users)
         const [totalRes, emailRes, smallBizRes, verifiedRes] = await Promise.all([
-          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }),
-          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).not('contact_email', 'is', null),
-          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).eq('small_business', true),
-          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).in('verification_status', ['verified', 'claimed']),
+          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).eq('archived', false),
+          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).eq('archived', false).not('contact_email', 'is', null),
+          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).eq('archived', false).eq('small_business', true),
+          supabase.from('master_subcontractors').select('*', { count: 'exact', head: true }).eq('archived', false).in('verification_status', ['verified', 'claimed']),
         ])
 
         const total = totalRes.count || 0
