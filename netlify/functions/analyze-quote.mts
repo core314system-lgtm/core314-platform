@@ -26,13 +26,23 @@ interface AnalysisResult {
 
 async function extractPdfText(fileBuffer: Buffer): Promise<string> {
   try {
-    // pdf-parse v2 is class-based and pulls in native deps; import lazily so a
-    // load/parse failure degrades to description-based analysis instead of
-    // crashing the whole function.
-    const { PDFParse } = await import("pdf-parse")
-    const parser = new PDFParse({ data: new Uint8Array(fileBuffer) })
-    const parsed = await parser.getText()
-    return parsed.text || ""
+    // Use pdfjs-dist directly for text extraction — no native canvas needed.
+    // Imported lazily inside try/catch so any load/parse failure degrades to
+    // description-based analysis instead of crashing the whole function.
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs")
+    const doc = await pdfjs.getDocument({
+      data: new Uint8Array(fileBuffer),
+      disableWorker: true,
+      isEvalSupported: false,
+      useSystemFonts: false,
+    }).promise
+    let text = ""
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i)
+      const content = await page.getTextContent()
+      text += content.items.map((it: any) => ("str" in it ? it.str : "")).join(" ") + "\n"
+    }
+    return text.trim()
   } catch {
     return ""
   }

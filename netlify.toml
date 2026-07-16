@@ -24,10 +24,10 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# pdf-parse v2 ships native deps (@napi-rs/canvas) that esbuild cannot bundle;
+# pdfjs-dist uses import.meta / dynamic requires that esbuild mishandles;
 # keep it external so it loads from node_modules at runtime.
 [functions."analyze-quote"]
-  external_node_modules = ["pdf-parse"]
+  external_node_modules = ["pdfjs-dist"]
 
 # Scheduled function: trial expiration reminder (daily at 9am ET / 1pm UTC)
 [functions."trial-reminder"]
