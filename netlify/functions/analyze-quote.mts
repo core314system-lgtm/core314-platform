@@ -1,6 +1,5 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import pdfParse from "pdf-parse"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
@@ -27,7 +26,12 @@ interface AnalysisResult {
 
 async function extractPdfText(fileBuffer: Buffer): Promise<string> {
   try {
-    const parsed = await pdfParse(fileBuffer)
+    // pdf-parse v2 is class-based and pulls in native deps; import lazily so a
+    // load/parse failure degrades to description-based analysis instead of
+    // crashing the whole function.
+    const { PDFParse } = await import("pdf-parse")
+    const parser = new PDFParse({ data: new Uint8Array(fileBuffer) })
+    const parsed = await parser.getText()
     return parsed.text || ""
   } catch {
     return ""
