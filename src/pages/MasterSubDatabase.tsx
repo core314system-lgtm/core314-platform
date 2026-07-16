@@ -119,9 +119,6 @@ export default function MasterSubDatabase() {
   const [priorityStats, setPriorityStats] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [enriching, setEnriching] = useState(false)
-  const [enrichProgress, setEnrichProgress] = useState('')
-  const [enrichResult, setEnrichResult] = useState<{ enriched: number; noEmail: number; errors: number } | null>(null)
   const [outreachStats, setOutreachStats] = useState<{ totalSent: number; sentToday: number; totalClaimed: number; recentClaims: any[] }>({ totalSent: 0, sentToday: 0, totalClaimed: 0, recentClaims: [] })
   const [outreachStatsLoading, setOutreachStatsLoading] = useState(false)
   const [emailMetrics, setEmailMetrics] = useState<any>(null)
@@ -479,7 +476,6 @@ export default function MasterSubDatabase() {
           const sbaTypes = parseSbaTypes(fields[SAM_COLUMNS.SBA_BIZ_TYPES] || '')
 
           // POC columns in public extract are misaligned (contain country codes, not names)
-          // Skip POC parsing — contact info will be enriched via web scraping
           const contactName: string | null = null
 
           // Skip records without a website (can't contact or scrape without one)
@@ -912,61 +908,6 @@ export default function MasterSubDatabase() {
     setShowDeleteConfirm(false)
   }
 
-  async function enrichContacts() {
-    setEnriching(true)
-    setEnrichResult(null)
-    setEnrichProgress('Starting contact enrichment (high-demand trades first)...')
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
-    if (!token) { setEnriching(false); return }
-
-    let totalEnriched = 0
-    let totalNoEmail = 0
-    let totalErrors = 0
-    let batchNum = 0
-
-    const tierLabels: Record<string, string> = {
-      tier1: '⚡ Tier 1 (Electrical, HVAC, Construction)',
-      tier2: '🔧 Tier 2 (IT, Janitorial, Security, Engineering)',
-      other: '📋 Other trades',
-    }
-
-    while (true) {
-      batchNum++
-      setEnrichProgress(`Enriching batch ${batchNum}... (${totalEnriched} contacts found, ${totalNoEmail} no contact)`)
-      try {
-        const res = await fetch('/.netlify/functions/enrich-contacts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ batchSize: 20 }),
-        })
-        const result = await res.json()
-        if (result.error) {
-          setEnrichProgress(`Error: ${result.error}`)
-          break
-        }
-        totalEnriched += result.enriched || 0
-        totalNoEmail += result.noContact || 0
-        totalErrors += result.errors || 0
-
-        const tierLabel = tierLabels[result.currentTier] || 'Processing'
-        const remaining = result.remaining || 0
-        setEnrichProgress(`${tierLabel} — batch ${batchNum} (${totalEnriched} contacts found, ${remaining} remaining)`)
-
-        if (result.done || result.total === 0) break
-      } catch (err: any) {
-        setEnrichProgress(`Network error: ${err.message}`)
-        break
-      }
-    }
-
-    setEnrichResult({ enriched: totalEnriched, noEmail: totalNoEmail, errors: totalErrors })
-    setEnrichProgress('')
-    setEnriching(false)
-    fetchSubs()
-    fetchStats()
-  }
-
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   if (authLoading) {
@@ -1003,11 +944,6 @@ export default function MasterSubDatabase() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
             {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             {exporting ? exportProgress || 'Exporting...' : 'Export CSV'}
-          </button>
-          <button onClick={enrichContacts} disabled={enriching}
-            className="flex items-center gap-2 px-3 py-2 text-sm border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50">
-            {enriching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-            {enriching ? 'Enriching...' : 'Enrich Contacts'}
           </button>
           <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); setShowGsaScraper(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
@@ -2091,26 +2027,6 @@ export default function MasterSubDatabase() {
               </div>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Enrichment Progress/Result */}
-      {(enrichProgress || enrichResult) && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          {enrichProgress && (
-            <div className="flex items-center gap-2 text-purple-700 text-sm">
-              <Loader2 size={14} className="animate-spin" />
-              {enrichProgress}
-            </div>
-          )}
-          {enrichResult && (
-            <div className="text-sm text-purple-800">
-              <strong>Enrichment complete:</strong> {enrichResult.enriched} contacts found (via Apollo + scraping), {enrichResult.noEmail} had no contact info, {enrichResult.errors} errors.
-              <button onClick={() => setEnrichResult(null)} className="ml-2 text-purple-500 hover:text-purple-700">
-                <X size={14} className="inline" />
-              </button>
-            </div>
-          )}
         </div>
       )}
 
