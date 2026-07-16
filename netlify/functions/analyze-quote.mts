@@ -48,6 +48,8 @@ async function extractPdfText(fileBuffer: Buffer): Promise<string> {
   }
 }
 
+export const _diag: any = {}
+
 async function getDocumentTexts(
   taskOrderId: string,
   sowItemId: string
@@ -55,11 +57,13 @@ async function getDocumentTexts(
   const supabaseUrl = process.env.VITE_SUPABASE_URL!
 
   // Get all documents for this project
-  const { data: docs } = await supabase
+  const { data: docs, error: docsErr } = await supabase
     .from("documents")
     .select("id, file_name, file_path, file_type, category, sow_item_id")
     .eq("task_order_id", taskOrderId)
 
+  _diag.docsErr = docsErr?.message || null
+  _diag.docCount = docs?.length || 0
   if (!docs?.length) return { sowDocText: "", projectDocTexts: "" }
 
   // Separate SOW-specific docs from project-level docs
@@ -67,17 +71,24 @@ async function getDocumentTexts(
   const projectDocs = docs.filter(
     d => !d.sow_item_id && d.file_name.toLowerCase().endsWith(".pdf")
   )
+  _diag.sowDocsCount = sowDocs.length
+  _diag.perDoc = []
 
   const downloadAndExtract = async (doc: any): Promise<string> => {
     try {
       const { data, error } = await supabase.storage
         .from("task-order-documents")
         .download(doc.file_path)
-      if (error || !data) return ""
+      if (error || !data) {
+        _diag.perDoc.push({ f: doc.file_name, dlErr: error?.message || "no data" })
+        return ""
+      }
       const buffer = Buffer.from(await data.arrayBuffer())
       const text = await extractPdfText(buffer)
+      _diag.perDoc.push({ f: doc.file_name, bytes: buffer.length, textLen: text.length })
       return text ? `--- ${doc.file_name} ---\n${text}` : ""
-    } catch {
+    } catch (e: any) {
+      _diag.perDoc.push({ f: doc.file_name, catch: e?.message })
       return ""
     }
   }
@@ -440,6 +451,11 @@ export default async (req: Request, _context: Context) => {
       analysis,
       email_sent: emailSent,
       has_gaps: hasGaps,
+      _debug: {
+        sowDocTextLen: sowDocText.length,
+        projectDocTextsLen: projectDocTexts.length,
+        diag: _diag,
+      },
     }), { headers: corsHeaders })
   } catch (err: any) {
     console.error("Quote analysis error:", err.message)
