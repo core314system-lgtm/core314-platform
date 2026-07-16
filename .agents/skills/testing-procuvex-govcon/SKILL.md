@@ -191,6 +191,38 @@ curl -s "${TASKORDER_SUPABASE_URL}/rest/v1/cpars_ratings?contract_title=eq.YOUR_
 ```
 Verify `org_id` is a non-null UUID.
 
+## Testing AI Subcontractor Matching + RFQ Send (`/find-subs`)
+
+This covers the AI Project Matching panel and the RFQ compose/preview/send flow against the master subcontractor DB.
+
+### Safe test setup (avoid emailing real subs)
+1. Seed a controlled test row in `master_subcontractors` via service-role API with `contact_email` set to the **admin's own address** (e.g. core314system@gmail.com), `archived=false`, a non-null `slug`, and `trade_categories` matching the project's SOW (e.g. "Janitorial, Pest Control"). A null `slug` violates a not-null constraint.
+2. Use a project with SOW items whose `service_category` values map to trades (e.g. "E2E Test - GSA FMO Federal Courthouse Jacksonville FL", id `3b3c2bfc-0880-472b-b1d6-e97cc89d0626`).
+3. **Always delete the seeded row after testing** and confirm the active count reverts.
+
+### Matching procedure
+1. Go to `/find-subs`, open the "AI Project Matching" panel.
+2. Select the project. **The project `<select>` (and the state/trade selects) resist `select_option`** — use the native setter + change event via console:
+   ```js
+   const s=[...document.querySelectorAll('select')].find(x=>x.getAttribute('devinid')==='52');
+   const setter=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set;
+   setter.call(s,'PROJECT_ID'); s.dispatchEvent(new Event('change',{bubbles:true}));
+   ```
+3. Click "Find Matches". Expect a "SOW Coverage Breakdown — N of M SOW items matched" table and "N matching subcontractors found across K trades".
+4. Filter by a trade chip (e.g. "Pest Control (17)") to locate the seeded sub. Verify it appears.
+
+### RFQ procedure
+1. Check the seeded sub's row checkbox (the small checkbox at the far left of the match card — click precisely; nearby filter checkboxes are easy to hit by mistake). "Compose RFQ (N)" appears top-right when `selectedAiSubs.size > 0`.
+2. Click "Compose RFQ (1)" → modal "Sending to 1 subcontractor" with default template + merge fields.
+3. Click "Preview Email" tab → verify rendered RFQ (project, scope, site, due date, portal button).
+4. Click "Send RFQ (1)" → expect green banner **"1 RFQ invitation sent"** (sent=1, failed=0).
+
+### Verifying the send in the DB
+The invite-all pipeline (`sub-auto-match.mts` action `invite-all`) writes to **`rfq_tokens`, `email_tracking`, `master_sub_contact_log`** and updates `outreach_status`/`rfq_sent_date` on the join row — it does **NOT** set `outreach_sent_at` on `master_subcontractors` (that column stays null). To confirm a send, check for a fresh `rfq_tokens` row for the project's `task_order_id`, not `outreach_sent_at`.
+
+### Schema-drift lesson (important)
+AI matching returned HTTP 500 in production (`column master_subcontractors.incumbent_status does not exist`) while the UI silently showed "No matches found." Fixed in PR #812 by removing the invalid column from the `selectFields` list in `sub-auto-match.mts`. Lesson: **when a match/list function returns an empty UI result, replay the underlying request (browser console or curl) to see the real backend error** — a silent 500 can masquerade as "no matches." Also, `SELECT` column lists in Netlify functions can drift from the live schema; verify selected columns exist before assuming a query is correct.
+
 ## Common Gotchas
 
 1. **Feature cards hidden in accordion:** The project detail page shows new GovCon cards inside "Step 3: Review Generated Outputs" which is collapsed by default. Don't report them as missing without expanding the section first.
