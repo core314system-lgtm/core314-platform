@@ -23,7 +23,7 @@ const proofMetrics = [
 const capabilities = [
   { icon: Brain, title: 'AI Document Analysis', desc: 'Upload SOWs and get requirements, risks, and compliance items extracted in seconds.' },
   { icon: Shield, title: 'Auto Compliance Matrix', desc: 'One-click compliance matrices mapping every requirement to your response status.' },
-  { icon: Users, title: 'Subcontractor Matching', desc: 'Database of 170K+ verified subs with radius-based matching to your project site.' },
+  { icon: Users, title: 'Subcontractor Matching', desc: 'Database of 170K+ subs sourced from public government records, with radius-based matching to your project site.' },
   { icon: Kanban, title: 'Pipeline Management', desc: 'Track every bid across workflow stages with real-time visibility and deadlines.' },
   { icon: BarChart3, title: 'Cross-Project Analytics', desc: 'Win rates, trends, and intelligence that learns from your bid history.' },
   { icon: FileText, title: 'RFQ Composer', desc: 'Generate branded quote requests and send them directly to matched subcontractors.' },

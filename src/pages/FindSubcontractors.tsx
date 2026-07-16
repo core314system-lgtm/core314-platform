@@ -419,7 +419,7 @@ export default function FindSubcontractors() {
         <h1 className="text-2xl font-bold text-gray-900">Subscription Required</h1>
         <p className="text-gray-600">
           Access to the subcontractor database requires an active subscription.
-          Our network includes 18,000+ verified subcontractors across all trade categories.
+          Our network includes 170,000+ subcontractors sourced from public government records across all trade categories.
         </p>
         <a href="/pricing" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
           View Plans
@@ -1010,7 +1010,7 @@ export default function FindSubcontractors() {
           <h3 className="text-lg font-medium text-gray-700 mb-2">Search the Procuvex Network</h3>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
             Find qualified subcontractors by trade, location, or company name.
-            Verified subcontractors have validated certifications, insurance, and capabilities.
+            Subcontractors who claim and verify their profile add validated certifications, insurance, and capabilities.
           </p>
         </div>
       ) : loading ? (

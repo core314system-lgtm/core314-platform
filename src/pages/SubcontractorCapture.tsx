@@ -575,7 +575,7 @@ export default function SubcontractorCapture() {
           </button>
           {searchPerformed && !searching && (
             <span className="text-sm text-gray-500">
-              Found {results.length} verified subcontractor{results.length !== 1 ? 's' : ''} not already in your database
+              Found {results.length} matching subcontractor{results.length !== 1 ? 's' : ''} not already in your database
             </span>
           )}
         </div>
@@ -587,7 +587,7 @@ export default function SubcontractorCapture() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
               <Building size={18} className="text-gray-500" />
-              Verified Subcontractors ({results.length})
+              Matching Subcontractors ({results.length})
             </h2>
             <div className="flex items-center gap-3">
               <button
@@ -731,7 +731,7 @@ export default function SubcontractorCapture() {
           <Building size={48} className="mx-auto text-gray-300 mb-3" />
           <h3 className="font-medium text-gray-700 mb-1">No New Subcontractors Found</h3>
           <p className="text-sm text-gray-500">
-            All verified subcontractors for this search are already in your database, or no results matched the criteria. Try a different category or broaden the search scope.
+            All matching subcontractors for this search are already in your database, or no results matched the criteria. Try a different category or broaden the search scope.
           </p>
         </div>
       )}
