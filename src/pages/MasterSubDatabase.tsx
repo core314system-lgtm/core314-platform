@@ -1885,12 +1885,12 @@ export default function MasterSubDatabase() {
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Mail size={14} /> With Email</div>
           <div className="text-2xl font-bold text-blue-600">{stats.withEmail.toLocaleString()}</div>
-          <div className="text-xs text-gray-400">{stats.total > 0 ? Math.round(stats.withEmail / stats.total * 100) : 0}% reachable</div>
+          <div className="text-xs text-gray-400">{stats.total > 0 ? Math.round(stats.withEmail / stats.total * 100) : 0}% have an email on file</div>
         </div>
         <div className="bg-white rounded-xl border border-green-300 bg-green-50 p-4">
           <div className="flex items-center gap-2 text-green-700 text-xs mb-1"><BadgeCheck size={14} /> Outreach Eligible</div>
           <div className="text-2xl font-bold text-green-700">{stats.outreachEligible.toLocaleString()}</div>
-          <div className="text-xs text-green-600">Verified safe to send</div>
+          <div className="text-xs text-green-600">Passed deliverability screening</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs mb-1"><Users size={14} /> Claimed</div>

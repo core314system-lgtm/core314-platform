@@ -25,7 +25,7 @@ const benefits = [
   {
     icon: Users,
     title: 'Subcontractor Intelligence',
-    desc: 'Search 170,000+ subcontractors, send RFQs, and manage quotes — all in one platform.',
+    desc: 'Search 130,000+ subcontractors, send RFQs, and manage quotes — all in one platform.',
   },
   {
     icon: BarChart3,

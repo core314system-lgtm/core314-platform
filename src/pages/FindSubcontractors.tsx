@@ -419,7 +419,7 @@ export default function FindSubcontractors() {
         <h1 className="text-2xl font-bold text-gray-900">Subscription Required</h1>
         <p className="text-gray-600">
           Access to the subcontractor database requires an active subscription.
-          Our network includes 170,000+ subcontractors sourced from public government records across all trade categories.
+          Our network includes 130,000+ subcontractors sourced from public government records across all trade categories.
         </p>
         <a href="/pricing" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
           View Plans
@@ -445,7 +445,7 @@ export default function FindSubcontractors() {
           <div className="w-full flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
             <Shield size={16} />
             <span className="font-medium">Trial Preview Mode</span>
-            <span>— You can see up to {TRIAL_RESULT_LIMIT} results per search. Subscribe to a paid plan for full access to all {stats?.total.toLocaleString() || '18,000+'} subcontractors.</span>
+            <span>— You can see up to {TRIAL_RESULT_LIMIT} results per search. Subscribe to a paid plan for full access to all {stats?.total.toLocaleString() || '130,000+'} subcontractors.</span>
             <a href="/pricing" className="ml-auto text-amber-700 font-medium underline hover:text-amber-900">Upgrade</a>
           </div>
         )}
@@ -812,7 +812,7 @@ export default function FindSubcontractors() {
 
               {aiLoading && (
                 <div className="text-center py-6 text-purple-500 text-sm flex items-center justify-center gap-2">
-                  <Loader2 size={16} className="animate-spin" /> Analyzing project requirements against 18,000+ subcontractors...
+                  <Loader2 size={16} className="animate-spin" /> Analyzing project requirements against 130,000+ subcontractors...
                 </div>
               )}
 
@@ -1192,7 +1192,7 @@ export default function FindSubcontractors() {
             <div className="mt-4 p-5 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl text-center space-y-3">
               <div className="flex items-center justify-center gap-2 text-blue-800 font-semibold">
                 <Lock size={16} />
-                Showing {TRIAL_RESULT_LIMIT} of {stats?.total.toLocaleString() || '18,000+'} subcontractors
+                Showing {TRIAL_RESULT_LIMIT} of {stats?.total.toLocaleString() || '130,000+'} subcontractors
               </div>
               <p className="text-sm text-blue-700">
                 Subscribe to a Growth or Enterprise plan to unlock the full database, including advanced AI matching,

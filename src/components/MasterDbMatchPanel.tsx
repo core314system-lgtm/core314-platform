@@ -206,7 +206,7 @@ export default function MasterDbMatchPanel({
 
       {loading && (
         <div className="text-center py-8 text-blue-500 text-sm flex items-center justify-center gap-2">
-          <Loader2 size={16} className="animate-spin" /> Searching 18,000+ subcontractors...
+          <Loader2 size={16} className="animate-spin" /> Searching 130,000+ subcontractors...
         </div>
       )}
 
