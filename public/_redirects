@@ -1,3 +1,4 @@
+/api/*  /.netlify/functions/:splat  200
 /presentation  /presentation/index.html  200
 /presentation/*  /presentation/:splat  200
 /sub-portal/*  /portal/:splat  301
