@@ -382,13 +382,16 @@ export default async (req: Request, _context: Context) => {
           emailSent = true
 
           // Log communication
-          await supabase.from("sow_communications").insert({
+          const { error: commErr } = await supabase.from("sow_communications").insert({
             sow_subcontractor_id: quote.sow_subcontractor_id,
             comm_type: "compliance_gap_notification",
             direction: "outbound",
             subject: `AI Compliance Review — ${analysis.requirements_missing.length} gaps found`,
             body: analysis.summary,
           })
+          if (commErr) {
+            console.error("Failed to log gap notification communication:", commErr.message)
+          }
         } catch (emailErr: any) {
           console.error("Failed to send gap notification:", emailErr.message)
         }

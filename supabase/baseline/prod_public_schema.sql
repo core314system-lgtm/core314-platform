@@ -1557,7 +1557,7 @@ CREATE TABLE public.sow_communications (
     body text,
     created_by uuid,
     created_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT sow_communications_comm_type_check CHECK ((comm_type = ANY (ARRAY['rfq_sent'::text, 'question'::text, 'response'::text, 'follow_up'::text, 'quote_received'::text, 'clarification'::text, 'award_notice'::text, 'decline_notice'::text, 'note'::text]))),
+    CONSTRAINT sow_communications_comm_type_check CHECK ((comm_type = ANY (ARRAY['rfq_sent'::text, 'question'::text, 'response'::text, 'follow_up'::text, 'quote_received'::text, 'clarification'::text, 'award_notice'::text, 'decline_notice'::text, 'note'::text, 'compliance_gap_notification'::text]))),
     CONSTRAINT sow_communications_direction_check CHECK ((direction = ANY (ARRAY['outbound'::text, 'inbound'::text, 'internal'::text])))
 );
 
