@@ -21,10 +21,11 @@ export default async (req: Request, _context: Context) => {
     )
 
     const [totalRes, verifiedRes] = await Promise.all([
-      supabase.from("master_subcontractors").select("*", { count: "exact", head: true }),
+      supabase.from("master_subcontractors").select("*", { count: "exact", head: true }).eq("archived", false),
       supabase
         .from("master_subcontractors")
         .select("*", { count: "exact", head: true })
+        .eq("archived", false)
         .in("verification_status", ["verified", "claimed"]),
     ])
 
