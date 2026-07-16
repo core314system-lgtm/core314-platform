@@ -54,7 +54,6 @@ interface DiscoveredSub {
   data_source: DataSource
   selected: boolean
   imported: boolean
-  scraping_email?: boolean
 }
 
 export default function SubcontractorCapture() {
@@ -221,33 +220,6 @@ export default function SubcontractorCapture() {
       }
 
       setResults(discovered)
-
-      // Scrape emails in the background for results that have websites
-      // Run in parallel batches of 3 for speed
-      const withWebsites = discovered.filter(d => d.website)
-      const BATCH_SIZE = 3
-      for (let i = 0; i < withWebsites.length; i += BATCH_SIZE) {
-        const batch = withWebsites.slice(i, i + BATCH_SIZE)
-        const promises = batch.map(async (sub) => {
-          try {
-            setResults(prev => prev.map(r => r.id === sub.id ? { ...r, scraping_email: true } : r))
-            const resp = await fetch('/.netlify/functions/scrape-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ website: sub.website }),
-            })
-            const data = await resp.json()
-            if (data.best_email) {
-              setResults(prev => prev.map(r => r.id === sub.id ? { ...r, contact_email: data.best_email, scraping_email: false } : r))
-            } else {
-              setResults(prev => prev.map(r => r.id === sub.id ? { ...r, scraping_email: false } : r))
-            }
-          } catch {
-            setResults(prev => prev.map(r => r.id === sub.id ? { ...r, scraping_email: false } : r))
-          }
-        })
-        await Promise.all(promises)
-      }
     } catch {
       setError('Search failed. Please try again.')
     } finally {
@@ -270,26 +242,6 @@ export default function SubcontractorCapture() {
 
     setImporting(true)
     setImportCount(0)
-
-    // Scrape emails for any selected subs that have a website but no email yet
-    const needsEmail = selected.filter(s => s.website && !s.contact_email)
-    if (needsEmail.length > 0) {
-      const scrapePromises = needsEmail.map(async (s) => {
-        try {
-          const resp = await fetch('/.netlify/functions/scrape-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ website: s.website }),
-          })
-          const data = await resp.json()
-          if (data.best_email) {
-            s.contact_email = data.best_email
-            setResults(prev => prev.map(r => r.id === s.id ? { ...r, contact_email: data.best_email } : r))
-          }
-        } catch { /* ignore */ }
-      })
-      await Promise.all(scrapePromises)
-    }
 
     function buildFullRecords(subs: DiscoveredSub[]) {
       return subs.map(s => ({
@@ -686,11 +638,6 @@ export default function SubcontractorCapture() {
                           <Mail size={13} />
                           {sub.contact_email}
                         </a>
-                      ) : sub.scraping_email ? (
-                        <span className="flex items-center gap-1 text-gray-400 text-xs">
-                          <Loader2 size={12} className="animate-spin" />
-                          Finding email…
-                        </span>
                       ) : null}
                       {sub.website && (
                         <a

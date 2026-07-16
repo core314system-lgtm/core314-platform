@@ -146,13 +146,6 @@ export default function MasterSubDatabase() {
   const importPanelRef = useRef<HTMLDivElement>(null)
   const sbsImportPanelRef = useRef<HTMLDivElement>(null)
 
-  // GSA eLibrary Scraper state
-  const [showGsaScraper, setShowGsaScraper] = useState(false)
-  const [gsaScraping, setGsaScraping] = useState(false)
-  const [gsaProgress, setGsaProgress] = useState('')
-  const [gsaResult, setGsaResult] = useState<any>(null)
-  const gsaScraperRef = useRef<HTMLDivElement>(null)
-
   // Database Health state
   const [showHealthPanel, setShowHealthPanel] = useState(false)
   const [healthStats, setHealthStats] = useState<any>(null)
@@ -945,31 +938,27 @@ export default function MasterSubDatabase() {
             {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             {exporting ? exportProgress || 'Exporting...' : 'Export CSV'}
           </button>
-          <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); setShowGsaScraper(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showOutreach; setShowOutreach(opening); setShowImport(false); setShowSbsImport(false); if (opening) setTimeout(() => outreachPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50">
             <Mail size={16} /> Send Outreach
           </button>
-          <button onClick={() => { const opening = !showImport; setShowImport(opening); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); if (opening) setTimeout(() => importPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showImport; setShowImport(opening); setShowOutreach(false); setShowSbsImport(false); if (opening) setTimeout(() => importPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             <Upload size={16} /> Import from SAM.gov
           </button>
-          <button onClick={() => { const opening = !showSbsImport; setShowSbsImport(opening); setShowImport(false); setShowOutreach(false); setShowGsaScraper(false); if (opening) setTimeout(() => sbsImportPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showSbsImport; setShowSbsImport(opening); setShowImport(false); setShowOutreach(false); if (opening) setTimeout(() => sbsImportPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
             <FileUp size={16} /> Import SBS Data
           </button>
-          <button onClick={() => { const opening = !showGsaScraper; setShowGsaScraper(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowHealthPanel(false); setShowStateImport(false); if (opening) setTimeout(() => gsaScraperRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700">
-            <Database size={16} /> Scrape GSA eLibrary
-          </button>
-          <button onClick={() => { const opening = !showStateImport; setShowStateImport(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowHealthPanel(false); if (opening) setTimeout(() => stateImportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showStateImport; setShowStateImport(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowHealthPanel(false); if (opening) setTimeout(() => stateImportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700">
             <Globe size={16} /> State Directories
           </button>
-          <button onClick={() => { const opening = !showVerificationImport; setShowVerificationImport(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowStateImport(false); setShowHealthPanel(false); if (opening) setTimeout(() => verificationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
+          <button onClick={() => { const opening = !showVerificationImport; setShowVerificationImport(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowStateImport(false); setShowHealthPanel(false); if (opening) setTimeout(() => verificationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">
             <ShieldCheck size={16} /> Email Verification
           </button>
-          <button onClick={() => { const opening = !showHealthPanel; setShowHealthPanel(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowGsaScraper(false); setShowStateImport(false); setShowVerificationImport(false); if (opening) { fetchHealthStats(); setTimeout(() => healthPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) } }}
+          <button onClick={() => { const opening = !showHealthPanel; setShowHealthPanel(opening); setShowImport(false); setShowOutreach(false); setShowSbsImport(false); setShowStateImport(false); setShowVerificationImport(false); if (opening) { fetchHealthStats(); setTimeout(() => healthPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100) } }}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700">
             <Activity size={16} /> Database Health
           </button>
@@ -1468,149 +1457,6 @@ export default function MasterSubDatabase() {
         </div>
       )}
 
-
-      {/* GSA eLibrary Scraper Panel */}
-      {showGsaScraper && (
-        <div ref={gsaScraperRef} className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-amber-900">Scrape GSA eLibrary</h3>
-            <button onClick={() => setShowGsaScraper(false)} className="text-amber-400 hover:text-amber-600"><X size={18} /></button>
-          </div>
-          <p className="text-sm text-amber-800">
-            Scrape all contractors from <a href="https://www.gsaelibrary.gsa.gov/ElibMain/contractorList.do?contractorListFor=A" target="_blank" rel="noopener" className="underline font-medium">GSA eLibrary</a> (A–Z).
-            Extracts company name, address, phone, email, website, SAM UEI, socio-economic status, GSA schedule categories, and contract details.
-          </p>
-          <p className="text-xs text-amber-700">
-            Runs entirely server-side — your laptop can sleep and the scrape will continue automatically every 2 minutes. Progress is saved to the database.
-          </p>
-
-          {!gsaResult && (
-            <div className="space-y-3">
-              <button
-                onClick={async () => {
-                  setGsaScraping(true)
-                  setGsaProgress('Starting background scrape...')
-                  setGsaResult(null)
-                  try {
-                    const res = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ action: 'start' })
-                    })
-                    const data = await res.json()
-                    if (res.ok) {
-                      setGsaProgress(`Background scrape started. ${data.first_batch || ''} The server will process batches every 2 minutes automatically.`)
-                    } else {
-                      setGsaProgress(`Error: ${data.error}`)
-                      setGsaScraping(false)
-                    }
-                  } catch (e: any) {
-                    setGsaProgress(`Error: ${e.message}`)
-                    setGsaScraping(false)
-                  }
-                }}
-                disabled={gsaScraping}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Database size={18} /> Start Full A–Z Background Scrape
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    setGsaProgress('Checking scrape status...')
-                    try {
-                      const res = await fetch('/.netlify/functions/gsa-elibrary-scrape', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'status' })
-                      })
-                      const data = await res.json()
-                      if (data.status === 'running') {
-                        setGsaScraping(true)
-                        const pct = data.letters_completed ? Math.round((data.letters_completed.length / 26) * 100) : 0
-                        setGsaProgress(`Running — Letter ${data.current_letter} (${data.current_url_index}/${data.urls_in_letter} in letter). Letters done: ${(data.letters_completed || []).join(', ') || 'none'} (${pct}%). Total: ${data.total_scraped} scraped, ${data.total_inserted} new, ${data.total_updated} updated, ${data.total_errors} errors.`)
-                      } else if (data.status === 'complete') {
-                        setGsaScraping(false)
-                        setGsaResult({ scraped: data.total_scraped, inserted: data.total_inserted, updated: data.total_updated, errors: data.total_errors })
-                        setGsaProgress('')
-                      } else if (data.status === 'stopped') {
-                        setGsaProgress(`Scrape was stopped. Total: ${data.total_scraped} scraped, ${data.total_inserted} new, ${data.total_updated} updated.`)
-                        setGsaScraping(false)
-                      } else {
-                        setGsaProgress('No active scrape job found.')
-                        setGsaScraping(false)
-                      }
-                    } catch (e: any) {
-                      setGsaProgress(`Error checking status: ${e.message}`)
-                      setGsaScraping(false)
-                    }
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100 text-sm"
-                >
-                  <RefreshCw size={16} /> {gsaScraping ? 'Refresh Status' : 'Check Status'}
-                </button>
-                {gsaScraping && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await fetch('/.netlify/functions/gsa-elibrary-scrape', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'stop' })
-                        })
-                        setGsaProgress('Scrape stopped.')
-                        setGsaScraping(false)
-                      } catch (e: any) {
-                        setGsaProgress(`Error stopping: ${e.message}`)
-                      }
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm"
-                  >
-                    <X size={14} /> Stop Scrape
-                  </button>
-                )}
-              </div>
-
-              {gsaProgress && (
-                <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-1">
-                  <div className="flex items-center gap-2 text-amber-800 text-sm">
-                    {gsaScraping && <Loader2 size={16} className="animate-spin flex-shrink-0" />}
-                    <span className="flex-1">{gsaProgress}</span>
-                  </div>
-                  {gsaScraping && (
-                    <p className="text-xs text-green-700 font-medium">Server-side processing — safe to close your laptop. The scrape continues automatically every 2 minutes.</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {gsaResult && (
-            <div className="bg-white border border-amber-200 rounded-lg p-4 space-y-2">
-              <h4 className="font-semibold text-amber-900">Scrape Complete</h4>
-              <div className="grid grid-cols-4 gap-3 text-sm">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-amber-700">{gsaResult.scraped.toLocaleString()}</div>
-                  <div className="text-amber-600">Scraped</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{gsaResult.inserted.toLocaleString()}</div>
-                  <div className="text-green-700">New Added</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{gsaResult.updated.toLocaleString()}</div>
-                  <div className="text-blue-700">Updated</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">{gsaResult.errors.toLocaleString()}</div>
-                  <div className="text-red-700">Errors</div>
-                </div>
-              </div>
-              <button onClick={() => { setGsaResult(null) }} className="text-sm text-amber-600 hover:underline mt-2">Run again</button>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* State Directory Import Panel */}
       {showStateImport && (
