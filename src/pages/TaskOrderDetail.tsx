@@ -925,26 +925,9 @@ export default function TaskOrderDetail() {
     setAddingToDb(business.company_name)
 
     try {
-      // Step 1: Attempt to scrape email from website
-      let scrapedEmail: string | null = null
-      if (business.website) {
-        try {
-          const scrapeResp = await fetch('/.netlify/functions/scrape-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ website: business.website }),
-          })
-          if (scrapeResp.ok) {
-            const scrapeData = await scrapeResp.json()
-            scrapedEmail = scrapeData.best_email || null
-          }
-        } catch { /* email scraping is best-effort */ }
-      }
-
-      // Step 2: Insert with whatever email we found
       const { data: inserted, error } = await supabase.from('subcontractors').insert({
         company_name: business.company_name,
-        contact_email: scrapedEmail,
+        contact_email: null,
         contact_phone: business.phone,
         service_categories: [serviceCategory, ...business.categories].filter(Boolean),
         geographic_coverage: business.state ? [business.state] : [],
@@ -971,12 +954,7 @@ export default function TaskOrderDetail() {
         await loadProjectSubcontractors()
       }
 
-      // Step 3: Notify user with email status
-      if (scrapedEmail) {
-        alert(`✓ ${business.company_name} added to database!\n\nEmail found: ${scrapedEmail}\n(Auto-extracted from their website)`)
-      } else {
-        alert(`⚠ ${business.company_name} added to database.\n\nNo email address found — RFQs cannot be sent until email is added.\n\nYou can add their email by editing their profile in the Master Subcontractor Database.`)
-      }
+      alert(`✓ ${business.company_name} added to database.\n\nAdd their email by editing their profile in the Master Subcontractor Database so RFQs can be sent.`)
     } catch (err: unknown) {
       const msg = err instanceof Error
         ? err.message
