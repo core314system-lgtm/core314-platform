@@ -311,7 +311,7 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
     // Per-trade queries to guarantee coverage for ALL SOW trades.
     // A single .overlaps() query with .limit(500) causes common trades (HVAC, Plumbing)
     // to dominate the result set, crowding out rarer trades.
-    const selectFields = "id, company_name, contact_email, contact_phone, contact_name, state, city, zip_code, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei, incumbent_status"
+    const selectFields = "id, company_name, contact_email, contact_phone, contact_name, state, city, zip_code, trade_categories, verification_status, profile_completeness, small_business, small_business_types, geographic_coverage, slug, naics_codes, description, website, capability_statement_path, address_line1, sam_uei"
     const perTradeLimit = Math.max(Math.ceil(500 / trades.length), 50)
 
     const tradeQueries = trades.map((trade: string) => {
@@ -452,13 +452,6 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
           score += 10
           reasons.push(`SB: ${sbMatches.join(", ")}`)
         }
-      }
-
-      // Incumbent intelligence bonus (up to 25 points)
-      // Subs with known incumbent status at similar locations score higher
-      if (sub.incumbent_status === "known") {
-        score += 20
-        reasons.push("Known incumbent")
       }
 
       return {
