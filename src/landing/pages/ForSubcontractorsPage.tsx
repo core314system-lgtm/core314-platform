@@ -389,7 +389,7 @@ export default function ForSubcontractorsPage() {
               Your Gateway to Government Contracts
             </motion.h2>
             <motion.p variants={fadeUp} className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Procuvex maintains a comprehensive verified subcontractor network for government contracting. Prime contractors use this network to find qualified, certified subcontractors for teaming opportunities, task orders, and RFQs.
+              Procuvex maintains a comprehensive subcontractor network sourced from public government records for government contracting. Prime contractors use this network to find qualified subcontractors for teaming opportunities, task orders, and RFQs.
             </motion.p>
           </motion.div>
 

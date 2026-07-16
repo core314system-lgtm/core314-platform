@@ -338,10 +338,10 @@ export default function LandingPage() {
               Our #1 Competitive Advantage
             </span>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-4" style={{ fontFamily: 'Poppins, sans-serif' }}>
-              The Verified Subcontractor Network
+              The Government-Sourced Subcontractor Network
             </h2>
             <p className="text-lg text-blue-200 max-w-3xl mx-auto leading-relaxed">
-              No other platform connects prime contractors with a verified database of this size. AI-powered matching by trade, radius, and compliance — this is the feature that changes how government teams are built.
+              No other platform connects prime contractors with a database of this size, sourced from public government records. AI-powered matching by trade, radius, and compliance — this is the feature that changes how government teams are built.
             </p>
           </motion.div>
 
@@ -457,7 +457,7 @@ export default function LandingPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: 'Verified Subcontractor Database', us: true, them: false },
+                  { feature: 'Government-Sourced Subcontractor Database', us: true, them: false },
                   { feature: 'AI Auto-Matching (Primes ↔ Subs)', us: true, them: false },
                   { feature: 'Two-Sided Network (Primes + Subs)', us: true, them: false },
                   { feature: 'Sub Verification & Badges', us: true, them: false },

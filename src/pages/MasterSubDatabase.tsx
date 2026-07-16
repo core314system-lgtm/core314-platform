@@ -933,7 +933,7 @@ export default function MasterSubDatabase() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Master Subcontractor Database</h1>
-          <p className="text-sm text-gray-500 mt-1">Procuvex verified network of subcontractors across all trades</p>
+          <p className="text-sm text-gray-500 mt-1">Sourced from public government records — SBA, SAM.gov, GSA eLibrary, and state directories</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowDeleteConfirm(true)}

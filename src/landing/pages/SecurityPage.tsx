@@ -68,7 +68,7 @@ const dataHandling = [
     'Publicly available SAM.gov opportunity data and entity registrations',
     'RFP/SOW documents you upload for AI analysis (stored in your isolated tenant)',
     'Your past performance citations, compliance matrices, and capture data',
-    'Subcontractor profiles sourced from public SAM.gov registrations',
+    'Subcontractor profiles sourced from public government records (SBA, SAM.gov, GSA eLibrary, and state small-business directories)',
     'Your team\'s project management data (tasks, gates, timelines)',
   ]},
   { title: 'What Procuvex Does NOT Handle', items: [
