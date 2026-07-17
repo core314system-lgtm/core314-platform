@@ -183,7 +183,9 @@ Include standard GovCon proposal volumes: Technical, Management, Past Performanc
         sectionLM?.evaluation_factors ? `\n# RFP EVALUATION CRITERIA (from Section M)\n${sectionLM.evaluation_factors.map(f => `- ${f.factor_name} (Weight: ${f.weight})${f.description ? ` — ${f.description}` : ''}`).join('\n')}` : '',
         analysis?.summary ? `\n# PROJECT CONTEXT\n${analysis.summary}` : '',
         winThemes?.themes ? `\n# WIN THEMES (must be reinforced in this section)\n${winThemes.themes.map(t => `- THEME: ${t.theme}\n  EVIDENCE: ${t.evidence}`).join('\n')}` : '',
-        pastPerf?.citations ? `\n# PAST PERFORMANCE CITATIONS (weave naturally into narrative)\n${pastPerf.citations.slice(0, 4).map(c => `- ${c.title}${c.agency ? ` (${c.agency})` : ''}${c.contract_value ? ` — $${c.contract_value}` : ''}: ${c.relevance}`).join('\n')}` : '',
+        pastPerf?.citations && pastPerf.citations.length > 0
+          ? `\n# PAST PERFORMANCE CITATIONS (weave naturally into narrative)\n${pastPerf.citations.slice(0, 4).map(c => `- ${c.title}${c.agency ? ` (${c.agency})` : ''}${c.contract_value ? ` — $${c.contract_value}` : ''}: ${c.relevance}`).join('\n')}`
+          : `\n# PAST PERFORMANCE DATA STATUS\nNO past performance citations are available for this project. You MUST NOT invent, name, or describe any specific past contract, agency, client, dollar value, date, personnel name, or performance metric (e.g. satisfaction ratings, cost/time reductions, response times, award counts). This applies even if the Section Title or Section Description asks for "examples", "references", or "metrics" — the absence of data overrides any such instruction. If this is a past performance section, write ONLY about the organization's methodology for identifying and presenting relevant past performance, and use explicit bracketed placeholders such as [Contract Title], [Agency], [Period of Performance], [Metric] for any specifics the user must supply. Never substitute a fabricated value for a placeholder.`,
         relevantRequirements && relevantRequirements.length > 0 ? `\n# KEY COMPLIANCE REQUIREMENTS (from Compliance Matrix — must address)\n${relevantRequirements.map(r => `- [${r.risk_level}] ${r.requirement} (Source: ${r.source})`).join('\n')}` : '',
         analysis?.requirements ? `\n# SOW/PWS REQUIREMENTS\n${analysis.requirements.slice(0, 12).map(r => `- [${r.category}] ${r.text}`).join('\n')}` : '',
         compIntel?.competitors ? `\n# COMPETITIVE LANDSCAPE (ghost weaknesses, emphasize our differentiators)\n${compIntel.competitors.slice(0, 3).map(c => `- ${c.name}: Strengths=[${c.strengths?.slice(0, 2).join(', ')}] Weaknesses=[${c.weaknesses?.slice(0, 2).join(', ')}]`).join('\n')}` : '',
@@ -235,7 +237,7 @@ Only add a **Proof** element if specific past performance data is provided in th
 - ONLY reference past performance if citations are provided in the PAST PERFORMANCE CITATIONS section below
 - Use the EXACT title, agency, and contract details as given — do not embellish or add metrics not stated
 - If relevance descriptions are provided, paraphrase them naturally into the narrative
-- If NO past performance citations are provided, skip all past performance references entirely
+- If NO past performance citations are provided, do NOT fabricate example contracts, agencies, clients, or metrics — even if the section asks for "examples" or "metrics". Instead describe the organization's approach to presenting relevant past performance and use explicit bracketed placeholders (e.g. [Contract Title], [Agency], [Metric]) for details the user must supply
 
 ### 6. COMPETITIVE POSITIONING (ONLY from provided data)
 - Only reference competitive positioning if COMPETITIVE LANDSCAPE data is provided below
