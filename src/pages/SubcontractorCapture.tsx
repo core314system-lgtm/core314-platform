@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { markMultipleSources } from '../lib/subcontractorSources'
-import { searchCuratedCompanies, REGION_STATES, type CoverageLevel } from '../lib/curatedSubcontractors'
+import { searchCuratedCompanies, REGION_STATES, resolveStateCode, type CoverageLevel } from '../lib/curatedSubcontractors'
 import { Search, MapPin, Plus, CheckCircle, Building, Phone, Globe, Loader2, AlertCircle, Radar, Globe2, ShieldCheck, Star, Mail } from 'lucide-react'
 
 const CUSTOM_CATEGORIES_KEY = 'core314_custom_service_categories'
@@ -115,7 +115,7 @@ export default function SubcontractorCapture() {
       let searchState: string | undefined
       if (searchScope === 'local' && location) {
         const parts = location.split(',').map(s => s.trim())
-        searchState = parts[1]?.replace(/\s/g, '').toUpperCase()
+        searchState = parts[1] ? resolveStateCode(parts[1]) : undefined
       }
 
       // Check against existing database to avoid showing duplicates
@@ -571,7 +571,9 @@ export default function SubcontractorCapture() {
             <ShieldCheck size={14} className="text-green-600 flex-shrink-0" />
             {searchScope === 'national'
               ? 'Companies shown are verified industry participants sourced from public business registrations, industry associations, and company filings. Coverage levels reflect each company\'s verified service footprint.'
-              : `Local businesses sourced from Google Maps for ${searchScope === 'local' ? location : selectedRegion + ' region'}. National/regional companies from Procuvex curated industry database.`
+              : searchScope === 'local'
+              ? `Local businesses sourced from Google Maps for ${location}, plus curated firms that serve this area. National-only firms are excluded — switch to Regional or National to see them.`
+              : `Local businesses sourced from Google Maps for ${selectedRegion} region. Regional and national companies from Procuvex curated industry database.`
             }
           </div>
 

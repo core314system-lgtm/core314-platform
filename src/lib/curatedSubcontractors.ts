@@ -42,6 +42,31 @@ export function getRegionForState(state: string): string | undefined {
   return undefined
 }
 
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  ALABAMA: 'AL', ALASKA: 'AK', ARIZONA: 'AZ', ARKANSAS: 'AR', CALIFORNIA: 'CA',
+  COLORADO: 'CO', CONNECTICUT: 'CT', DELAWARE: 'DE', FLORIDA: 'FL', GEORGIA: 'GA',
+  HAWAII: 'HI', IDAHO: 'ID', ILLINOIS: 'IL', INDIANA: 'IN', IOWA: 'IA',
+  KANSAS: 'KS', KENTUCKY: 'KY', LOUISIANA: 'LA', MAINE: 'ME', MARYLAND: 'MD',
+  MASSACHUSETTS: 'MA', MICHIGAN: 'MI', MINNESOTA: 'MN', MISSISSIPPI: 'MS', MISSOURI: 'MO',
+  MONTANA: 'MT', NEBRASKA: 'NE', NEVADA: 'NV', 'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ',
+  'NEW MEXICO': 'NM', 'NEW YORK': 'NY', 'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', OHIO: 'OH',
+  OKLAHOMA: 'OK', OREGON: 'OR', PENNSYLVANIA: 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+  'SOUTH DAKOTA': 'SD', TENNESSEE: 'TN', TEXAS: 'TX', UTAH: 'UT', VERMONT: 'VT',
+  VIRGINIA: 'VA', WASHINGTON: 'WA', 'WEST VIRGINIA': 'WV', WISCONSIN: 'WI', WYOMING: 'WY',
+  'DISTRICT OF COLUMBIA': 'DC',
+}
+
+/**
+ * Resolve a state input (2-letter code or full name) to its 2-letter code.
+ * Returns undefined if it can't be resolved.
+ */
+export function resolveStateCode(input: string): string | undefined {
+  const trimmed = input.trim().toUpperCase()
+  if (!trimmed) return undefined
+  if (trimmed.length === 2) return trimmed
+  return STATE_NAME_TO_CODE[trimmed]
+}
+
 export const CURATED_COMPANIES: CuratedCompany[] = [
   // ═══════════════════════════════════════════════════════════════
   // ELEVATOR MAINTENANCE
@@ -975,11 +1000,14 @@ export function searchCuratedCompanies(
     })
   }
 
-  if (scope === 'local' && options?.state) {
-    const st = options.state.toUpperCase()
+  if (scope === 'local') {
+    // Strict local: never include national-only firms. Without a resolvable
+    // state we can't verify service area, so return nothing from the curated
+    // set and rely on the local (Google Places) results.
+    const st = options?.state?.toUpperCase()
+    if (!st) return []
     const stateRegion = getRegionForState(st)
     return categoryMatches.filter(c => {
-      if (c.coverage === 'national') return true
       if (c.coverage === 'regional') {
         if (c.states_served?.includes(st)) return true
         if (stateRegion && c.regions_served?.includes(stateRegion)) return true
