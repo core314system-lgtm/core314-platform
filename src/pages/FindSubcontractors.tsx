@@ -140,6 +140,8 @@ export default function FindSubcontractors() {
   const [localRadius, setLocalRadius] = useState(50)
   const [projectZip, setProjectZip] = useState('')
   const [showRfqCompose, setShowRfqCompose] = useState(false)
+  const [expandingTrade, setExpandingTrade] = useState<string | null>(null)
+  const [expandedScopes, setExpandedScopes] = useState<Record<string, 'Regional' | 'National'>>({})
 
   // Load daily search count for rate limit display
   useEffect(() => {
@@ -406,6 +408,59 @@ export default function FindSubcontractors() {
     e.preventDefault()
     performSearch(0)
   }
+
+  // Determine the next broader scope to try for a zero-result SOW trade.
+  // Escalates local/regional → Regional → National; null when nothing wider remains.
+  function nextExpandTarget(mappedTrade: string): 'Regional' | 'National' | null {
+    const attempted = expandedScopes[mappedTrade]
+    if (attempted === 'National') return null
+    if (attempted === 'Regional') return 'National'
+    if (locationScopes.has('national')) return null
+    if (locationScopes.has('regional')) return 'National'
+    return 'Regional'
+  }
+
+  // Re-query a single trade at a broader location scope and merge results in-place.
+  async function expandTradeScope(mappedTrade: string) {
+    if (!user || !selectedProject) return
+    const target = nextExpandTarget(mappedTrade)
+    if (!target) return
+    const proj = projects.find(p => p.id === selectedProject)
+    setExpandingTrade(mappedTrade)
+    try {
+      const res = await fetch('/.netlify/functions/sub-auto-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        body: JSON.stringify({
+          action: 'match',
+          trades: [mappedTrade],
+          states: proj?.location_state ? [proj.location_state] : [],
+          location_scope: target === 'National' ? ['national'] : ['regional'],
+          max_results: 50,
+          include_unclaimed: true,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const newMatches: AiMatch[] = data.matches || []
+        const seen = new Set(aiMatches.map(m => m.sub_id))
+        const merged = [...aiMatches, ...newMatches.filter(m => !seen.has(m.sub_id))]
+        setAiMatches(merged)
+        const counts: Record<string, number> = {}
+        for (const m of merged) for (const t of (m.matched_trades || [])) counts[t] = (counts[t] || 0) + 1
+        setAiTradeCounts(counts)
+        setSowBreakdown(prev => prev.map(row => row.mapped_trade ? { ...row, sub_count: counts[row.mapped_trade] || 0 } : row))
+        setExpandedScopes(prev => ({ ...prev, [mappedTrade]: target }))
+      }
+    } catch (err) {
+      console.error('Expand scope error:', err)
+    }
+    setExpandingTrade(null)
+  }
+
+  const scopeSummaryLabel = Array.from(locationScopes)
+    .map(s => s === 'local' ? `${localRadius}mi` : s === 'regional' ? 'Regional' : 'National')
+    .join(' + ')
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
@@ -736,6 +791,7 @@ export default function FindSubcontractors() {
                         setAiTradeCounts(data.trade_counts || {})
                         setAiTradeFilter('')
                         setSowBreakdown(data.sow_breakdown || [])
+                        setExpandedScopes({})
                         setShowSowBreakdown(true)
                       }
                     } catch (err) {
@@ -861,17 +917,45 @@ export default function FindSubcontractors() {
                                       <span className="text-amber-600 italic">Requires manual assignment</span>
                                     )}
                                   </td>
-                                  <td className="py-1.5 text-right font-medium">
+                                  <td className="py-1.5 text-right font-medium align-top">
                                     {item.sub_count > 0 ? (
-                                      <span className="text-green-700">{item.sub_count}</span>
+                                      <span className="text-green-700">
+                                        {item.sub_count}
+                                        {item.mapped_trade && expandedScopes[item.mapped_trade] && (
+                                          <span className="ml-1 text-[10px] text-purple-500 font-normal">via {expandedScopes[item.mapped_trade]}</span>
+                                        )}
+                                      </span>
+                                    ) : item.mapped_trade ? (
+                                      <div className="flex flex-col items-end gap-0.5">
+                                        <span className="text-gray-400">0 within {expandedScopes[item.mapped_trade] || scopeSummaryLabel}</span>
+                                        {nextExpandTarget(item.mapped_trade) ? (
+                                          <button
+                                            onClick={() => expandTradeScope(item.mapped_trade!)}
+                                            disabled={expandingTrade === item.mapped_trade}
+                                            className="text-[11px] text-purple-600 hover:text-purple-800 font-medium inline-flex items-center gap-1 disabled:opacity-50"
+                                          >
+                                            {expandingTrade === item.mapped_trade
+                                              ? <Loader2 size={10} className="animate-spin" />
+                                              : <Globe size={10} />}
+                                            Expand to {nextExpandTarget(item.mapped_trade)}
+                                          </button>
+                                        ) : (
+                                          <span className="text-[11px] text-gray-400">None available nationwide</span>
+                                        )}
+                                      </div>
                                     ) : (
-                                      <span className="text-gray-400">0</span>
+                                      <span className="text-[11px] text-amber-500">Remap trade to search</span>
                                     )}
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
+                          {sowBreakdown.some(s => s.mapped_trade && s.sub_count === 0) && (
+                            <p className="mt-2 text-[11px] text-gray-500">
+                              Line items with 0 results are limited by your current search scope ({scopeSummaryLabel}). Use "Expand" to widen that trade to a broader area, or remap the trade if the category looks wrong.
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
