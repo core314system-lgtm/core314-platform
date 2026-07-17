@@ -1,0 +1,48 @@
+name: Apply DB Migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/apply-migrations.sh'
+      - '.github/workflows/db-migrate.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List pending migrations without applying them'
+        type: boolean
+        default: false
+
+concurrency:
+  # Never let two migration runs execute against prod at the same time.
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply pending migrations to production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          psql --version
+
+      - name: Apply migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        run: |
+          chmod +x scripts/apply-migrations.sh
+          ./scripts/apply-migrations.sh
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "::error::Migration apply failed — production schema may be behind the merged code. Check the logs above and re-run once fixed."
