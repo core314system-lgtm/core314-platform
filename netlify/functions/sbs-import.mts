@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { descriptionToTrades } from "./_shared/tradeMatching.ts"
 
 /**
  * SBS (Small Business Source) Data Import
@@ -25,139 +26,12 @@ import { createClient } from "@supabase/supabase-js"
 const SUPABASE_URL = process.env.TASKORDER_SUPABASE_URL || process.env.SUPABASE_URL || ""
 const SUPABASE_SERVICE_KEY = process.env.TASKORDER_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
-// Map capability text to trade categories
-const CAPABILITY_TRADE_MAP: Record<string, string[]> = {
-  'hvac': ['HVAC'],
-  'heating': ['HVAC'],
-  'ventilation': ['HVAC'],
-  'air conditioning': ['HVAC'],
-  'electrical': ['Electrical'],
-  'plumbing': ['Plumbing'],
-  'fire': ['Fire & Life Safety'],
-  'sprinkler': ['Fire & Life Safety'],
-  'fire alarm': ['Fire & Life Safety'],
-  'elevator': ['Elevator & Escalator'],
-  'escalator': ['Elevator & Escalator'],
-  'janitorial': ['Janitorial & Custodial'],
-  'custodial': ['Janitorial & Custodial'],
-  'cleaning': ['Janitorial & Custodial'],
-  'landscaping': ['Landscaping & Grounds'],
-  'lawn': ['Landscaping & Grounds'],
-  'grounds': ['Landscaping & Grounds'],
-  'irrigation': ['Landscaping & Grounds'],
-  'snow': ['Snow & Ice Removal'],
-  'ice removal': ['Snow & Ice Removal'],
-  'pest control': ['Pest Control'],
-  'extermination': ['Pest Control'],
-  'roofing': ['Roofing'],
-  'roof': ['Roofing'],
-  'painting': ['Painting & Coatings'],
-  'coatings': ['Painting & Coatings'],
-  'flooring': ['Flooring'],
-  'carpet': ['Flooring'],
-  'tile': ['Flooring'],
-  'security': ['Security Systems'],
-  'cctv': ['Security Systems'],
-  'access control': ['Security Systems'],
-  'surveillance': ['Security Systems'],
-  'guard': ['Security Systems'],
-  'general contractor': ['General Construction'],
-  'construction': ['General Construction'],
-  'demolition': ['Demolition'],
-  'concrete': ['Concrete & Masonry'],
-  'masonry': ['Concrete & Masonry'],
-  'steel': ['Structural Steel'],
-  'fabrication': ['Structural Steel'],
-  'environmental': ['Environmental Services'],
-  'remediation': ['Environmental Services'],
-  'hazmat': ['Environmental Services'],
-  'asbestos': ['Abatement'],
-  'abatement': ['Abatement'],
-  'lead': ['Abatement'],
-  'mold': ['Abatement'],
-  'waste': ['Waste Management'],
-  'trash': ['Waste Management'],
-  'recycling': ['Waste Management'],
-  'it ': ['IT & Telecommunications'],
-  'telecom': ['IT & Telecommunications'],
-  'networking': ['IT & Telecommunications'],
-  'cabling': ['IT & Telecommunications'],
-  'fiber optic': ['IT & Telecommunications'],
-  'building automation': ['Building Automation'],
-  'controls': ['Building Automation'],
-  'generator': ['Emergency Power'],
-  'ups': ['Emergency Power'],
-  'emergency power': ['Emergency Power'],
-  'glass': ['Glass & Glazing'],
-  'glazing': ['Glass & Glazing'],
-  'window': ['Glass & Glazing'],
-  'insulation': ['Insulation'],
-  'drywall': ['Drywall & Framing'],
-  'framing': ['Drywall & Framing'],
-  'ceiling': ['Drywall & Framing'],
-  'mechanical': ['Mechanical Services'],
-  'piping': ['Mechanical Services'],
-  'welding': ['Welding & Metal Work'],
-  'metal work': ['Welding & Metal Work'],
-  'paving': ['Paving & Asphalt'],
-  'asphalt': ['Paving & Asphalt'],
-  'striping': ['Paving & Asphalt'],
-  'parking lot': ['Paving & Asphalt'],
-  'fencing': ['Fencing'],
-  'fence': ['Fencing'],
-  'signage': ['Signage'],
-  'sign': ['Signage'],
-  'food service': ['Food Services'],
-  'catering': ['Food Services'],
-  'cafeteria': ['Food Services'],
-  'vending': ['Food Services'],
-  'moving': ['Moving & Logistics'],
-  'relocation': ['Moving & Logistics'],
-  'logistics': ['Moving & Logistics'],
-  'furniture': ['Furniture & Installation'],
-  'engineering': ['Engineering Services'],
-  'civil': ['Engineering Services'],
-  'structural': ['Engineering Services'],
-  'architect': ['Architectural Services'],
-  'design': ['Architectural Services'],
-  'survey': ['Surveying & Geotechnical'],
-  'geotechnical': ['Surveying & Geotechnical'],
-  'waterproofing': ['Waterproofing'],
-  'sealant': ['Waterproofing'],
-  'caulking': ['Waterproofing'],
-  'solar': ['Electrical'],
-  'photovoltaic': ['Electrical'],
-  'testing': ['Testing & Inspection'],
-  'inspection': ['Testing & Inspection'],
-  'staffing': ['Staffing & Labor'],
-  'labor': ['Staffing & Labor'],
-  'temporary': ['Staffing & Labor'],
-  'training': ['Training'],
-  'consulting': ['Consulting'],
-  'management': ['Consulting'],
-  'helicopter': ['Moving & Logistics'],
-  'charter': ['Moving & Logistics'],
-  'airplane': ['Moving & Logistics'],
-  'aviation': ['Moving & Logistics'],
-}
-
+// Map capability text (SBS columns) to canonical trade categories using the
+// shared word-boundary matcher. When nothing matches we store null rather than
+// dumping raw capability text into trade_categories (which produced junk,
+// non-canonical trade names that never matched the trade filter).
 function capabilitiesToTrades(cap1: string, cap2: string): string[] {
-  const trades = new Set<string>()
-  const combined = `${cap1} ${cap2}`.toLowerCase()
-
-  for (const [keyword, tradeList] of Object.entries(CAPABILITY_TRADE_MAP)) {
-    if (combined.includes(keyword)) {
-      tradeList.forEach(t => trades.add(t))
-    }
-  }
-
-  // If no trades matched, use the raw capabilities as-is
-  if (trades.size === 0 && (cap1.trim() || cap2.trim())) {
-    const raw = [cap1.trim(), cap2.trim()].filter(Boolean)
-    raw.forEach(r => trades.add(r))
-  }
-
-  return [...trades]
+  return descriptionToTrades(`${cap1} ${cap2}`)
 }
 
 function parseSbaTypes(sbaText: string): string[] {
@@ -397,8 +271,8 @@ export default async (req: Request, _context: Context) => {
         state: state || null,
         zip_code: zip || null,
         description: cap1 || null,
-        trade_categories: trades,
-        service_categories: trades,
+        trade_categories: trades.length > 0 ? trades : null,
+        service_categories: trades.length > 0 ? trades : null,
         geographic_coverage: state ? [state] : [],
         small_business: sbaTypes.length > 0,
         small_business_types: sbaTypes,
