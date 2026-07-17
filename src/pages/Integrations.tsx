@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useOrg } from '../contexts/OrgContext'
+import TierGate from '../components/TierGate'
 import {
   Search, ExternalLink, Upload, FileSpreadsheet,
   Building2, Globe, Key, Copy, CheckCircle, AlertCircle,
@@ -608,6 +609,7 @@ export default function Integrations() {
 
       {/* API Access Tab */}
       {activeTab === 'api' && (
+        <TierGate feature="api_access">
         <div className="space-y-4">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
             <h2 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -702,6 +704,7 @@ Headers:
             </div>
           </div>
         </div>
+        </TierGate>
       )}
     </div>
   )

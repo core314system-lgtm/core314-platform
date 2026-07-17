@@ -268,7 +268,7 @@ export default async function handler(req: Request, _context: Context) {
   // Verify user is admin
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("role, org_id, is_global_admin")
+    .select("role, current_org_id, is_global_admin")
     .eq("id", userId)
     .single()
 
@@ -277,7 +277,7 @@ export default async function handler(req: Request, _context: Context) {
   }
 
   const body: DomainRequest = await req.json()
-  const orgId = body.org_id || profile.org_id
+  const orgId = body.org_id || profile.current_org_id
 
   if (!orgId) {
     return Response.json({ error: "Organization ID required" }, { status: 400 })

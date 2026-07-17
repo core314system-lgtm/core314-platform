@@ -86,6 +86,33 @@ export default async (req: Request, _context: Context) => {
     return new Response(JSON.stringify({ error: "Could not resolve user" }), { status: 401, headers })
   }
 
+  // Enforce tier: programmatic API access is an Enterprise-only capability.
+  const { data: actingProfile } = await supabase
+    .from("user_profiles")
+    .select("is_global_admin")
+    .eq("id", userId)
+    .single()
+
+  let apiAccessAllowed = !!actingProfile?.is_global_admin
+  if (!apiAccessAllowed && orgId) {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("subscription_plan, subscription_status")
+      .eq("id", orgId)
+      .single()
+    const plan = (org?.subscription_plan || "").toLowerCase()
+    const status = org?.subscription_status || ""
+    const hasActiveSubscription = status === "active" || status === "trialing"
+    apiAccessAllowed = hasActiveSubscription && (plan.includes("enterprise") || plan.includes("agentic"))
+  }
+
+  if (!apiAccessAllowed) {
+    return new Response(
+      JSON.stringify({ error: "API access requires an active Enterprise subscription." }),
+      { status: 403, headers }
+    )
+  }
+
   try {
     if (req.method === "GET") {
       // List projects
