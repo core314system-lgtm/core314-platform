@@ -119,11 +119,17 @@ export default function SourceSelection() {
     }))
   }
 
+  function clampScore(value: number): number {
+    if (Number.isNaN(value)) return 0
+    return Math.max(0, Math.min(100, value))
+  }
+
   function updateFactorScore(factorId: string, field: 'our_score' | string, value: number) {
+    const score = clampScore(value)
     setFactors(prev => prev.map(f => {
       if (f.id !== factorId) return f
-      if (field === 'our_score') return { ...f, our_score: value }
-      return { ...f, competitor_scores: { ...f.competitor_scores, [field]: value } }
+      if (field === 'our_score') return { ...f, our_score: score }
+      return { ...f, competitor_scores: { ...f.competitor_scores, [field]: score } }
     }))
   }
 
@@ -233,7 +239,7 @@ export default function SourceSelection() {
                     <input
                       type="number"
                       value={f.weight}
-                      onChange={e => setFactors(prev => prev.map(pf => pf.id === f.id ? { ...pf, weight: Number(e.target.value) } : pf))}
+                      onChange={e => setFactors(prev => prev.map(pf => pf.id === f.id ? { ...pf, weight: clampScore(Number(e.target.value)) } : pf))}
                       className="w-16 text-center text-sm border border-gray-200 rounded px-1 py-1"
                       min={0}
                       max={100}

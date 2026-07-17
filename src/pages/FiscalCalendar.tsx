@@ -103,15 +103,22 @@ export default function FiscalCalendar() {
             const intensity = SPENDING_INTENSITY[m]
             const isCurrent = m === currentMonth
             return (
-              <div key={m} className="flex-1 flex flex-col items-center gap-1">
+              <div key={m} className="flex-1 h-full flex items-end">
                 <div
                   className={`w-full rounded-t ${isCurrent ? 'bg-blue-500' : intensity >= 80 ? 'bg-green-500' : intensity >= 50 ? 'bg-green-400' : 'bg-green-200'}`}
                   style={{ height: `${intensity}%` }}
                 />
-                <span className={`text-[10px] ${isCurrent ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
-                  {MONTH_NAMES[m - 1]}
-                </span>
               </div>
+            )
+          })}
+        </div>
+        <div className="flex gap-1 mt-1">
+          {fyMonths.map(m => {
+            const isCurrent = m === currentMonth
+            return (
+              <span key={m} className={`flex-1 text-center text-[10px] ${isCurrent ? 'font-bold text-blue-600' : 'text-gray-500'}`}>
+                {MONTH_NAMES[m - 1]}
+              </span>
             )
           })}
         </div>
