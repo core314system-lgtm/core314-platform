@@ -3,23 +3,30 @@ import { createClient } from "@supabase/supabase-js"
 
 /**
  * Enterprise Email Send Utility
- * 
+ *
  * Routes outbound emails through the organization's custom domain when configured.
- * Falls back to platform default (procuvex.com) when no custom domain is set up.
- * 
+ * Falls back to the platform default (procuvex.com) when no custom domain is set up.
+ *
  * All existing workflows (RFQ, notifications, outreach) call this function
  * instead of sending directly, ensuring tenant branding is applied automatically.
+ *
+ * Delivery goes through SendGrid — the platform's email provider — matching the
+ * rest of the outbound-email functions (sub-outreach, send-rfq, weekly-digest, …).
  */
+
+const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || ""
-const PLATFORM_DOMAIN = process.env.MAILGUN_OUTREACH_DOMAIN || "outreach.procuvex.com"
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY
+if (SENDGRID_API_KEY) sgMail.default.setApiKey(SENDGRID_API_KEY)
+
+const PLATFORM_DOMAIN = "procuvex.com"
 const PLATFORM_FROM_NAME = "Procuvex"
-const PLATFORM_FROM_EMAIL = `team@${PLATFORM_DOMAIN}`
+const PLATFORM_FROM_EMAIL = "team@procuvex.com"
 const PLATFORM_REPLY_TO = "team@procuvex.com"
 
 interface SendRequest {
@@ -91,45 +98,40 @@ function applyBranding(html: string, config: OrgEmailConfig): string {
   `
 }
 
-// Send via Mailgun using a specific domain
-async function sendViaMailgun(params: {
-  domain: string
+// Send a single message via SendGrid
+async function sendViaSendGrid(params: {
   to: string
-  from: string
+  fromEmail: string
+  fromName: string
   replyTo: string
   subject: string
   html: string
   text: string
   tags?: string[]
-}) {
-  const baseUrl = process.env.MAILGUN_API_URL || "https://api.mailgun.net"
-
-  const form = new FormData()
-  form.append("from", params.from)
-  form.append("to", params.to)
-  form.append("h:Reply-To", params.replyTo)
-  form.append("subject", params.subject)
-  form.append("html", params.html)
-  form.append("text", params.text)
-
-  if (params.tags) {
-    params.tags.forEach(tag => form.append("o:tag", tag))
+}): Promise<string> {
+  if (!SENDGRID_API_KEY) {
+    throw new Error("SENDGRID_API_KEY is not configured — email cannot send")
   }
 
-  const resp = await fetch(`${baseUrl}/v3/${params.domain}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
+  const msg: Record<string, unknown> = {
+    to: params.to,
+    from: { email: params.fromEmail, name: params.fromName },
+    replyTo: { email: params.replyTo, name: params.fromName },
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+    trackingSettings: {
+      clickTracking: { enable: true, enableText: false },
+      openTracking: { enable: true },
     },
-    body: form,
-  })
-
-  if (!resp.ok) {
-    const body = await resp.text()
-    throw new Error(`Email send failed (${resp.status}): ${body}`)
   }
 
-  return await resp.json()
+  if (params.tags && params.tags.length > 0) {
+    msg.categories = params.tags.slice(0, 10)
+  }
+
+  const [response] = await sgMail.default.send(msg as Parameters<typeof sgMail.default.send>[0])
+  return response?.headers?.["x-message-id"] || ""
 }
 
 export default async function handler(req: Request, _context: Context) {
@@ -199,21 +201,21 @@ export default async function handler(req: Request, _context: Context) {
   }
 
   const recipients = Array.isArray(body.to) ? body.to : [body.to]
-  const results: { to: string; success: boolean; error?: string }[] = []
+  const results: { to: string; success: boolean; error?: string; message_id?: string }[] = []
 
   for (const recipient of recipients) {
     try {
-      await sendViaMailgun({
-        domain: sendDomain,
+      const messageId = await sendViaSendGrid({
         to: recipient,
-        from: `${fromName} <${fromEmail}>`,
+        fromEmail,
+        fromName,
         replyTo,
         subject: body.subject,
         html: finalHtml,
         text: body.text || body.subject,
         tags: body.tags,
       })
-      results.push({ to: recipient, success: true })
+      results.push({ to: recipient, success: true, message_id: messageId })
     } catch (err: any) {
       results.push({ to: recipient, success: false, error: err.message })
     }
