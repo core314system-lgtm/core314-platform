@@ -23,7 +23,7 @@ function buildWeeklyReminderHtml(weekNumber: number): string {
       </div>
       <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
         <p style="font-size: 15px; color: #111827; margin-top: 0;">Your Week ${weekNumber} feedback form is now available!</p>
-        <p style="font-size: 14px; color: #374151; line-height: 1.7;">Your input directly shapes what we build next. Complete all 4 weekly feedback forms to earn your permanent <strong>Founding Partner</strong> designation and priority access to new features.</p>
+        <p style="font-size: 14px; color: #374151; line-height: 1.7;">Your input directly shapes what we build next. Complete all 4 weekly feedback forms to earn your <strong>Founding Partner</strong> designation, priority access to new features, and a one-time 50%-off-first-month Enterprise discount.</p>
         <div style="text-align: center; margin: 24px 0;">
           <a href="${siteUrl}/feedback" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">Complete Week ${weekNumber} Feedback</a>
         </div>
@@ -40,7 +40,7 @@ function buildCouponExpiringHtml(couponCode: string, daysLeft: number): string {
   return `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: ${urgencyColor}; color: white; padding: 28px 32px; border-radius: 12px 12px 0 0; text-align: center;">
-        <h1 style="margin: 0; font-size: 22px; font-weight: bold;">${daysLeft <= 1 ? "Last Chance" : "Reminder"} — Your 25% Discount ${daysLeft <= 1 ? "Expires Today" : `Expires in ${daysLeft} Days`}</h1>
+        <h1 style="margin: 0; font-size: 22px; font-weight: bold;">${daysLeft <= 1 ? "Last Chance" : "Reminder"} — Your 50%-Off-First-Month Discount ${daysLeft <= 1 ? "Expires Today" : `Expires in ${daysLeft} Days`}</h1>
       </div>
       <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
         <p style="font-size: 15px; color: #111827; margin-top: 0;">Don't miss out on your exclusive Founding Partner discount!</p>
@@ -144,7 +144,7 @@ export default async (req: Request) => {
 
         const body = isDay3
           ? `<p style="font-size: 15px; color: #111827;">Hi — just wanted to make sure you saw my previous email.</p>
-             <p style="font-size: 15px; color: #374151; line-height: 1.7;">We're selecting 30 procurement professionals for our Founding Partner Program — complimentary Enterprise access for 30 days, direct input on the product roadmap, and a permanent Founding Partner designation.</p>
+             <p style="font-size: 15px; color: #374151; line-height: 1.7;">We're selecting 30 procurement professionals for our Founding Partner Program — complimentary Enterprise access for 30 days, direct input on the product roadmap, and a Founding Partner designation.</p>
              <p style="font-size: 15px; color: #374151;">Your spot is reserved for the next few days. Takes 2 minutes to apply:</p>`
           : `<p style="font-size: 15px; color: #111827;">This is my last note about this — I don't want to be a bother.</p>
              <p style="font-size: 15px; color: #374151; line-height: 1.7;">Your invitation to the Procuvex Founding Partner Program expires soon. If procurement tech isn't on your radar right now, no worries at all. But if you've been meaning to look into it, now's the time:</p>`

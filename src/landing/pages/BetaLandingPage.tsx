@@ -54,7 +54,7 @@ const foundingPerks = [
   { icon: Lock, text: 'Priority access to new features before general release' },
   { icon: Users, text: 'Direct access to the product team for feedback and requests' },
   { icon: Rocket, text: 'Shape the roadmap — your input drives what we build next' },
-  { icon: CheckCircle, text: '"Founding Partner" designation on your account — permanently' },
+  { icon: CheckCircle, text: '"Founding Partner" designation on your account recognizing your early participation' },
 ]
 
 export default function BetaLandingPage() {
@@ -252,7 +252,7 @@ export default function BetaLandingPage() {
               More Than Early Access
             </motion.h2>
             <motion.p variants={fadeUp} className="text-slate-400">
-              Beta participants become Founding Partners with exclusive, permanent benefits.
+              Beta participants become Founding Partners with exclusive early-access benefits.
             </motion.p>
           </motion.div>
 

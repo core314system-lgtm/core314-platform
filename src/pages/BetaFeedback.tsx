@@ -71,7 +71,7 @@ const WEEK_FORMS: Record<number, { title: string; subtitle: string; fields: Form
   },
   4: {
     title: 'Week 4 — Final Assessment & Program Completion',
-    subtitle: 'Your comprehensive evaluation — completing this unlocks your 25% lifetime discount!',
+    subtitle: 'Your comprehensive evaluation — completing this unlocks your 50%-off-first-month Enterprise discount!',
     fields: [
       { key: 'overall_satisfaction', label: 'Overall satisfaction rating (1-10)', type: 'nps', required: true },
       { key: 'continue_using', label: 'Would you continue using Procuvex after the beta?', type: 'yesno',
@@ -221,7 +221,7 @@ export default function BetaFeedback() {
         <h1 className="text-3xl font-bold text-gray-900 mb-3">Congratulations!</h1>
         <p className="text-gray-600 mb-6">You've completed the Founding Partner Program. Thank you for your invaluable feedback!</p>
         <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6 mb-6">
-          <p className="text-sm text-green-700 mb-2">Your Exclusive 25% Lifetime Discount Code:</p>
+          <p className="text-sm text-green-700 mb-2">Your Exclusive 50% Off First Month Code:</p>
           <p className="text-3xl font-bold text-green-800 font-mono tracking-wider">{completionResult.coupon_code}</p>
           {expiresAt && (
             <p className="text-sm text-green-600 mt-2">Expires: {expiresAt.toLocaleDateString()} — claim within 5 days!</p>

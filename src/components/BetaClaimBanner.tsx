@@ -77,7 +77,7 @@ export default function BetaClaimBanner() {
             </div>
             <div>
               <p className={`font-semibold text-sm ${isUrgent ? 'text-red-900' : isWarning ? 'text-amber-900' : 'text-green-900'}`}>
-                {isUrgent ? 'Last Chance — Discount Expires Today!' : 'Claim Your 25% Lifetime Discount'}
+                {isUrgent ? 'Last Chance — Discount Expires Today!' : 'Claim Your 50% Off First Month'}
               </p>
               <p className={`text-xs mt-0.5 ${isUrgent ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-green-600'}`}>
                 {isUrgent
