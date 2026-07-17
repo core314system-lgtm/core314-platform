@@ -45,14 +45,11 @@ interface PlannedSub {
 interface OrgSub {
   id: string
   company_name: string
-  small_business: boolean
-  is_8a: boolean
-  is_hubzone: boolean
-  is_sdvosb: boolean
-  is_wosb: boolean
-  is_edwosb: boolean
-  primary_trade: string | null
+  service_categories: string[] | null
+  preferred: boolean
 }
+
+const SB_TYPE_OPTIONS = ['SB', 'SDB/8(a)', 'WOSB', 'HUBZone', 'SDVOSB'] as const
 
 const SB_CATEGORIES = [
   { key: 'sb', label: 'Small Business (SB)', goalKey: 'sb_goal_percent', dollarsKey: 'sb_goal_dollars', defaultPercent: 23 },
@@ -129,12 +126,12 @@ export default function SBSubcontractingPlan() {
   }
 
   async function fetchOrgSubs() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('subcontractors')
-      .select('id, company_name, small_business, is_8a, is_hubzone, is_sdvosb, is_wosb, is_edwosb, primary_trade')
+      .select('id, company_name, service_categories, preferred')
       .eq('org_id', currentOrg!.id)
-      .eq('small_business', true)
       .order('company_name')
+    if (error) console.error('Failed to load subcontractor network:', error.message)
     setOrgSubs((data as OrgSub[]) || [])
   }
 
@@ -142,21 +139,13 @@ export default function SBSubcontractingPlan() {
     if (!plan) return
     setGenerating(true)
 
-    const planned: PlannedSub[] = orgSubs.map(sub => {
-      let sbType = 'SB'
-      if (sub.is_8a) sbType = 'SDB/8(a)'
-      else if (sub.is_sdvosb) sbType = 'SDVOSB'
-      else if (sub.is_wosb || sub.is_edwosb) sbType = 'WOSB'
-      else if (sub.is_hubzone) sbType = 'HUBZone'
-
-      return {
-        sub_id: sub.id,
-        company_name: sub.company_name,
-        sb_type: sbType,
-        planned_dollars: 0,
-        trade: sub.primary_trade || 'General',
-      }
-    })
+    const planned: PlannedSub[] = orgSubs.map(sub => ({
+      sub_id: sub.id,
+      company_name: sub.company_name,
+      sb_type: 'SB',
+      planned_dollars: 0,
+      trade: sub.service_categories?.[0] || 'General',
+    }))
 
     setPlan({
       ...plan,
@@ -289,7 +278,7 @@ export default function SBSubcontractingPlan() {
         steps={[
           { title: 'Enter your total subcontracting dollars', description: 'This is the total dollar value you plan to subcontract. Enter it in the field below, then click "Recalculate Goals" to auto-compute each category.' },
           { title: 'Review the default goal percentages', description: 'Goals are pre-set to federal minimums: SB 23%, SDB/8(a) 5%, WOSB 5%, HUBZone 3%, SDVOSB 3%. Adjust these if the solicitation specifies different targets.' },
-          { title: 'Auto-populate from your subcontractor network', description: 'Click "Auto-Populate from Network" to pull in your small business subcontractors automatically. Then assign planned dollar amounts to each sub.' },
+          { title: 'Auto-populate from your subcontractor network', description: 'Click "Auto-Populate from Network" to pull in your subcontractors automatically. Then set each sub\'s small business category (SB, 8(a), WOSB, HUBZone, SDVOSB) and assign planned dollar amounts.' },
           { title: 'Complete the narrative sections', description: 'The Plan Narrative and Good Faith Efforts sections are pre-filled with compliant language. Customize them for your specific opportunity and teaming arrangement.' },
         ]}
       />
@@ -365,7 +354,7 @@ export default function SBSubcontractingPlan() {
           <div>
             <h2 className="text-sm font-semibold text-gray-700">Planned Small Business Subcontractors</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {orgSubs.length} small business subcontractor{orgSubs.length !== 1 ? 's' : ''} in your network &middot;
+              {orgSubs.length} subcontractor{orgSubs.length !== 1 ? 's' : ''} in your network &middot;
               Total planned: ${totalPlanned.toLocaleString()}
             </p>
           </div>
@@ -395,7 +384,13 @@ export default function SBSubcontractingPlan() {
               <div key={i} className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg hover:bg-gray-50">
                 <div className="col-span-4 text-sm text-gray-900 font-medium truncate">{sub.company_name}</div>
                 <div className="col-span-2">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{sub.sb_type}</span>
+                  <select
+                    value={sub.sb_type}
+                    onChange={e => updatePlannedSub(i, { sb_type: e.target.value })}
+                    className="w-full px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs border-0 outline-none"
+                  >
+                    {SB_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
                 </div>
                 <div className="col-span-2 text-xs text-gray-600 truncate">{sub.trade}</div>
                 <div className="col-span-3">
