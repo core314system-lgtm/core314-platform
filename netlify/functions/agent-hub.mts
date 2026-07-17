@@ -6,6 +6,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const CERT_TYPE_LABELS: Record<string, string> = {
+  license: "License",
+  insurance: "Insurance",
+  certification: "Certification",
+  bond: "Bond",
+  w9: "W-9",
+  capability_statement: "Capability Statement",
+  other: "Document",
+}
+
 const STATE_NEIGHBORS: Record<string, string[]> = {
   AL: ["FL","GA","MS","TN"], AK: [], AZ: ["CA","NV","UT","NM","CO"],
   AR: ["LA","MS","MO","OK","TN","TX"], CA: ["AZ","NV","OR"],
@@ -247,34 +257,51 @@ async function runComplianceWatchdog(orgId: string, projectId: string | null, us
     }
   }
 
-  // Also check compliance documents if the table exists
-  try {
-    const { data: compDocs } = await supabase
-      .from('compliance_documents')
-      .select('id, subcontractor_id, document_type, expires_at, status')
-      .in('subcontractor_id', subIds.slice(0, 100))
-      .lt('expires_at', sixtyDaysOut.toISOString())
-      .gt('expires_at', now.toISOString())
+  // Check subcontractor certifications, insurance, and bonding for expiry.
+  // Flags documents expiring within 60 days AND documents that are already expired
+  // (so a buyer is never surprised by a lapsed cert/insurance/bond on an active sub).
+  const { data: certs } = await supabase
+    .from('master_sub_certifications')
+    .select('id, master_sub_id, cert_type, cert_name, expiration_date, coverage_amount')
+    .in('master_sub_id', subIds.slice(0, 100))
+    .not('expiration_date', 'is', null)
+    .lte('expiration_date', sixtyDaysOut.toISOString())
 
-    for (const doc of (compDocs || [])) {
-      const expiry = new Date(doc.expires_at)
-      const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      const matchingSub = (subs || []).find(s => s.id === doc.subcontractor_id)
+  for (const cert of (certs || [])) {
+    const expiry = new Date(cert.expiration_date)
+    const matchingSub = (subs || []).find(s => s.id === cert.master_sub_id)
+    const company = matchingSub?.company_name || 'Unknown subcontractor'
+    const label = CERT_TYPE_LABELS[cert.cert_type] || 'Document'
+    const name = cert.cert_name ? `${label} (${cert.cert_name})` : label
+
+    if (expiry < now) {
       actions.push({
         org_id: orgId,
         project_id: projectId,
         agent_type: 'compliance_watchdog',
         action_type: 'flag_compliance',
         status: 'pending_approval',
-        title: `${doc.document_type} Expiring: ${matchingSub?.company_name || 'Unknown'}`,
-        description: `${doc.document_type} expires in ${daysLeft} days. Request updated documentation.`,
-        payload: { subcontractor_id: doc.subcontractor_id, expiry_type: 'compliance_doc', document_type: doc.document_type, days_left: daysLeft, company_name: matchingSub?.company_name },
-        context: { document_id: doc.id },
+        title: `${label} Expired: ${company}`,
+        description: `${company}'s ${name} expired on ${cert.expiration_date}. This subcontractor is on your projects — confirm updated documentation before including them on proposals or submissions.`,
+        payload: { subcontractor_id: cert.master_sub_id, expiry_type: 'certification_expired', cert_type: cert.cert_type, cert_id: cert.id, days_left: 0, company_name: company, severity: 'high' },
+        context: { company_name: company, cert_name: cert.cert_name },
+        assigned_to: userId,
+      })
+    } else {
+      const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      actions.push({
+        org_id: orgId,
+        project_id: projectId,
+        agent_type: 'compliance_watchdog',
+        action_type: 'flag_compliance',
+        status: 'pending_approval',
+        title: `${label} Expiring: ${company} (${daysLeft} days)`,
+        description: `${company}'s ${name} expires in ${daysLeft} days (${cert.expiration_date}). Request updated documentation to avoid a lapse on active projects.`,
+        payload: { subcontractor_id: cert.master_sub_id, expiry_type: 'certification_expiring', cert_type: cert.cert_type, cert_id: cert.id, days_left: daysLeft, company_name: company },
+        context: { company_name: company, cert_name: cert.cert_name },
         assigned_to: userId,
       })
     }
-  } catch {
-    // compliance_documents table may not exist yet
   }
 
   if (actions.length > 0) {
