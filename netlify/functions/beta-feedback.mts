@@ -39,7 +39,7 @@ function buildCompletionEmailHtml(couponCode: string, claimUrl: string): string 
         <div style="text-align: center; margin: 28px 0;">
           <a href="${claimUrl}" style="background: linear-gradient(135deg, #065f46, #059669); color: white; padding: 16px 44px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Claim My Discount</a>
         </div>
-        <p style="font-size: 14px; color: #374151;">Welcome aboard as a permanent member of the Procuvex community.</p>
+        <p style="font-size: 14px; color: #374151;">Welcome aboard as a valued member of the Procuvex community.</p>
         <p style="font-size: 14px; color: #374151; margin-top: 16px;">With gratitude,<br/><strong>The Procuvex Team</strong></p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>

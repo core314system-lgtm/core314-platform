@@ -184,10 +184,10 @@ export default function BetaApply() {
           <ul className="space-y-3">
             {[
               { icon: Shield, text: 'Complimentary full-platform access during the 30-day program' },
-              { icon: Star, text: 'Founding Partner pricing priority when new plans launch' },
+              { icon: Star, text: 'Founding Partner early-access priority when new plans launch' },
               { icon: MessageSquare, text: 'Direct access to the development team for feedback' },
               { icon: Users, text: 'Early influence on platform direction and features' },
-              { icon: CheckCircle, text: '"Founding Partner" designation on your account — permanently' },
+              { icon: CheckCircle, text: '"Founding Partner" designation recognizing your early participation' },
             ].map((item, i) => (
               <li key={i} className="flex items-start gap-3">
                 <item.icon className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -239,12 +239,15 @@ export default function BetaApply() {
             <p>The Founding Partner Program runs for 30 days from your first login. Access to the platform during this period is complimentary. Continued access after the program requires an active subscription.</p>
 
             <p className="font-semibold text-slate-300 mt-3 mb-1">6. PROGRAM COMPLETION</p>
-            <p>Upon completing all program requirements (4 weekly feedback forms), you will receive the permanent "Founding Partner" designation on your account. Founding Partners receive priority access to new features and plans as they are released. Continued access after the 30-day program requires an active subscription at standard pricing.</p>
+            <p>Upon completing all program requirements (4 weekly feedback forms), you will receive a "Founding Partner" designation on your account recognizing your early participation, plus a one-time promotional code for 50% off your first month of an Enterprise subscription (redeem within 5 days of issuance; standard published pricing applies to all subsequent billing periods). The designation is recognition of participation and does not, by itself, create any ongoing pricing, service-level, or feature entitlement; any additional benefits are provided at our discretion and may change. Continued access after the 30-day program requires an active subscription at standard pricing.</p>
 
             <p className="font-semibold text-slate-300 mt-3 mb-1">7. ACCEPTANCE & REVIEW</p>
             <p>Submitting this application does not guarantee acceptance. Applications are reviewed by the Procuvex team, and acceptance is at our sole discretion based on available seats and applicant fit. You will be notified of the decision via email.</p>
 
-            <p className="text-slate-500 mt-4">Last updated: May 2026 | Core314 Technologies LLC</p>
+            <p className="font-semibold text-slate-300 mt-3 mb-1">8. CHANGES, ASSIGNMENT & CHANGE OF CONTROL</p>
+            <p>Core314 Technologies LLC may modify, suspend, or discontinue the Program and update these terms at any time, with reasonable notice where practicable. This Agreement and any incentives or benefits under it may be assigned or transferred by Core314 Technologies LLC, including in connection with a merger, acquisition, financing, or sale of assets, and survive any such change of control on the same terms. Any Founding Partner benefits are provided at our discretion and do not create a perpetual pricing or feature entitlement.</p>
+
+            <p className="text-slate-500 mt-4">Last updated: June 2026 | Core314 Technologies LLC</p>
           </div>
 
           {/* Name input */}

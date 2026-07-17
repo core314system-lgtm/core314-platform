@@ -163,7 +163,7 @@ function buildInviteEmailHtml(applyUrl: string, recipientEmail: string): string 
           <p style="margin: 0 0 10px; font-size: 14px; color: #0c4a6e; font-weight: 600;">As a Founding Partner, you receive:</p>
           <ul style="margin: 0; padding-left: 18px; color: #0369a1; font-size: 14px; line-height: 2;">
             <li>Complimentary full-platform access during the 30-day program</li>
-            <li><strong>Founding Partner</strong> designation on your account — permanently</li>
+            <li><strong>Founding Partner</strong> designation on your account recognizing your early participation</li>
             <li>Direct access to the development team for feedback</li>
             <li>Early influence on platform direction and features</li>
           </ul>
@@ -212,7 +212,7 @@ function buildAcceptanceEmailHtml(signupUrl: string, seatsRemaining: number): st
         </div>
 
         <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 24px 0;">
-          <p style="margin: 0; font-size: 14px; color: #92400e;"><strong>Important:</strong> Your 30-day program begins when you first log in. Complete all 4 weekly feedback forms to earn your permanent Founding Partner designation and priority access to new features.</p>
+          <p style="margin: 0; font-size: 14px; color: #92400e;"><strong>Important:</strong> Your 30-day program begins when you first log in. Complete all 4 weekly feedback forms to earn your Founding Partner designation, priority access to new features, and a one-time promotional code for 50% off your first month of an Enterprise subscription (redeem within 5 days of issuance; standard pricing applies thereafter).</p>
         </div>
 
         <div style="text-align: center; margin: 32px 0;">

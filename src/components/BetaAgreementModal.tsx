@@ -33,22 +33,30 @@ You agree to keep all beta features, designs, and non-public information confide
 - We recommend maintaining backups of critical business data
 
 5. BETA DISCOUNT INCENTIVE
-- Eligible beta testers who complete the program requirements will receive a one-time discount on their chosen subscription plan
-- The discount applies for the duration of your continuous subscription
-- If your subscription is cancelled, terminated, or deactivated for any reason, the discount is forfeited
-- Re-subscribing after cancellation will be at the then-current advertised rate
+- Beta testers who complete the program requirements receive a one-time promotional code for 50% off the first month of an Enterprise subscription
+- This is a single, one-time credit applied to the first invoice only — it is not a recurring, lifetime, or perpetual discount, and no discount applies to any subsequent billing period
+- The code must be redeemed within the stated redemption window (5 days from issuance); after that it expires
+- Standard published pricing applies to all billing periods after the first month
+- The discount has no cash value, is non-transferable, and may not be combined with other offers
 
 6. PROGRAM REQUIREMENTS
-To maintain beta tester status and associated benefits:
+To complete the program and qualify for the one-time incentive:
 - Use the platform regularly during the beta period
 - Report bugs and issues through the in-app support system
 - Complete feedback surveys when requested
 - Maintain professional conduct in all communications
 
-7. TERMINATION
-Core314 Technologies LLC reserves the right to remove any participant from the Program at any time, with or without cause. You may withdraw from the Program at any time by contacting support.
+7. FOUNDING PARTNER DESIGNATION
+- Participants who complete the program receive a "Founding Partner" designation recognizing their early participation
+- The designation is a recognition of participation and does not, by itself, create any ongoing pricing, service-level, or feature entitlement
+- Any additional benefits are provided at Core314 Technologies LLC's discretion and may be modified or discontinued
 
-8. ACCEPTANCE
+8. CHANGES, ASSIGNMENT & TERMINATION
+- Core314 Technologies LLC may modify, suspend, or discontinue the Program (and update these terms) at any time, with reasonable notice where practicable
+- This Agreement, and any incentives or benefits under it, may be assigned or transferred by Core314 Technologies LLC, including in connection with a merger, acquisition, financing, or sale of assets, and survives any such change of control on the same terms
+- Core314 Technologies LLC reserves the right to remove any participant from the Program at any time, with or without cause. You may withdraw from the Program at any time by contacting support.
+
+9. ACCEPTANCE
 By clicking "I Accept", you acknowledge that you have read, understood, and agree to be bound by the terms of this Beta Testing Agreement.
 `.trim()
 
@@ -72,7 +80,7 @@ export default function BetaAgreementModal({ userId, userName, onAccepted }: Pro
       .from('user_profiles')
       .update({
         beta_agreement_accepted_at: new Date().toISOString(),
-        beta_agreement_version: '2026-05',
+        beta_agreement_version: '2026-06',
       })
       .eq('id', userId)
 
@@ -128,8 +136,9 @@ export default function BetaAgreementModal({ userId, userName, onAccepted }: Pro
               className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
             />
             <span className={`text-sm ${scrolledToBottom ? 'text-gray-700' : 'text-gray-400'}`}>
-              I have read and agree to the Beta Testing Agreement. I understand that my beta discount is contingent on
-              maintaining an active subscription and completing program requirements.
+              I have read and agree to the Beta Testing Agreement. I understand that the beta discount is a one-time
+              credit for 50% off my first month, contingent on completing program requirements and redeeming within
+              the stated window — it is not a recurring or lifetime discount.
             </span>
           </label>
           <button
