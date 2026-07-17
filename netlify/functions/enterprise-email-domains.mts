@@ -1,13 +1,28 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
+/**
+ * Enterprise Custom Email Domains
+ *
+ * Lets an Enterprise org authenticate its own sending domain so outbound mail
+ * (RFQs, notifications, digests) is sent *from that domain* with proper SPF/DKIM.
+ *
+ * Provider: SendGrid Domain Authentication (the platform's email provider).
+ *   add-domain  -> POST   /v3/whitelabel/domains        (returns CNAME records to publish)
+ *   check-dns   -> POST   /v3/whitelabel/domains/{id}/validate
+ *   verify      -> alias of check-dns
+ *   remove      -> DELETE /v3/whitelabel/domains/{id}
+ * Verification is driven entirely by SendGrid's real DNS validation — a domain
+ * only becomes "verified" once SendGrid confirms the published CNAMEs.
+ */
+
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || ""
-const MAILGUN_BASE = "https://api.mailgun.net/v3"
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY || ""
+const SG_BASE = "https://api.sendgrid.com/v3"
 
 interface DomainRequest {
   action: "add-domain" | "check-dns" | "verify-domain" | "remove-domain" | "list-domains" | "update-branding"
@@ -22,9 +37,34 @@ interface DomainRequest {
   footer_text?: string
 }
 
-// Add a new sending domain to Mailgun and store config
+interface SgDnsRecord { valid: boolean; type: string; host: string; data: string }
+interface SgDomain {
+  id: number
+  domain: string
+  subdomain?: string
+  valid: boolean
+  dns: { mail_cname?: SgDnsRecord; dkim1?: SgDnsRecord; dkim2?: SgDnsRecord }
+}
+
+function sgHeaders() {
+  return { Authorization: `Bearer ${SENDGRID_API_KEY}`, "Content-Type": "application/json" }
+}
+
+// Normalize SendGrid's dns object into the CNAME list the UI renders + stores.
+function dnsToRecords(dns: SgDomain["dns"]) {
+  const rec = (r?: SgDnsRecord) =>
+    r ? { type: "CNAME", host: r.host, data: r.data, valid: r.valid } : null
+  return {
+    mail_cname: rec(dns.mail_cname),
+    dkim1: rec(dns.dkim1),
+    dkim2: rec(dns.dkim2),
+  }
+}
+
+// Add (or link) a sending domain via SendGrid Domain Authentication.
 async function addDomain(orgId: string, domain: string, fromName: string, fromEmail: string, replyTo: string | null, userId: string) {
-  // Check if domain already exists for this org
+  if (!SENDGRID_API_KEY) return { error: "SENDGRID_API_KEY is not configured" }
+
   const { data: existing } = await supabase
     .from("org_email_domains")
     .select("id")
@@ -36,50 +76,35 @@ async function addDomain(orgId: string, domain: string, fromName: string, fromEm
     return { error: "Domain already configured for this organization" }
   }
 
-  // Add domain to Mailgun
-  const mgResponse = await fetch(`${MAILGUN_BASE}/domains`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      name: domain,
-      spam_action: "disabled",
-      web_scheme: "https",
-    }),
+  // Reuse an existing SendGrid authentication for this domain if one is present
+  // in the account (e.g. re-adding after removal); otherwise create a new one.
+  let sg: SgDomain | null = null
+  const lookup = await fetch(`${SG_BASE}/whitelabel/domains?domain=${encodeURIComponent(domain)}&limit=50`, {
+    headers: sgHeaders(),
   })
-
-  let mgData: any = {}
-  let dnsRecords: any = {}
-
-  if (mgResponse.ok) {
-    mgData = await mgResponse.json()
-    dnsRecords = mgData
-  } else {
-    // Domain might already exist in Mailgun (shared across orgs) — fetch its DNS records
-    const verifyResponse = await fetch(`${MAILGUN_BASE}/domains/${domain}`, {
-      headers: {
-        Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
-      },
-    })
-    if (verifyResponse.ok) {
-      dnsRecords = await verifyResponse.json()
-    } else {
-      const errText = await mgResponse.text()
-      return { error: `Failed to add domain to email provider: ${errText}` }
+  if (lookup.ok) {
+    const list = (await lookup.json()) as SgDomain[]
+    if (Array.isArray(list) && list.length > 0) {
+      sg = list.find(d => d.valid) || list[0]
     }
   }
 
-  // Extract DNS records for verification
-  const sendingRecords = dnsRecords.sending_dns_records || []
-  const receivingRecords = dnsRecords.receiving_dns_records || []
+  if (!sg) {
+    const createResp = await fetch(`${SG_BASE}/whitelabel/domains`, {
+      method: "POST",
+      headers: sgHeaders(),
+      body: JSON.stringify({ domain, automatic_security: true, default: false }),
+    })
+    if (!createResp.ok) {
+      const errText = await createResp.text()
+      return { error: `Failed to add domain to email provider: ${errText}` }
+    }
+    sg = (await createResp.json()) as SgDomain
+  }
 
-  const spfRecord = sendingRecords.find((r: any) => r.record_type === "TXT" && r.value?.includes("spf"))
-  const dkimRecord = sendingRecords.find((r: any) => r.record_type === "TXT" && r.name?.includes("domainkey"))
-  const cnameRecord = sendingRecords.find((r: any) => r.record_type === "CNAME")
+  const records = dnsToRecords(sg.dns)
+  const isValid = !!sg.valid
 
-  // Store in database
   const { data: domainRow, error: insertError } = await supabase
     .from("org_email_domains")
     .insert({
@@ -88,13 +113,17 @@ async function addDomain(orgId: string, domain: string, fromName: string, fromEm
       from_name: fromName,
       from_email: fromEmail,
       reply_to_email: replyTo,
-      status: "verifying",
-      spf_record: spfRecord?.value || null,
-      dkim_selector: dkimRecord?.name?.split(".")[0] || null,
-      dkim_record: dkimRecord?.value || null,
-      tracking_cname: cnameRecord?.value || null,
-      mailgun_domain_id: domain,
-      provider: "mailgun",
+      status: isValid ? "verified" : "verifying",
+      spf_record: records.dkim2?.data || null,
+      spf_verified: isValid,
+      dkim_selector: records.dkim1?.host?.split(".")[0] || null,
+      dkim_record: records.dkim1?.data || null,
+      dkim_verified: isValid,
+      tracking_cname: records.mail_cname?.data || null,
+      tracking_verified: isValid,
+      verified_at: isValid ? new Date().toISOString() : null,
+      mailgun_domain_id: String(sg.id),
+      provider: "sendgrid",
       created_by: userId,
     })
     .select()
@@ -106,17 +135,15 @@ async function addDomain(orgId: string, domain: string, fromName: string, fromEm
 
   return {
     domain: domainRow,
-    dns_records: {
-      spf: spfRecord || null,
-      dkim: dkimRecord || null,
-      cname: cnameRecord || null,
-      mx: receivingRecords,
-    },
-    instructions: "Add the DNS records shown below to your domain registrar, then click 'Verify DNS' to confirm.",
+    dns_records: records,
+    already_verified: isValid,
+    instructions: isValid
+      ? "This domain is already authenticated with the email provider — it is verified and ready to send."
+      : "Add the CNAME records below to your DNS provider, then click 'Verify DNS'. Verification can take a few minutes to propagate.",
   }
 }
 
-// Check DNS verification status
+// Validate DNS with SendGrid and update status.
 async function checkDns(domainId: string) {
   const { data: domainRow, error } = await supabase
     .from("org_email_domains")
@@ -128,35 +155,42 @@ async function checkDns(domainId: string) {
     return { error: "Domain not found" }
   }
 
-  // Check with Mailgun
-  const verifyResponse = await fetch(`${MAILGUN_BASE}/domains/${domainRow.domain}/verify`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
-    },
+  const sgId = domainRow.mailgun_domain_id
+  if (!sgId) {
+    return { error: "Domain is not linked to the email provider" }
+  }
+
+  const validateResp = await fetch(`${SG_BASE}/whitelabel/domains/${sgId}/validate`, {
+    method: "POST",
+    headers: sgHeaders(),
   })
 
-  if (!verifyResponse.ok) {
+  if (!validateResp.ok) {
     return { error: "Failed to verify domain with email provider" }
   }
 
-  const verifyData = await verifyResponse.json()
-  const sendingRecords = verifyData.sending_dns_records || []
+  const result = await validateResp.json() as {
+    id: number
+    valid: boolean
+    validation_results?: {
+      mail_cname?: { valid: boolean; reason: string | null }
+      dkim1?: { valid: boolean; reason: string | null }
+      dkim2?: { valid: boolean; reason: string | null }
+    }
+  }
 
-  const spfVerified = sendingRecords.some((r: any) => r.record_type === "TXT" && r.value?.includes("spf") && r.valid === "valid")
-  const dkimVerified = sendingRecords.some((r: any) => r.record_type === "TXT" && r.name?.includes("domainkey") && r.valid === "valid")
-  const trackingVerified = sendingRecords.some((r: any) => r.record_type === "CNAME" && r.valid === "valid")
-
-  const allVerified = spfVerified && dkimVerified
+  const vr = result.validation_results || {}
+  const mailOk = !!vr.mail_cname?.valid
+  const dkimOk = !!vr.dkim1?.valid && !!vr.dkim2?.valid
+  const allVerified = !!result.valid
   const newStatus = allVerified ? "verified" : "verifying"
 
-  // Update domain status
   await supabase
     .from("org_email_domains")
     .update({
-      spf_verified: spfVerified,
-      dkim_verified: dkimVerified,
-      tracking_verified: trackingVerified,
+      spf_verified: dkimOk,
+      dkim_verified: dkimOk,
+      tracking_verified: mailOk,
       status: newStatus,
       verified_at: allVerified ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
@@ -167,20 +201,17 @@ async function checkDns(domainId: string) {
     domain: domainRow.domain,
     status: newStatus,
     verification: {
-      spf: spfVerified,
-      dkim: dkimVerified,
-      tracking: trackingVerified,
+      mail_cname: mailOk,
+      dkim: dkimOk,
     },
-    dns_records: sendingRecords,
+    validation_results: vr,
   }
 }
 
-// Verify domain (final confirmation)
 async function verifyDomain(domainId: string) {
   return checkDns(domainId)
 }
 
-// Remove a domain
 async function removeDomain(domainId: string, orgId: string) {
   const { data: domainRow } = await supabase
     .from("org_email_domains")
@@ -193,24 +224,27 @@ async function removeDomain(domainId: string, orgId: string) {
     return { error: "Domain not found" }
   }
 
-  // Remove from Mailgun
-  await fetch(`${MAILGUN_BASE}/domains/${domainRow.domain}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString("base64")}`,
-    },
-  })
+  // Remove the authentication from SendGrid (best-effort). Do NOT delete a
+  // provider domain that other orgs still reference (e.g. a shared platform domain).
+  if (domainRow.mailgun_domain_id) {
+    const { count } = await supabase
+      .from("org_email_domains")
+      .select("id", { count: "exact", head: true })
+      .eq("mailgun_domain_id", domainRow.mailgun_domain_id)
 
-  // Remove from database
-  await supabase
-    .from("org_email_domains")
-    .delete()
-    .eq("id", domainId)
+    if ((count || 0) <= 1) {
+      await fetch(`${SG_BASE}/whitelabel/domains/${domainRow.mailgun_domain_id}`, {
+        method: "DELETE",
+        headers: sgHeaders(),
+      })
+    }
+  }
+
+  await supabase.from("org_email_domains").delete().eq("id", domainId)
 
   return { success: true, message: `Domain ${domainRow.domain} removed` }
 }
 
-// List domains for an org
 async function listDomains(orgId: string) {
   const { data, error } = await supabase
     .from("org_email_domains")
@@ -225,14 +259,11 @@ async function listDomains(orgId: string) {
   return { domains: data || [] }
 }
 
-// Update branding for a domain
 async function updateBranding(domainId: string, orgId: string, updates: Record<string, any>) {
+  const cleaned = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined))
   const { data, error } = await supabase
     .from("org_email_domains")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ ...cleaned, updated_at: new Date().toISOString() })
     .eq("id", domainId)
     .eq("org_id", orgId)
     .select()
