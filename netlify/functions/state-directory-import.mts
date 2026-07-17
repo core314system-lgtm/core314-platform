@@ -1,5 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
+import { descriptionToTrades } from "./_shared/tradeMatching.ts"
 
 /**
  * State DBE/HUB/MBE/WBE Directory Import
@@ -168,67 +169,9 @@ const UPLOAD_FORMATS: Record<string, UploadFormatConfig> = {
 }
 
 // ─── Trade Category Mapping ─────────────────────────────────────────────────
-
-const CAPABILITY_TRADE_MAP: Record<string, string[]> = {
-  'hvac': ['HVAC'], 'heating': ['HVAC'], 'ventilation': ['HVAC'], 'air conditioning': ['HVAC'],
-  'electrical': ['Electrical'], 'plumbing': ['Plumbing'],
-  'fire': ['Fire & Life Safety'], 'sprinkler': ['Fire & Life Safety'], 'fire alarm': ['Fire & Life Safety'],
-  'elevator': ['Elevator & Escalator'], 'escalator': ['Elevator & Escalator'],
-  'janitorial': ['Janitorial & Custodial'], 'custodial': ['Janitorial & Custodial'], 'cleaning': ['Janitorial & Custodial'],
-  'landscaping': ['Landscaping & Grounds'], 'lawn': ['Landscaping & Grounds'], 'grounds': ['Landscaping & Grounds'],
-  'pest control': ['Pest Control'], 'extermination': ['Pest Control'],
-  'roofing': ['Roofing'], 'roof': ['Roofing'],
-  'painting': ['Painting & Coatings'], 'coatings': ['Painting & Coatings'],
-  'flooring': ['Flooring'], 'carpet': ['Flooring'], 'tile': ['Flooring'],
-  'security': ['Security Systems'], 'cctv': ['Security Systems'], 'access control': ['Security Systems'], 'guard': ['Security Systems'],
-  'general contractor': ['General Construction'], 'construction': ['General Construction'],
-  'demolition': ['Demolition'],
-  'concrete': ['Concrete & Masonry'], 'masonry': ['Concrete & Masonry'],
-  'steel': ['Structural Steel'], 'fabrication': ['Structural Steel'],
-  'environmental': ['Environmental Services'], 'remediation': ['Environmental Services'], 'hazmat': ['Environmental Services'],
-  'asbestos': ['Abatement'], 'abatement': ['Abatement'], 'lead': ['Abatement'], 'mold': ['Abatement'],
-  'waste': ['Waste Management'], 'trash': ['Waste Management'], 'recycling': ['Waste Management'],
-  'it ': ['IT & Telecommunications'], 'telecom': ['IT & Telecommunications'], 'networking': ['IT & Telecommunications'],
-  'cabling': ['IT & Telecommunications'], 'fiber optic': ['IT & Telecommunications'],
-  'building automation': ['Building Automation'], 'controls': ['Building Automation'],
-  'generator': ['Emergency Power'], 'emergency power': ['Emergency Power'],
-  'glass': ['Glass & Glazing'], 'glazing': ['Glass & Glazing'], 'window': ['Glass & Glazing'],
-  'insulation': ['Insulation'],
-  'drywall': ['Drywall & Framing'], 'framing': ['Drywall & Framing'], 'ceiling': ['Drywall & Framing'],
-  'mechanical': ['Mechanical Services'], 'piping': ['Mechanical Services'],
-  'welding': ['Welding & Metal Work'], 'metal work': ['Welding & Metal Work'],
-  'paving': ['Paving & Asphalt'], 'asphalt': ['Paving & Asphalt'], 'striping': ['Paving & Asphalt'],
-  'fencing': ['Fencing'], 'fence': ['Fencing'],
-  'signage': ['Signage'], 'sign': ['Signage'],
-  'food service': ['Food Services'], 'catering': ['Food Services'],
-  'moving': ['Moving & Logistics'], 'relocation': ['Moving & Logistics'], 'logistics': ['Moving & Logistics'],
-  'furniture': ['Furniture & Installation'],
-  'engineering': ['Engineering Services'], 'civil': ['Engineering Services'],
-  'architect': ['Architectural Services'], 'design': ['Architectural Services'],
-  'survey': ['Surveying & Geotechnical'], 'geotechnical': ['Surveying & Geotechnical'],
-  'waterproofing': ['Waterproofing'],
-  'solar': ['Electrical'],
-  'testing': ['Testing & Inspection'], 'inspection': ['Testing & Inspection'],
-  'staffing': ['Staffing & Labor'], 'labor': ['Staffing & Labor'],
-  'consulting': ['Consulting'], 'management': ['Consulting'],
-  'insurance': ['Insurance & Bonds'], 'bonding': ['Insurance & Bonds'],
-  'accounting': ['Professional Services'], 'legal': ['Professional Services'],
-  'printing': ['Printing & Reproduction'], 'copying': ['Printing & Reproduction'],
-  'courier': ['Moving & Logistics'], 'delivery': ['Moving & Logistics'],
-  'medical': ['Medical & Health Services'], 'health': ['Medical & Health Services'],
-}
-
-function descriptionToTrades(description: string): string[] {
-  if (!description) return []
-  const trades = new Set<string>()
-  const lower = description.toLowerCase()
-  for (const [keyword, tradeList] of Object.entries(CAPABILITY_TRADE_MAP)) {
-    if (lower.includes(keyword)) {
-      tradeList.forEach(t => trades.add(t))
-    }
-  }
-  return [...trades]
-}
+// Trade classification lives in ./_shared/tradeMatching.ts (word-boundary
+// matched to avoid the substring false positives that previously polluted the
+// master subcontractor database).
 
 // ─── Texas HUB Eligibility Codes ────────────────────────────────────────────
 
