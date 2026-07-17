@@ -1,4 +1,6 @@
 import type { Context } from "@netlify/functions"
+import { resolveCaller } from "./_shared/auth.ts"
+import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
 
 /**
  * Netlify Function: Discover Subcontractors via Google Places API
@@ -271,7 +273,7 @@ export default async function handler(req: Request, _context: Context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Content-Type': 'application/json',
   }
 
@@ -282,6 +284,15 @@ export default async function handler(req: Request, _context: Context) {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers })
   }
+
+  // Authenticated feature — verify the caller's JWT so this paid Google Places
+  // proxy can't be called anonymously, and rate limit against the caller's org.
+  const caller = await resolveCaller(req.headers.get('authorization'))
+  if (!caller) {
+    return new Response(JSON.stringify({ error: 'Authentication required.' }), { status: 401, headers })
+  }
+  const rl = await checkRateLimit(caller.orgId, 'api_call')
+  if (!rl.allowed) return rateLimitResponse(rl, 'subcontractor discovery')
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY
   if (!apiKey) {

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import zipcodes from "zipcodes"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
 import { KNOWN_TRADES } from "./_shared/tradeTaxonomy.ts"
+import { resolveCaller } from "./_shared/auth.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -149,7 +150,7 @@ export default async (req: Request, _context: Context) => {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-user-id",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   }
 
   if (req.method === "OPTIONS") {
@@ -160,10 +161,13 @@ export default async (req: Request, _context: Context) => {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers })
   }
 
-  const callerId = req.headers.get("x-user-id")
-  if (!callerId) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers })
+  // Verify the caller's Supabase JWT and derive their id from it — never trust
+  // a client-supplied user id header, which is trivially spoofable.
+  const caller = await resolveCaller(req.headers.get("authorization"))
+  if (!caller) {
+    return new Response(JSON.stringify({ error: "Authentication required." }), { status: 401, headers })
   }
+  const callerId = caller.userId
 
   const body = await req.json()
   const { action } = body
