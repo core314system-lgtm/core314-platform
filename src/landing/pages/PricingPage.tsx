@@ -59,7 +59,7 @@ const tiers = [
       'Dedicated onboarding',
       'SAML SSO (Okta, Azure AD, Google Workspace)',
       'Priority support with SLA',
-      '99.9% uptime guarantee',
+      '99.9% uptime SLA (contractual, with service credits)',
     ],
   },
 ]

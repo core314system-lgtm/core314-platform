@@ -57,7 +57,7 @@ const PLANS = [
       'Intelligence library',
       'Dedicated onboarding',
       'Priority support with SLA',
-      '99.9% uptime guarantee',
+      '99.9% uptime SLA (contractual, with service credits)',
     ],
   },
 ]

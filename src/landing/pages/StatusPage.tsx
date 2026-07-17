@@ -238,7 +238,7 @@ export default function StatusPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-slate-900">99.9%</p>
-                <p className="text-xs text-slate-500">Uptime SLA</p>
+                <p className="text-xs text-slate-500">Uptime Target</p>
               </div>
             </div>
           </motion.div>
@@ -250,8 +250,8 @@ export default function StatusPage() {
           <p className="text-sm text-blue-800 leading-relaxed">
             This page checks the real-time health of all Procuvex platform services every 60 seconds.
             Status indicators reflect live connectivity to our database, authentication, AI engine,
-            billing system, and SAM.gov integration. For details about our uptime commitment,
-            see our <a href="/sla" className="underline font-medium">Service Level Agreement</a>.
+            billing system, and SAM.gov integration. For details about our uptime target,
+            see our <a href="/sla" className="underline font-medium">Service Level Target</a>.
             For security practices, visit our <a href="/security" className="underline font-medium">Security</a> page.
           </p>
         </div>
