@@ -181,7 +181,7 @@ export default function AboutPage() {
             </motion.h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { icon: Shield, label: 'SOC 2 Type II Architecture' },
+                { icon: Shield, label: 'SOC 2 Type II Infrastructure (Supabase)' },
                 { icon: Lock, label: 'AES-256 Encryption' },
                 { icon: Globe, label: 'ITAR / CUI: Not Currently Pursued' },
                 { icon: Award, label: 'FedRAMP: Not Currently Pursued' },
@@ -198,8 +198,8 @@ export default function AboutPage() {
                 <li>• Row-level security (RLS) ensures complete tenant isolation — no organization can access another&apos;s data</li>
                 <li>• All AI processing occurs server-side — no API keys, document content, or analysis results are exposed to the browser</li>
                 <li>• Data encrypted at rest (AES-256) and in transit (TLS 1.3)</li>
-                <li>• Built on Supabase enterprise infrastructure with SOC 2 Type II compliance</li>
-                <li>• Regular security audits and penetration testing</li>
+                <li>• Built on Supabase enterprise infrastructure, which maintains SOC 2 Type II certification (Procuvex itself is not separately SOC 2 certified)</li>
+                <li>• Application-level controls designed to align with SOC 2 trust service criteria</li>
                 <li>• GDPR and CCPA compliant data handling practices</li>
                 <li>• Data Processing Agreement (DPA) available for enterprise customers</li>
               </ul>
