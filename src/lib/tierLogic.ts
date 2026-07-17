@@ -36,6 +36,8 @@ export const ENTERPRISE_ONLY_FEATURES = new Set<string>([
   'slack_integration',
   'weekly_digest',
   'proposal_draft_generation',
+  'saml_sso',
+  'custom_email_domain',
 ])
 
 export const GROWTH_LIMITS: Record<TierLimitKey, number> = {

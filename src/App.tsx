@@ -294,8 +294,8 @@ export default function App() {
           <Route path="/projects/:id/sow-tracker" element={<ProtectedRoute><SowTracker /></ProtectedRoute>} />
           <Route path="/projects/:id/bid-summary" element={<ProtectedRoute><BidSummary /></ProtectedRoute>} />
           <Route path="/projects/:id/pricing-matrix" element={<ProtectedRoute><PricingMatrix /></ProtectedRoute>} />
-          <Route path="/projects/:id/form-builder" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
-          <Route path="/projects/:id/form-builder/:sowId" element={<ProtectedRoute><QuoteFormBuilder /></ProtectedRoute>} />
+          <Route path="/projects/:id/form-builder" element={<ProtectedRoute><TierGate feature="custom_quote_forms"><QuoteFormBuilder /></TierGate></ProtectedRoute>} />
+          <Route path="/projects/:id/form-builder/:sowId" element={<ProtectedRoute><TierGate feature="custom_quote_forms"><QuoteFormBuilder /></TierGate></ProtectedRoute>} />
           <Route path="/projects/:id/exports" element={<ProtectedRoute><ExportCenter /></ProtectedRoute>} />
           <Route path="/projects/:id/debrief" element={<ProtectedRoute><DebriefPage /></ProtectedRoute>} />
           <Route path="/projects/:id/bid-decision" element={<ProtectedRoute><BidDecisionEngine /></ProtectedRoute>} />
@@ -347,7 +347,7 @@ export default function App() {
           <Route path="/compliance" element={<ProtectedRoute><ComplianceMatrices /></ProtectedRoute>} />
 
           {/* Vendor Intelligence */}
-          <Route path="/vendor-tracker" element={<ProtectedRoute><VendorTracker /></ProtectedRoute>} />
+          <Route path="/vendor-tracker" element={<ProtectedRoute><TierGate feature="vendor_performance_scoring"><VendorTracker /></TierGate></ProtectedRoute>} />
 
           {/* Project Comparison */}
           <Route path="/comparison" element={<ProtectedRoute><TaskOrderComparisonPage /></ProtectedRoute>} />
@@ -393,9 +393,9 @@ export default function App() {
           <Route path="/admin/access" element={<ProtectedRoute><GlobalAdminRoute><GlobalAdminSettings /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/system-health" element={<ProtectedRoute><GlobalAdminRoute><SystemHealth /></GlobalAdminRoute></ProtectedRoute>} />
           <Route path="/admin/partners" element={<ProtectedRoute><GlobalAdminRoute><AdminPartners /></GlobalAdminRoute></ProtectedRoute>} />
-          <Route path="/settings/email-domain" element={<ProtectedRoute><EnterpriseEmailSettings /></ProtectedRoute>} />
-          <Route path="/settings/sso" element={<ProtectedRoute><SSOSettings /></ProtectedRoute>} />
-          <Route path="/settings/gate-templates" element={<ProtectedRoute><GateTemplates /></ProtectedRoute>} />
+          <Route path="/settings/email-domain" element={<ProtectedRoute><TierGate feature="custom_email_domain"><EnterpriseEmailSettings /></TierGate></ProtectedRoute>} />
+          <Route path="/settings/sso" element={<ProtectedRoute><TierGate feature="saml_sso"><SSOSettings /></TierGate></ProtectedRoute>} />
+          <Route path="/settings/gate-templates" element={<ProtectedRoute><TierGate feature="custom_workflows"><GateTemplates /></TierGate></ProtectedRoute>} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
