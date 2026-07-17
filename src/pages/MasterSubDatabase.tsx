@@ -82,6 +82,11 @@ const VERIFICATION_LABELS: Record<string, { label: string; color: string; icon: 
   expired: { label: 'Expired', color: 'bg-red-100 text-red-600', icon: AlertCircle },
 }
 
+// The outreach pilot ran before production email deliverability was in place, so
+// its engagement numbers aren't representative. Hidden during the diligence
+// period to avoid misrepresenting the asset; flip to true to restore the panel.
+const SHOW_OUTREACH_METRICS = false
+
 export default function MasterSubDatabase() {
   const { profile, loading: authLoading } = useAuth()
   const isAdmin = profile?.is_global_admin === true
@@ -1903,7 +1908,7 @@ export default function MasterSubDatabase() {
       </div>
 
       {/* Outreach Dashboard */}
-      {outreachStats.totalSent > 0 && (
+      {SHOW_OUTREACH_METRICS && outreachStats.totalSent > 0 && (
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
