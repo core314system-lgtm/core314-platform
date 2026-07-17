@@ -224,22 +224,12 @@ async function removeDomain(domainId: string, orgId: string) {
     return { error: "Domain not found" }
   }
 
-  // Remove the authentication from SendGrid (best-effort). Do NOT delete a
-  // provider domain that other orgs still reference (e.g. a shared platform domain).
-  if (domainRow.mailgun_domain_id) {
-    const { count } = await supabase
-      .from("org_email_domains")
-      .select("id", { count: "exact", head: true })
-      .eq("mailgun_domain_id", domainRow.mailgun_domain_id)
-
-    if ((count || 0) <= 1) {
-      await fetch(`${SG_BASE}/whitelabel/domains/${domainRow.mailgun_domain_id}`, {
-        method: "DELETE",
-        headers: sgHeaders(),
-      })
-    }
-  }
-
+  // Only unlink the org from the domain here — do NOT delete the underlying
+  // SendGrid domain authentication. A given authentication can be shared
+  // (e.g. a platform-owned domain that add-domain reused), and deleting it
+  // would break sending for every other tenant/workflow using that domain.
+  // An orphaned authentication is harmless and is re-linked automatically if
+  // the domain is added again (add-domain reuses an existing auth by name).
   await supabase.from("org_email_domains").delete().eq("id", domainId)
 
   return { success: true, message: `Domain ${domainRow.domain} removed` }
