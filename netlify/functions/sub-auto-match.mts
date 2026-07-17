@@ -2,6 +2,7 @@ import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import zipcodes from "zipcodes"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
+import { KNOWN_TRADES } from "./_shared/tradeTaxonomy.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -34,20 +35,6 @@ const STATE_NEIGHBORS: Record<string, string[]> = {
   WI: ["IA","IL","MI","MN"], WY: ["CO","ID","MT","NE","SD","UT"],
   DC: ["MD","VA"],
 }
-
-const KNOWN_TRADES = [
-  "HVAC", "Electrical", "Plumbing", "Fire & Life Safety", "Elevator & Escalator",
-  "Janitorial", "Landscaping", "Snow & Ice Removal", "Pest Control", "Roofing",
-  "Painting", "Flooring", "Security Systems", "General Construction", "Demolition",
-  "Concrete & Masonry", "Structural Steel", "Environmental Services", "Waste Management",
-  "IT & Telecommunications", "Building Automation", "Emergency Power", "Dock & Loading Equipment",
-  "Glass & Glazing", "Insulation", "Drywall & Framing", "Mechanical Services",
-  "Welding & Metal Work", "Paving & Asphalt", "Fencing", "Signage", "Food Services",
-  "Moving & Logistics", "Furniture & Installation", "Engineering Services",
-  "Architectural Services", "Surveying & Geotechnical", "Abatement", "Waterproofing",
-  "Fire Protection", "Testing & Inspection", "Staffing & Labor", "Consulting", "Training",
-  "Other Services",
-]
 
 // Trade-to-SOW matching: maps sub trade categories to SOW service_category/sow_name keywords
 // Used to correctly assign subs to the SOW items they're qualified for
