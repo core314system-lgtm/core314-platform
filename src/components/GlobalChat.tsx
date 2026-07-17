@@ -135,7 +135,7 @@ export default function GlobalChat() {
               parts.push(`Includes: Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix, compliance engine, data export, MFA`)
             } else if (org.subscription_plan?.includes('enterprise')) {
               parts.push(`Tier: Enterprise ($5,000/mo or $4,000/mo annual)`)
-              parts.push(`Includes: Unlimited projects & users, post-award, teaming, resource capacity, relationship intelligence, API access, SAML SSO, custom email domain & branding, MFA, audit log, 99.9% SLA`)
+              parts.push(`Includes: Unlimited projects & users, post-award, teaming, resource capacity, relationship intelligence, API access, SAML SSO, custom email domain & branding, MFA, audit log, 99.9% uptime target (contractual SLA available under signed agreement)`)
             }
           }
         }
@@ -819,7 +819,7 @@ PIPELINE & WORKFLOW:
 
 BILLING & SUBSCRIPTIONS:
 - Growth tier ($2,500/mo monthly, $2,000/mo annual): Up to 25 active projects, 10 user seats, unlimited AI analysis, pricing matrix with export, compliance engine, data export, chat support.
-- Enterprise tier ($5,000/mo monthly, $4,000/mo annual): Unlimited projects & users, post-award transition, teaming & JV management, resource capacity tracking, relationship intelligence, REST API access, SAML SSO, custom email domain & branding, dedicated onboarding, 99.9% uptime SLA.
+- Enterprise tier ($5,000/mo monthly, $4,000/mo annual): Unlimited projects & users, post-award transition, teaming & JV management, resource capacity tracking, relationship intelligence, REST API access, SAML SSO, custom email domain & branding, dedicated onboarding, 99.9% uptime target (contractually binding SLA with service credits available under a signed Enterprise agreement).
 - 7-day free trial with all features.
 - Billing is managed through Stripe. Users can view their subscription status, plan, and manage billing from the /billing page.
 - The Stripe Customer Portal allows users to update payment methods, view invoices, and cancel subscriptions.
@@ -856,7 +856,7 @@ SYSTEM HEALTH:
 - The platform monitors 5 services: Database, Authentication, SAM.gov Feed, AI Engine, and Billing.
 - Health checks run automatically with retry logic and circuit breakers for resilience.
 - Public status page at /status shows real-time service health.
-- 99.9% uptime SLA.
+- 99.9% monthly uptime target; a contractual uptime SLA with service credits is available to Enterprise customers under a signed agreement.
 
 MULTI-FACTOR AUTHENTICATION (MFA):
 - TOTP-based MFA using authenticator apps (Google Authenticator, Authy, 1Password, etc.).

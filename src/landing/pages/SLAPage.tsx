@@ -15,7 +15,7 @@ export default function SLAPage() {
 
         <div className="bg-white border border-slate-200 rounded-2xl p-8 md:p-12 shadow-sm">
           <h1 className="text-4xl font-bold mb-2 text-slate-900" style={{ fontFamily: 'Poppins, sans-serif' }}>
-            Service Level Agreement
+            Service Level Target
           </h1>
           <p className="text-sm text-slate-500 mb-8">Effective: May 14, 2026 &middot; Core314 Technologies LLC</p>
 
@@ -26,7 +26,7 @@ export default function SLAPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
                 <Shield className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                 <div className="text-2xl font-bold text-slate-900">99.9%</div>
-                <div className="text-xs text-slate-600">Uptime Guarantee</div>
+                <div className="text-xs text-slate-600">Uptime Target</div>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
                 <Clock className="w-8 h-8 text-green-600 mx-auto mb-2" />
@@ -45,9 +45,10 @@ export default function SLAPage() {
                 1. Service Availability
               </h2>
               <p>
-                Core314 Technologies LLC (&quot;Core314&quot;) commits to maintaining the Procuvex platform with a monthly 
-                uptime of <strong>99.9%</strong> (&quot;Uptime Commitment&quot;). This equates to no more than 43 minutes 
-                of unplanned downtime per month.
+                Core314 Technologies LLC (&quot;Core314&quot;) targets a monthly uptime of <strong>99.9%</strong> for the 
+                Procuvex platform (the &quot;Uptime Target&quot;). This equates to no more than approximately 43 minutes 
+                of unplanned downtime per month. The Uptime Target reflects our operational goal and monitoring practices; 
+                a contractually binding uptime SLA with committed service credits is available to Enterprise customers under a signed agreement.
               </p>
               <p className="mt-4">
                 Uptime is calculated as: <code className="bg-slate-100 px-2 py-1 rounded text-sm">(Total Minutes - Downtime Minutes) / Total Minutes × 100</code>
@@ -116,8 +117,8 @@ export default function SLAPage() {
                 3. Service Credits
               </h2>
               <p>
-                If Core314 fails to meet the 99.9% Uptime Commitment in any calendar month, eligible customers 
-                may request service credits as follows:
+                For Enterprise customers under a signed SLA, if Core314 does not meet the 99.9% Uptime Target in a 
+                calendar month, service credits may be requested as a good-faith remedy on the following guideline:
               </p>
               <div className="not-prose overflow-x-auto mt-4">
                 <table className="w-full border-collapse">
@@ -144,9 +145,9 @@ export default function SLAPage() {
                 </table>
               </div>
               <p className="mt-4 text-sm">
-                Service credits must be requested within 30 days of the end of the affected month. Credits 
-                are applied to future invoices and do not exceed the monthly subscription fee. Service credits 
-                are the sole and exclusive remedy for failure to meet the Uptime Commitment.
+                Where applicable under a signed Enterprise agreement, service credits must be requested within 30 days of the 
+                end of the affected month, are applied to future invoices, and do not exceed the monthly subscription fee. 
+                For all other plans, the 99.9% figure is a service-level target rather than a contractually guaranteed commitment.
               </p>
             </section>
 

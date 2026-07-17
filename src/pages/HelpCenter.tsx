@@ -325,15 +325,15 @@ const helpSections: HelpSection[] = [
     id: 'platform-health',
     title: 'Platform Health & Reliability',
     icon: Activity,
-    description: 'Monitor system status, understand uptime guarantees, and learn about self-healing infrastructure.',
+    description: 'Monitor system status, understand our uptime target, and learn about self-healing infrastructure.',
     faqs: [
       {
         question: 'How do I check if the platform is experiencing issues?',
         answer: 'Visit the public System Status page at /status (also linked in the website footer under "System Status"). It shows real-time health checks for all services: Database, Authentication, SAM.gov Feed, AI Engine, and Billing. The page auto-refreshes every 60 seconds.',
       },
       {
-        question: 'What is the uptime guarantee?',
-        answer: 'Procuvex guarantees 99.9% uptime as defined in our SLA (Service Level Agreement). This means no more than ~8.7 hours of downtime per year. If uptime falls below this threshold, service credits are issued automatically. See the full SLA at /sla.',
+        question: 'What is the uptime target?',
+        answer: 'Procuvex targets 99.9% monthly uptime (no more than ~43 minutes of unplanned downtime per month), backed by 24/7 automated monitoring and self-healing infrastructure. A contractually binding uptime SLA with service credits is available to Enterprise customers under a signed agreement. See details at /sla.',
       },
       {
         question: 'What happens if SAM.gov or the AI engine goes down?',
