@@ -41,6 +41,32 @@ psql "$TARGET_DB_URL" -c "CREATE TRIGGER on_auth_user_created \
 # 3) apply any migrations dated AFTER this snapshot
 ```
 
+## Applying migrations to production (automated)
+
+New migrations in `supabase/migrations/` are applied to production automatically
+by the **Apply DB Migrations** workflow (`.github/workflows/db-migrate.yml`),
+which runs `scripts/apply-migrations.sh` on every push to `main` that touches
+`supabase/migrations/**`. This closes the gap where merged migrations sat
+un‑applied until run by hand.
+
+How it works:
+
+- Migrations are tracked by **full filename** in `public._ci_schema_migrations`
+  (not a parsed timestamp — several files share the same date prefix, which the
+  Supabase CLI cannot disambiguate).
+- The **first** run against the already‑migrated production DB *baselines*:
+  it records every existing migration as applied **without executing it**, so
+  historical migrations are never replayed. Only migrations added afterwards are
+  executed.
+- Each new migration + its bookkeeping insert run in a **single transaction**,
+  so a failure rolls back cleanly and the file is not marked applied.
+- Trigger it manually (with an optional read‑only dry run) from the Actions tab
+  via **workflow_dispatch**.
+
+Uses the existing `SUPABASE_DB_URL` secret (session pooler, :5432). Migrations
+must be **additive/backward‑compatible** — the code deploy and the migration run
+are independent workflows with no guaranteed ordering.
+
 ## Recommended follow‑up (needs a decision)
 
 To make `supabase/migrations` self‑consistent going forward, **squash**: replace
