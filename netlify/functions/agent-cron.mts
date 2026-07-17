@@ -7,6 +7,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const CERT_TYPE_LABELS: Record<string, string> = {
+  license: "License",
+  insurance: "Insurance",
+  certification: "Certification",
+  bond: "Bond",
+  w9: "W-9",
+  capability_statement: "Capability Statement",
+  other: "Document",
+}
+
 /**
  * AGENT CRON — Scheduled agent execution
  * 
@@ -162,6 +172,53 @@ async function runComplianceCheck(orgId: string, contactId: string | null, auton
         }
       }
     }
+  }
+
+  // Check subcontractor certifications, insurance, and bonding for expiry
+  // (expiring within 30 days OR already expired) so buyers are not surprised
+  // by a lapsed document on an active sub.
+  const { data: certs } = await supabase
+    .from('master_sub_certifications')
+    .select('id, master_sub_id, cert_type, cert_name, expiration_date')
+    .in('master_sub_id', subIds.slice(0, 100))
+    .not('expiration_date', 'is', null)
+    .lte('expiration_date', thirtyDays.toISOString())
+
+  for (const cert of (certs || [])) {
+    const expiry = new Date(cert.expiration_date)
+    const sub = (subs || []).find(s => s.id === cert.master_sub_id)
+    const company = sub?.company_name || 'Unknown subcontractor'
+    const label = CERT_TYPE_LABELS[cert.cert_type] || 'Document'
+    const isExpired = expiry < now
+    const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Skip if already flagged in the last 7 days
+    const { data: existing } = await supabase
+      .from('agent_actions')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('agent_type', 'compliance_watchdog')
+      .eq('payload->>cert_id', cert.id)
+      .gte('created_at', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .limit(1)
+    if (existing && existing.length > 0) continue
+
+    const status = autonomyLevel === 'autonomous' ? 'executed' : 'pending_approval'
+    actions.push({
+      org_id: orgId,
+      project_id: null,
+      agent_type: 'compliance_watchdog',
+      action_type: 'flag_compliance',
+      status,
+      title: isExpired ? `${label} Expired: ${company}` : `${label} Expiring: ${company} (${daysLeft} days)`,
+      description: isExpired
+        ? `${company}'s ${cert.cert_name || label} expired on ${cert.expiration_date}. They are on active projects — confirm updated documentation.`
+        : `${company}'s ${cert.cert_name || label} expires in ${daysLeft} days (${cert.expiration_date}). Request updated documentation.`,
+      payload: { subcontractor_id: cert.master_sub_id, expiry_type: isExpired ? 'certification_expired' : 'certification_expiring', cert_type: cert.cert_type, cert_id: cert.id, days_left: isExpired ? 0 : daysLeft, company_name: company, ...(isExpired ? { severity: 'high' } : {}) },
+      context: { company_name: company, cert_name: cert.cert_name, auto_executed: autonomyLevel === 'autonomous' },
+      assigned_to: contactId,
+      ...(status === 'executed' ? { executed_at: new Date().toISOString() } : {}),
+    })
   }
 
   if (actions.length > 0) {
