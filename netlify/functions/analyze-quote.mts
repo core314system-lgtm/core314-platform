@@ -1,6 +1,5 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import pdfParse from "pdf-parse"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
@@ -27,8 +26,14 @@ interface AnalysisResult {
 
 async function extractPdfText(fileBuffer: Buffer): Promise<string> {
   try {
+    // Import the pdf-parse lib entry directly (not the package index, which runs
+    // debug code that reads a test file at load). pdf-parse@1 is pure JS with no
+    // native/DOM deps, so it works in the Netlify Lambda runtime. Imported lazily
+    // inside try/catch so any failure degrades to description-based analysis.
+    const mod: any = await import("pdf-parse/lib/pdf-parse.js")
+    const pdfParse = mod.default || mod
     const parsed = await pdfParse(fileBuffer)
-    return parsed.text || ""
+    return (parsed.text || "").trim()
   } catch {
     return ""
   }
@@ -377,13 +382,16 @@ export default async (req: Request, _context: Context) => {
           emailSent = true
 
           // Log communication
-          await supabase.from("sow_communications").insert({
+          const { error: commErr } = await supabase.from("sow_communications").insert({
             sow_subcontractor_id: quote.sow_subcontractor_id,
             comm_type: "compliance_gap_notification",
             direction: "outbound",
             subject: `AI Compliance Review — ${analysis.requirements_missing.length} gaps found`,
             body: analysis.summary,
           })
+          if (commErr) {
+            console.error("Failed to log gap notification communication:", commErr.message)
+          }
         } catch (emailErr: any) {
           console.error("Failed to send gap notification:", emailErr.message)
         }

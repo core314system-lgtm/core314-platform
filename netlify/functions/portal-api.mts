@@ -482,7 +482,7 @@ async function handleQuoteSubmission(tokenData: any, body: any) {
 
   // Trigger AI compliance analysis — must be awaited or the function
   // terminates before the HTTP request completes
-  const siteUrl = process.env.URL || "https://procuvex.com"
+  const siteUrl = process.env.DEPLOY_PRIME_URL || process.env.URL || "https://procuvex.com"
   try {
     const analyzeResp = await Promise.race([
       fetch(`${siteUrl}/.netlify/functions/analyze-quote`, {
@@ -516,7 +516,7 @@ async function handleQuestionSubmission(tokenData: any, body: any) {
   const cleanSection = related_section ? sanitizeAndLimit(related_section, 500) : null
 
   // Route through AI-powered submit-question for document analysis
-  const siteUrl = process.env.URL || "https://procuvex.com"
+  const siteUrl = process.env.DEPLOY_PRIME_URL || process.env.URL || "https://procuvex.com"
   try {
     const aiRes = await fetch(`${siteUrl}/.netlify/functions/submit-question`, {
       method: "POST",
@@ -624,7 +624,7 @@ async function handleBatchQuestionSubmission(tokenData: any, body: any) {
     return new Response(JSON.stringify({ error: "Maximum 20 questions per submission" }), { status: 400, headers: corsHeaders })
   }
 
-  const siteUrl = process.env.URL || "https://procuvex.com"
+  const siteUrl = process.env.DEPLOY_PRIME_URL || process.env.URL || "https://procuvex.com"
   const results: Array<{ status: string; ai_analysis?: any }> = []
 
   for (const q of questions) {
