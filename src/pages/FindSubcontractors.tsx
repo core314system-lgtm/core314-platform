@@ -96,6 +96,15 @@ const US_STATES = [
 
 const PAGE_SIZE = 20
 
+// Build authenticated headers for calls to sub-auto-match, which verifies the
+// caller's Supabase JWT (never a client-supplied user id).
+async function authedJsonHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`
+  return headers
+}
+
 export default function FindSubcontractors() {
   const { isEnterprise, isGrowth, hasActiveSubscription, status: subStatus } = useTier()
   const { user, profile } = useAuth()
@@ -430,7 +439,7 @@ export default function FindSubcontractors() {
     try {
       const res = await fetch('/.netlify/functions/sub-auto-match', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+        headers: await authedJsonHeaders(),
         body: JSON.stringify({
           action: 'match',
           trades: [mappedTrade],
@@ -772,7 +781,7 @@ export default function FindSubcontractors() {
                       }
                       const res = await fetch('/.netlify/functions/sub-auto-match', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+                        headers: await authedJsonHeaders(),
                         body: JSON.stringify({
                           action: 'match',
                           trades,
@@ -1327,7 +1336,7 @@ export default function FindSubcontractors() {
             const proj = projects.find(p => p.id === selectedProject)
             const res = await fetch('/.netlify/functions/sub-auto-match', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+              headers: await authedJsonHeaders(),
               body: JSON.stringify({
                 action: 'invite-all',
                 sub_ids: Array.from(selectedAiSubs),

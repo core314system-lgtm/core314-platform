@@ -127,9 +127,14 @@ export default function SubcontractorCapture() {
       if (searchScope === 'local' || searchScope === 'regional') {
         // Use Google Places API for local and regional searches
         try {
+          const { data: { session } } = await supabase.auth.getSession()
+          const token = session?.access_token
           const apiResponse = await fetch('/.netlify/functions/discover-subs', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: JSON.stringify({
               category: effectiveCategory,
               scope: searchScope,
