@@ -108,7 +108,7 @@ const securityFeatures = [
 ]
 
 const trustBadges = [
-  { icon: Shield, title: 'SOC 2 Type II Architecture', desc: 'Built on Supabase enterprise infrastructure with SOC 2 compliance' },
+  { icon: Shield, title: 'SOC 2 Type II Infrastructure', desc: 'Built on Supabase, which maintains SOC 2 Type II certification; Procuvex is not separately SOC 2 certified' },
   { icon: Lock, title: 'AES-256 Encryption', desc: 'All data encrypted at rest and in transit with TLS 1.3' },
   { icon: Globe, title: 'ITAR / CUI', desc: 'Not currently pursued — architecture designed to support CUI workflows upon enterprise customer requirement' },
   { icon: Award, title: 'FedRAMP Authorization', desc: 'Not currently pursued — platform can support future FedRAMP-authorized deployment if customer demand requires it' },

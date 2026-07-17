@@ -260,8 +260,8 @@ export default function SecurityPage() {
               Need More Details?
             </motion.h2>
             <motion.p variants={fadeUp} className="text-slate-400 max-w-lg mx-auto mb-8">
-              We provide comprehensive security documentation, penetration test reports, and compliance 
-              attestations to enterprise customers upon request.
+              We provide comprehensive security documentation, our security architecture overview, and 
+              infrastructure compliance attestations (including Supabase&apos;s SOC 2 report) to enterprise customers upon request.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
