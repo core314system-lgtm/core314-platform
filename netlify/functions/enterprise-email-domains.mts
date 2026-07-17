@@ -122,7 +122,7 @@ async function addDomain(orgId: string, domain: string, fromName: string, fromEm
       tracking_cname: records.mail_cname?.data || null,
       tracking_verified: isValid,
       verified_at: isValid ? new Date().toISOString() : null,
-      mailgun_domain_id: String(sg.id),
+      sendgrid_domain_id: String(sg.id),
       provider: "sendgrid",
       created_by: userId,
     })
@@ -155,7 +155,7 @@ async function checkDns(domainId: string) {
     return { error: "Domain not found" }
   }
 
-  const sgId = domainRow.mailgun_domain_id
+  const sgId = domainRow.sendgrid_domain_id
   if (!sgId) {
     return { error: "Domain is not linked to the email provider" }
   }
