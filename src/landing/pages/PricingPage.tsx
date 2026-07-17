@@ -57,7 +57,7 @@ const tiers = [
       'Custom workflow stages',
       'Intelligence library',
       'Dedicated onboarding',
-      'SAML SSO (Okta, Azure AD, Google Workspace)',
+      'SAML 2.0 SSO (compatible with Okta, Azure AD, Google Workspace — customer IdP configuration required)',
       'Priority support with SLA',
       '99.9% uptime SLA (contractual, with service credits)',
     ],
@@ -94,7 +94,7 @@ const comparison = [
   { name: 'Custom Quote Forms', growth: false, ent: true },
   { name: 'REST API Access', growth: false, ent: true },
   { name: 'Custom Workflows', growth: false, ent: true },
-  { name: 'SAML SSO (Okta, Azure AD, Google)', growth: false, ent: true },
+  { name: 'SAML 2.0 SSO (configuration required)', growth: false, ent: true },
   { name: 'Dedicated Onboarding', growth: false, ent: true },
   { name: '99.9% Uptime SLA', growth: false, ent: true },
 ]
@@ -108,7 +108,7 @@ const faqs = [
   { q: 'Can I export my data?', a: 'Yes. Full data portability is guaranteed. Export your entire account — projects, subcontractors, documents, quotes, and analytics — in CSV or JSON format at any time.' },
   { q: 'What support is included?', a: 'All plans include our AI-powered support assistant that can answer platform and account-specific questions 24/7. If the AI cannot resolve your issue, it escalates to a human specialist with callback scheduling.' },
   { q: 'Do you support government contractors specifically?', a: 'Yes. Procuvex is built for government procurement from the ground up — SAM.gov integration, compliance matrices, set-aside tracking, NAICS code matching, and wage determination handling are all native to the platform.' },
-  { q: 'What Enterprise-only features are included?', a: 'Enterprise includes everything in Growth plus: Contact & Relationship Management (CRM), project task assignments, activity feed & team comments, AI proposal draft generation, Slack integration, weekly executive digest emails, REST API access, custom email domain & branding, SAML SSO, and dedicated onboarding. These collaboration and integration features are designed for multi-user capture teams.' },
+  { q: 'What Enterprise-only features are included?', a: 'Enterprise includes everything in Growth plus: Contact & Relationship Management (CRM), project task assignments, activity feed & team comments, AI proposal draft generation, Slack integration, weekly executive digest emails, REST API access, custom email domain & branding, SAML 2.0 SSO (compatible with Okta, Azure AD, and Google Workspace — customer IdP configuration required), and dedicated onboarding. These collaboration and integration features are designed for multi-user capture teams.' },
 ]
 
 function FAQItem({ q, a }: { q: string; a: string }) {
