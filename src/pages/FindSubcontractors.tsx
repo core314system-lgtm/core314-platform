@@ -922,7 +922,7 @@ export default function FindSubcontractors() {
                                       <span className="text-green-700">
                                         {item.sub_count}
                                         {item.mapped_trade && expandedScopes[item.mapped_trade] && (
-                                          <span className="ml-1 text-[10px] text-purple-500 font-normal">via {expandedScopes[item.mapped_trade]}</span>
+                                          <span className="ml-1 text-[10px] text-purple-500 font-normal">{' '}via {expandedScopes[item.mapped_trade]}</span>
                                         )}
                                       </span>
                                     ) : item.mapped_trade ? (
