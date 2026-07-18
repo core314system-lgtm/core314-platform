@@ -137,7 +137,7 @@ function getSpInfo() {
   }
 }
 
-export default async (req: Request, context: Context) => {
+export default async (req: Request, _context: Context) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,

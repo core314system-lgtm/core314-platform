@@ -24,7 +24,6 @@ import * as path from 'path';
 // Import the readiness configuration
 // Note: We use require for compatibility with ts-node
 const {
-  INTEGRATION_READINESS,
   validateIntegrationReadiness,
   getProductionReadyIntegrations,
   getNonProductionReadyIntegrations,

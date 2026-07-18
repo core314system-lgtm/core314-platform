@@ -12,6 +12,7 @@ on:
       - 'vite.config.ts'
       - 'vitest.config.ts'
       - 'index.html'
+      - 'eslint.config.js'
       - '.github/workflows/procuvex-ci-deploy.yml'
   push:
     branches: [main]
@@ -24,8 +25,26 @@ on:
       - 'vite.config.ts'
       - 'vitest.config.ts'
       - 'index.html'
+      - 'eslint.config.js'
 
 jobs:
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
   build:
     name: Build & Type Check (Procuvex)
     runs-on: ubuntu-latest
@@ -73,7 +92,7 @@ jobs:
 
   deploy:
     name: Deploy to Production
-    needs: [build, test]
+    needs: [lint, build, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

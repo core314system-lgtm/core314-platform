@@ -43,7 +43,6 @@ async function getDocumentTexts(
   taskOrderId: string,
   sowItemId: string
 ): Promise<{ sowDocText: string; projectDocTexts: string }> {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL!
 
   // Get all documents for this project
   const { data: docs } = await supabase
@@ -257,7 +256,7 @@ export default async (req: Request, _context: Context) => {
 
   try {
     const body = await req.json()
-    const { quote_id, sow_item_id, auto_email } = body
+    const { quote_id, auto_email } = body
 
     if (!quote_id) {
       return new Response(JSON.stringify({ error: "quote_id required" }), { status: 400, headers: corsHeaders })

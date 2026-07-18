@@ -109,25 +109,6 @@ function parseArrayField(value: string): string[] {
   return value.split(/[,;|]/).map(v => v.trim()).filter(Boolean)
 }
 
-interface ImportRow {
-  company_name: string
-  contact_name?: string
-  contact_email?: string
-  contact_phone?: string
-  website?: string
-  address_line1?: string
-  city?: string
-  state?: string
-  zip_code?: string
-  trade_categories?: string[]
-  naics_codes?: string[]
-  small_business_types?: string[]
-  notes?: string
-  tags?: string[]
-  sam_uei?: string
-  cage_code?: string
-}
-
 export default async (req: Request, _context: Context) => {
   const headers = {
     "Content-Type": "application/json",

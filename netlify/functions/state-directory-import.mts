@@ -760,7 +760,6 @@ export default async (req: Request, _context: Context) => {
     let csvText: string
     let parseRow: (row: string[], headers: string[]) => Record<string, any> | null
     let sourceName: string
-    let sourceState: string
     let dataSourceValue: string
 
     if (format && csvData) {
@@ -775,7 +774,6 @@ export default async (req: Request, _context: Context) => {
       csvText = csvData
       parseRow = uploadConfig.parseRow
       sourceName = uploadConfig.name
-      sourceState = uploadConfig.state
       dataSourceValue = uploadConfig.dataSource
     } else if (source) {
       // AUTO-DOWNLOAD MODE
@@ -788,7 +786,6 @@ export default async (req: Request, _context: Context) => {
       const config = SOURCES[source]
       parseRow = config.parseRow
       sourceName = config.name
-      sourceState = config.state
       dataSourceValue = config.dataSource
 
       // Download the CSV from state website

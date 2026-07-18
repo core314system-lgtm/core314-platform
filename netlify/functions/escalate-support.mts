@@ -1,7 +1,6 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import sgMail from "@sendgrid/mail"
-import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,

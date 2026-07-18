@@ -48,26 +48,6 @@ function buildCompletionEmailHtml(couponCode: string, claimUrl: string): string 
   `
 }
 
-function buildReminderEmailHtml(weekNumber: number, feedbackUrl: string): string {
-  return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 28px 32px; border-radius: 12px 12px 0 0; text-align: center;">
-        <h1 style="margin: 0; font-size: 22px; font-weight: bold;">Week ${weekNumber} Feedback Ready</h1>
-        <p style="margin: 8px 0 0; opacity: 0.85; font-size: 13px;">Procuvex Founding Partner Program</p>
-      </div>
-      <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
-        <p style="font-size: 15px; color: #111827; margin-top: 0;">Your Week ${weekNumber} feedback form is ready. Your input directly shapes what we build next.</p>
-        <p style="font-size: 14px; color: #374151;">Complete all 4 weekly feedback forms to earn your exclusive <strong>50% off your first month</strong> on the Enterprise plan.</p>
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${feedbackUrl}" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">Complete Week ${weekNumber} Feedback</a>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
-      </div>
-    </div>
-  `
-}
-
 export default async (req: Request, _context: Context) => {
   const headers = {
     "Content-Type": "application/json",

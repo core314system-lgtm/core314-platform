@@ -398,7 +398,7 @@ export default async (req: Request, _context: Context) => {
         // Build and send email
         const claimUrl = `https://procuvex.com/claim/${token}`
         const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${token}`
-        let html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
+        const html = buildOutreachEmail(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
         const text = buildOutreachPlainText(sub.company_name, claimUrl, sub.trade_categories || [], sub.state || "", unsubscribeUrl)
 
         const sendgridMessageId = await sendEmail({

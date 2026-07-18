@@ -52,8 +52,8 @@ export default async (req: Request, _context: Context) => {
   // GET — list all platform users (excludes subcontractor accounts)
   if (req.method === 'GET') {
     // Try to filter by account_type; if column doesn't exist yet, fall back to all users
-    let users: any[] = []
-    let error: any = null
+    let users: any[]
+    let error: any
 
     const result = await supabase
       .from('user_profiles')
@@ -247,12 +247,6 @@ export default async (req: Request, _context: Context) => {
       .select('is_global_admin, email, current_org_id')
       .eq('id', user_id)
       .single()
-
-    // Get org membership
-    const { data: memberships } = await supabase
-      .from('organization_members')
-      .select('org_id')
-      .eq('user_id', user_id)
 
     // Delete org memberships
     await supabase.from('organization_members').delete().eq('user_id', user_id)

@@ -181,7 +181,7 @@ function entityToRecord(entity: any, existingSlugs: Set<string>): any | null {
   if (!uei) return null
 
   // Generate unique slug
-  let baseSlug = generateSlug(name)
+  const baseSlug = generateSlug(name)
   let slug = baseSlug
   let counter = 1
   while (existingSlugs.has(slug)) {

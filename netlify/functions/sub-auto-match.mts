@@ -257,16 +257,12 @@ IMPORTANT: The "mapped_trade" value MUST be an exact match from the known trade 
     // Resolve project zip for radius-based filtering
     let projectLat: number | null = null
     let projectLng: number | null = null
-    let localZipSet: Set<string> | null = null
 
     if (includesLocal && project_zip) {
       const zipInfo = zipcodes.lookup(String(project_zip).substring(0, 5))
       if (zipInfo) {
         projectLat = zipInfo.latitude
         projectLng = zipInfo.longitude
-        // Get all zip codes within the radius for DB pre-filtering
-        const nearbyZips = zipcodes.radius(String(project_zip).substring(0, 5), radiusMiles) || []
-        localZipSet = new Set(nearbyZips)
       }
     }
 

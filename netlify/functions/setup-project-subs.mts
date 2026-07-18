@@ -1,7 +1,7 @@
 import type { Context } from "@netlify/functions"
 import pg from "pg"
 
-export default async (req: Request, _context: Context) => {
+export default async (_req: Request, _context: Context) => {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || ''
   const projectRef = supabaseUrl.match(/https:\/\/(\w+)\.supabase\.co/)?.[1]
   

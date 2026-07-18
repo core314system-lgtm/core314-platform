@@ -473,7 +473,7 @@ export default function OpportunityDiscovery() {
       insertData.org_id = currentOrg.id
     }
 
-    let projectId: string | null = null
+    let projectId: string | null
 
     const { data, error } = await supabase.from('task_orders').insert(insertData).select().single()
     if (error) {

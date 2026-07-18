@@ -566,7 +566,7 @@ export default function MasterSubDatabase() {
       const BATCH_SIZE = 200
       let imported = 0
       let skipped = 0
-      let errors: string[] = []
+      const errors: string[] = []
 
       for (let i = 0; i < validRecords.length; i += BATCH_SIZE) {
         const batch = validRecords.slice(i, i + BATCH_SIZE)

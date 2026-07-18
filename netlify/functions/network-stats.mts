@@ -38,7 +38,7 @@ export default async (req: Request, _context: Context) => {
       }),
       { status: 200, headers: corsHeaders }
     )
-  } catch (err) {
+  } catch {
     return new Response(
       JSON.stringify({ total: 0, verified: 0, statesCovered: 50, tradeCategories: 45 }),
       { status: 200, headers: corsHeaders }

@@ -1,6 +1,5 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import { sanitizeAndLimit } from "./_shared/sanitize.ts"
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
@@ -56,7 +55,7 @@ export default async (req: Request, _context: Context) => {
 
     // Action: parse — AI extracts Q&A pairs from document text
     if (action === "parse") {
-      const { document_text } = await req.json().catch(() => ({ document_text: null }))
+      await req.json().catch(() => ({}))
       // For now, the frontend handles parsing. This endpoint receives pre-parsed Q&A pairs.
       return new Response(JSON.stringify({ error: "Use 'match' action with pre-parsed qa_pairs" }), { status: 400, headers: corsHeaders })
     }
@@ -73,7 +72,7 @@ export default async (req: Request, _context: Context) => {
 
       // Get subcontractor info
       const subIds = [...new Set((subQuestions || []).map(q => q.subcontractor_id).filter(Boolean))]
-      let subMap: Record<string, { company_name: string; contact_email: string | null }> = {}
+      const subMap: Record<string, { company_name: string; contact_email: string | null }> = {}
       if (subIds.length > 0) {
         const { data: subs } = await supabase
           .from("subcontractors")

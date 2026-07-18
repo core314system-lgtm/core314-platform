@@ -13,7 +13,7 @@ const supabase = createClient(
  * 
  * Set up as a Netlify Scheduled Function running daily.
  */
-export default async (req: Request, _context: Context) => {
+export default async (_req: Request, _context: Context) => {
   const headers = { "Content-Type": "application/json" }
 
   try {

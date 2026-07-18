@@ -14,7 +14,7 @@ export function sanitizeText(input: unknown): string {
 export function sanitizeEmail(input: unknown): string {
   if (typeof input !== "string") return ""
   const trimmed = input.trim().toLowerCase()
-  const emailRe = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+  const emailRe = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
   if (!emailRe.test(trimmed)) return ""
   return trimmed
 }
