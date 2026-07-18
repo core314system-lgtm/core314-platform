@@ -355,7 +355,7 @@ export default async (req: Request, _context: Context) => {
     }
 
     const acceptedEmails = (invites || []).filter(i => i.status === "accepted").map(i => i.email)
-    let testerActivity: Record<string, { last_sign_in_at: string | null; created_at: string; project_count: number; beta_start_date: string | null; beta_program_status: string | null; feedback_count: number }> = {}
+    const testerActivity: Record<string, { last_sign_in_at: string | null; created_at: string; project_count: number; beta_start_date: string | null; beta_program_status: string | null; feedback_count: number }> = {}
 
     if (acceptedEmails.length > 0) {
       const { data: profiles } = await supabase

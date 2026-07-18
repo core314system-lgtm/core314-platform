@@ -71,10 +71,10 @@ export async function fetchAIProxy(body: Record<string, unknown>): Promise<{ cho
       }
 
       if (isAbort) {
-        throw new Error('AI analysis timed out. The documents may be too large — try removing some non-essential documents and retry.')
+        throw new Error('AI analysis timed out. The documents may be too large — try removing some non-essential documents and retry.', { cause: err })
       }
       if (isNetwork) {
-        throw new Error('Network connection lost during AI analysis. Please check your internet connection and try again.')
+        throw new Error('Network connection lost during AI analysis. Please check your internet connection and try again.', { cause: err })
       }
       throw err
     }

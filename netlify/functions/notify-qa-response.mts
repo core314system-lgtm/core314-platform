@@ -74,7 +74,7 @@ export default async (req: Request, _context: Context) => {
 
       const portalUrl = tokenData ? `${siteUrl}/portal/${tokenData.token}` : null
 
-      const qaHtml = dist.qa_pairs.map((qa: any, i: number) => `
+      const qaHtml = dist.qa_pairs.map((qa: any) => `
         <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 8px 0; background: #f9fafb;">
           <p style="margin: 0 0 8px; font-weight: bold; color: #1f2937; font-size: 14px;">
             ${qa.govt_qa.question_number ? `${qa.govt_qa.question_number}: ` : ''}${qa.govt_qa.question_text}

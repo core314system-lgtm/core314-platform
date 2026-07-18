@@ -1,6 +1,5 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import Stripe from "stripe"
 import { sanitizeEmail, sanitizeText } from "./_shared/sanitize.ts"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
@@ -10,8 +9,6 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-12-18.acacia' })
 
 function initSendGrid() {
   sgMail.default.setApiKey(process.env.SENDGRID_API_KEY || process.env.TASKORDER_SENDGRID_API_KEY!)
@@ -102,32 +99,6 @@ function buildReferralNotificationHtml(partnerName: string, companyName: string,
         <p style="color: #374151; font-size: 14px;">Once their trial converts to a paid subscription, you'll start earning 20% monthly commission for 12 months.</p>
         <div style="text-align: center; margin: 24px 0;">
           <a href="${dashboardUrl}" style="background: linear-gradient(135deg, #059669, #047857); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">View Your Dashboard</a>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
-      </div>
-    </div>
-  `
-}
-
-function buildCancellationNotificationHtml(partnerName: string, companyName: string, monthsActive: number, totalEarned: string): string {
-  const dashboardUrl = `${getSiteUrl()}/partners/dashboard`
-  return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: #6b7280; color: white; padding: 28px 32px; border-radius: 12px 12px 0 0; text-align: center;">
-        <h1 style="margin: 0; font-size: 22px; font-weight: bold;">Referred Subscriber Cancelled</h1>
-      </div>
-      <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
-        <p style="font-size: 16px; color: #111827; margin-top: 0;">Hi ${partnerName},</p>
-        <p style="color: #374151; line-height: 1.7; font-size: 15px;">A customer you referred has cancelled their subscription.</p>
-        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 24px 0;">
-          <p style="margin: 0 0 8px; font-size: 14px; color: #374151;"><strong>Company:</strong> ${companyName}</p>
-          <p style="margin: 0 0 8px; font-size: 14px; color: #374151;"><strong>Months active:</strong> ${monthsActive}</p>
-          <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Total commission earned:</strong> ${totalEarned}</p>
-        </div>
-        <p style="color: #374151; font-size: 14px;">No further commissions will be paid for this subscriber. Your other active referrals are unaffected.</p>
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${dashboardUrl}" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">View Your Dashboard</a>
         </div>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
@@ -619,7 +590,7 @@ async function calculateCommissions(partner: Record<string, unknown>, signups: R
       const maxEnd = new Date(startDate.getTime() + commissionMonths * 30 * 86400000)
       const actualEnd = endDate < maxEnd ? endDate : maxEnd
 
-      let cursor = new Date(startDate)
+      const cursor = new Date(startDate)
       while (cursor <= actualEnd) {
         allMonths.add(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`)
         cursor.setMonth(cursor.getMonth() + 1)

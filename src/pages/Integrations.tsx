@@ -120,7 +120,7 @@ export default function Integrations() {
       const data = await res.json()
       setSamResults(data.opportunities || [])
       setSamTotal(data.totalRecords || 0)
-    } catch (err) {
+    } catch {
       setSamError('Network error — could not reach SAM.gov. The SAM.gov API may be temporarily unavailable.')
     }
     setSamSearching(false)
@@ -152,7 +152,7 @@ export default function Integrations() {
       insertData.org_id = currentOrg.id
     }
 
-    let projectId: string | null = null
+    let projectId: string | null
 
     const { data, error } = await supabase.from('task_orders').insert(insertData).select().single()
 

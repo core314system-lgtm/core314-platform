@@ -10,7 +10,7 @@ const PII_PATTERNS: { type: string; label: string; pattern: RegExp }[] = [
   { type: 'credit_card', label: 'Credit Card Number', pattern: /\b(?:4\d{3}|5[1-5]\d{2}|3[47]\d{2}|6(?:011|5\d{2}))[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g },
   { type: 'phone', label: 'Phone Number', pattern: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g },
   { type: 'email_bulk', label: 'Email Address', pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
-  { type: 'dob', label: 'Date of Birth', pattern: /\b(?:DOB|Date\s+of\s+Birth|birth\s*date)\s*[:=]?\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/gi },
+  { type: 'dob', label: 'Date of Birth', pattern: /\b(?:DOB|Date\s+of\s+Birth|birth\s*date)\s*[:=]?\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/gi },
   { type: 'ssn_label', label: 'SSN Reference', pattern: /\b(?:SSN|Social\s+Security(?:\s+Number)?)\s*[:=]?\s*[\dX*]{3,}/gi },
   { type: 'passport', label: 'Passport Number', pattern: /\b(?:passport\s*(?:no|number|#)?)\s*[:=]?\s*[A-Z0-9]{6,9}\b/gi },
   { type: 'dl', label: 'Driver License', pattern: /\b(?:driver'?s?\s*(?:license|lic|DL)\s*(?:no|number|#)?)\s*[:=]?\s*[A-Z0-9]{5,15}\b/gi },

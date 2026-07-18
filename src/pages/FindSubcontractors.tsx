@@ -180,7 +180,7 @@ export default function FindSubcontractors() {
       if (actionType === 'search' || actionType === 'page_browse') {
         setDailySearchCount(prev => prev + 1)
       }
-    } catch {} // Graceful fallback if table doesn't exist
+    } catch { /* graceful fallback if table doesn't exist */ }
   }
 
   // Get daily search limit based on plan

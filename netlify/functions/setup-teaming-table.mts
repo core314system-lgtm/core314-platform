@@ -1,7 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
-export default async (req: Request, _context: Context) => {
+export default async (_req: Request, _context: Context) => {
   const supabase = createClient(
     process.env.VITE_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

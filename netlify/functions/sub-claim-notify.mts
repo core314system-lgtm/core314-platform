@@ -1,6 +1,5 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import { htmlToPlainText } from "./_shared/html-to-text.ts"
 const sgMail = await import("@sendgrid/mail")
 
 const supabase = createClient(

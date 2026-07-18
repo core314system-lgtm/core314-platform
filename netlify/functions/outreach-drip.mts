@@ -94,7 +94,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   let body: { action?: string; dry_run?: boolean } = {}
-  try { body = await req.json() } catch {}
+  try { body = await req.json() } catch { /* ignore malformed body */ }
   const dryRun = body.dry_run || false
 
   if (!SENDGRID_API_KEY) {
@@ -109,7 +109,7 @@ export default async (req: Request, _context: Context) => {
 
   let followUp1Sent = 0
   let followUp2Sent = 0
-  let errors: string[] = []
+  const errors: string[] = []
 
   // --- FOLLOW-UP #1: 3 days after initial send ---
   // Targets: sent outreach 3-4 days ago, email_count = 1, not claimed, not unsubscribed
@@ -134,7 +134,6 @@ export default async (req: Request, _context: Context) => {
           ? `https://procuvex.com/claim/${sub.claim_token}`
           : `https://procuvex.com/claim-lookup/${sub.id}`
         const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${sub.claim_token || sub.id}`
-        const trades = (sub.trade_categories || []).slice(0, 2).join(", ") || "your trade"
         const location = sub.state || "your area"
 
         await sendDripEmail({
@@ -186,7 +185,6 @@ export default async (req: Request, _context: Context) => {
           ? `https://procuvex.com/claim/${sub.claim_token}`
           : `https://procuvex.com/claim-lookup/${sub.id}`
         const unsubscribeUrl = `https://procuvex.com/.netlify/functions/sub-outreach?action=unsubscribe&id=${sub.id}&token=${sub.claim_token || sub.id}`
-        const trades = (sub.trade_categories || []).slice(0, 2).join(", ") || "your trade"
         const location = sub.state || "your area"
 
         await sendDripEmail({

@@ -63,12 +63,12 @@ export default function GlobalChat() {
   function handleHide() {
     setOpen(false)
     setHidden(true)
-    try { localStorage.setItem('procuvex-chat-hidden', 'true') } catch {}
+    try { localStorage.setItem('procuvex-chat-hidden', 'true') } catch { /* ignore storage errors */ }
   }
 
   function handleShow() {
     setHidden(false)
-    try { localStorage.removeItem('procuvex-chat-hidden') } catch {}
+    try { localStorage.removeItem('procuvex-chat-hidden') } catch { /* ignore storage errors */ }
   }
 
   async function buildContext() {

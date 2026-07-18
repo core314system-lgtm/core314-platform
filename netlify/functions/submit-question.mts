@@ -1,7 +1,7 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 import { checkRateLimit, rateLimitResponse } from "./_shared/rate-limiter.ts"
-import { sanitizeText, sanitizeAndLimit, isValidUUID } from "./_shared/sanitize.ts"
+import { sanitizeAndLimit, isValidUUID } from "./_shared/sanitize.ts"
 import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const sgMail = await import("@sendgrid/mail")

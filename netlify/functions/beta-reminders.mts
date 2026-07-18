@@ -34,31 +34,7 @@ function buildWeeklyReminderHtml(weekNumber: number): string {
   `
 }
 
-function buildCouponExpiringHtml(couponCode: string, daysLeft: number): string {
-  const siteUrl = process.env.URL || "https://procuvex.com"
-  const urgencyColor = daysLeft <= 1 ? "#dc2626" : "#d97706"
-  return `
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: ${urgencyColor}; color: white; padding: 28px 32px; border-radius: 12px 12px 0 0; text-align: center;">
-        <h1 style="margin: 0; font-size: 22px; font-weight: bold;">${daysLeft <= 1 ? "Last Chance" : "Reminder"} — Your 50%-Off-First-Month Discount ${daysLeft <= 1 ? "Expires Today" : `Expires in ${daysLeft} Days`}</h1>
-      </div>
-      <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px; background: #ffffff;">
-        <p style="font-size: 15px; color: #111827; margin-top: 0;">Don't miss out on your exclusive Founding Partner discount!</p>
-        <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
-          <p style="margin: 0 0 4px; font-size: 13px; color: #166534;">Your code:</p>
-          <p style="margin: 0; font-size: 24px; font-weight: bold; color: #065f46; font-family: monospace; letter-spacing: 2px;">${couponCode}</p>
-        </div>
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${siteUrl}/billing" style="background: ${urgencyColor}; color: white; padding: 14px 36px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">Claim My Discount Now</a>
-        </div>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">Procuvex &mdash; A product of Core314 Technologies LLC</p>
-      </div>
-    </div>
-  `
-}
-
-export default async (req: Request) => {
+export default async (_req: Request) => {
   initSendGrid()
   const results: string[] = []
   const siteUrl = process.env.URL || "https://procuvex.com"

@@ -84,7 +84,6 @@ export default async (req: Request, _context: Context) => {
       // --- Sub Verification Checkout ---
       if (checkoutType === 'sub_verification') {
         const subId = session.metadata?.sub_id
-        const userId = session.metadata?.user_id
 
         if (subId) {
           // Mark subcontractor as verified
@@ -236,10 +235,6 @@ export default async (req: Request, _context: Context) => {
         if (referralCode && customerEmail) {
           const planLabel = planId.includes('enterprise') ? 'Enterprise' : 'Growth'
           const isAnnual = planId.includes('annual')
-          const monthlyAmount = planId === 'enterprise_monthly' ? 5000
-            : planId === 'enterprise_annual' ? 4000
-            : planId === 'growth_annual' ? 2000
-            : 2500
 
           try {
             await fetch(`${process.env.URL || 'https://procuvex.com'}/.netlify/functions/partner-program`, {

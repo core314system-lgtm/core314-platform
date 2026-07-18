@@ -161,8 +161,6 @@ async function runDomainMxCheck() {
  */
 async function runDecayScoring() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
 
   // Records with no engagement in 30+ days: -5
   const { data: stale30 } = await supabase

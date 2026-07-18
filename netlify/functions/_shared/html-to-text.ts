@@ -3,7 +3,7 @@
  * Preserves links, headings, and list structure for readability.
  */
 export function htmlToPlainText(html: string): string {
-  let text = html
+  const text = html
     // Replace <br> variants with newlines
     .replace(/<br\s*\/?>/gi, "\n")
     // Replace block-level closing tags with double newline

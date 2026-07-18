@@ -530,7 +530,7 @@ export default function TaskOrderDetail() {
       // Auto-match document to SOW item by filename if user didn't manually select one
       let assignedSowId = selectedSowItemId
       if (!assignedSowId && selectedCategory === 'sow' && sowItems.length > 0) {
-        const nameLower = file.name.toLowerCase().replace(/[_\-\.]/g, ' ')
+        const nameLower = file.name.toLowerCase().replace(/[_\-.]/g, ' ')
         let bestMatch = ''
         let bestId = ''
         for (const sow of sowItems) {

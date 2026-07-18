@@ -1,6 +1,5 @@
 import type { Context } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
-import { htmlToPlainText } from "./_shared/html-to-text.ts"
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL!,
@@ -101,7 +100,7 @@ async function runComplianceCheck(orgId: string, contactId: string | null, auton
   const { data: orgSubs } = await supabase.rpc('get_org_subcontractor_ids', { p_org_id: orgId }).limit(200)
   
   // Fallback: query directly if RPC doesn't exist
-  let subIds: string[] = []
+  let subIds: string[]
   if (orgSubs) {
     subIds = orgSubs.map((s: any) => s.subcontractor_id)
   } else {
