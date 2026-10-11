@@ -21,7 +21,6 @@ export default function TermsPage() {
 
                     <div className="prose prose-slate max-w-none space-y-8 text-slate-600" style={{ fontFamily: 'Inter, sans-serif' }}>
                       <p className="text-sm text-slate-500">Last Updated: January 7, 2026</p>
-                      <p className="text-xs text-slate-400">Patent Pending</p>
 
             <p className="text-lg">
                             These Terms of Service ("Terms") govern your access to and use of the Core314™ platform and services 
