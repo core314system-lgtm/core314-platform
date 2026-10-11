@@ -25,6 +25,7 @@ export default function ContactPage() {
   const [form, setForm] = useState(empty);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
+  const [testMode, setTestMode] = useState(false);
   const set = (k: keyof typeof empty) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value });
 
@@ -39,7 +40,10 @@ export default function ContactPage() {
         body: JSON.stringify({ ...form, interest: interests[interest], lead: getLeadSource() }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setTestMode(Boolean(data.test));
         track('generate_lead', { form: 'contact', interest });
+        if (interest === 'procuvex') track('procuvex_demo_inquiry', { form: 'contact' });
         setStatus('success');
         setForm(empty);
       } else {
@@ -107,6 +111,7 @@ export default function ContactPage() {
                   <CheckCircle2 className="h-12 w-12 text-green-700 mx-auto" aria-hidden="true" />
                   <h2 className="mt-4 text-2xl font-bold">Thanks, we've got it</h2>
                   <p className="mt-2 text-slate-700">We've emailed you a confirmation and will reply within one business day.</p>
+                  {testMode && <p className="mt-3 text-sm font-semibold text-amber-800">Staging test: this submission was not saved and no emails were sent.</p>}
                   <Link to="/our-work" className="mt-6 inline-block font-semibold text-sky-700">While you wait, see what we build &rarr;</Link>
                 </div>
               ) : (

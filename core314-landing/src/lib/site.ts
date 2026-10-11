@@ -16,8 +16,12 @@ export function track(event: string, params: Record<string, string> = {}) {
   if (typeof window !== 'undefined' && window.gtag) window.gtag('event', event, params);
 }
 
+export function isProductionSite(): boolean {
+  return typeof window !== 'undefined' && ['core314.com', 'www.core314.com'].includes(window.location.hostname);
+}
+
 export function initAnalytics() {
-  if (!GA4_ID || typeof document === 'undefined' || window.gtag) return;
+  if (!GA4_ID || !isProductionSite() || typeof document === 'undefined' || window.gtag) return;
   const s = document.createElement('script');
   s.async = true;
   s.src = `https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`;

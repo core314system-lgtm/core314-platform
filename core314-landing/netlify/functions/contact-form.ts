@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const CONTACT_RECIPIENT = 'admin@core314.com';
 const FROM = { email: 'noreply@core314.com', name: 'Core314 Technologies' };
+const PRODUCTION_HOSTS = ['core314.com', 'www.core314.com'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function escapeHtml(v: string): string {
@@ -11,6 +12,10 @@ export function escapeHtml(v: string): string {
 
 function clean(v: unknown, max: number): string {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
+}
+
+export function isProductionHost(host: string | undefined): boolean {
+  return PRODUCTION_HOSTS.includes((host || '').toLowerCase().split(':')[0]);
 }
 
 export interface Inquiry {
@@ -75,6 +80,11 @@ export const handler: Handler = async (event) => {
   if ('error' in parsed) return { statusCode: 400, headers, body: JSON.stringify({ error: parsed.error }) };
   const { name, email, company, phone, message, details } = parsed;
 
+  if (!isProductionHost(event.headers.host)) {
+    console.log('Staging test submission (not stored, no email):', JSON.stringify({ host: event.headers.host, name, email, details }));
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, test: true }) };
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabase = supabaseUrl && supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : null;
@@ -98,7 +108,7 @@ export const handler: Handler = async (event) => {
       .join('');
     const challenge = escapeHtml(message.split('\n\n')[0]).replace(/\n/g, '<br>');
     emailSent = await sendEmail(apiKey, {
-      personalizations: [{ to: [{ email: CONTACT_RECIPIENT, name: 'Chris Brown' }], subject: `New Core314 lead: ${name}${company ? ` (${company})` : ''}` }],
+      personalizations: [{ to: [{ email: CONTACT_RECIPIENT, name: 'Chris Brown' }], subject: `[${details.find(([k]) => k === 'Interest')?.[1] || 'Inquiry'}] New Core314 lead: ${name}${company ? ` (${company})` : ''}` }],
       from: { email: FROM.email, name: 'Core314 Contact Form' },
       reply_to: { email, name },
       content: [
