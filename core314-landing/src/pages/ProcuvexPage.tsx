@@ -1,152 +1,81 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ExternalLink } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import Seo from '../components/Seo';
+import { track } from '../lib/site';
+
+const capabilities = [
+  { title: 'Opportunity search & pipeline', text: 'Find and import SAM.gov opportunities, track them through a pipeline and see deadlines on a calendar.' },
+  { title: 'AI requirement analysis', text: 'Reads solicitation documents and extracts scope, deliverables, evaluation method and key requirements.' },
+  { title: 'Automated compliance matrix', text: 'Maps Section L and M requirements into a compliance matrix the proposal team can work from.' },
+  { title: 'Subcontractor quotes', text: 'Sends RFQ packages, collects quotes through a portal and scores them for compliance and pricing risk.' },
+  { title: 'Screening & checks', text: 'SAM.gov exclusion screening and approval gates before anything is sent or submitted.' },
+  { title: 'Bid decisions & proposals', text: 'Capture gates, pricing decision matrix, bid summary and AI-assisted drafts that only cite data you provide.' },
+];
 
 export default function ProcuvexPage() {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'ProCuvex',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    description: 'Bid-management platform for government contractors, developed by Core314 Technologies.',
+    publisher: { '@type': 'Organization', name: 'Core314 Technologies LLC', url: 'https://core314.com' },
+  };
   return (
     <div className="min-h-screen bg-white text-slate-900">
+      <Seo title="ProCuvex: Bid Management for Government Contractors | Core314" description="ProCuvex is a Core314 product that helps government contractors analyze solicitations, collect subcontractor quotes, check compliance and make bid decisions." path="/our-work/procuvex" jsonLd={jsonLd} />
       <Header />
-
-      {/* Hero */}
-      <section className="pt-28 pb-16 lg:pt-36 lg:pb-20 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Link to="/products" className="inline-flex items-center gap-1 text-sm text-sky-600 hover:text-sky-700 mb-6">
-            &larr; All Products
-          </Link>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-14 w-14 rounded-xl bg-sky-50 flex items-center justify-center">
-              <span className="text-sky-600 font-bold text-xl">Px</span>
+      <main>
+        <section className="pt-28 pb-12 lg:pt-36 bg-gradient-to-b from-slate-50 to-white">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Link to="/our-work" className="text-sm font-medium text-sky-700 hover:text-sky-800">&larr; Our work</Link>
+            <p className="mt-6 text-sm font-semibold text-sky-700 uppercase tracking-wide">A Core314 Technologies product</p>
+            <h1 className="mt-2 text-4xl sm:text-5xl font-bold tracking-tight">ProCuvex</h1>
+            <p className="mt-6 text-lg text-slate-600 leading-relaxed">
+              Government contractors juggle solicitations, compliance requirements, subcontractor quotes and tight deadlines across
+              spreadsheets and email. ProCuvex brings that work into one guided bid workflow, from finding an opportunity to the final
+              bid decision.
+            </p>
+          </div>
+        </section>
+        <section className="py-12">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold">What it does</h2>
+            <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {capabilities.map((c) => (
+                <div key={c.title} className="p-6 rounded-xl border border-slate-200">
+                  <h3 className="text-lg font-semibold">{c.title}</h3>
+                  <p className="mt-2 text-slate-700">{c.text}</p>
+                </div>
+              ))}
             </div>
-            <div>
-              <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
-                Procuvex
-              </h1>
-              <p className="text-lg text-slate-500">AI-Powered Procurement Intelligence</p>
+            <p className="mt-6 text-sm text-slate-600">
+              ProCuvex is a separate product with its own application, data and accounts. It is owned by Core314 Technologies and is
+              not connected to this website.
+            </p>
+          </div>
+        </section>
+        <section className="py-16 bg-slate-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-6">
+            <div className="p-8 rounded-2xl bg-white border border-slate-200">
+              <h2 className="text-xl font-bold">Want something like this for your business?</h2>
+              <p className="mt-3 text-slate-700">We can design and build a system like ProCuvex around your own workflow, in any industry.</p>
+              <Link to="/contact?interest=custom" onClick={() => track('cta_click', { location: 'procuvex', cta: 'discuss_custom' })} className="mt-6 inline-flex px-5 py-3 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg">
+                Discuss a Custom Solution
+              </Link>
+            </div>
+            <div className="p-8 rounded-2xl bg-white border border-slate-200">
+              <h2 className="text-xl font-bold">Interested in using ProCuvex?</h2>
+              <p className="mt-3 text-slate-700">Ask about a demonstration, availability and licensing options for your organization.</p>
+              <Link to="/contact?interest=procuvex" onClick={() => track('cta_click', { location: 'procuvex', cta: 'procuvex_inquiry' })} className="mt-6 inline-flex px-5 py-3 font-semibold text-slate-800 border border-slate-300 hover:border-slate-500 rounded-lg">
+                Request a ProCuvex Demo
+              </Link>
             </div>
           </div>
-          <p className="text-lg text-slate-600 leading-relaxed max-w-3xl">
-            Procuvex transforms government and enterprise procurement through intelligent
-            automation. Designed specifically for the complexity of government contracting,
-            it addresses the challenges procurement teams face every day.
-          </p>
-        </div>
-      </section>
-
-      {/* Origin Story */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Purpose-Built for Procurement</h2>
-          <p className="text-lg text-slate-600 leading-relaxed">
-            Procuvex was created because existing procurement tools fail to address the
-            complexity of government contracting — task order analysis, compliance
-            requirements, bid/no-bid decisions, and subcontractor coordination. Rather
-            than adapting generic software, Procuvex was designed specifically for
-            how procurement teams actually operate.
-          </p>
-        </div>
-      </section>
-
-      {/* Capabilities */}
-      <section className="py-16 lg:py-20 bg-slate-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-10">Key Capabilities</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                title: 'Task Order Intelligence',
-                desc: 'Automated analysis of task order requirements, deliverables, and compliance criteria.',
-              },
-              {
-                title: 'Bid Decision Engine',
-                desc: 'Data-driven bid/no-bid recommendations based on organizational capabilities and historical performance.',
-              },
-              {
-                title: 'Compliance Matrix Generation',
-                desc: 'Automated compliance mapping against solicitation requirements and regulatory frameworks.',
-              },
-              {
-                title: 'Subcontractor Management',
-                desc: 'Coordination, tracking, and evaluation of subcontractor relationships and performance.',
-              },
-              {
-                title: 'Executive Summaries',
-                desc: 'AI-generated executive briefs synthesizing opportunity analysis for leadership review.',
-              },
-              {
-                title: 'Quote & Pricing Tools',
-                desc: 'Intelligent pricing assistance incorporating historical data, rates, and competitive positioning.',
-              },
-            ].map((cap) => (
-              <div key={cap.title} className="p-6 rounded-xl border border-slate-200 bg-white">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">{cap.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{cap.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Who It Serves */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-8">Who Procuvex Serves</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {[
-              {
-                title: 'Government Contractors',
-                desc: 'Firms pursuing and managing government task orders, IDIQs, and BPAs.',
-              },
-              {
-                title: 'Enterprise Procurement',
-                desc: 'Large organizations managing complex, multi-vendor procurement operations.',
-              },
-              {
-                title: 'Proposal Teams',
-                desc: 'Teams preparing responses to government solicitations and RFPs.',
-              },
-              {
-                title: 'Operations Leadership',
-                desc: 'Executives who need visibility into procurement pipeline and performance.',
-              },
-            ].map((audience) => (
-              <div key={audience.title} className="p-5 rounded-lg border border-slate-200">
-                <h3 className="font-semibold text-slate-900 mb-1">{audience.title}</h3>
-                <p className="text-sm text-slate-600">{audience.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-16 lg:py-20 bg-slate-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            Explore Procuvex
-          </h2>
-          <p className="text-lg text-slate-600 mb-8">
-            Learn more about how Procuvex can transform your procurement operations.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="https://procuvex.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              Visit procuvex.com <ExternalLink className="h-4 w-4" />
-            </a>
-            <Link
-              to="/contact"
-              className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-slate-700 border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-            >
-              Contact Us <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
+        </section>
+      </main>
       <Footer />
     </div>
   );

@@ -2,33 +2,119 @@
   publish = "dist"
   command = "npm run build"
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://www.google-analytics.com https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[redirects]]
   from = "/api/health"
   to = "/.netlify/functions/health"
   status = 200
 
-# Legacy OI marketing pages → redirect to products page
+# Retired pages (old SaaS, affiliate and partner content) -> current pages
+[[redirects]]
+  from = "/solutions"
+  to = "/services"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/solutions/decision-support"
+  to = "/services/dashboards-reporting"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/solutions/operational-intelligence"
+  to = "/services/dashboards-reporting"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/solutions/process-automation"
+  to = "/services/workflow-automation"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/solutions/custom-systems"
+  to = "/services/custom-business-software"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/products"
+  to = "/our-work"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/products/procuvex"
+  to = "/our-work/procuvex"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/enterprise"
+  to = "/services"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/innovation"
+  to = "/about"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/partners"
+  to = "/contact"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/affiliate"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/affiliate/*"
+  to = "/"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/product"
-  to = "/products"
+  to = "/our-work"
   status = 301
   force = true
 
 [[redirects]]
   from = "/how-it-works"
-  to = "/products"
+  to = "/how-we-work"
   status = 301
   force = true
 
 [[redirects]]
   from = "/integrations"
-  to = "/products"
+  to = "/services/system-integration"
   status = 301
   force = true
 
 [[redirects]]
   from = "/pricing"
-  to = "/products"
+  to = "/contact"
   status = 301
   force = true
 
@@ -80,8 +166,98 @@
   status = 301
   force = true
 
-# SPA catch-all
+# Known app routes are served with 200; everything else gets the app shell with a real 404 status
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/about"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/services"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/services/custom-business-software"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/services/workflow-automation"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/services/system-integration"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/services/dashboards-reporting"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/services/applied-ai"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/industries"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/our-work"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/our-work/procuvex"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/how-we-work"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/contact"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/privacy"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/terms"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/cookies"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/dpa"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/ai-disclaimer"
+  to = "/index.html"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200
+  status = 404

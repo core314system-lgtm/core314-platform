@@ -1,137 +1,49 @@
-import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import Seo from '../components/Seo';
+import CtaBand from '../components/CtaBand';
+
+const industries = [
+  { name: 'Staffing & recruiting', uses: ['Candidate intake and credential tracking', 'Timesheet approval feeding payroll and invoicing', 'Client portals for open orders and placements', 'Compliance reminders for expiring documents'] },
+  { name: 'Property management', uses: ['Maintenance requests with vendor dispatch and status updates', 'Lease renewal and inspection reminders', 'Owner reporting generated automatically', 'Tenant and vendor portals'] },
+  { name: 'Distribution & logistics', uses: ['Orders flowing into inventory and accounting', 'Delivery and exception tracking', 'Customer order-status portals', 'Reorder alerts and supplier communications'] },
+  { name: 'Professional services', uses: ['Client intake and engagement tracking', 'Document assembly from templates', 'Utilization and profitability dashboards', 'Approval workflows for proposals and invoices'] },
+  { name: 'Construction & trades', uses: ['Bids, estimates and change orders', 'Subcontractor insurance and license compliance', 'Job-cost dashboards', 'Field apps for daily reports and photos'] },
+  { name: 'Government contracting', uses: ['Opportunity and pipeline tracking', 'Solicitation and compliance analysis', 'Subcontractor quote collection', 'See our ProCuvex platform'] },
+  { name: 'Healthcare administration & nonprofits', uses: ['Intake and referral tracking', 'Grant and program reporting', 'Volunteer or staff scheduling', 'Document-heavy workflow automation'] },
+  { name: 'Manufacturing', uses: ['Work-order and quality tracking', 'Supplier and purchasing workflows', 'Production dashboards', 'Integration between ERP and shop-floor tools'] },
+];
 
 export default function IndustriesPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
+      <Seo title="Industries: Custom Software Use Cases | Core314" description="Examples of custom software and automation for staffing, property management, distribution, professional services, construction, government contracting and more." path="/industries" />
       <Header />
-
-      {/* Hero */}
-      <section className="pt-28 pb-16 lg:pt-36 lg:pb-20 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
-            Industry Expertise
-          </h1>
-          <p className="mt-6 text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-            Deep understanding of how these industries operate informs how we design
-            technology. Our systems are built for the specific challenges and
-            complexities these sectors face every day.
-          </p>
-        </div>
-      </section>
-
-      {/* Industries */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                title: 'Government Contracting',
-                challenges: [
-                  'Complex task order management',
-                  'Multi-level compliance requirements',
-                  'Proposal development under tight deadlines',
-                  'Subcontractor coordination and performance tracking',
-                  'Federal acquisition regulation navigation',
-                ],
-              },
-              {
-                title: 'Facilities Management',
-                challenges: [
-                  'Multi-site operational coordination',
-                  'Workforce scheduling and management',
-                  'Asset lifecycle and maintenance',
-                  'Service level agreement tracking',
-                  'Vendor and contractor oversight',
-                ],
-              },
-              {
-                title: 'Infrastructure & Logistics',
-                challenges: [
-                  'Supply chain visibility and optimization',
-                  'Fleet and asset management',
-                  'Field operations coordination',
-                  'Route and resource optimization',
-                  'Real-time operational monitoring',
-                ],
-              },
-              {
-                title: 'Operations Management',
-                challenges: [
-                  'Cross-team coordination at scale',
-                  'Resource allocation and planning',
-                  'Performance visibility and reporting',
-                  'Operational bottleneck identification',
-                  'Process standardization',
-                ],
-              },
-              {
-                title: 'Enterprise Services',
-                challenges: [
-                  'Large-scale service delivery management',
-                  'SLA compliance and reporting',
-                  'Multi-client operational coordination',
-                  'Quality assurance and performance',
-                  'Escalation management',
-                ],
-              },
-              {
-                title: 'Professional Services',
-                challenges: [
-                  'Project delivery and execution',
-                  'Resource utilization optimization',
-                  'Client engagement management',
-                  'Knowledge management and reuse',
-                  'Capacity planning',
-                ],
-              },
-            ].map((industry) => (
-              <div key={industry.title} className="p-6 rounded-xl border border-slate-200">
-                <h3 className="text-xl font-semibold text-slate-900 mb-4">{industry.title}</h3>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                  Challenges We Understand
-                </p>
-                <ul className="space-y-2">
-                  {industry.challenges.map((challenge) => (
-                    <li key={challenge} className="flex items-start gap-2 text-sm text-slate-600">
-                      <div className="h-1.5 w-1.5 rounded-full bg-sky-500 mt-1.5 flex-shrink-0" />
-                      {challenge}
-                    </li>
-                  ))}
+      <main>
+        <section className="pt-28 pb-12 lg:pt-36 bg-gradient-to-b from-slate-50 to-white">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Industries we can help</h1>
+            <p className="mt-6 text-lg text-slate-600 leading-relaxed">
+              Every business has workflows that software can simplify. Below are typical use cases by industry. They are examples of
+              what is possible, not a list of past client projects.
+            </p>
+          </div>
+        </section>
+        <section className="pb-20">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-6">
+            {industries.map((i) => (
+              <div key={i.name} className="p-6 rounded-xl border border-slate-200">
+                <h2 className="text-xl font-semibold">{i.name}</h2>
+                <ul className="mt-3 space-y-2 text-slate-700 list-disc pl-5">
+                  {i.uses.map((u) => <li key={u}>{u}</li>)}
                 </ul>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Disclaimer + CTA */}
-      <section className="py-16 lg:py-20 bg-slate-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-lg text-slate-600 leading-relaxed mb-8">
-            These industries represent areas where Core314 Technologies has significant
-            insight into operational challenges. Our technology principles — practical
-            system design, business-aligned intelligence, and operational grounding —
-            apply across many sectors.
-          </p>
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            Operating in a Complex Industry?
-          </h2>
-          <p className="text-lg text-slate-600 mb-8">
-            If your organization faces operational challenges that generic software
-            can&apos;t solve, we should talk.
-          </p>
-          <Link
-            to="/contact"
-            className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            Contact Us <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
-
+          <p className="max-w-3xl mx-auto mt-10 px-4 text-center text-slate-700">Don't see your industry? The approach is the same everywhere: understand the workflow, then build the software around it.</p>
+        </section>
+        <CtaBand location="industries" />
+      </main>
       <Footer />
     </div>
   );

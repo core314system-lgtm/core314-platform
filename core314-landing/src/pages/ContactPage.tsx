@@ -1,321 +1,185 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, Building2, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { CalendarDays, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import Seo from '../components/Seo';
+import { BOOKING_URL, getLeadSource, track } from '../lib/site';
 
-type InquiryType = 'general' | 'enterprise';
+const interests: Record<string, string> = {
+  custom: 'Custom software / automation project',
+  procuvex: 'ProCuvex product inquiry',
+  other: 'Something else',
+};
+const timelines = ['As soon as possible', 'Within 3 months', '3-6 months', 'Just exploring'];
+const sources = ['Search engine', 'LinkedIn', 'Referral', 'ProCuvex', 'Event', 'Other'];
+
+const empty = { name: '', company: '', email: '', challenge: '', tools: '', timeline: '', source: '', website: '' };
+
+const field = 'w-full px-4 py-3 text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-600 focus:border-sky-600';
 
 export default function ContactPage() {
-  const [inquiryType, setInquiryType] = useState<InquiryType>('general');
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    company: '',
-    phone: '',
-    message: '',
-  });
+  const [params] = useSearchParams();
+  const initialInterest = params.get('interest') && interests[params.get('interest') as string] ? (params.get('interest') as string) : 'custom';
+  const [interest, setInterest] = useState(initialInterest);
+  const [form, setForm] = useState(empty);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [error, setError] = useState('');
+  const set = (k: keyof typeof empty) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm({ ...form, [k]: e.target.value });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
-    setErrorMessage('');
-
+    setError('');
     try {
-      const response = await fetch('/.netlify/functions/contact-form', {
+      const res = await fetch('/.netlify/functions/contact-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          message: `[${inquiryType === 'enterprise' ? 'Enterprise Inquiry' : 'General Inquiry'}]\n\n${formData.message}`,
-        }),
+        body: JSON.stringify({ ...form, interest: interests[interest], lead: getLeadSource() }),
       });
-
-      if (response.ok) {
+      if (res.ok) {
+        track('generate_lead', { form: 'contact', interest });
         setStatus('success');
-        setFormData({ name: '', email: '', company: '', phone: '', message: '' });
+        setForm(empty);
       } else {
-        const data = await response.json();
-        setErrorMessage(data.error || 'Something went wrong. Please try again.');
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Something went wrong. Please try again.');
         setStatus('error');
       }
     } catch {
-      setErrorMessage('Unable to submit. Please check your connection and try again.');
+      setError('Unable to submit. Please check your connection and try again.');
       setStatus('error');
     }
   };
 
-  if (status === 'success') {
-    return (
-      <div className="min-h-screen bg-white text-slate-900">
-        <Header />
-        <section className="pt-28 pb-20 lg:pt-36 lg:pb-28">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-6" />
-            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-              Message Received
-            </h1>
-            <p className="text-lg text-slate-600 mb-8">
-              Thank you for reaching out. We&apos;ll review your inquiry and respond
-              within 2 business days.
+  return (
+    <div className="min-h-screen bg-white text-slate-900">
+      <Seo title="Schedule a Business Workflow Discovery Call | Core314" description="Book a free 20-minute Business Workflow Discovery Call or send us a note about the work you'd like to automate or improve." path="/contact" />
+      <Header />
+      <main>
+        <section className="pt-28 pb-10 lg:pt-36 bg-gradient-to-b from-slate-50 to-white">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Book a Business Workflow Discovery Call</h1>
+            <p className="mt-6 text-lg text-slate-600 leading-relaxed">
+              A free, 20-minute conversation about your operational challenges. We'll listen, ask a few questions and tell you
+              honestly whether custom software makes sense. No obligation.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                to="/"
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                Return Home
-              </Link>
-              <button
-                onClick={() => setStatus('idle')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-              >
-                Send Another Message
-              </button>
+          </div>
+        </section>
+
+        <section className="pb-20">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-5 gap-10">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="p-6 rounded-xl border border-slate-200 bg-slate-50">
+                <CalendarDays className="h-7 w-7 text-sky-700" aria-hidden="true" />
+                <h2 className="mt-3 text-xl font-semibold">Pick a time</h2>
+                {BOOKING_URL ? (
+                  <>
+                    <p className="mt-2 text-slate-700">Choose a 20-minute slot that works for you. You'll get a calendar invitation right away.</p>
+                    <a
+                      href={BOOKING_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => track('booking_click', { location: 'contact' })}
+                      className="mt-4 inline-flex w-full justify-center px-5 py-3 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg"
+                    >
+                      Schedule a 20-Minute Consultation
+                    </a>
+                  </>
+                ) : (
+                  <p className="mt-2 text-slate-700">Send the short form and we'll reply within one business day with times for your call.</p>
+                )}
+              </div>
+              <div className="p-6 rounded-xl border border-slate-200">
+                <h2 className="text-lg font-semibold">What to expect</h2>
+                <ul className="mt-3 space-y-2 text-slate-700 list-disc pl-5">
+                  <li>We learn how the work flows today</li>
+                  <li>We point out quick wins, even if they don't involve us</li>
+                  <li>If there's a fit, we suggest a next step and rough scope</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="lg:col-span-3">
+              {status === 'success' ? (
+                <div className="p-8 rounded-xl border border-green-200 bg-green-50 text-center" role="status">
+                  <CheckCircle2 className="h-12 w-12 text-green-700 mx-auto" aria-hidden="true" />
+                  <h2 className="mt-4 text-2xl font-bold">Thanks, we've got it</h2>
+                  <p className="mt-2 text-slate-700">We've emailed you a confirmation and will reply within one business day.</p>
+                  <Link to="/our-work" className="mt-6 inline-block font-semibold text-sky-700">While you wait, see what we build &rarr;</Link>
+                </div>
+              ) : (
+                <form onSubmit={submit} className="space-y-5" noValidate={false}>
+                  <h2 className="text-xl font-semibold">Prefer to write? Tell us a little about it</h2>
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-slate-800 mb-2">I'm interested in</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(interests).map(([k, v]) => (
+                        <label key={k} className={`px-3 py-2 text-sm rounded-lg border cursor-pointer ${interest === k ? 'border-sky-700 bg-sky-50 text-sky-900' : 'border-slate-300'}`}>
+                          <input type="radio" name="interest" value={k} checked={interest === k} onChange={() => setInterest(k)} className="sr-only" />
+                          {v}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-slate-800 mb-1.5">Name *</label>
+                      <input id="name" required maxLength={200} autoComplete="name" value={form.name} onChange={set('name')} className={field} />
+                    </div>
+                    <div>
+                      <label htmlFor="company" className="block text-sm font-medium text-slate-800 mb-1.5">Company</label>
+                      <input id="company" maxLength={200} autoComplete="organization" value={form.company} onChange={set('company')} className={field} />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-slate-800 mb-1.5">Work email *</label>
+                    <input id="email" type="email" required maxLength={320} autoComplete="email" value={form.email} onChange={set('email')} className={field} />
+                  </div>
+                  <div>
+                    <label htmlFor="challenge" className="block text-sm font-medium text-slate-800 mb-1.5">What's the business challenge? *</label>
+                    <textarea id="challenge" required minLength={10} maxLength={5000} rows={4} value={form.challenge} onChange={set('challenge')} className={field} placeholder="e.g. We re-type every order into three systems and approvals take days." />
+                  </div>
+                  <div>
+                    <label htmlFor="tools" className="block text-sm font-medium text-slate-800 mb-1.5">Software or tools you use today</label>
+                    <input id="tools" maxLength={500} value={form.tools} onChange={set('tools')} className={field} placeholder="e.g. QuickBooks, Excel, Salesforce" />
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-5">
+                    <div>
+                      <label htmlFor="timeline" className="block text-sm font-medium text-slate-800 mb-1.5">Approximate timeline</label>
+                      <select id="timeline" value={form.timeline} onChange={set('timeline')} className={field}>
+                        <option value="">Select...</option>
+                        {timelines.map((t) => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="source" className="block text-sm font-medium text-slate-800 mb-1.5">How did you find us?</label>
+                      <select id="source" value={form.source} onChange={set('source')} className={field}>
+                        <option value="">Select...</option>
+                        {sources.map((t) => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="absolute -left-[9999px]" aria-hidden="true">
+                    <label htmlFor="website">Leave this field empty</label>
+                    <input id="website" tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} />
+                  </div>
+                  {status === 'error' && (
+                    <p className="flex items-center gap-2 p-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg" role="alert">
+                      <AlertCircle className="h-4 w-4" aria-hidden="true" /> {error}
+                    </p>
+                  )}
+                  <button type="submit" disabled={status === 'submitting'} className="inline-flex w-full justify-center items-center gap-2 px-6 py-3.5 font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-lg">
+                    <Send className="h-4 w-4" aria-hidden="true" /> {status === 'submitting' ? 'Sending...' : 'Send my request'}
+                  </button>
+                  <p className="text-xs text-slate-600">We use your details only to respond to your inquiry. See our <Link to="/privacy" className="underline">privacy policy</Link>.</p>
+                </form>
+              )}
             </div>
           </div>
         </section>
-        <Footer />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <Header />
-
-      {/* Hero */}
-      <section className="pt-28 pb-12 lg:pt-36 lg:pb-16 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
-            Contact Core314 Technologies
-          </h1>
-          <p className="mt-6 text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Whether you&apos;re exploring our products or discussing enterprise
-            requirements, we&apos;d welcome the conversation.
-          </p>
-        </div>
-      </section>
-
-      {/* Inquiry Type Selector + Form */}
-      <section className="py-12 lg:py-16 bg-white">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Inquiry Type Tabs */}
-          <div className="grid grid-cols-2 gap-4 mb-10">
-            <button
-              type="button"
-              onClick={() => setInquiryType('general')}
-              className={`p-5 rounded-xl border-2 text-left transition-all ${
-                inquiryType === 'general'
-                  ? 'border-slate-900 bg-slate-50'
-                  : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                  inquiryType === 'general' ? 'bg-slate-900' : 'bg-slate-100'
-                }`}>
-                  <Mail className={`h-4 w-4 ${
-                    inquiryType === 'general' ? 'text-white' : 'text-slate-500'
-                  }`} />
-                </div>
-                <h3 className="font-semibold text-slate-900">General Inquiry</h3>
-              </div>
-              <p className="text-xs text-slate-500 ml-12">
-                Products, partnerships, media, or general questions
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={() => setInquiryType('enterprise')}
-              className={`p-5 rounded-xl border-2 text-left transition-all ${
-                inquiryType === 'enterprise'
-                  ? 'border-sky-600 bg-sky-50'
-                  : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                  inquiryType === 'enterprise' ? 'bg-sky-600' : 'bg-slate-100'
-                }`}>
-                  <Building2 className={`h-4 w-4 ${
-                    inquiryType === 'enterprise' ? 'text-white' : 'text-slate-500'
-                  }`} />
-                </div>
-                <h3 className="font-semibold text-slate-900">Enterprise Inquiry</h3>
-              </div>
-              <p className="text-xs text-slate-500 ml-12">
-                Custom systems, platform development, or enterprise requirements
-              </p>
-            </button>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
-                  placeholder="you@company.com"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="company" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Company / Organization
-                </label>
-                <input
-                  type="text"
-                  id="company"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
-                  placeholder="Your organization"
-                />
-              </div>
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900"
-                  placeholder="(optional)"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Message <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="message"
-                required
-                rows={5}
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-colors text-slate-900 resize-y"
-                placeholder={
-                  inquiryType === 'enterprise'
-                    ? 'Tell us about your organization, the challenges you face, and what you are looking to achieve...'
-                    : 'How can we help?'
-                }
-              />
-            </div>
-
-            {status === 'error' && (
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
-                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700">{errorMessage}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={status === 'submitting'}
-              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white rounded-lg transition-colors ${
-                inquiryType === 'enterprise'
-                  ? 'bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400'
-                  : 'bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500'
-              }`}
-            >
-              {status === 'submitting' ? (
-                <>
-                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  {inquiryType === 'enterprise' ? 'Submit Enterprise Inquiry' : 'Send Message'}
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-      </section>
-
-      {/* What to Expect */}
-      <section className="py-16 lg:py-20 bg-slate-50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-8 text-center">
-            What to Expect
-          </h2>
-          <div className="space-y-4">
-            {[
-              'We respond to all inquiries within 2 business days.',
-              'Enterprise inquiries receive a discovery call invitation within 48 hours.',
-              'We do not engage in pressure sales tactics. If there\'s a fit, we\'ll know.',
-              'Initial enterprise conversations are focused on understanding your operational reality.',
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-sky-500 mt-2 flex-shrink-0" />
-                <p className="text-slate-600">{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Alternative Navigation */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">
-            Not Sure Where to Start?
-          </h2>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-            >
-              Explore Products
-            </Link>
-            <Link
-              to="/solutions"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-            >
-              Explore Solutions
-            </Link>
-            <Link
-              to="/enterprise"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-            >
-              Enterprise Systems
-            </Link>
-          </div>
-        </div>
-      </section>
-
+      </main>
       <Footer />
     </div>
   );
