@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://core314.com/sitemap.xml

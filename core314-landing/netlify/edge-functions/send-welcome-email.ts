@@ -170,7 +170,7 @@ export default async (request: Request, context: Context) => {
             </div>
             
             <p class="text">
-              You now have access to our patent-pending intelligence systems that will transform 
+              You now have access to our intelligence systems that will transform 
               how ${companyName || 'your organization'} operates:
             </p>
             
@@ -232,7 +232,7 @@ Your account has been successfully created and your system is now live.
 
 Selected Plan: ${plan.charAt(0).toUpperCase() + plan.slice(1)}
 
-You now have access to our patent-pending intelligence systems:
+You now have access to our intelligence systems:
 - Fusion & Scoring Intelligence Layer™
 - Proactive Optimization Engine™
 - Autonomous Governance Framework™
